@@ -14,14 +14,11 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 
+if (PICO_PLATFORM STREQUAL "host")
 set(SDL2_LIB_DIR C:/SDL/lib)
 set(SDL2_INCLUDE_DIR C:/SDL/include)
 set(SDL2_LIBRARY C:/SDL/bin)
 
-#add_compile_definitions(${PROJECT_NAME} NO_GRAPHICS)
-
-add_subdirectory(drivers/vga-nextgen)
-add_subdirectory(drivers/ps2)
 
 include_directories(
         ${SDL2_INCLUDE_DIR}
@@ -30,6 +27,13 @@ include_directories(
 link_directories(
         ${SDL2_LIB_DIR}
 )
+else()
+
+#add_compile_definitions(${PROJECT_NAME} NO_GRAPHICS)
+
+add_subdirectory(drivers/vga-nextgen)
+add_subdirectory(drivers/ps2)
+endif()
 
 # INCLUDE FILES THAT SHOULD BE COMPILED:
 
@@ -45,7 +49,19 @@ message(STATUS "")
 
 add_executable(${PROJECT_NAME} ${SRC})
 
-#target_link_libraries(${PROJECT_NAME} SDL2)
+if (PICO_PLATFORM STREQUAL "host")
+target_link_libraries(${PROJECT_NAME} SDL2)
+message(STATUS "Copying all dependencies to destination folder...")
+file(GLOB PROJECT_DEPENDENCIES ${SDL2_LIBRARY}/*.dll)
+
+foreach(Dependency IN LISTS PROJECT_DEPENDENCIES)
+    file(
+            COPY ${Dependency}
+            DESTINATION ${OUTPUT_DIR}
+    )
+endforeach()
+
+else()
 target_link_libraries(${PROJECT_NAME} PRIVATE
         vga-nextgen
         ps2
@@ -63,16 +79,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         hardware_pwm
         hardware_flash
 )
+endif()
 
-message(STATUS "Copying all dependencies to destination folder...")
-file(GLOB PROJECT_DEPENDENCIES ${SDL2_LIBRARY}/*.dll)
-
-foreach(Dependency IN LISTS PROJECT_DEPENDENCIES)
-    file(
-            COPY ${Dependency}
-            DESTINATION ${OUTPUT_DIR}
-    )
-endforeach()
 pico_enable_stdio_uart(${PROJECT_NAME} 0)
 pico_enable_stdio_usb(${PROJECT_NAME} 1)
 pico_add_extra_outputs(${PROJECT_NAME})
