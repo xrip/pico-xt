@@ -728,11 +728,13 @@ void intcall86(uint8_t intnum) {
                     videomode = CPU_AL;
                     //CopyCharROM();
                     printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
+#if PICO_ON_DEVICE
                     if (videomode != 3) {
                         setVGAmode(VGA640x480div2);
                     } else {
                         setVGAmode(VGA640x480_text_80_30);
                     }
+#endif
                     // Установить видеорежим
                     break;
 #if 1
@@ -1383,6 +1385,7 @@ uint8_t CURSOR_ASCII = 95;         // normal = 95, other = box, (not in used)
 
 
 void __inline exec86(uint32_t execloops) {
+#if PICO_ON_DEVICE
     if (keyboard_available()) {
         c =keyboard_read();
         if (c != 0x80) {
@@ -1398,6 +1401,7 @@ void __inline exec86(uint32_t execloops) {
             doirq(1);
         }
     }
+#endif
 /*
     if (runEvery(CURSOR_SPEED)) {                                           // blink the cursor
         if (curshow) {

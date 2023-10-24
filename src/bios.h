@@ -7,11 +7,15 @@
 
 //#include "dos3_3.h"
 //#include "freedos.h"
-#include "vc.h"
+//#include "vc.h"
+#include "checkit.h"
+//#include "DOS.h"
 #include "cpu8086.h"
 #include "disk.h"
 #include "ports.h"
+#if PICO_ON_DEVICE
 #include "ps2.h"
+#endif
 
 int cursor_x = 0;
 int cursor_y = 0;
@@ -454,7 +458,7 @@ void CopyCharROM () {
     }
 }
 
-
+#if PICO_ON_DEVICE
 #define PS2_KEYMAP_SIZE 136
 typedef struct {
     uint8_t noshift[PS2_KEYMAP_SIZE];
@@ -644,5 +648,5 @@ int keyboard_read() {
 
     return result;
 }
-
+#endif
 #endif

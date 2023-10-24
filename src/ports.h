@@ -13,6 +13,16 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#if !PICO_ON_DEVICE
+#include <time.h>
+
+uint8_t random() {
+    // Seed the random number generator with current time
+    srand(time(NULL));
+
+    return rand() % 256;
+}
+#endif
 
 extern uint8_t videomode;
 uint16_t portram[256];

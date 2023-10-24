@@ -242,7 +242,8 @@ void __not_in_flash_func(dma_handler_VGA)() {
 
     //зона прорисовки изображения
     //начальные точки буферов
-    uint8_t* vbuf8=vbuf+line*g_buf_width; 
+    // uint8_t* vbuf8=vbuf+line*g_buf_width; //8bit buf
+    uint8_t* vbuf8=vbuf+(line*g_buf_width/2); //4bit buf
 
     ptr_vbuf_OUT=&lines_pattern[2+((l_inx)&1)];     
   
@@ -251,12 +252,13 @@ void __not_in_flash_func(dma_handler_VGA)() {
     vbuf_OUT+=shift_picture/2; //смещение началы вывода на размер синхросигнала
 
 
-
+    g_buf_shx&=0xfffffffe;//4bit buf
    //для div_factor 2
     int max_loop=g_buf_width;
     if (g_buf_shx<0)
         {
-        vbuf8-=g_buf_shx;
+        //vbuf8-=g_buf_shx; //8bit buf
+        vbuf8-=g_buf_shx/2;//4bit buf
         max_loop+=g_buf_shx;
         }
     else
@@ -276,11 +278,21 @@ void __not_in_flash_func(dma_handler_VGA)() {
     switch (mode_VGA)
     {
     case VGA640x480div2:
-            for(int i=N_loop;i--;)
-                {
-                        *vbuf_OUT++=pal[*vbuf8++];
+            //8bit buf
+            // for(int i=N_loop;i--;)
+            //     {
+            //             *vbuf_OUT++=pal[*vbuf8++];
                         
-                }        
+            //     }   
+            //4bit buf 
+             for(int i=N_loop/2;i--;)
+                {
+                        //поменять местами, если надо дугое чередование
+                    *vbuf_OUT++=pal[(*vbuf8>>4)&0xf];
+                    *vbuf_OUT++=pal[(*vbuf8)&0xf];
+
+                        vbuf8++;
+                }          
             break;
     case VGA640x480div3:
             vbuf_OUT8=(uint8_t *)vbuf_OUT;
