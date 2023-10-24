@@ -11,15 +11,8 @@
 
 #include <time.h>
 
-uint8_t random_uint8() {
-    // Seed the random number generator with current time
-    srand(time(NULL));
-
-    // Generate a random uint8_t value
-    uint8_t random_value = rand() % 256;
-
-    return random_value;
-}
+#include <stdlib.h>
+#include <stdint.h>
 
 extern uint8_t videomode;
 uint16_t portram[256];
@@ -355,7 +348,7 @@ uint16_t portin(uint16_t portnum) {
             break;
 
         case 0x3DA:
-            port3da = random_uint8(256);
+            port3da = random() & 0xFF;
             return (port3da);
         default:
             return (0xFF);

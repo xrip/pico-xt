@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
+include(pico_sdk_import.cmake)
 
-project(tiny8086 C CXX ASM)
+project(pico-xt C CXX ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
+
+pico_sdk_init()
 
 set(CMAKE_INCLUDE_PATH ${PROJECT_SOURCE_DIR}/include)
 set(OUTPUT_DIR "${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}")
@@ -15,9 +18,10 @@ set(SDL2_LIB_DIR C:/SDL/lib)
 set(SDL2_INCLUDE_DIR C:/SDL/include)
 set(SDL2_LIBRARY C:/SDL/bin)
 
-add_compile_definitions(${PROJECT_NAME} FAKE86_EMULATOR)
+#add_compile_definitions(${PROJECT_NAME} NO_GRAPHICS)
 
-#add_subdirectory(megadrive)
+add_subdirectory(drivers/vga-nextgen)
+add_subdirectory(drivers/ps2)
 
 include_directories(
         ${SDL2_INCLUDE_DIR}
@@ -41,7 +45,24 @@ message(STATUS "")
 
 add_executable(${PROJECT_NAME} ${SRC})
 
-target_link_libraries(${PROJECT_NAME} SDL2)
+#target_link_libraries(${PROJECT_NAME} SDL2)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+        vga-nextgen
+        ps2
+
+        pico_runtime
+        pico_stdlib
+        pico_rand
+        pico_multicore
+        hardware_dma
+        hardware_pio
+        hardware_i2c
+        hardware_interp
+        hardware_timer
+        hardware_clocks
+        hardware_pwm
+        hardware_flash
+)
 
 message(STATUS "Copying all dependencies to destination folder...")
 file(GLOB PROJECT_DEPENDENCIES ${SDL2_LIBRARY}/*.dll)
@@ -52,3 +73,6 @@ foreach(Dependency IN LISTS PROJECT_DEPENDENCIES)
             DESTINATION ${OUTPUT_DIR}
     )
 endforeach()
+pico_enable_stdio_uart(${PROJECT_NAME} 0)
+pico_enable_stdio_usb(${PROJECT_NAME} 1)
+pico_add_extra_outputs(${PROJECT_NAME})

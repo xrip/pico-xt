@@ -1,4 +1,4 @@
-#pragma GCC optimize("O3")
+#pragma GCC optimize("Ofast")
 
 extern "C" {
 #include "cpu8086.h"
@@ -9,6 +9,7 @@ extern "C" {
 #include "pico/stdio.h"
 extern "C" {
 #include "vga.h"
+#include "ps2.h"
 }
 #else
 #define SDL_MAIN_HANDLED
@@ -18,27 +19,39 @@ extern "C" {
 SDL_Window *window;
 
 SDL_Surface *screen;
-
 #endif
 
 bool runing = true;
 
+uint32_t dosColorPalette[16] = {
+        0x000000, 0x0000AA, 0x00AA00, 0x00AAAA,
+        0xAA0000, 0xAA00AA, 0xAA5500, 0xAAAAAA,
+        0x555555, 0x5555FF, 0x55FF55, 0x55FFFF,
+        0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF
+};
+
 #if PICO_ON_DEVICE
+
 struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
     initVGA();
 
-    setVGAbuf(VRAM, 320, 240);
+    setVGAbuf(VRAM, 160, 100);
 
     setVGA_text_buf(VRAM);
     setVGA_bg_color(0);
     setVGAbuf_pos(0, 0);
     setVGA_color_flash_mode(true, true);
+    for (int i = 0; i < 255; ++i) {
+        setVGA_color_palette(i, dosColorPalette[i & 0x0F]);
+    }
+
 
     setVGAmode(VGA640x480_text_80_30);
 
     sem_acquire_blocking(&vga_start_semaphore);
+
 }
 #else
 
@@ -54,26 +67,18 @@ static int RendererThread(void *ptr) {
 
 #endif
 
-uint32_t dosColorPalette[16] = {
-        0x000000, 0x0000AA, 0x00AA00, 0x00AAAA,
-        0xAA0000, 0xAA00AA, 0xAA5500, 0xAAAAAA,
-        0x555555, 0x5555FF, 0x55FF55, 0x55FFFF,
-        0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF
-};
-
 int main() {
-    reset86();
 //    init86();
 #if PICO_ON_DEVICE
     stdio_init_all();
     sleep_ms(10);
-
-
+    Init_kbd();
     sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);
     sem_release(&vga_start_semaphore);
 
     sleep_ms(50);
+
 #else
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -91,13 +96,15 @@ int main() {
         return -1;
     }
 #endif
+    reset86();
     //draw_text("hello world!", 0, 0, 15, 1);
 
     //while (1) {};
 
 
-
+    //draw_text("TEST", 0, 0, 166, 0);
     while (runing) {
+#if !PICO_ON_DEVICE
         SDL_Event event;
         SDL_PollEvent(&event);
         if (event.type == SDL_QUIT) {
@@ -127,7 +134,9 @@ int main() {
             }
         }
         SDL_UpdateWindowSurface(window);
-
+#else
+        exec86(1500);
+#endif
     }
     return 0;
 }

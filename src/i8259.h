@@ -9,7 +9,7 @@
    implementation, but for the purposes of a PC, it's all we need. */
 
 #include <stdint.h>
-#include <mem.h>
+#include <memory.h>
 
 struct structpic {
     uint8_t imr; //mask register
@@ -24,7 +24,7 @@ struct structpic {
     uint8_t enabled;
 } i8259;
 
-
+#if !PICO_ON_DEVICE
 #include <windows.h>
 
 unsigned long millis() {
@@ -48,6 +48,11 @@ unsigned long millis() {
 
     return (unsigned long) ((time_now - start_time) / 10000);
 }
+#else
+#include "pico/time.h"
+#define millis() (time_us_32())
+
+#endif
 
 void init8259() {
     memset((void *) &i8259, 0, sizeof(i8259));

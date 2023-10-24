@@ -26,6 +26,12 @@
 #include "pcxtbios.h"
 //#include "rom.h"
 #include "i8259.h"
+#if PICO_ON_DEVICE
+#include "pico/time.h"
+#include "ps2.h"
+#include "vga.h"
+
+#endif
 
 uint8_t opcode, segoverride, reptype, bootdrive = 0, hdcount = 0, fdcount = 0, hltstate = 0;
 uint16_t segregs[4], savecs, saveip, ip, useseg, oldsp;
@@ -139,7 +145,6 @@ void modregrm() {
 
 void write86(uint32_t addr32, uint8_t value) {
     tempaddr32 = addr32 & 0xFFFFF;
-
     /*
     if ((tempaddr32 >= 0xC0000)) {
         printf("readonly ram 0x%x\r\n", tempaddr32);
@@ -159,8 +164,8 @@ void write86(uint32_t addr32, uint8_t value) {
             RAM[tempaddr32] = value;
             updatedscreen = 1;
         } else*/ {
-            //printf("VRAM WRITE: %x %x\r\n", tempaddr32, value);
-            VRAM[tempaddr32 - 0xA0000] =  value;
+            //printf("VRAM WRITE: %x %x\r\n", (tempaddr32 - 0xA0000) & VRAM_SIZE, value);
+            VRAM[(tempaddr32 - 0xA0000) & VRAM_SIZE] =  value;
             return;
         }
 
@@ -190,21 +195,34 @@ static const uint8_t bios_signature[] = {
 };
 
 uint8_t read86(uint32_t addr32) {
+
     // BDA hardcoded values
     switch(addr32) {
+        case 0x465:
+            switch (videomode) {
+                case 0: return (0x2C);
+                case 1: return (0x28);
+                case 2: return (0x2D);
+                case 3: return (0x29);
+                case 4: return (0x0E);
+                case 5: return (0x0A);
+                case 6: return (0x1E);
+                default: return (0x29);
+            }
         case 0x413:
-            return 160;
+            return RAM_SIZE;
         case 0x414:
             return 0;
         case 0x410:
-            return 0x41;
+            return 0x61; // //video type CGA 80x25 : 0x41 vga, 0x61 cga
     }
 
     addr32 &= 0xFFFFF;
 
     // VRAM
     if ((addr32 >= 0xA0000) && (addr32 <= 0xBFFFF)) {
-        return VRAM[addr32 - 0xA0000];
+        //printf("VRAM REASD: %x\r\n", (addr32 - 0xA0000) & VRAM_SIZE);
+        return VRAM[(addr32 - 0xA0000) & VRAM_SIZE];
     }
 
     // BIOS
@@ -221,8 +239,12 @@ uint8_t read86(uint32_t addr32) {
     if ((addr32 & 0xFFF00) == 0x400)
 		printf("DEBUG: CPU accesses (READ) BDA at %Xh, value there: %Xh\n", addr32, RAM[addr32]);
 #endif
-
-    return RAM[addr32];
+    if (addr32 < (RAM_SIZE << 10)) {
+        return RAM[addr32];
+    } else {
+        printf("READ: %x\r\n",addr32);
+    }
+    return 0x90;
 }
 
 uint16_t readw86(uint32_t addr32) {
@@ -687,7 +709,6 @@ void writerm8(uint8_t rmval, uint8_t value) {
 }
 
 void intcall86(uint8_t intnum) {
-#if 1
     static uint16_t lastint10ax;
     uint16_t oldregax;
 
@@ -705,9 +726,16 @@ void intcall86(uint8_t intnum) {
             switch (CPU_AH) {
                 case 0x00:
                     videomode = CPU_AL;
-                    //printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
+                    //CopyCharROM();
+                    printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
+                    if (videomode != 3) {
+                        setVGAmode(VGA640x480div2);
+                    } else {
+                        setVGAmode(VGA640x480_text_80_30);
+                    }
                     // Установить видеорежим
                     break;
+#if 1
                 case 0x02: // Установить позицию курсора
                     cursor_x = CPU_DL;
                     cursor_y = CPU_DH;
@@ -753,22 +781,28 @@ void intcall86(uint8_t intnum) {
                       BL = цвет переднего плана (для графических режимов)*/
                     bios_putchar(CPU_AL);
                     return;
+#endif
             }
             break;
-        case 0x16:
+        case 0x166:
             switch (CPU_AH) {
                 case 0x10:
                 case 0x00:
                     /*00H читать (ожидать) следующую нажатую клавишу
                     выход: AL = ASCII символ (если AL=0, AH содержит расширенный код ASCII )
                           AH = сканкод  или расширенный код ASCII*/
-                    CPU_AX = _kbhit() ? getch() : 0; //kbd_get_buffer(1);
+                    //CPU_AX = _kbhit() ? getch() : 0; //kbd_get_buffer(1);
+                    CPU_AL = 0;
+                    CPU_AH = portram[0x60]; //kbd_get_buffer(1);
 
                     return;
 
                 case 0x11:
                 case 0x01:
-                    CPU_AX = _kbhit() ? getch() : 0;//kbd_get_buffer(0);
+                    //CPU_AX = _kbhit() ? getch() : 0;//kbd_get_buffer(0);
+                    CPU_AL = 0;
+                    CPU_AH = portram[0x60]; //kbd_get_buffer(1);
+
                     if (CPU_AX)
                         CPU_FL_ZF = 0;
                     else
@@ -806,7 +840,6 @@ void intcall86(uint8_t intnum) {
             return;
 
     }
-#endif
             push(makeflagsword());
             push(segregs[regcs]);
             push(ip);
@@ -1341,26 +1374,41 @@ void op_grp5() {
     }
 }
 
-void init86() {
-    regs.wordregs[regax] = 0;
-    regs.wordregs[regbx] = 0;
-    regs.wordregs[regcx] = 0x001E;
-    regs.wordregs[regdx] = 0;
-    segregs[regcs] = 0x0700;
-    ip = 0x100;
-    segregs[regss] = 0x0700;
-    regs.wordregs[regsp] = 0xFFFE;
-    regs.wordregs[regbp] = 0;
-    regs.wordregs[regsi] = 0;
-    regs.wordregs[regdi] = 0;
-    segregs[regds] = 0x0700;
-    segregs[reges] = 0x0700;
+char c;
+char previous_c;
 
-    memcpy(RAM, ROM, sizeof ROM);
-//  bios_reset();
-}
+bool curset = false;
+bool curshow = false;
+uint8_t CURSOR_ASCII = 95;         // normal = 95, other = box, (not in used)
 
-void exec86(uint32_t execloops) {
+
+void __inline exec86(uint32_t execloops) {
+    if (keyboard_available()) {
+        c =keyboard_read();
+        if (c != 0x80) {
+            previous_c = c;
+            if ((c == 0x34) && (RAM[0x417]&0x0c)) {
+                curshow = false;
+                reset86();
+            } else {
+                doirq(1);
+            }
+        } else {
+            portram[0x60] = previous_c + 0x80;
+            doirq(1);
+        }
+    }
+/*
+    if (runEvery(CURSOR_SPEED)) {                                           // blink the cursor
+        if (curshow) {
+            if (curset) curset = false;
+            else if (!curset) curset = true;
+        } else {
+            curset = false;
+        }
+    }
+*/
+
     uint8_t docontinue;
     static uint16_t firstip;
     static uint16_t trap_toggle = 0;

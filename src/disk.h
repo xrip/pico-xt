@@ -6,7 +6,7 @@
 #define TINY8086_DISK_H
 
 #include "stdint.h"
-#include "mem.h"
+#include "memory.h"
 #include "cpu8086.h"
 
 extern uint8_t RAM[RAM_SIZE << 10];
