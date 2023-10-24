@@ -1,7 +1,8 @@
 #include <cstdlib>
+#include <cstdio>
 
 extern "C" {
-#include "cpu8086.h"
+#include "emu.h"
 }
 #if PICO_ON_DEVICE
 #include <pico/time.h>
@@ -12,6 +13,7 @@ extern "C" {
 }
 #else
 #define SDL_MAIN_HANDLED
+
 #include "SDL2/SDL.h"
 #include "VGA_ROM_F16.h"
 
@@ -20,7 +22,7 @@ SDL_Window *window;
 SDL_Surface *screen;
 
 #endif
-
+extern uint8_t videomode;
 bool runing = true;
 
 #if PICO_ON_DEVICE
@@ -45,9 +47,7 @@ void __time_critical_func(render_core)() {
 static int RendererThread(void *ptr) {
 
     while (runing) {
-        exec86(200);
-        tick(1000);
-        pollkb();
+        loop();
     }
     return 0;
 }
@@ -62,7 +62,8 @@ uint32_t dosColorPalette[16] = {
 };
 
 int main() {
-    reset86();
+    setup();
+    //reset86();
 //    init86();
 #if PICO_ON_DEVICE
     stdio_init_all();
@@ -75,7 +76,7 @@ int main() {
 
     sleep_ms(50);
 #else
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
 
     window = SDL_CreateWindow("pico-xt",
                               SDL_WINDOWPOS_CENTERED,
@@ -87,7 +88,7 @@ int main() {
     unsigned int *pixels = (unsigned int *) screen->pixels;
 
     if (!SDL_CreateThread(RendererThread, "renderer", NULL)) {
-        fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
+        printf("Could not create the renderer thread: %s\n", SDL_GetError());
         return -1;
     }
 #endif
@@ -110,22 +111,30 @@ int main() {
         }
 
 
-        for (uint16_t y = 0; y < 400; y++) {
-            for (uint8_t x = 0; x < 80; x++) {
-                char c = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 0];
-                //printf("%c", c);
-                uint8_t glyph_row = VGA_ROM_F16[c * 16 + y % 16];
-                uint8_t color = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 1];
+        if (videomode == 3) {
+            for (uint16_t y = 0; y < 400; y++) {
+                for (uint8_t x = 0; x < 80; x++) {
+                    char c = screenmem[/*0xB8000 + */(y / 16) * 160 + x * 2 + 0];
+                    //printf("%c", c);
+                    uint8_t glyph_row = VGA_ROM_F16[c * 16 + y % 16];
+                    uint8_t color = screenmem[/*0xB8000 + */(y / 16) * 160 + x * 2 + 1];
 
-                for (uint8_t bit = 0; bit < 8; bit++) {
-                    if ((glyph_row >> bit) & 1) {
-                        pixels[y*640+(8 * x + bit)] = dosColorPalette[color & 0x0F];
-                    } else {
-                        pixels[y*640+(8 * x + bit)] = dosColorPalette[color >> 4];
+                    for (uint8_t bit = 0; bit < 8; bit++) {
+                        if ((glyph_row >> bit) & 1) {
+                            pixels[y * 640 + (8 * x + bit)] = dosColorPalette[color & 0x0F];
+                        } else {
+                            pixels[y * 640 + (8 * x + bit)] = dosColorPalette[color >> 4];
+                        }
                     }
                 }
             }
+        } else {
+            for (int y = 0; y < 200; ++y)
+            for (int x = 0; x < 320; ++x) {
+                pixels[y*640+x] = dosColorPalette[screenmem[y*(320/4)+(x / 4)]];
+            }
         }
+
         SDL_UpdateWindowSurface(window);
 
     }

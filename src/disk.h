@@ -6,10 +6,9 @@
 #define TINY8086_DISK_H
 
 #include "stdint.h"
+#include "stdbool.h"
 #include "mem.h"
-#include "cpu8086.h"
-
-extern uint8_t RAM[RAM_SIZE << 10];
+#include "emu.h"
 
 struct struct_drive {
     //HOSTFS_FILE	*diskfile;
@@ -23,10 +22,10 @@ struct struct_drive {
 };
 
 // FIXME!! Уменьшить до 2 флопи, 2 хдд
-struct struct_drive disk[4];
+struct struct_drive disk[256];
 
 static uint8_t sectorbuffer[512];
-
+extern uint8_t hdcount, fdcount;
 
 void ejectdisk(uint8_t drivenum) {
     if (disk[drivenum].inserted) {
@@ -84,7 +83,7 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, const char *ROM) {
     ejectdisk(drivenum);    // close previous disk image for this drive if there is any
     disk[drivenum].filesize = size;
     disk[drivenum].inserted = true;
-    disk[drivenum].readonly = false;
+    disk[drivenum].readonly = true;
     disk[drivenum].cyls = cyls;
     disk[drivenum].heads = heads;
     disk[drivenum].sects = sects;
@@ -97,7 +96,7 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, const char *ROM) {
     printf(
             "DISK: Disk 0%02Xh has been attached %s from file %s size=%luK, CHS=%d,%d,%d\n",
             drivenum,
-            disk[drivenum].readonly ? "R/O" : "R/W",
+            1 ? "R/O" : "R/W",
             "ROM",
             (unsigned long) (size >> 10),
             cyls,
@@ -127,9 +126,9 @@ static void bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, ui
         CPU_AH = 0x04;    // sector not found
         goto error;
     }
-    uint32_t lba = ((uint32_t)cyl * (uint32_t)disk[drivenum].heads + (uint32_t)head) * (uint32_t)disk[drivenum].sects + (uint32_t)sect - 1;
-    size_t fileoffset = lba * 512;
-    //size_t fileoffset = chs2ofs(drivenum, cyl, head, sect);
+    //uint32_t lba = ((uint32_t)cyl * (uint32_t)disk[drivenum].heads + (uint32_t)head) * (uint32_t)disk[drivenum].sects + (uint32_t)sect - 1;
+    //size_t fileoffset = lba * 512;
+    size_t fileoffset = chs2ofs(drivenum, cyl, head, sect);
 
     if (fileoffset > disk[drivenum].filesize) {
         CPU_AH = 0x04;    // sector not found
@@ -144,11 +143,8 @@ static void bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, ui
     for (cursect = 0; cursect < sectcount; cursect++) {
 //        if (hostfs_read(disk[drivenum].diskfile, sectorbuffer, 512, 1) != 1)
 //            break;
-        //memcpy(&RAM[memdest], &disk[drivenum].data[fileoffset], 512);
         memcpy(sectorbuffer, &disk[drivenum].data[fileoffset], 512);
         fileoffset+=512;
-        //memcpy(&RAM[memdest], sectorbuffer, sizeof sectorbuffer);
-
         if (is_verify) {
             for (int sectoffset = 0; sectoffset < 512; sectoffset++) {
                 // FIXME: segment overflow condition?
@@ -166,7 +162,6 @@ static void bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, ui
                 // FIXME: segment overflow condition?
                 write86(memdest++, sectorbuffer[sectoffset]);
             }
-
         }
     }
     if (sectcount && !cursect) {
@@ -178,11 +173,9 @@ static void bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, ui
     CPU_AH = 0;
     return;
     error:
-    printf("DISK ERROR %i 0x%x\r\n", drivenum, CPU_AH);
     // AH must be set with the error code
     CPU_AL = 0;
     CPU_FL_CF = 1;
-    return;
 }
 
 void bios_read_boot_sector(int drive, uint16_t dstseg, uint16_t dstoff) {
@@ -193,7 +186,7 @@ void bios_read_boot_sector(int drive, uint16_t dstseg, uint16_t dstoff) {
 static void
 bios_writedisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, uint16_t sect, uint16_t head,
                uint16_t sectcount) {
-    //printf("bios_writedisk\r\n");
+    printf("bios_writedisk\r\n");
     if (!disk[drivenum].inserted) {
         CPU_AH = 0x31;    // no media in drive
         goto error;
@@ -250,28 +243,14 @@ void diskhandler(void) {
     //printf("DISK interrupt function %02Xh\r\n", CPU_AH);
     switch (CPU_AH) {
         case 0: //reset disk system
-            printf("Disk reset %i\r\n", CPU_DL);
-            if (disk[CPU_DL].inserted) {
-                CPU_AH = 0;
-                CPU_FL_CF = 0; //useless function in an emulator. say success and return.
-            } else {
-                CPU_FL_CF = 1;
-            }
+            CPU_AH = 0;
+            CPU_FL_CF = 0; //useless function in an emulator. say success and return.
             break;
         case 1: //return last status
             CPU_AH = lastdiskah[CPU_DL];
             CPU_FL_CF = lastdiskcf[CPU_DL];
             return;
         case 2: //read sector(s) into memory
-/*            printf("bios_readdisk %i %i %i %i %i %i %i\r\n",
-                    CPU_DL,                // drivenum
-                    CPU_ES, CPU_BX,            // segment & offset
-                    CPU_CH + (CPU_CL / 64) * 256,    // cylinder
-                    CPU_CL & 63,            // sector
-                    CPU_DH,                // head
-                    CPU_AL,                // sectcount
-                    0                // is verify (!=0) or read (==0) operation?
-            );*/
             bios_readdisk(
                     CPU_DL,                // drivenum
                     CPU_ES, CPU_BX,            // segment & offset
@@ -283,13 +262,6 @@ void diskhandler(void) {
             );
             break;
         case 3: //write sector(s) from memory
-/*            printf("bios_writedisk %i %i %i %i %i %i %i\r\n",   CPU_DL,                // drivenum
-                   CPU_ES, CPU_BX,            // segment & offset
-                   CPU_CH + (CPU_CL / 64) * 256,    // cylinder
-                   CPU_CL & 63,            // sector
-                   CPU_DH,                // head
-                   CPU_AL                // sectcount
-            );*/
             bios_writedisk(
                     CPU_DL,                // drivenum
                     CPU_ES, CPU_BX,            // segment & offset
@@ -300,15 +272,6 @@ void diskhandler(void) {
             );
             break;
         case 4:    // verify sectors ...
-/*            printf("bios_verify %i %i %i %i %i %i %i\r\n",
-                   CPU_DL,                // drivenum
-                   CPU_ES, CPU_BX,            // segment & offset
-                   CPU_CH + (CPU_CL / 64) * 256,    // cylinder
-                   CPU_CL & 63,            // sector
-                   CPU_DH,                // head
-                   CPU_AL,                // sectcount
-                   1                                // is verify (!=0) or read (==0) operation?
-            );*/
             bios_readdisk(
                     CPU_DL,                // drivenum
                     CPU_ES, CPU_BX,            // segment & offset
@@ -326,7 +289,6 @@ void diskhandler(void) {
             CPU_AH = 0;
             break;
         case 8: //get drive parameters
-        printf("check disk %i\r\n", CPU_DL);
             if (disk[CPU_DL].inserted) {
                 CPU_FL_CF = 0;
                 CPU_AH = 0;
@@ -355,13 +317,12 @@ void diskhandler(void) {
                 CPU_AL = CPU_AH;
                 CPU_FL_CF = 0;
             } else {
-                printf("Requesting int 13h / function 15h for drive %02Xh no such device\n", CPU_DL);
-                CPU_AH = 0;	// no such device
+                printf("Requesting int 13h / function 15h for drive %02Xh\n", CPU_DL);
+                /*CPU_AH = 0;	// no such device
                 CPU_AL = 0;
                 CPU_CX = 0;
-                CPU_DX = 0;
-                //CPU_AX = 0x00;
-//                CPU_AX = 0x0101;
+                CPU_DX = 0;*/
+                CPU_AX = 0x0101;
                 CPU_FL_CF = 1;
             }
             break;
@@ -369,7 +330,7 @@ void diskhandler(void) {
         default:
             printf("BIOS: unknown Int 13h service was requested: %02Xh\r\n", CPU_AH);
             CPU_FL_CF = 1;    // unknown function was requested?
-            //CPU_AH = 1;
+            CPU_AH = 1;
             break;
     }
     lastdiskah[CPU_DL] = CPU_AH;
