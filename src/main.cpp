@@ -6,6 +6,8 @@ extern "C" {
 #if PICO_ON_DEVICE
 #include <pico/time.h>
 #include <pico/multicore.h>
+#include <pico/stdlib.h>
+#include <hardware/vreg.h>
 #include "pico/stdio.h"
 extern "C" {
 #include "vga.h"
@@ -70,6 +72,10 @@ static int RendererThread(void *ptr) {
 int main() {
 //    init86();
 #if PICO_ON_DEVICE
+    vreg_set_voltage(VREG_VOLTAGE_1_15);
+    sleep_ms(33);
+    set_sys_clock_khz(266000, true);
+    sleep_ms(10);
     stdio_init_all();
     sleep_ms(10);
     Init_kbd();
