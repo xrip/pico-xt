@@ -1,0 +1,68 @@
+
+; ============================================================================
+;                  VGA output - base layer (15 instructions)
+;
+; file derived from the PicoVGA project
+; https://github.com/Panda381/PicoVGA
+; by Miroslav Nemecek
+;
+; ============================================================================
+; Control word of "dark" command (left shift):
+;  - bit 0..7 (8 bits) output color (set to 0 if not used)
+;  - bit 8..26 (19 bits) loop counter N
+;  - bit 27..31 (5 bits) jump address
+; Control word of other commands (left shift):
+;  - bit 0..27 (27 bits) loop counter N
+;  - bit 27..31 (5 bits) jump address
+; Clocks per pixel: minimum 2, maximum 17.
+
+.program vga
+.side_set 1 ; SYNC output (no opt, wait can be max. 15)
+.origin 17  ; must load at offset 17 (BASE_OFF)
+
+; ===== [3 instructions] SYNC pulse, N=delay in clock cycles - 3
+
+public sync:
+    out x,27        side 1      ; [1] get length of SYNC pulse - 3, start of SYNC pulse
+sync_loop:
+    jmp x--,sync_loop   side 1      ; [N+1] loop
+public entry:
+    out pc,5        side 1      ; [1] get next control word and jump to function
+
+; ===== [4 instructions] DARK (or color) pulse, N=delay in clock cycles - 4
+; Sets color output at time +1
+
+public dark:
+    out x,19        side 0      ; [1] get length of delay pulse - 4, start of delay pulse
+    out pins,8      side 0      ; [1] dark output (or color)
+dark_loop:
+    jmp x--,dark_loop   side 0      ; [N+1] loop
+    out pc,5        side 0      ; [1] get next control word and jump to function
+
+; ===== [4 instructions] layer synchronisation (delay 9 clock cycles)
+; Output first pixel at time +9 after IRQ
+
+public irqset:
+    irq clear 4     side 0      ; [1] clear IRQ4 flag
+    out null,27     side 0      ; [1] destroy command parameter
+    irq set 4       side 0  [5] ; [6] set IRQ flag
+.wrap_target
+    out pc,5        side 0      ; [1] get next control word and jump to function
+
+; ===== [4 instructions] output pixels at CPP clock, N=number of pixels-2 (number of pixels must be multiple of 4)
+; Output first pixel at time +1
+; Missing 2 clock cycles after last pixel
+
+public output:
+    out x,27        side 0      ; [1] get number of pixels-2
+output_loop:
+public extra1:
+    out pins,8      side 0  [0] ; [1+CPP-2] output pixels (set extra wait CPP-2)
+    jmp x--,output_loop side 0      ; [1] loop
+public extra2:
+    out pins,8      side 0  [0] ; [1+CPP-2] output pixels (set extra wait CPP-2)
+    ; missing 1 extra clock cycles - add it to front porch
+    ; wrap jump to instruction out pc,5
+.wrap
+
+
