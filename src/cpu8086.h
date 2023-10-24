@@ -92,9 +92,21 @@ static inline void decodeflagsword(uint16_t x) {
 #define CPU_DH    regs.byteregs[regdh]
 
 #define VRAM_SIZE 128
-#define RAM_SIZE 1024
+#define RAM_SIZE 160
 extern uint8_t VRAM[VRAM_SIZE << 10];
+extern uint8_t RAM[RAM_SIZE << 10];
 
+#define pokeb(a, b) RAM[a]=(b)
+#define peekb(a)   RAM[a]
+
+static inline void pokew(int a, uint16_t w) {
+    pokeb(a, w & 0xFF);
+    pokeb(a + 1, w >> 8);
+}
+
+static inline uint16_t peekw(int a) {
+    return peekb(a) + (peekb(a + 1) << 8);
+}
 
 extern union _bytewordregs_ {
     uint16_t wordregs[8];

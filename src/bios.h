@@ -15,30 +15,9 @@
 
 int cursor_x = 0;
 int cursor_y = 0;
-static int color = 7;
-static int do_not_IRET;
+int color = 7;
 
 uint8_t VRAM[VRAM_SIZE << 10];
-
-
-bool bios_started = false;
-#define INTERNAL_BIOS_TRAP_SEG 0xF000
-#define BIOS_TRAP_EMUGW    0x100
-#define BIOS_TRAP_RESET    0x101
-#define BIOS_TRAP_BASIC    0x102
-#define BIOS_TRAP_HALT    0x103
-
-#define pokeb(a, b) RAM[a]=(b)
-#define peekb(a)   RAM[a]
-
-static inline void pokew(int a, uint16_t w) {
-    pokeb(a, w & 0xFF);
-    pokeb(a + 1, w >> 8);
-}
-
-static inline uint16_t peekw(int a) {
-    return peekb(a) + (peekb(a + 1) << 8);
-}
 
 static void bios_putchar(const char c) {
     //printf("\033[%im%c", color, c);
@@ -86,154 +65,6 @@ static void bios_putstr(const char *s) {
     } while (0)
 
 
-// Int 0x10
-void videoBIOSinterupt() {
-    //printf("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
-
-    switch (CPU_AH) {
-        case 0x00:
-            videomode = CPU_AL;
-            printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
-            // Установить видеорежим
-            break;
-        case 0x01:
-            // TODO!!: Сделать мигание курсора
-            break;
-        case 0x02: // Установить позицию курсора
-            cursor_x = CPU_DL;
-            cursor_y = CPU_DH;
-            break;
-        case 0x03: // Получить позицию курсора
-            CPU_DL = cursor_x;
-            CPU_DH = cursor_y;
-            break;
-        case 0x05: //   INT 10h,  05h (5)        Set Active Display Page
-            printf("INT 10h,  05h (5)        Set Active Display Page: %i\r\n", CPU_AL);
-            break;
-        case 0x06: // INT 10h,  06h (6)        Scroll Window Up
-            printf("INT 10h,  06h (6)        Scroll Window Up\r\n");
-            /*
-            printf(
-                   "                      AL %i         Number of lines to scroll (if 0, clear entire window)\n"
-                   "                      BH %i         Display attribute for blank lines\n"
-                   "                      CH %i         Row number of upper left corner\n"
-                   "                      CL %i         Column number of upper left corner\n"
-                   "                      DH %i         Row number of lower right corner\n"
-                   "                      DL %i         Column number of lower right corner\n", CPU_AL, CPU_BH, CPU_CH, CPU_CL, CPU_DH, CPU_DL);
-            */
-             if (!CPU_AL) {
-                // FIXME!! Нормально сделай!
-                memset(VRAM, 0x00, 160*25);
-                break;
-            }
-            break;
-        case 0x08: // Получим чар под курсором
-                CPU_AL = VRAM[(cursor_y * 160 + cursor_x * 2) + 0];
-                CPU_AH = VRAM[(cursor_y * 160 + cursor_x * 2) + 1];
-            break;
-        case 0x09:
-            /*09H писать символ/атрибут в текущей позиции курсора
-               вход:  BH = номер видео страницы
-               AL = записываемый символ
-               CX = счетчик (сколько экземпляров символа записать)
-               BL = видео атрибут (текст) или цвет (графика)
-                (графические режимы: +80H означает XOR с символом на экране)*/
-            //printf("color %c %x %i\r\n",  CPU_AL, CPU_CX, CPU_BL);
-            color = CPU_BL;
-        case 0x0A:
-            /*0aH писать символ в текущей позиции курсора
-              вход:  BH = номер видео страницы
-              AL = записываемый символ
-              CX = счетчик (сколько экземпляров символа записать)*/
-            for (uint16_t j = 0; j < CPU_CX; j++) {
-                bios_putchar(CPU_AL);
-
-            }
-
-            break;
-        case 0x0E:
-            /*0eH писать символ на активную видео страницу (эмуляция телетайпа)
-              вход:  AL = записываемый символ (использует существующий атрибут)
-              BL = цвет переднего плана (для графических режимов)*/
-            bios_putchar(CPU_AL);
-            break;
-            default:
-              printf("Undefined videoBIOS interupt 0x%x\r\n", CPU_AH);
-    }
-}
-
-
-
-
-// Int 21h
-void DOSinterupt() {
-    uint16_t adrs;
-    switch (regs.byteregs[regah]) {
-        case 0x01:
-            /*Вход AH = 01H
-            Выход AL = символ, полученный из стандартного ввода
-            Считывает (ожидает) символ со стандартного входного устройства.
-             Отображает этот символ на стандартное выходное устройство (эхо)*/
-
-            regs.byteregs[regal] = (uint8_t) getch();
-            bios_putchar(regs.byteregs[regal]);
-            break;
-        case 0x02:
-            bios_putchar(regs.byteregs[regdl]);
-            break;
-        case 0x09:
-            // AH=09h - вывод строки из DS:DX.
-            for (uint8_t i = 0; i < 255; i++) {
-                char ch = (char) read86((segregs[regds] << 4) + regs.wordregs[regdx] + i);
-                if (ch != '$')
-                    bios_putchar(ch);
-                    //Serial.print(ch);
-                else {
-                    regs.byteregs[regal] = 0x24;
-                    return;
-                }
-            }
-            break;
-        case 0x0a:
-            /*DOS Fn 0aH: ввод строки в буфеp
-            Вход AH = 0aH
-            DS:DX = адрес входного буфера (смотри ниже)
-            Выход нет = буфер содержит ввод, заканчивающийся символом CR (ASCII 0dH)*/
-            adrs = (segregs[regds] << 4) + regs.wordregs[regdx];
-            uint8_t length = 0;
-            char ch;
-            while (true) {
-                ch = (char) getch();
-                bios_putchar(ch);
-                if (ch == '\n' || ch == '\r')
-                    break;
-                write86(adrs + length + 2, (uint8_t) ch);
-                length++;
-                if (length > read86(adrs) || length > 255)
-                    break;
-            }
-            write86(adrs + 1, length);//записываем действительную длину данных
-            write86(adrs + length + 3, '$');
-            break;
-#ifdef DEBUG
-            default:
-              Serial.print("undefined DOS interupt ");
-              Serial.print(regs.byteregs[regah],HEX);
-#endif
-    }
-}
-
-// This is the IRQ handler for the periodic interrupt of BIOS
-static void bios_irq0_handler(void) {
-    // Increment the BIOS counter.
-    uint32_t cnt = (peekw(0x46C) + (peekw(0x46E) << 16)) + 1;
-    pokew(0x46C, cnt & 0xFFFF);
-    pokew(0x46E, cnt >> 16);
-    //puts("BIOS: IRQ0!\r\n");
-    // FIXME!!
-    portout(0x20, 0x20);	// send end-of-interrupt command to the interrupt controller
-}
-
 static void kbd_set_mod0 ( int mask, int scan )
 {
     if ((scan & 0x80))
@@ -241,6 +72,7 @@ static void kbd_set_mod0 ( int mask, int scan )
     else
         RAM[0x417] |= mask;
 }
+
 static const uint8_t scan2ascii[] = {
         //0    1     2      3     4     5     6     7     8    9     A      B     C    D     E     F
         0x00, 0x1B, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x2D, 0x3D, 0x08, 0x09,
@@ -278,6 +110,7 @@ static const uint8_t scan2ascii[] = {
 	0x28, 0x29, 0x2A, 0x2B,	0x2C, 0xA0, 0x90
 #endif
 };
+
 static int kbd_push_buffer ( uint16_t data )
 {
     uint16_t buftail = peekw(0x41C);
@@ -307,47 +140,6 @@ static uint16_t kbd_get_buffer ( int to_remove )
     return data;
 }
 
-
-// Interrupt 16h: keyboard functions
-void keyBIOSinterupt() {
-    //printf("INT 16h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
-    switch (CPU_AH) {
-        case 0x10:
-        case 0x00:
-            /*00H читать (ожидать) следующую нажатую клавишу
-            выход: AL = ASCII символ (если AL=0, AH содержит расширенный код ASCII )
-                  AH = сканкод  или расширенный код ASCII*/
-            CPU_AX = _kbhit() ? getch() : 0; //kbd_get_buffer(1);
-
-            break;
-
-        case 0x11:
-        case 0x01:
-            CPU_AX = _kbhit() ? getch() : 0;//kbd_get_buffer(0);
-            if (CPU_AX)
-                CPU_FL_ZF = 0;
-            else
-                CPU_FL_ZF = 1;
-            break;
-        case 0x02:
-            CPU_AL = RAM[0x417];
-            break;
-        case 0x05:				// PUSH into kbd buffer by user call!!
-            CPU_AL = kbd_push_buffer(CPU_CX);
-            break;
-        default:
-            return;
-            //printf("BIOS: unknown 16h interrupt function %02Xh\n", CPU_AH);
-//            CPU_FL_CF = 1;
-//            CPU_AH = 1;
-            break;
-#ifdef DEBUG
-            default:
-              Serial.print("undefined keyBIOS interupt ");
-              Serial.print(regs.byteregs[regah],HEX);
-#endif
-    }
-}
 
 // This is the IRQ handler for the keyboard interrupt of BIOS
 static void bios_irq1_handler(void) {
@@ -392,212 +184,9 @@ static void bios_irq1_handler(void) {
 }
 
 
-static void bios_internal_trap(unsigned int trap) {
-    printf("bios_internal_trap 0x%x !! \r\n", trap);
-    int do_override_some_flags = 1;
-    // get return CS:IP from stack WITHOUT POP'ing them!
-    // this are used only for debug purposes! [know the top element of our stack frame @ x86 level]
-    uint16_t stack_ip = peekw(CPU_SS * 16 + CPU_SP);
-    uint16_t stack_cs = peekw(CPU_SS * 16 + ((CPU_SP + 2) & 0xFFFF));
-    do_not_IRET = 0;
-    if (trap < 0x100)
-        CPU_FL_CF = 0;    // by default we set carry flag to zero. INT handlers may set it '1' in case of error!
-    //printf("BIOS_TRAP: %04Xh STACK_RET=%04X:%04X AX=%04Xh\n", trap, return_segment, return_offset, CPU_AX);
-    switch (trap) {
-        case 0x00:
-            bios_putstr("Division by zero.\n");
-            do_override_some_flags = 0;
-            break;
-        case 0x08:
-            bios_irq0_handler();
-            do_override_some_flags = 0;
-            break;
-        case 0x09:
-            bios_irq1_handler();
-            do_override_some_flags = 0;
-            break;
-        case 0x10:        // Interrupt 10h: video services
-            // FIXME! Some time video.c (vidinterrupt function) and these things must be unified here!
-            // the problem: in non-internal BIOS mode, Fake86 uses ugly hacks in cpu.c involving vidinterrupt() directly.
-            switch (CPU_AH) {
-                case 0x0E:
-                    bios_putchar(CPU_AL);
-                    break;
-                default:
-                    videoBIOSinterupt();
-                    //printf("BIOS: unknown 10h interrupt function %02Xh\n", CPU_AH);
-                    //CPU_FL_CF = 1;
-                    //CPU_AH = 1;
-                    break;
-            }
-            break;
-        case 0x11:        // Interrupt 11h: get system configuration
-            printf("INT ?!!! 0x11 \r\n");
-            CPU_AX = peekw(0x410);
-            break;
-        case 0x12:        // Interrupt 12h: get memory size in Kbytes
-            CPU_AX = RAM[0x413] + (RAM[0x414] << 8);
-            CPU_AX = peekw(0x413);
-            printf("BIOS: int 12h answer (base RAM size), AX=%d\r\n", CPU_AX);
-            break;
-        case 0x13:        // Interrupt 13h: disk services
-            diskhandler();
-            break;
-        case 0x14:        // Interrupt 14h: serial stuffs
-            switch (CPU_AH) {
-                case 0x00:    // Serial - initialize port
-                    printf("BIOS: int 14h serial initialization request for port %u\r\n", CPU_DX);
-                    if (CPU_DX == 0) {
-                        CPU_AH = 64 + 32;    // tx buffer and shift reg is empty
-                        CPU_AL = 0;
-                    } else {
-                        CPU_AH = 128;    // timeout
-                        CPU_AL = 0;
-                    }
-                    break;
-                default:
-                    printf("BIOS: unknown 14h interrupt function %02Xh\r\n", CPU_AH);
-                    CPU_FL_CF = 1;
-                    CPU_AH = 1;
-                    break;
-            }
-            break;
-        case 0x15:
-            CPU_FL_CF = 1;
-            CPU_AH = 0x86;
-            printf("BIOS: unknown 15h AT ALL interrupt function, AX=%04Xh\r\n", CPU_AX);
-            break;
-        case 0x16:        // Interrupt 16h: keyboard functions TODO+FIXME !
-            keyBIOSinterupt();
-            break;
-        case 0x1A:        // Interrupt 1Ah: time services
-            switch (CPU_AH) {
-                case 0x00:    // get 18.2 ticks/sec since midnight and day change flag
-                printf("TIMER?\r\n");
-                    CPU_DX = peekw(0x46C);
-                    CPU_CX = peekw(0x46E);
-                    CPU_AL = peekb(0x470);
-                    break;
-                case 0x01:
-                    pokew(0x46C, CPU_DX);
-                    pokew(0x46E, CPU_CX);
-                    break;
-                case 0x02:    // read real-time clock
-                {
-//                    time_t uts = time(NULL);
-//                    struct tm *t = localtime(&uts);
-                    CPU_DH = 00;//t->tm_sec;
-                    CPU_CL = 59; //t->tm_min;
-                    CPU_CH = 23; //t->tm_hour;
-                    CPU_DL = 0; //t->tm_isdst > 0;
-                    printf("BIOS: RTC time requested, answer: %02u:%02u:%02u DST=%u\r\n", CPU_CH, CPU_CL, CPU_DH, CPU_DL);
-                }
-                    CPU_FL_CF = 0;
-                    break;
-                case 0x04:    // read real-time clock's date
-                {
-                    //time_t uts = time(NULL);
-                    //struct tm *t = localtime(&uts);
-                    CPU_DL = 22; //t->tm_mday;
-                    CPU_DH = 10; //-t->tm_mon + 1;
-                    CPU_CL = 2023 % 100;
-                    CPU_CH = 2023 / 100 + 19;
-                    printf("BIOS: RTC date requested, answer: %02u%02u.%02u.%02u\r\n", CPU_CH, CPU_CL, CPU_DH, CPU_DL);
-                }
-                    CPU_FL_CF = 0;
-                    break;
-                default:
-                    printf("BIOS: unknown 1Ah interrupt function %02Xh\n", CPU_AH);
-                    CPU_FL_CF = 1;
-                    CPU_AH = 1;
-                    break;
-            }
-            break;
-        case 0xE6:    // "Filesystem server" invented by Mach, allow to map host FS to DOS drives!
-            switch (CPU_AH) {
-                case 0x00:    // Installation check
-                    CPU_AX = 0xAA55;    // magic number to return
-                    CPU_BX = 0x0101;    // high/low byte: major/minor version number
-                    CPU_CX = 0x0001;    // patch level
-                    break;
-                case 0x01:    // Register dump
-                    puts("HOSTFS: register dump: TODO\r\n");
-                    break;
-                case 0xFF:
-                    puts("HOSTFS: requested terminate\r\n");
-                    break;
-            }
-            break;
-        case BIOS_TRAP_RESET:
-            printf("BIOS_TRAP_RESET\r\n");
-            bios_reset();
-            //return_segment = 0;
-            //return_offset = 0x7C00;
-            //return_flags = 0;
-            //printf("BIOS: will return to %04X:%04X\n", return_segment, return_offset);
-            //for (int a = 0; a < 0x200; a++)
-            //	RAM[0xB8000 + a ] = a;
-            break;
-        case 0x18:        // ROM BASIC interrupt :)
-        case BIOS_TRAP_BASIC:    // the entry point of ROM basic.
-            bios_putstr("No ROM-BASIC. System halted.\r\n");
-            do_not_IRET = 1;
-            CPU_CS = INTERNAL_BIOS_TRAP_SEG;
-            CPU_IP = BIOS_TRAP_HALT;
-            break;
-        case BIOS_TRAP_HALT:
-            do_not_IRET = 1;
-            CPU_CS = INTERNAL_BIOS_TRAP_SEG;
-            CPU_IP = BIOS_TRAP_HALT;
-            break;
-        case BIOS_TRAP_EMUGW:
-            // emulation gateway functionality can be used by special tools running inside Fake86
-            do_not_IRET = 1;
-            // do our FAR-RET here instead!
-            CPU_IP = cpu_pop();
-            CPU_CS = cpu_pop();
-            break;
-        default:
-            if (trap < 0x100) {
-                printf("BIOS: unhandled interrupt %02Xh (AX=%04Xh) at %04X:%04X\n", trap, CPU_AX, stack_cs, stack_ip);
-                CPU_FL_CF = 1;
-                CPU_AH = 1;    // error code?
-            } else {
-                fprintf(stderr, "BIOS: FATAL: invalid trap number %04Xh (stack frame: %04X:%04X)\n", trap, stack_cs,
-                        stack_ip);
-                //exit(1);
-            }
-            break;
-    }
-    if (!do_not_IRET) {
-        printf("Simulate an IRET by our own\r\n");
-        int zf_to_set = CPU_FL_ZF;
-        int cf_to_set = CPU_FL_CF;
-        // Simulate an IRET by our own
-        CPU_IP = cpu_pop();
-        CPU_CS = cpu_pop();
-        decodeflagsword(cpu_pop());
-        // Override some flags, if needed
-        if (do_override_some_flags) {
-            CPU_FL_ZF = zf_to_set;
-            CPU_FL_CF = cf_to_set;
-        }
-    } else {
-        printf("BIOS: returning from trap without IRET (trap=%Xh)!\n", trap);
-    }
-}
-
 int cpu_hlt_handler(void) {
     puts("BIOS: critical warning, HLT outside of trap area?!\r\n");
     return 1;    // Yes, it was really a halt, since it does not fit into our trap area
-
-    if (CPU_CS != INTERNAL_BIOS_TRAP_SEG || saveip >= 0x1FF) {
-        puts("BIOS: critical warning, HLT outside of trap area?!\r\n");
-        return 1;    // Yes, it was really a halt, since it does not fit into our trap area
-    }
-
-    bios_internal_trap(saveip);
-    return 0;    // no, it wasn't a HLT, it's our trap!
 }
 
 #endif

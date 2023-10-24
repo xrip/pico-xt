@@ -1,7 +1,7 @@
 //
 // Created by xrip on 23.10.2023.
 //
-
+#pragma once
 #ifndef TINY8086_DISK_H
 #define TINY8086_DISK_H
 
@@ -77,7 +77,7 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, const char *ROM) {
     }
     if (cyls > 1023 || cyls * heads * sects * 512 != size) {
         err = "Cannot find some CHS geometry for this disk image file!";
-        //goto error;
+        goto error;
         // FIXME!!!!
     }
     // Seems to be OK. Let's validate (store params) and print message.
@@ -117,7 +117,8 @@ static size_t chs2ofs(int drivenum, int cyl, int head, int sect) {
 }
 
 
-static void bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, uint16_t sect, uint16_t head,
+static void
+bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, uint16_t sect, uint16_t head,
               uint16_t sectcount, int is_verify) {
     if (!disk[drivenum].inserted) {
         CPU_AH = 0x31;    // no media in drive
@@ -127,7 +128,9 @@ static void bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, ui
         CPU_AH = 0x04;    // sector not found
         goto error;
     }
-    uint32_t lba = ((uint32_t)cyl * (uint32_t)disk[drivenum].heads + (uint32_t)head) * (uint32_t)disk[drivenum].sects + (uint32_t)sect - 1;
+    uint32_t lba =
+            ((uint32_t) cyl * (uint32_t) disk[drivenum].heads + (uint32_t) head) * (uint32_t) disk[drivenum].sects +
+            (uint32_t) sect - 1;
     size_t fileoffset = lba * 512;
     //size_t fileoffset = chs2ofs(drivenum, cyl, head, sect);
 
@@ -146,7 +149,7 @@ static void bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, ui
 //            break;
         //memcpy(&RAM[memdest], &disk[drivenum].data[fileoffset], 512);
         memcpy(sectorbuffer, &disk[drivenum].data[fileoffset], 512);
-        fileoffset+=512;
+        fileoffset += 512;
         //memcpy(&RAM[memdest], sectorbuffer, sizeof sectorbuffer);
 
         if (is_verify) {
@@ -250,7 +253,7 @@ void diskhandler(void) {
     //printf("DISK interrupt function %02Xh\r\n", CPU_AH);
     switch (CPU_AH) {
         case 0: //reset disk system
-            printf("Disk reset %i\r\n", CPU_DL);
+            //printf("Disk reset %i\r\n", CPU_DL);
             if (disk[CPU_DL].inserted) {
                 CPU_AH = 0;
                 CPU_FL_CF = 0; //useless function in an emulator. say success and return.
@@ -326,7 +329,6 @@ void diskhandler(void) {
             CPU_AH = 0;
             break;
         case 8: //get drive parameters
-        printf("check disk %i\r\n", CPU_DL);
             if (disk[CPU_DL].inserted) {
                 CPU_FL_CF = 0;
                 CPU_AH = 0;
@@ -367,7 +369,7 @@ void diskhandler(void) {
             break;
 #endif
         default:
-            printf("BIOS: unknown Int 13h service was requested: %02Xh\r\n", CPU_AH);
+            //printf("BIOS: unknown Int 13h service was requested: %02Xh\r\n", CPU_AH);
             CPU_FL_CF = 1;    // unknown function was requested?
             //CPU_AH = 1;
             break;

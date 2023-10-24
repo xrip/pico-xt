@@ -23,8 +23,8 @@
 #include "cpu8086.h"
 #include "bios.h"
 #include "ports.h"
-//#include "pcxtbios.h"
-#include "rom.h"
+#include "pcxtbios.h"
+//#include "rom.h"
 #include "i8259.h"
 
 uint8_t opcode, segoverride, reptype, bootdrive = 0, hdcount = 0, fdcount = 0, hltstate = 0;
@@ -146,8 +146,10 @@ void write86(uint32_t addr32, uint8_t value) {
         return;
     }
      */
-
-    if ((tempaddr32 >= 0xA0000) && (tempaddr32 <= 0xBFFFF)) {
+    // RAM
+    if (tempaddr32 < 0xA0000) {
+        RAM[tempaddr32] = value;
+    } else if (tempaddr32 <= 0xBFFFF) {
         /*if ((vidmode != 0x13) && (vidmode != 0x12) &&
             (vidmode != 0xD) && (vidmode != 0x10)) {
             RAM[tempaddr32] = value;
@@ -159,6 +161,7 @@ void write86(uint32_t addr32, uint8_t value) {
         } else*/ {
             //printf("VRAM WRITE: %x %x\r\n", tempaddr32, value);
             VRAM[tempaddr32 - 0xA0000] =  value;
+            return;
         }
 
         updatedscreen = 1;
@@ -167,17 +170,9 @@ void write86(uint32_t addr32, uint8_t value) {
         if ((addr32 & 0xFFF00) == 0x400)
 			printf("DEBUG: CPU accesses (WRITE) BDA at %Xh, value it writes: %Xh\n", addr32, value);
 #endif
-        RAM[tempaddr32] = value;
 
 
-    /*
-    if (addr32 > 0xFFFF - STACK_LENGTH) {
-        STACK[tempaddr32] = value;
-    } else if (addr32 >= 0x7100 && addr32 < RAM_SIZE + 0x7100) {
-        tempaddr32 = (addr32 & 0xFFFFF) - 0x7100;
-        RAM[tempaddr32] = value;
-    }
-     */
+
 }
 
 void writew86(uint32_t addr32, uint16_t value) {
@@ -195,49 +190,42 @@ static const uint8_t bios_signature[] = {
 };
 
 uint8_t read86(uint32_t addr32) {
-
-//    addr32 &= 0xFFFFF;
-
-
-    switch (addr32) {
-/*        case 0x413:
-            return 180;*/
-        case 0x410: //0040:0010 is the equipment word
-            return 0x41; //video type (0x41 is VGA/EGA, 0x61 is CGA, 0x31 = MDA)
+    // BDA hardcoded values
+    switch(addr32) {
+        case 0x413:
+            return 160;
+        case 0x414:
+            return 0;
+        case 0x410:
+            return 0x41;
     }
 
-    if ((addr32 >= 0xFE000) && (addr32 < 0x100000)) {
-        return BIOS[addr32-0xFE000];
-    }
+    addr32 &= 0xFFFFF;
 
     // VRAM
     if ((addr32 >= 0xA0000) && (addr32 <= 0xBFFFF)) {
         return VRAM[addr32 - 0xA0000];
     }
-    //addr32 &= RAM_SIZE << 10;
+
+    // BIOS
+    if ((addr32 >= 0xFE000) && (addr32 < 0x100000)) {
+        return BIOS[addr32-0xFE000];
+    }
+
+    // VARIOUS ROM
+    if (addr32 >= 0xC0000) {
+        return 0x0;
+    }
+
 #ifdef DEBUG_BIOS_DATA_AREA_CPU_ACCESS
     if ((addr32 & 0xFFF00) == 0x400)
 		printf("DEBUG: CPU accesses (READ) BDA at %Xh, value there: %Xh\n", addr32, RAM[addr32]);
 #endif
 
     return RAM[addr32];
-    /*
-    if (addr32 > 0xFFFF - STACK_LENGTH) {
-        return STACK[tempaddr32];
-    } else if (addr32 >= 0x7100 && addr32 < RAM_SIZE + 0x7100) {
-        addr32 &= 0xFFFFF;
-        addr32 -= 0x7100;
-        return RAM[addr32];
-    }
-
-    return 0x90;
-     */
 }
 
 uint16_t readw86(uint32_t addr32) {
-    if (addr32 == 0x413) {
-        return 320;
-    }
     return ((uint16_t) read86(addr32) | (uint16_t) (read86(addr32 + 1) << 8));
 }
 
@@ -653,7 +641,10 @@ void reset86() {
     memset(RAM, 0x0, RAM_SIZE);
 
     segregs[regcs] = 0xFFFF;
-    ip = 0x0100;
+    segregs[regss] = 0x0000;
+    segregs[regsp] = 0xFFFE;
+
+    ip = 0x0000;
     hltstate = 0;
     insertdisk(0, sizeof FD0, FD0);
 }
@@ -695,7 +686,6 @@ void writerm8(uint8_t rmval, uint8_t value) {
     }
 }
 
-
 void intcall86(uint8_t intnum) {
 #if 1
     static uint16_t lastint10ax;
@@ -703,21 +693,92 @@ void intcall86(uint8_t intnum) {
 
     switch (intnum) {
         case 0x08:
-            bios_irq0_handler();
-            return;
+            break;
+//            bios_irq0_handler();
+//            return;
         case 0x09:
-            bios_irq1_handler();
-            return;
+            break;
+//            bios_irq1_handler();
+//            return;
         case 0x10:
             //printf("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
-            videoBIOSinterupt();
-            return;
+            switch (CPU_AH) {
+                case 0x00:
+                    videomode = CPU_AL;
+                    //printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
+                    // Установить видеорежим
+                    break;
+                case 0x02: // Установить позицию курсора
+                    cursor_x = CPU_DL;
+                    cursor_y = CPU_DH;
+                    return;
+                case 0x03: // Получить позицию курсора
+                    CPU_DL = cursor_x;
+                    CPU_DH = cursor_y;
+                    return;
+                case 0x06:
+                    if (!CPU_AL) {
+                        // FIXME!! Нормально сделай!
+                        memset(VRAM, 0x00, 160*25);
+                        return;
+                    }
+                    break;
+                case 0x08: // Получим чар под курсором
+                    CPU_AL = VRAM[(cursor_y * 160 + cursor_x * 2) + 0];
+                    CPU_AH = VRAM[(cursor_y * 160 + cursor_x * 2) + 1];
+                    return;
+                case 0x09:
+                    /*09H писать символ/атрибут в текущей позиции курсора
+                       вход:  BH = номер видео страницы
+                       AL = записываемый символ
+                       CX = счетчик (сколько экземпляров символа записать)
+                       BL = видео атрибут (текст) или цвет (графика)
+                        (графические режимы: +80H означает XOR с символом на экране)*/
+                    //printf("color %c %x %i\r\n",  CPU_AL, CPU_CX, CPU_BL);
+                    color = CPU_BL;
+                case 0x0A:
+                    /*0aH писать символ в текущей позиции курсора
+                      вход:  BH = номер видео страницы
+                      AL = записываемый символ
+                      CX = счетчик (сколько экземпляров символа записать)*/
+                    for (uint16_t j = 0; j < CPU_CX; j++) {
+                        bios_putchar(CPU_AL);
+
+                    }
+
+                    return;
+                case 0x0E:
+                    /*0eH писать символ на активную видео страницу (эмуляция телетайпа)
+                      вход:  AL = записываемый символ (использует существующий атрибут)
+                      BL = цвет переднего плана (для графических режимов)*/
+                    bios_putchar(CPU_AL);
+                    return;
+            }
             break;
         case 0x16:
-            keyBIOSinterupt();
-            return;
-        case 0x19: // bootstrap
+            switch (CPU_AH) {
+                case 0x10:
+                case 0x00:
+                    /*00H читать (ожидать) следующую нажатую клавишу
+                    выход: AL = ASCII символ (если AL=0, AH содержит расширенный код ASCII )
+                          AH = сканкод  или расширенный код ASCII*/
+                    CPU_AX = _kbhit() ? getch() : 0; //kbd_get_buffer(1);
+
+                    return;
+
+                case 0x11:
+                case 0x01:
+                    CPU_AX = _kbhit() ? getch() : 0;//kbd_get_buffer(0);
+                    if (CPU_AX)
+                        CPU_FL_ZF = 0;
+                    else
+                        CPU_FL_ZF = 1;
+                    return;
+            }
+            break;
+       /* case 0x19: // bootstrap
             didbootstrap = 1;
+            break;
             printf("Bootstrap\r\n");
 
             if (bootdrive < 255) { // read first sector of boot drive into
@@ -738,73 +799,14 @@ void intcall86(uint8_t intnum) {
                 segregs[regcs] = 0xF600; // start ROM BASIC at bootstrap if requested
                 ip = 0x0000;
             }
-            return;
+            return;*/
         case 0x13:
         case 0xFD:
             diskhandler();
             return;
-        case 0x1A:        // Interrupt 1Ah: time services
-            switch (CPU_AH) {
-                case 0x00:    // get 18.2 ticks/sec since midnight and day change flag
-                    CPU_DX = peekw(0x46C);
-                    CPU_CX = peekw(0x46E);
-                    CPU_AL = peekb(0x470);
-                    break;
-                case 0x01:
-                    pokew(0x46C, CPU_DX);
-                    pokew(0x46E, CPU_CX);
-                    break;
-                case 0x02:    // read real-time clock
-                {
-
-//                    time_t uts = time(NULL);
-//                    struct tm *t = localtime(&uts);
-                    CPU_DH = 1;//t->tm_sec;
-                    CPU_CL = 1; //t->tm_min;
-                    CPU_CH = 1; //t->tm_hour;
-                    CPU_DL = 0; //t->tm_isdst > 0;
-                    printf("BIOS: RTC time requested, answer: %02u:%02u:%02u DST=%u\r\n", CPU_CH, CPU_CL, CPU_DH, CPU_DL);
-                }
-                    CPU_FL_CF = 0;
-                    break;
-                case 0x04:    // read real-time clock's date
-                {
-
-                    //time_t uts = time(NULL);
-                    //struct tm *t = localtime(&uts);
-                    CPU_DL = 05; //t->tm_mday;
-                    CPU_DH = 05; //-t->tm_mon + 1;
-                    CPU_CL = 85 % 100;
-                    CPU_CH = 85 / 100 + 19;
-                    printf("BIOS: RTC date requested, answer: %02u%02u.%02u.%02u\r\n", CPU_CH, CPU_CL, CPU_DH, CPU_DL);
-                }
-                    CPU_FL_CF = 0;
-                    break;
-                default:
-                    printf("BIOS: unknown 1Ah interrupt function %02Xh\n", CPU_AH);
-                    CPU_FL_CF = 1;
-                    CPU_AH = 1;
-                    break;
-            }
-            return;
-        case 0x11:        // Interrupt 11h: get system configuration
-            CPU_AX = peekw(0x410);
-            printf("BIOS: int 11h answer (sysinfo), AX=0x%x\r\n", CPU_AX);
-            return;
-        case 0x12:        // Interrupt 12h: get memory size in Kbytes
-            //CPU_AX = RAM[0x413] + (RAM[0x414] << 8);
-            CPU_AX = peekw(0x413);
-            printf("BIOS: int 12h answer (base RAM size), AX=%d\r\n", CPU_AX);
-            return;
-
-/*        case 0x21:
-            DOSinterupt();
-            return;*/
 
     }
 #endif
-            //printf("Unhandled Interrupt 0x%x AX: %04Xh\r\n", intnum, CPU_AX);
-
             push(makeflagsword());
             push(segregs[regcs]);
             push(ip);
@@ -1387,11 +1389,11 @@ void exec86(uint32_t execloops) {
         useseg = segregs[regds];
         docontinue = 0;
         firstip = ip;
-
+/*
         if ((segregs[regcs] == 0xF000) && (ip == 0xE066)) {
             printf("didbootsreap\r\n");
             didbootstrap = 0; //detect if we hit the BIOS entry point to clear didbootstrap because we've rebooted
-        }
+        }*/
 
         while (!docontinue) {
             segregs[regcs] = segregs[regcs] & 0xFFFF;

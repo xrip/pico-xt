@@ -1,4 +1,4 @@
-#include <cstdlib>
+#pragma GCC optimize("O3")
 
 extern "C" {
 #include "cpu8086.h"
@@ -46,8 +46,8 @@ static int RendererThread(void *ptr) {
 
     while (runing) {
         exec86(200);
-        tick(1000);
-        pollkb();
+        //tick(1000);
+        //pollkb();
     }
     return 0;
 }
