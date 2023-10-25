@@ -270,7 +270,7 @@ uint16_t portin(uint16_t portnum) {
             return (in8259(portnum));
 
         case 0x40:
-            printf("in8253\r\n");
+            //printf("in8253\r\n");
             if (pit0latch == 0) {
                 pit0counter = (millis() % 55) * 1192;
                 pit0latch = 1;
