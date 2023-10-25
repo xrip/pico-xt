@@ -7,8 +7,8 @@
 
 //#include "dos3_3.h"
 //#include "freedos.h"
-//#include "vc.h"
-#include "checkit.h"
+#include "vc.h"
+//#include "checkit.h"
 //#include "DOS.h"
 #include "cpu8086.h"
 #include "disk.h"

@@ -124,6 +124,8 @@ void __not_in_flash_func(dma_handler_VGA)() {
     uint  div_factor=2;
     switch (mode_VGA)
     {
+    case CGA_320x200x4:
+    case EGA_320x200x16:
     case VGA640x480div2:
         l_inx=line_active/2;
         if (line_active%2) return;
@@ -243,8 +245,10 @@ void __not_in_flash_func(dma_handler_VGA)() {
     //зона прорисовки изображения
     //начальные точки буферов
     // uint8_t* vbuf8=vbuf+line*g_buf_width; //8bit buf
-    uint8_t* vbuf8=vbuf+(line*g_buf_width/2); //4bit buf
-
+    // uint8_t* vbuf8=vbuf+(line*g_buf_width/2); //4bit buf
+    //uint8_t* vbuf8=vbuf+(line*g_buf_width/4); //2bit buf
+    //uint8_t* vbuf8=vbuf+((line&1)*8192+(line>>1)*g_buf_width/4);
+    uint8_t* vbuf8=vbuf + ((line >> 1) * 80) + ((line & 1) * 8192);
     ptr_vbuf_OUT=&lines_pattern[2+((l_inx)&1)];     
   
     
@@ -252,13 +256,14 @@ void __not_in_flash_func(dma_handler_VGA)() {
     vbuf_OUT+=shift_picture/2; //смещение началы вывода на размер синхросигнала
 
 
-    g_buf_shx&=0xfffffffe;//4bit buf
+//    g_buf_shx&=0xfffffffe;//4bit buf
+    g_buf_shx&=0xfffffff2;//2bit buf
    //для div_factor 2
     int max_loop=g_buf_width;
     if (g_buf_shx<0)
         {
         //vbuf8-=g_buf_shx; //8bit buf
-        vbuf8-=g_buf_shx/2;//4bit buf
+        vbuf8-=g_buf_shx/4;//4bit buf
         max_loop+=g_buf_shx;
         }
     else
@@ -277,6 +282,29 @@ void __not_in_flash_func(dma_handler_VGA)() {
     uint8_t *vbuf_OUT8;
     switch (mode_VGA)
     {
+        case CGA_320x200x4:
+            //2bit buf
+            for(int i=N_loop/4;i--;)
+            {
+                *vbuf_OUT++=pal[(*vbuf8 >> 6) & 3];
+                *vbuf_OUT++=pal[(*vbuf8 >> 4) & 3];
+                *vbuf_OUT++=pal[(*vbuf8 >> 2) & 3];
+                *vbuf_OUT++=pal[(*vbuf8 >> 0) & 3];
+                vbuf8++;
+            }
+            break;
+        case EGA_320x200x16:
+            //4bit buf
+            for(int i=N_loop/2;i--;)
+            {
+                //поменять местами, если надо дугое чередование
+                *vbuf_OUT++=pal[(*vbuf8)&0xf];
+                *vbuf_OUT++=pal[(*vbuf8>>4)&0xf];
+
+                vbuf8++;
+            }
+            break;
+
     case VGA640x480div2:
             //8bit buf
             // for(int i=N_loop;i--;)
@@ -288,8 +316,8 @@ void __not_in_flash_func(dma_handler_VGA)() {
              for(int i=N_loop/2;i--;)
                 {
                         //поменять местами, если надо дугое чередование
-                    *vbuf_OUT++=pal[(*vbuf8>>4)&0xf];
                     *vbuf_OUT++=pal[(*vbuf8)&0xf];
+                    *vbuf_OUT++=pal[(*vbuf8>>4)&0xf];
 
                         vbuf8++;
                 }          
@@ -379,6 +407,8 @@ void setVGAmode(enum VGA_mode_t modeVGA)
          }  
 
         
+    case CGA_320x200x4:
+    case EGA_320x200x16:
     case VGA640x480div3:
     case VGA640x480div2:
         

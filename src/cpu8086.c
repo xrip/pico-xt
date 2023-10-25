@@ -26,11 +26,13 @@
 #include "pcxtbios.h"
 //#include "rom.h"
 #include "i8259.h"
+
 #if PICO_ON_DEVICE
 #include "pico/time.h"
 #include "ps2.h"
 #include "vga.h"
-
+#else
+#include <conio.h>
 #endif
 
 uint8_t opcode, segoverride, reptype, bootdrive = 0, hdcount = 0, fdcount = 0, hltstate = 0;
@@ -155,27 +157,31 @@ void write86(uint32_t addr32, uint8_t value) {
     if (tempaddr32 < 0xA0000) {
         RAM[tempaddr32] = value;
     } else if (tempaddr32 <= 0xBFFFF) {
-        /*if ((vidmode != 0x13) && (vidmode != 0x12) &&
-            (vidmode != 0xD) && (vidmode != 0x10)) {
-            RAM[tempaddr32] = value;
-            updatedscreen = 1;
-        } else if (((VGA_SC[4] & 6) == 0) && (vidmode != 0xD) &&
-                   (vidmode != 0x10) && (vidmode != 0x12)) {
-            RAM[tempaddr32] = value;
-            updatedscreen = 1;
-        } else*/ {
-            //printf("VRAM WRITE: %x %x\r\n", (tempaddr32 - 0xA0000) & VRAM_SIZE, value);
-            VRAM[(tempaddr32 - 0xA0000) & VRAM_SIZE] =  value;
+            // CGA video RAM range
+            if (((addr32) >= 0xB8000) && ((addr32) < 0xBC000)) {
+
+                if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
+                    addr32 -= 0xB8000;
+                    VRAM[addr32 & 4095] = value;                                           // 4k if we are in text mode
+                } else {
+                    //if (value != 0xff)
+                    //printf("CGA Write %x: %x\r\n", addr32, value);
+                    addr32 -= 0xB8000;
+                    VRAM[addr32 & 16383] = value;                                          // 16k for graphic mode!!!
+                }
+                return;
+            }
+            // VGA/EGA video RAM range
+            VRAM[(tempaddr32 - 0xA0000) & VRAM_SIZE] = value;
             return;
-        }
+
 
         updatedscreen = 1;
     }
 #ifdef DEBUG_BIOS_DATA_AREA_CPU_ACCESS
-        if ((addr32 & 0xFFF00) == 0x400)
-			printf("DEBUG: CPU accesses (WRITE) BDA at %Xh, value it writes: %Xh\n", addr32, value);
+    if ((addr32 & 0xFFF00) == 0x400)
+        printf("DEBUG: CPU accesses (WRITE) BDA at %Xh, value it writes: %Xh\n", addr32, value);
 #endif
-
 
 
 }
@@ -185,29 +191,28 @@ void writew86(uint32_t addr32, uint16_t value) {
     write86(addr32 + 1, (uint8_t) (value >> 8));
 }
 
-// BIOS_TRAP_RESET INTERNAL_BIOS_TRAP_SEG
-static const uint8_t BIOS_RESET[] = { 0xEA, 0x01, 0x01, 0x0, 0xF0 };
-// BIOS_TRAP_BASIC INTERNAL_BIOS_TRAP_SEG
-static const uint8_t BIOS_BASIC[] = { 0xEA, 0x02, 0x01, 0x0, 0xF0 };
-static const uint8_t bios_signature[] = {
-        '1','0','/','2','3','/','2','3',
-        0x00, 0xFE, 0xAD
-};
-
 uint8_t read86(uint32_t addr32) {
 
     // BDA hardcoded values
-    switch(addr32) {
+    switch (addr32) {
         case 0x465:
             switch (videomode) {
-                case 0: return (0x2C);
-                case 1: return (0x28);
-                case 2: return (0x2D);
-                case 3: return (0x29);
-                case 4: return (0x0E);
-                case 5: return (0x0A);
-                case 6: return (0x1E);
-                default: return (0x29);
+                case 0:
+                    return (0x2C);
+                case 1:
+                    return (0x28);
+                case 2:
+                    return (0x2D);
+                case 3:
+                    return (0x29);
+                case 4:
+                    return (0x0E);
+                case 5:
+                    return (0x0A);
+                case 6:
+                    return (0x1E);
+                default:
+                    return (0x29);
             }
         case 0x413:
             return RAM_SIZE;
@@ -219,15 +224,24 @@ uint8_t read86(uint32_t addr32) {
 
     addr32 &= 0xFFFFF;
 
-    // VRAM
     if ((addr32 >= 0xA0000) && (addr32 <= 0xBFFFF)) {
-        //printf("VRAM REASD: %x\r\n", (addr32 - 0xA0000) & VRAM_SIZE);
+        // CGA video vRAM range
+        if ((addr32 >= 0xB8000) && (addr32 < 0xBC000)) {
+            addr32 -= 0xB8000;
+            if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
+                return VRAM[addr32 & 4095];
+            } else {
+                return VRAM[addr32 & 16383];                                                       //16k CGA MEMORY!!!
+            }
+        }
+
+        // VGA/EGA VRAM
         return VRAM[(addr32 - 0xA0000) & VRAM_SIZE];
     }
 
     // BIOS
     if ((addr32 >= 0xFE000) && (addr32 < 0x100000)) {
-        return BIOS[addr32-0xFE000];
+        return BIOS[addr32 - 0xFE000];
     }
 
     // VARIOUS ROM
@@ -237,12 +251,12 @@ uint8_t read86(uint32_t addr32) {
 
 #ifdef DEBUG_BIOS_DATA_AREA_CPU_ACCESS
     if ((addr32 & 0xFFF00) == 0x400)
-		printf("DEBUG: CPU accesses (READ) BDA at %Xh, value there: %Xh\n", addr32, RAM[addr32]);
+        printf("DEBUG: CPU accesses (READ) BDA at %Xh, value there: %Xh\n", addr32, RAM[addr32]);
 #endif
     if (addr32 < (RAM_SIZE << 10)) {
         return RAM[addr32];
     } else {
-        printf("READ: %x\r\n",addr32);
+        printf("READ: %x\r\n", addr32);
     }
     return 0x90;
 }
@@ -729,14 +743,18 @@ void intcall86(uint8_t intnum) {
                     //CopyCharROM();
                     printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
 #if PICO_ON_DEVICE
-                    if (videomode != 3) {
-                        setVGAmode(VGA640x480div2);
+                    if (videomode == 4) {
+                        setVGAmode(CGA_320x200x4);
                     } else {
                         setVGAmode(VGA640x480_text_80_30);
                     }
 #endif
                     // Установить видеорежим
                     break;
+                case 0x1A: //get display combination code (ps, vga/mcga)
+                    CPU_AL = 0x1A;
+                    CPU_BL = 0x8;
+                    return;
 #if 1
                 case 0x02: // Установить позицию курсора
                     cursor_x = CPU_DL;
@@ -749,7 +767,7 @@ void intcall86(uint8_t intnum) {
                 case 0x06:
                     if (!CPU_AL) {
                         // FIXME!! Нормально сделай!
-                        memset(VRAM, 0x00, 160*25);
+                        memset(VRAM, 0x00, 160 * 25);
                         return;
                     }
                     break;
@@ -786,24 +804,25 @@ void intcall86(uint8_t intnum) {
 #endif
             }
             break;
-        case 0x166:
+#if !PICO_ON_DEVICE
+        case 0x16:
             switch (CPU_AH) {
                 case 0x10:
                 case 0x00:
                     /*00H читать (ожидать) следующую нажатую клавишу
                     выход: AL = ASCII символ (если AL=0, AH содержит расширенный код ASCII )
                           AH = сканкод  или расширенный код ASCII*/
-                    //CPU_AX = _kbhit() ? getch() : 0; //kbd_get_buffer(1);
-                    CPU_AL = 0;
-                    CPU_AH = portram[0x60]; //kbd_get_buffer(1);
+                    CPU_AX = kbhit() ? getch() : 0; //kbd_get_buffer(1);
+//                    CPU_AL = 0;
+//                    CPU_AH =  _kbhit() ? getch() : 0; //kbd_get_buffer(1);
 
                     return;
 
                 case 0x11:
                 case 0x01:
-                    //CPU_AX = _kbhit() ? getch() : 0;//kbd_get_buffer(0);
-                    CPU_AL = 0;
-                    CPU_AH = portram[0x60]; //kbd_get_buffer(1);
+                    CPU_AX = kbhit() ? getch() : 0;//kbd_get_buffer(0);
+//                    CPU_AL =  _kbhit() ? getch() : 0;
+//                    CPU_AH =  _kbhit() ? getch() : 0; //kbd_get_buffer(1);
 
                     if (CPU_AX)
                         CPU_FL_ZF = 0;
@@ -812,43 +831,44 @@ void intcall86(uint8_t intnum) {
                     return;
             }
             break;
-       /* case 0x19: // bootstrap
-            didbootstrap = 1;
-            break;
-            printf("Bootstrap\r\n");
+#endif
+            /* case 0x19: // bootstrap
+                 didbootstrap = 1;
+                 break;
+                 printf("Bootstrap\r\n");
 
-            if (bootdrive < 255) { // read first sector of boot drive into
-                // 07C0:0000 and execute it
-                CPU_DL = bootdrive;
-                bios_read_boot_sector(bootdrive, 0, 0x7C00);
-                if (cf) {
-                    fprintf(stderr, "BOOT: cannot read boot record of drive %02X! Trying ROM basic instead!\n",
-                            bootdrive);
-                    segregs[regcs] = 0xF600;
-                    ip = 0;
-                } else {
-                    segregs[regcs] = 0x0000;
-                    ip = 0x7C00;
-                    printf("BOOT: executing boot record at %04X:%04X\n", segregs[regcs], ip);
-                }
-            } else {
-                segregs[regcs] = 0xF600; // start ROM BASIC at bootstrap if requested
-                ip = 0x0000;
-            }
-            return;*/
+                 if (bootdrive < 255) { // read first sector of boot drive into
+                     // 07C0:0000 and execute it
+                     CPU_DL = bootdrive;
+                     bios_read_boot_sector(bootdrive, 0, 0x7C00);
+                     if (cf) {
+                         fprintf(stderr, "BOOT: cannot read boot record of drive %02X! Trying ROM basic instead!\n",
+                                 bootdrive);
+                         segregs[regcs] = 0xF600;
+                         ip = 0;
+                     } else {
+                         segregs[regcs] = 0x0000;
+                         ip = 0x7C00;
+                         printf("BOOT: executing boot record at %04X:%04X\n", segregs[regcs], ip);
+                     }
+                 } else {
+                     segregs[regcs] = 0xF600; // start ROM BASIC at bootstrap if requested
+                     ip = 0x0000;
+                 }
+                 return;*/
         case 0x13:
         case 0xFD:
             diskhandler();
             return;
 
     }
-            push(makeflagsword());
-            push(segregs[regcs]);
-            push(ip);
-            segregs[regcs] = getmem16 (0, (uint16_t) intnum * 4 + 2);
-            ip = getmem16 (0, (uint16_t) intnum * 4);
-            ifl = 0;
-            tf = 0;
+    push(makeflagsword());
+    push(segregs[regcs]);
+    push(ip);
+    segregs[regcs] = getmem16 (0, (uint16_t) intnum * 4 + 2);
+    ip = getmem16 (0, (uint16_t) intnum * 4);
+    ifl = 0;
+    tf = 0;
 }
 
 
@@ -1401,6 +1421,16 @@ void __inline exec86(uint32_t execloops) {
             doirq(1);
         }
     }
+#else
+/*    if (_kbhit()) {
+        previous_c = getch();
+        portram[0x60] = previous_c;
+        doirq(1);
+    } else {
+        portram[0x60] = previous_c | 0x80;
+        //doirq(1);
+
+    }*/
 #endif
 /*
     if (runEvery(CURSOR_SPEED)) {                                           // blink the cursor
@@ -2212,207 +2242,207 @@ void __inline exec86(uint32_t execloops) {
                 break;
 
 #ifndef CPU_8086
-            case 0x60:  /* 60 PUSHA (80186+) */
-                oldsp = regs.wordregs[regsp];
-                push(regs.wordregs[regax]);
-                push(regs.wordregs[regcx]);
-                push(regs.wordregs[regdx]);
-                push(regs.wordregs[regbx]);
-                push(oldsp);
-                push(regs.wordregs[regbp]);
-                push(regs.wordregs[regsi]);
-                push(regs.wordregs[regdi]);
-                break;
+                case 0x60:  /* 60 PUSHA (80186+) */
+                    oldsp = regs.wordregs[regsp];
+                    push(regs.wordregs[regax]);
+                    push(regs.wordregs[regcx]);
+                    push(regs.wordregs[regdx]);
+                    push(regs.wordregs[regbx]);
+                    push(oldsp);
+                    push(regs.wordregs[regbp]);
+                    push(regs.wordregs[regsi]);
+                    push(regs.wordregs[regdi]);
+                    break;
 
-            case 0x61:  /* 61 POPA (80186+) */
-                regs.wordregs[regdi] = pop();
-                regs.wordregs[regsi] = pop();
-                regs.wordregs[regbp] = pop();
-                dummy = pop();
-                regs.wordregs[regbx] = pop();
-                regs.wordregs[regdx] = pop();
-                regs.wordregs[regcx] = pop();
-                regs.wordregs[regax] = pop();
-                break;
+                case 0x61:  /* 61 POPA (80186+) */
+                    regs.wordregs[regdi] = pop();
+                    regs.wordregs[regsi] = pop();
+                    regs.wordregs[regbp] = pop();
+                    dummy = pop();
+                    regs.wordregs[regbx] = pop();
+                    regs.wordregs[regdx] = pop();
+                    regs.wordregs[regcx] = pop();
+                    regs.wordregs[regax] = pop();
+                    break;
 
-            case 0x62: /* 62 BOUND Gv, Ev (80186+) */
-                modregrm();
-                getea(rm);
-                if (signext32 (getreg16(reg)) < signext32 (getmem16(ea >> 4, ea & 15))) {
-                    intcall86(5); //bounds check exception
-                } else {
-                    ea += 2;
-                    if (signext32 (getreg16(reg)) > signext32 (getmem16(ea >> 4, ea & 15))) {
+                case 0x62: /* 62 BOUND Gv, Ev (80186+) */
+                    modregrm();
+                    getea(rm);
+                    if (signext32 (getreg16(reg)) < signext32 (getmem16(ea >> 4, ea & 15))) {
                         intcall86(5); //bounds check exception
+                    } else {
+                        ea += 2;
+                        if (signext32 (getreg16(reg)) > signext32 (getmem16(ea >> 4, ea & 15))) {
+                            intcall86(5); //bounds check exception
+                        }
                     }
-                }
-                break;
-
-            case 0x68:  /* 68 PUSH Iv (80186+) */
-                push(getmem16 (segregs[regcs], ip));
-                StepIP (2);
-                break;
-
-            case 0x69:  /* 69 IMUL Gv Ev Iv (80186+) */
-                modregrm();
-                temp1 = readrm16(rm);
-                temp2 = getmem16 (segregs[regcs], ip);
-                StepIP (2);
-                if ((temp1 & 0x8000L) == 0x8000L) {
-                    temp1 = temp1 | 0xFFFF0000L;
-                }
-
-                if ((temp2 & 0x8000L) == 0x8000L) {
-                    temp2 = temp2 | 0xFFFF0000L;
-                }
-
-                temp3 = temp1 * temp2;
-                putreg16 (reg, temp3 & 0xFFFFL);
-                if (temp3 & 0xFFFF0000L) {
-                    cf = 1;
-                    of = 1;
-                } else {
-                    cf = 0;
-                    of = 0;
-                }
-                break;
-
-            case 0x6A:  /* 6A PUSH Ib (80186+) */
-                push(getmem8 (segregs[regcs], ip));
-                StepIP (1);
-                break;
-
-            case 0x6B:  /* 6B IMUL Gv Eb Ib (80186+) */
-                modregrm();
-                temp1 = readrm16(rm);
-                temp2 = signext (getmem8(segregs[regcs], ip));
-                StepIP (1);
-                if ((temp1 & 0x8000L) == 0x8000L) {
-                    temp1 = temp1 | 0xFFFF0000L;
-                }
-
-                if ((temp2 & 0x8000L) == 0x8000L) {
-                    temp2 = temp2 | 0xFFFF0000L;
-                }
-
-                temp3 = temp1 * temp2;
-                putreg16 (reg, temp3 & 0xFFFFL);
-                if (temp3 & 0xFFFF0000L) {
-                    cf = 1;
-                    of = 1;
-                } else {
-                    cf = 0;
-                    of = 0;
-                }
-                break;
-
-            case 0x6C:  /* 6E INSB */
-                if (reptype && (regs.wordregs[regcx] == 0)) {
                     break;
-                }
 
-                putmem8 (useseg, regs.wordregs[regsi], portin (regs.wordregs[regdx]) );
-                if (df) {
-                    regs.wordregs[regsi] = regs.wordregs[regsi] - 1;
-                    regs.wordregs[regdi] = regs.wordregs[regdi] - 1;
-                } else {
-                    regs.wordregs[regsi] = regs.wordregs[regsi] + 1;
-                    regs.wordregs[regdi] = regs.wordregs[regdi] + 1;
-                }
-
-                if (reptype) {
-                    regs.wordregs[regcx] = regs.wordregs[regcx] - 1;
-                }
-
-                totalexec++;
-                loopcount++;
-                if (!reptype) {
+                case 0x68:  /* 68 PUSH Iv (80186+) */
+                    push(getmem16 (segregs[regcs], ip));
+                    StepIP (2);
                     break;
-                }
 
-                ip = firstip;
-                break;
+                case 0x69:  /* 69 IMUL Gv Ev Iv (80186+) */
+                    modregrm();
+                    temp1 = readrm16(rm);
+                    temp2 = getmem16 (segregs[regcs], ip);
+                    StepIP (2);
+                    if ((temp1 & 0x8000L) == 0x8000L) {
+                        temp1 = temp1 | 0xFFFF0000L;
+                    }
 
-            case 0x6D:  /* 6F INSW */
-                if (reptype && (regs.wordregs[regcx] == 0)) {
+                    if ((temp2 & 0x8000L) == 0x8000L) {
+                        temp2 = temp2 | 0xFFFF0000L;
+                    }
+
+                    temp3 = temp1 * temp2;
+                    putreg16 (reg, temp3 & 0xFFFFL);
+                    if (temp3 & 0xFFFF0000L) {
+                        cf = 1;
+                        of = 1;
+                    } else {
+                        cf = 0;
+                        of = 0;
+                    }
                     break;
-                }
 
-                putmem16 (useseg, regs.wordregs[regsi], portin16 (regs.wordregs[regdx]) );
-                if (df) {
-                    regs.wordregs[regsi] = regs.wordregs[regsi] - 2;
-                    regs.wordregs[regdi] = regs.wordregs[regdi] - 2;
-                } else {
-                    regs.wordregs[regsi] = regs.wordregs[regsi] + 2;
-                    regs.wordregs[regdi] = regs.wordregs[regdi] + 2;
-                }
-
-                if (reptype) {
-                    regs.wordregs[regcx] = regs.wordregs[regcx] - 1;
-                }
-
-                totalexec++;
-                loopcount++;
-                if (!reptype) {
+                case 0x6A:  /* 6A PUSH Ib (80186+) */
+                    push(getmem8 (segregs[regcs], ip));
+                    StepIP (1);
                     break;
-                }
 
-                ip = firstip;
-                break;
+                case 0x6B:  /* 6B IMUL Gv Eb Ib (80186+) */
+                    modregrm();
+                    temp1 = readrm16(rm);
+                    temp2 = signext (getmem8(segregs[regcs], ip));
+                    StepIP (1);
+                    if ((temp1 & 0x8000L) == 0x8000L) {
+                        temp1 = temp1 | 0xFFFF0000L;
+                    }
 
-            case 0x6E:  /* 6E OUTSB */
-                if (reptype && (regs.wordregs[regcx] == 0)) {
+                    if ((temp2 & 0x8000L) == 0x8000L) {
+                        temp2 = temp2 | 0xFFFF0000L;
+                    }
+
+                    temp3 = temp1 * temp2;
+                    putreg16 (reg, temp3 & 0xFFFFL);
+                    if (temp3 & 0xFFFF0000L) {
+                        cf = 1;
+                        of = 1;
+                    } else {
+                        cf = 0;
+                        of = 0;
+                    }
                     break;
-                }
 
-                portout (regs.wordregs[regdx], getmem8 (useseg, regs.wordregs[regsi]) );
-                if (df) {
-                    regs.wordregs[regsi] = regs.wordregs[regsi] - 1;
-                    regs.wordregs[regdi] = regs.wordregs[regdi] - 1;
-                } else {
-                    regs.wordregs[regsi] = regs.wordregs[regsi] + 1;
-                    regs.wordregs[regdi] = regs.wordregs[regdi] + 1;
-                }
+                case 0x6C:  /* 6E INSB */
+                    if (reptype && (regs.wordregs[regcx] == 0)) {
+                        break;
+                    }
 
-                if (reptype) {
-                    regs.wordregs[regcx] = regs.wordregs[regcx] - 1;
-                }
+                    putmem8 (useseg, regs.wordregs[regsi], portin (regs.wordregs[regdx]) );
+                    if (df) {
+                        regs.wordregs[regsi] = regs.wordregs[regsi] - 1;
+                        regs.wordregs[regdi] = regs.wordregs[regdi] - 1;
+                    } else {
+                        regs.wordregs[regsi] = regs.wordregs[regsi] + 1;
+                        regs.wordregs[regdi] = regs.wordregs[regdi] + 1;
+                    }
 
-                totalexec++;
-                loopcount++;
-                if (!reptype) {
+                    if (reptype) {
+                        regs.wordregs[regcx] = regs.wordregs[regcx] - 1;
+                    }
+
+                    totalexec++;
+                    loopcount++;
+                    if (!reptype) {
+                        break;
+                    }
+
+                    ip = firstip;
                     break;
-                }
 
-                ip = firstip;
-                break;
+                case 0x6D:  /* 6F INSW */
+                    if (reptype && (regs.wordregs[regcx] == 0)) {
+                        break;
+                    }
 
-            case 0x6F:  /* 6F OUTSW */
-                if (reptype && (regs.wordregs[regcx] == 0)) {
+                    putmem16 (useseg, regs.wordregs[regsi], portin16 (regs.wordregs[regdx]) );
+                    if (df) {
+                        regs.wordregs[regsi] = regs.wordregs[regsi] - 2;
+                        regs.wordregs[regdi] = regs.wordregs[regdi] - 2;
+                    } else {
+                        regs.wordregs[regsi] = regs.wordregs[regsi] + 2;
+                        regs.wordregs[regdi] = regs.wordregs[regdi] + 2;
+                    }
+
+                    if (reptype) {
+                        regs.wordregs[regcx] = regs.wordregs[regcx] - 1;
+                    }
+
+                    totalexec++;
+                    loopcount++;
+                    if (!reptype) {
+                        break;
+                    }
+
+                    ip = firstip;
                     break;
-                }
 
-                portout16 (regs.wordregs[regdx], getmem16 (useseg, regs.wordregs[regsi]) );
-                if (df) {
-                    regs.wordregs[regsi] = regs.wordregs[regsi] - 2;
-                    regs.wordregs[regdi] = regs.wordregs[regdi] - 2;
-                } else {
-                    regs.wordregs[regsi] = regs.wordregs[regsi] + 2;
-                    regs.wordregs[regdi] = regs.wordregs[regdi] + 2;
-                }
+                case 0x6E:  /* 6E OUTSB */
+                    if (reptype && (regs.wordregs[regcx] == 0)) {
+                        break;
+                    }
 
-                if (reptype) {
-                    regs.wordregs[regcx] = regs.wordregs[regcx] - 1;
-                }
+                    portout (regs.wordregs[regdx], getmem8 (useseg, regs.wordregs[regsi]) );
+                    if (df) {
+                        regs.wordregs[regsi] = regs.wordregs[regsi] - 1;
+                        regs.wordregs[regdi] = regs.wordregs[regdi] - 1;
+                    } else {
+                        regs.wordregs[regsi] = regs.wordregs[regsi] + 1;
+                        regs.wordregs[regdi] = regs.wordregs[regdi] + 1;
+                    }
 
-                totalexec++;
-                loopcount++;
-                if (!reptype) {
+                    if (reptype) {
+                        regs.wordregs[regcx] = regs.wordregs[regcx] - 1;
+                    }
+
+                    totalexec++;
+                    loopcount++;
+                    if (!reptype) {
+                        break;
+                    }
+
+                    ip = firstip;
                     break;
-                }
 
-                ip = firstip;
-                break;
+                case 0x6F:  /* 6F OUTSW */
+                    if (reptype && (regs.wordregs[regcx] == 0)) {
+                        break;
+                    }
+
+                    portout16 (regs.wordregs[regdx], getmem16 (useseg, regs.wordregs[regsi]) );
+                    if (df) {
+                        regs.wordregs[regsi] = regs.wordregs[regsi] - 2;
+                        regs.wordregs[regdi] = regs.wordregs[regdi] - 2;
+                    } else {
+                        regs.wordregs[regsi] = regs.wordregs[regsi] + 2;
+                        regs.wordregs[regdi] = regs.wordregs[regdi] + 2;
+                    }
+
+                    if (reptype) {
+                        regs.wordregs[regcx] = regs.wordregs[regcx] - 1;
+                    }
+
+                    totalexec++;
+                    loopcount++;
+                    if (!reptype) {
+                        break;
+                    }
+
+                    ip = firstip;
+                    break;
 #endif
             case 0x70:  /* 70 JO Jb */
                 temp16 = signext (getmem8(segregs[regcs], ip));
@@ -3420,25 +3450,25 @@ void __inline exec86(uint32_t execloops) {
             case 0xE4:  /* E4 IN regs.byteregs[regal] Ib */
                 oper1b = getmem8 (segregs[regcs], ip);
                 StepIP (1);
-                regs.byteregs[regal] = (uint8_t) portin (oper1b);
+                regs.byteregs[regal] = (uint8_t) portin(oper1b);
                 break;
 
             case 0xE5:  /* E5 IN eAX Ib */
                 oper1b = getmem8 (segregs[regcs], ip);
                 StepIP (1);
-                regs.wordregs[regax] = portin16 (oper1b);
+                regs.wordregs[regax] = portin16(oper1b);
                 break;
 
             case 0xE6:  /* E6 OUT Ib regs.byteregs[regal] */
                 oper1b = getmem8 (segregs[regcs], ip);
                 StepIP (1);
-                portout (oper1b, regs.byteregs[regal]);
+                portout(oper1b, regs.byteregs[regal]);
                 break;
 
             case 0xE7:  /* E7 OUT Ib eAX */
                 oper1b = getmem8 (segregs[regcs], ip);
                 StepIP (1);
-                portout16 (oper1b, regs.wordregs[regax]);
+                portout16(oper1b, regs.wordregs[regax]);
                 break;
 
             case 0xE8:  /* E8 CALL Jv */
@@ -3470,22 +3500,22 @@ void __inline exec86(uint32_t execloops) {
 
             case 0xEC:  /* EC IN regs.byteregs[regal] regdx */
                 oper1 = regs.wordregs[regdx];
-                regs.byteregs[regal] = (uint8_t) portin (oper1);
+                regs.byteregs[regal] = (uint8_t) portin(oper1);
                 break;
 
             case 0xED:  /* ED IN eAX regdx */
                 oper1 = regs.wordregs[regdx];
-                regs.wordregs[regax] = portin16 (oper1);
+                regs.wordregs[regax] = portin16(oper1);
                 break;
 
             case 0xEE:  /* EE OUT regdx regs.byteregs[regal] */
                 oper1 = regs.wordregs[regdx];
-                portout (oper1, regs.byteregs[regal]);
+                portout(oper1, regs.byteregs[regal]);
                 break;
 
             case 0xEF:  /* EF OUT regdx eAX */
                 oper1 = regs.wordregs[regdx];
-                portout16 (oper1, regs.wordregs[regax]);
+                portout16(oper1, regs.wordregs[regax]);
                 break;
 
             case 0xF0:  /* F0 LOCK */
@@ -3587,29 +3617,31 @@ uint32_t irq0_ticks = 0;
 uint32_t tempdummy;
 uint32_t tickNumber;
 uint32_t tickRemainder;
-void tick1(uint32_t interval){                             // accurate adjustment for the 18.2/s ticker
+
+void tick1(uint32_t interval) {                             // accurate adjustment for the 18.2/s ticker
     static unsigned long sinceMillis = 0;
     currentMillis = millis();
     if (currentMillis - sinceMillis >= interval) {
-        tempdummy = (currentMillis - sinceMillis)* 182;
+        tempdummy = (currentMillis - sinceMillis) * 182;
         tempdummy = tempdummy + tickRemainder;
         dummy = tempdummy / 10000;
         tickRemainder = tempdummy % 10000;
         tickNumber = tickNumber + dummy;
-        if (tickNumber >1573039) {      /// every 1573040 = 1 day
+        if (tickNumber > 1573039) {      /// every 1573040 = 1 day
             tickNumber = tickNumber - 1573040;
             pokeb(0x470, 1);
         }
-        pokeb(0x46c, ((tickNumber>>0) & 0xFF));
-        pokeb(0x46d, ((tickNumber>>8) & 0xFF));
-        pokeb(0x46e, ((tickNumber>>16) & 0xFF));
-        pokeb(0x46f, ((tickNumber>>24) & 0xFF));
+        pokeb(0x46c, ((tickNumber >> 0) & 0xFF));
+        pokeb(0x46d, ((tickNumber >> 8) & 0xFF));
+        pokeb(0x46e, ((tickNumber >> 16) & 0xFF));
+        pokeb(0x46f, ((tickNumber >> 24) & 0xFF));
         sinceMillis = currentMillis;
         return;
     }
     return;
 }
-void tick (uint32_t interval) {
+
+void tick(uint32_t interval) {
     static unsigned long sinceMillis = 0;
     static uint32_t ticks = 0;
     currentMillis = millis();
@@ -3621,14 +3653,13 @@ void tick (uint32_t interval) {
     irq0_ticks++;
 
 
-
     if (currentMillis - sinceMillis >= interval) {
         ticks++;
-        pokeb(0x46C,  (ticks >> 0) & 0xFF);
-        pokeb(0x46D,  (ticks >> 8) & 0xFF);
-        pokeb(0x46E,  (ticks >> 16) & 0xFF);
-        pokeb(0x46F,  (ticks >> 24) & 0xFF);
-        if (ticks >1573039) {      /// every 1573040 = 1 day
+        pokeb(0x46C, (ticks >> 0) & 0xFF);
+        pokeb(0x46D, (ticks >> 8) & 0xFF);
+        pokeb(0x46E, (ticks >> 16) & 0xFF);
+        pokeb(0x46F, (ticks >> 24) & 0xFF);
+        if (ticks > 1573039) {      /// every 1573040 = 1 day
             ticks = ticks - 1573040;
             pokeb(0x470, 1);
         }

@@ -15,6 +15,7 @@ extern "C" {
 }
 #else
 #define SDL_MAIN_HANDLED
+
 #include "SDL2/SDL.h"
 #include "VGA_ROM_F16.h"
 
@@ -39,7 +40,7 @@ struct semaphore vga_start_semaphore;
 void __time_critical_func(render_core)() {
     initVGA();
 
-    setVGAbuf(VRAM, 160, 100);
+    setVGAbuf(VRAM, 320, 200);
 
     setVGA_text_buf(VRAM);
     setVGA_bg_color(0);
@@ -67,6 +68,39 @@ static int RendererThread(void *ptr) {
     return 0;
 }
 
+#endif
+#if !PICO_ON_DEVICE
+const uint8_t cga_palette[16][3] = { //R, G, B
+        { 0x00, 0x00, 0x00 }, //black
+        { 0x00, 0x00, 0xAA }, //blue
+        { 0x00, 0xAA, 0x00 }, //green
+        { 0x00, 0xAA, 0xAA }, //cyan
+        { 0xAA, 0x00, 0x00 }, //red
+        { 0xAA, 0x00, 0xAA }, //magenta
+        { 0xAA, 0x55, 0x00 }, //brown
+        { 0xAA, 0xAA, 0xAA }, //light gray
+        { 0x55, 0x55, 0x55 }, //dark gray
+        { 0x55, 0x55, 0xFF }, //light blue
+        { 0x55, 0xFF, 0x55 }, //light green
+        { 0x55, 0xFF, 0xFF }, //light cyan
+        { 0xFF, 0x55, 0x55 }, //light red
+        { 0xFF, 0x55, 0xFF }, //light magenta
+        { 0xFF, 0xFF, 0x55 }, //yellow
+        { 0xFF, 0xFF, 0xFF }  //white
+};
+
+const uint8_t cga_gfxpal[2][2][4] = { //palettes for 320x200 graphics mode
+        {
+                { 0, 2, 4, 6 }, //normal palettes
+                { 0, 3, 5, 7 }
+        },
+        {
+                { 0, 10, 12, 14 }, //intense palettes
+                { 0, 11, 13, 15 }
+        }
+};
+
+#define cga_color(c) ((uint32_t)cga_palette[c][2] | ((uint32_t)cga_palette[c][1]<<8) | ((uint32_t)cga_palette[c][0]<<16))
 #endif
 
 int main() {
@@ -123,20 +157,66 @@ int main() {
         }
 
 
-        for (uint16_t y = 0; y < 400; y++) {
-            for (uint8_t x = 0; x < 80; x++) {
-                char c = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 0];
-                //printf("%c", c);
-                uint8_t glyph_row = VGA_ROM_F16[c * 16 + y % 16];
-                uint8_t color = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 1];
+        if (videomode == 3) {
+//            SDL_SetWindowSize(window, 640, 400);
+            for (uint16_t y = 0; y < 400; y++) {
+                for (uint8_t x = 0; x < 80; x++) {
+                    char c = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 0];
+                    //printf("%c", c);
+                    uint8_t glyph_row = VGA_ROM_F16[c * 16 + y % 16];
+                    uint8_t color = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 1];
 
-                for (uint8_t bit = 0; bit < 8; bit++) {
-                    if ((glyph_row >> bit) & 1) {
-                        pixels[y*640+(8 * x + bit)] = dosColorPalette[color & 0x0F];
-                    } else {
-                        pixels[y*640+(8 * x + bit)] = dosColorPalette[color >> 4];
+                    for (uint8_t bit = 0; bit < 8; bit++) {
+                        if ((glyph_row >> bit) & 1) {
+                            pixels[y * 640 + (8 * x + bit)] = dosColorPalette[color & 0x0F];
+                        } else {
+                            pixels[y * 640 + (8 * x + bit)] = dosColorPalette[color >> 4];
+                        }
                     }
                 }
+            }
+        } else {
+            const uint8_t vidmode = 4;
+
+            uint32_t *pix = pixels;
+            uint32_t usepal = 1 ;// (portram[0x3D9]>>5) & 1;
+            uint32_t intensity = 0; // ( (portram[0x3D9]>>4) & 1) << 3;
+            for (int y = 0; y < 200; y++) {
+                for (int x = 0; x < 320; x++) {
+                    uint32_t charx = x;
+                    uint32_t chary = y;
+                    uint32_t vidptr = /*0xB8000 + */( (chary>>1) * 80) + ( (chary & 1) * 8192) + (charx >> 2);
+                    uint32_t curpixel = VRAM[vidptr];
+                    uint32_t color;
+                    switch (charx & 3) {
+                        case 3:
+                            curpixel = curpixel & 3;
+                            break;
+                        case 2:
+                            curpixel = (curpixel>>2) & 3;
+                            break;
+                        case 1:
+                            curpixel = (curpixel>>4) & 3;
+                            break;
+                        case 0:
+                            curpixel = (curpixel>>6) & 3;
+                            break;
+                    }
+                    if (vidmode==4) {
+                        curpixel = curpixel * 2 + usepal + intensity;
+                        if (curpixel == (usepal + intensity) )
+                            curpixel = 0;
+                        color = cga_color(curpixel);
+                        //prestretch[y][x] = color;
+                        *pix++ = color;
+                    } else {
+                        curpixel = curpixel * 63;
+                        color = cga_color(curpixel);
+                        //prestretch[y][x] = color;
+                        *pix++ = color;
+                    }
+                }
+                pix += 320;
             }
         }
         SDL_UpdateWindowSurface(window);
