@@ -1,7 +1,7 @@
 //
 // Created by xrip on 23.10.2023.
 //
-
+#pragma once
 #ifndef TINY8086_I8259_H
 #define TINY8086_I8259_H
 /* i8259.c - emulation code for the Intel 8259 controller.

@@ -38,7 +38,7 @@ void ejectdisk(uint8_t drivenum) {
     }
 }
 
-uint8_t insertdisk(uint8_t drivenum, size_t size, const char *ROM) {
+uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM) {
     const char *err = "?";
     if (size < 360 * 1024) {
         err = "Disk image is too small!";
@@ -120,6 +120,8 @@ static size_t chs2ofs(int drivenum, int cyl, int head, int sect) {
 static void
 bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, uint16_t sect, uint16_t head,
               uint16_t sectcount, int is_verify) {
+    uint32_t cursect, memdest, lba;
+    size_t fileoffset;
     if (!disk[drivenum].inserted) {
         CPU_AH = 0x31;    // no media in drive
         goto error;
@@ -128,10 +130,10 @@ bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, 
         CPU_AH = 0x04;    // sector not found
         goto error;
     }
-    uint32_t lba =
+    lba =
             ((uint32_t) cyl * (uint32_t) disk[drivenum].heads + (uint32_t) head) * (uint32_t) disk[drivenum].sects +
             (uint32_t) sect - 1;
-    size_t fileoffset = lba * 512;
+    fileoffset = lba * 512;
     //size_t fileoffset = chs2ofs(drivenum, cyl, head, sect);
 
     if (fileoffset > disk[drivenum].filesize) {
@@ -139,11 +141,11 @@ bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, 
         goto error;
     }
 
-    uint32_t memdest = ((uint32_t) dstseg << 4) + (uint32_t) dstoff;
+    memdest = ((uint32_t) dstseg << 4) + (uint32_t) dstoff;
     // for the readdisk function, we need to use write86 instead of directly fread'ing into
     // the RAM array, so that read-only flags are honored. otherwise, a program could load
     // data from a disk over BIOS or other ROM code that it shouldn't be able to.
-    uint32_t cursect;
+
     for (cursect = 0; cursect < sectcount; cursect++) {
 //        if (hostfs_read(disk[drivenum].diskfile, sectorbuffer, 512, 1) != 1)
 //            break;
@@ -185,7 +187,6 @@ bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, 
     // AH must be set with the error code
     CPU_AL = 0;
     CPU_FL_CF = 1;
-    return;
 }
 
 void bios_read_boot_sector(int drive, uint16_t dstseg, uint16_t dstoff) {
@@ -196,6 +197,8 @@ void bios_read_boot_sector(int drive, uint16_t dstseg, uint16_t dstoff) {
 static void
 bios_writedisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, uint16_t sect, uint16_t head,
                uint16_t sectcount) {
+    uint32_t cursect, memdest, lba;
+    size_t fileoffset;
     //printf("bios_writedisk\r\n");
     if (!disk[drivenum].inserted) {
         CPU_AH = 0x31;    // no media in drive
@@ -207,7 +210,7 @@ bios_writedisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl,
     }
     //uint32_t lba = ((uint32_t)cyl * (uint32_t)disk[drivenum].heads + (uint32_t)head) * (uint32_t)disk[drivenum].sects + (uint32_t)sect - 1;
     //size_t fileoffset = lba * 512;
-    size_t fileoffset = chs2ofs(drivenum, cyl, head, sect);
+    fileoffset = chs2ofs(drivenum, cyl, head, sect);
     if (fileoffset > disk[drivenum].filesize) {
         CPU_AH = 0x04;    // sector not found
         goto error;
@@ -220,8 +223,7 @@ bios_writedisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl,
         CPU_AH = 0x04;    // sector not found
         goto error;
     }
-    uint32_t memdest = ((uint32_t) dstseg << 4) + (uint32_t) dstoff;
-    uint32_t cursect;
+    memdest = ((uint32_t) dstseg << 4) + (uint32_t) dstoff;
     for (cursect = 0; cursect < sectcount; cursect++) {
         for (int sectoffset = 0; sectoffset < 512; sectoffset++) {
             // FIXME: segment overflow condition?

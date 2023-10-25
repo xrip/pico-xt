@@ -134,6 +134,5 @@ extern uint16_t cpu_pop(void);
 extern void cpu_IRET(void);
 
 extern int cpu_hlt_handler(void);
-extern void tick (uint32_t interval);
-extern void pollkb();
+void handleinput ( void );
 #endif //TINY8086_CPU8086_H

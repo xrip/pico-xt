@@ -101,6 +101,7 @@ const uint8_t cga_gfxpal[2][2][4] = { //palettes for 320x200 graphics mode
 };
 
 #define cga_color(c) ((uint32_t)cga_palette[c][2] | ((uint32_t)cga_palette[c][1]<<8) | ((uint32_t)cga_palette[c][0]<<16))
+
 #endif
 
 int main() {
@@ -145,19 +146,8 @@ int main() {
     //draw_text("TEST", 0, 0, 166, 0);
     while (runing) {
 #if !PICO_ON_DEVICE
-        SDL_Event event;
-        SDL_PollEvent(&event);
-        if (event.type == SDL_QUIT) {
-            if (window != NULL) {
-                SDL_DestroyWindow(window);
-            }
-
-            SDL_Quit();
-            return 0;
-        }
-
-
-        if (videomode == 3) {
+        handleinput();
+        if (videomode == 3 || videomode == 0x56) {
 //            SDL_SetWindowSize(window, 640, 400);
             for (uint16_t y = 0; y < 400; y++) {
                 for (uint8_t x = 0; x < 80; x++) {
