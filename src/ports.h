@@ -50,6 +50,7 @@ uint8_t COM1OUT;
 uint8_t COM1IN = 0;
 
 void portout(uint16_t portnum, uint16_t value) {
+    //printf("PORT %x: %x", pornum, value)
     switch (portnum) {
         case 0x20:
         case 0x21: //i8259
