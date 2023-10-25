@@ -672,8 +672,10 @@ uint16_t pop() {
 }
 
 uint16_t cpu_pop(void) {
-    return pop();
+    doirq(0);
 }
+
+
 
 #if !PICO_ON_DEVICE
 uint32_t ClockTick(uint32_t interval, void *name) {
@@ -691,8 +693,7 @@ void reset86() {
 #if !PICO_ON_DEVICE
     SDL_AddTimer(55, ClockTick, "timer");
 #else
-    struct repeating_timer timer;
-    add_repeating_timer_ms(55, ClockTick, NULL, &timer);
+
 #endif
     init8259();
     memset(RAM, 0x0, RAM_SIZE);
@@ -764,10 +765,10 @@ void intcall86(uint8_t intnum) {
                     //CopyCharROM();
                     printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
 #if PICO_ON_DEVICE
-                    if (videomode == 4) {
-                        setVGAmode(CGA_320x200x4);
-                    } else {
+                    if (videomode == 3 || videomode == 0x56 ) {
                         setVGAmode(VGA640x480_text_80_30);
+                    } else {
+                        setVGAmode(CGA_320x200x4);
                     }
 #endif
                     // Установить видеорежим

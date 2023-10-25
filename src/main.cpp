@@ -4,6 +4,9 @@ extern "C" {
 #include "cpu8086.h"
 }
 #if PICO_ON_DEVICE
+#ifndef OVERCLOCKING
+#define OVERCLOCKING 270
+#endif
 #include <pico/time.h>
 #include <pico/multicore.h>
 #include <pico/stdlib.h>
@@ -46,14 +49,19 @@ void __time_critical_func(render_core)() {
     setVGA_bg_color(0);
     setVGAbuf_pos(0, 0);
     setVGA_color_flash_mode(true, true);
-    for (int i = 0; i < 255; ++i) {
-        setVGA_color_palette(i, dosColorPalette[i & 0x0F]);
-    }
+
 
 
     setVGAmode(VGA640x480_text_80_30);
-
+    for (int i = 0; i < 16; ++i) {
+        setVGA_color_palette(i, dosColorPalette[i]);
+    }
     sem_acquire_blocking(&vga_start_semaphore);
+
+    while (true) {
+        cpu_pop();
+        sleep_ms(55);
+    }
 
 }
 #else
@@ -107,12 +115,24 @@ const uint8_t cga_gfxpal[2][2][4] = { //palettes for 320x200 graphics mode
 int main() {
 //    init86();
 #if PICO_ON_DEVICE
-    vreg_set_voltage(VREG_VOLTAGE_1_15);
+    hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
     sleep_ms(33);
-    set_sys_clock_khz(266000, true);
-    sleep_ms(10);
+
+    set_sys_clock_khz(OVERCLOCKING * 1000, true);
+
     stdio_init_all();
-    sleep_ms(10);
+
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+
+
+    for (int i = 0; i < 6; i++) {
+        sleep_ms(33);
+        gpio_put(PICO_DEFAULT_LED_PIN, true);
+        sleep_ms(33);
+        gpio_put(PICO_DEFAULT_LED_PIN, false);
+    }
+
     Init_kbd();
     sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);

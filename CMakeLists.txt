@@ -62,6 +62,20 @@ if (PICO_PLATFORM STREQUAL "host")
     endforeach ()
 
 else ()
+    if(OVERCLOCKING)
+        set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME  "${PROJECT_NAME}-${OVERCLOCKING}MHz")
+
+        target_compile_definitions(${PROJECT_NAME} PRIVATE OVERCLOCKING=${OVERCLOCKING})
+
+        pico_define_boot_stage2(slower_boot2 ${PICO_DEFAULT_BOOT_STAGE2_FILE})
+        target_compile_definitions(slower_boot2 PRIVATE PICO_FLASH_SPI_CLKDIV=4)
+        pico_set_boot_stage2(${PROJECT_NAME} slower_boot2)
+
+        message(STATUS "==================================")
+        message(STATUS "Overclocking ${OVERCLOCKING}MHz enabled")
+        message(STATUS "==================================")
+        message(STATUS "")
+    endif ()
     target_link_libraries(${PROJECT_NAME} PRIVATE
             vga-nextgen
             ps2
