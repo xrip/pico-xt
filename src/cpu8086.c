@@ -675,7 +675,16 @@ uint16_t cpu_pop(void) {
     return pop();
 }
 
+
+Uint32 ClockTick(Uint32 interval, void *name) {
+    doirq(0);
+    return interval;
+}
+
+
+
 void reset86() {
+    SDL_AddTimer(55, ClockTick, "timer");
     init8259();
     memset(RAM, 0x0, RAM_SIZE);
 

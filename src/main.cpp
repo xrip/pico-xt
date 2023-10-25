@@ -121,7 +121,8 @@ int main() {
     sleep_ms(50);
 
 #else
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
+
 
     window = SDL_CreateWindow("pico-xt",
                               SDL_WINDOWPOS_CENTERED,
