@@ -682,7 +682,8 @@ uint32_t ClockTick(uint32_t interval, void *name) {
 }
 #else
 bool ClockTick(struct repeating_timer *t) {
-
+    doirq(0);
+    return true;
 }
 #endif
 
