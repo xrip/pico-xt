@@ -675,16 +675,24 @@ uint16_t cpu_pop(void) {
     return pop();
 }
 
-
-Uint32 ClockTick(Uint32 interval, void *name) {
+#if !PICO_ON_DEVICE
+uint32_t ClockTick(uint32_t interval, void *name) {
     doirq(0);
     return interval;
 }
+#else
+bool ClockTick(struct repeating_timer *t) {
 
-
+}
+#endif
 
 void reset86() {
+#if !PICO_ON_DEVICE
     SDL_AddTimer(55, ClockTick, "timer");
+#else
+    struct repeating_timer timer;
+    add_repeating_timer_ms(55, ClockTick, NULL, &timer);
+#endif
     init8259();
     memset(RAM, 0x0, RAM_SIZE);
 
