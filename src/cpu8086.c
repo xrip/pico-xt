@@ -704,6 +704,7 @@ void reset86() {
 
     ip = 0x0000;
     hltstate = 0;
+    videomode = 3;
     insertdisk(0, sizeof FD0, FD0);
 }
 
@@ -779,12 +780,12 @@ void intcall86(uint8_t intnum) {
                     return;
 #if 1
                 case 0x02: // Установить позицию курсора
-                    cursor_x = CPU_DL;
-                    cursor_y = CPU_DH;
+                    CURX = CPU_DL;
+                    CURY = CPU_DH;
                     return;
                 case 0x03: // Получить позицию курсора
-                    CPU_DL = cursor_x;
-                    CPU_DH = cursor_y;
+                    CPU_DL = CURX;
+                    CPU_DH = CURY;
                     return;
                 case 0x06:
                     if (!CPU_AL) {
@@ -794,8 +795,8 @@ void intcall86(uint8_t intnum) {
                     }
                     break;
                 case 0x08: // Получим чар под курсором
-                    CPU_AL = VRAM[(cursor_y * 160 + cursor_x * 2) + 0];
-                    CPU_AH = VRAM[(cursor_y * 160 + cursor_x * 2) + 1];
+                    CPU_AL = VRAM[(CURY * 160 + CURX * 2) + 0];
+                    CPU_AH = VRAM[(CURY * 160 + CURX * 2) + 1];
                     return;
                 case 0x09:
                     /*09H писать символ/атрибут в текущей позиции курсора

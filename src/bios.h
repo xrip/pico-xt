@@ -17,35 +17,37 @@
 #include "ps2.h"
 #endif
 
-int cursor_x = 0;
-int cursor_y = 0;
+
+#define CURX RAM[0x450]
+#define CURY RAM[0x451]
 int color = 7;
 
 uint8_t VRAM[VRAM_SIZE << 10];
 
 static void bios_putchar(const char c) {
+
     //printf("\033[%im%c", color, c);
     if (c == 0x0D) {
-        cursor_x = 0;
-        cursor_y++;
+        CURX = 0;
+        CURY++;
     } else if (c == 0x0A) {
-        cursor_x = 0;
-    } else if (c == 0x08 && cursor_x > 0) {
-        cursor_x--;
-        VRAM[/*0xB8000 + */(cursor_y * 160) + cursor_x * 2 + 0] = 32;
-        VRAM[/*0xB8000 + */(cursor_y * 160) + cursor_x * 2 + 1] = color;
+        CURX = 0;
+    } else if (c == 0x08 && CURX > 0) {
+        CURX++;
+        VRAM[/*0xB8000 + */(CURY * 160) + CURX * 2 + 0] = 32;
+        VRAM[/*0xB8000 + */(CURY * 160) + CURX * 2 + 1] = color;
     } else {
-        VRAM[/*0xB8000 + */(cursor_y * 160) + cursor_x * 2 + 0] = c & 0xFF;
-        VRAM[/*0xB8000 + */(cursor_y * 160) + cursor_x * 2 + 1] = color;
-        if (cursor_x == 79) {
-            cursor_x = 0;
-            cursor_y++;
+        VRAM[/*0xB8000 + */(CURY * 160) + CURX * 2 + 0] = c & 0xFF;
+        VRAM[/*0xB8000 + */(CURY * 160) + CURX * 2 + 1] = color;
+        if (CURX == 79) {
+            CURX = 0;
+            CURY++;
         } else
-            cursor_x++;
+            CURX++;
     }
 
-    if (cursor_y == 25) {
-        cursor_y = 24;
+    if (CURY == 25) {
+        CURY = 24;
 
         memmove(VRAM/* + 0xB8000*/, VRAM /*+ 0xB8000*/ + 160, 80 * 25 * 2);
         for (int a = 0; a < 80; a++) {
@@ -150,41 +152,41 @@ static void bios_irq1_handler(void) {
     // keyboard
     //puts("BIOS: IRQ1!\r\n");
     /* FIXME!! */
-   //	if ((portram[0x64] & 2)) {	// is input buffer full
-       //uint8_t scan = portram[0x60];	// read the scancode
-       uint8_t scan = portin(0x60);
-       uint8_t ctrlst = portin(0x61);
-       portout(0x61, ctrlst | 0x80);
-       portout(0x61, ctrlst);
-       //portram[0x64] &= ~2;		// empty the buffer
-       //printf("BIOS: scan got: %Xh\n", scan);
-       switch (scan & 0x7F) {
-           case 0x36: kbd_set_mod0(0x01, scan); break;	// rshift
-           case 0x2A: kbd_set_mod0(0x02, scan); break;	// lshift
-           case 0x1D: kbd_set_mod0(0x04, scan); break;	// ctrl
-           case 0x38: kbd_set_mod0(0x08, scan); break;	// alt
-           case 0x46: kbd_set_mod0(0x10, scan); break;	// scroll lock
-           case 0x45: kbd_set_mod0(0x20, scan); break;	// num lock
-           case 0x3A: kbd_set_mod0(0x40, scan); break;	// caps lock
-           case 0x52: kbd_set_mod0(0x80, scan); break;	// ins
-           default:
-               if (scan < 0x80) {
-                   uint8_t ascii;
-                   if (scan <= sizeof(scan2ascii))
-                       ascii = scan2ascii[scan];
-                   else
-                       ascii = 0;
-                   if ((RAM[0x417] & 3)) {
-                       if (ascii == ';')
-                           ascii = ':';
-                   }
-                   kbd_push_buffer(ascii | (scan << 8));
-               }
-               break;
-       }
-   //	}
-       portout(0x20, 0x20);	// send end-of-interrupt command to the interrupt controller
-       /* */
+    //	if ((portram[0x64] & 2)) {	// is input buffer full
+    //uint8_t scan = portram[0x60];	// read the scancode
+    uint8_t scan = portin(0x60);
+    uint8_t ctrlst = portin(0x61);
+    portout(0x61, ctrlst | 0x80);
+    portout(0x61, ctrlst);
+    //portram[0x64] &= ~2;		// empty the buffer
+    //printf("BIOS: scan got: %Xh\n", scan);
+    switch (scan & 0x7F) {
+        case 0x36: kbd_set_mod0(0x01, scan); break;	// rshift
+        case 0x2A: kbd_set_mod0(0x02, scan); break;	// lshift
+        case 0x1D: kbd_set_mod0(0x04, scan); break;	// ctrl
+        case 0x38: kbd_set_mod0(0x08, scan); break;	// alt
+        case 0x46: kbd_set_mod0(0x10, scan); break;	// scroll lock
+        case 0x45: kbd_set_mod0(0x20, scan); break;	// num lock
+        case 0x3A: kbd_set_mod0(0x40, scan); break;	// caps lock
+        case 0x52: kbd_set_mod0(0x80, scan); break;	// ins
+        default:
+            if (scan < 0x80) {
+                uint8_t ascii;
+                if (scan <= sizeof(scan2ascii))
+                    ascii = scan2ascii[scan];
+                else
+                    ascii = 0;
+                if ((RAM[0x417] & 3)) {
+                    if (ascii == ';')
+                        ascii = ':';
+                }
+                kbd_push_buffer(ascii | (scan << 8));
+            }
+            break;
+    }
+    //	}
+    portout(0x20, 0x20);	// send end-of-interrupt command to the interrupt controller
+    /* */
 }
 
 
