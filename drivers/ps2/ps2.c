@@ -154,81 +154,46 @@ void keys_to_str(char* str_buf,char s_char){
 };
 
 
-void KeyboardHandler(){ //uint /*gpio*/, uint32_t /*event_mask*/
-	uint8_t repeat=3;
-	if ((bitcount > 10)&&((time_us_32()-last_key)>1000)){
-		bitcount=0;
-		data = 0x00;
-		raw_data = 0x00;
-		parity = 0;
-		last_key=time_us_32();
-		//DEH_printf("RT[%02d][%02X]>%d>%d>%d\n",head,kbd_buffer[head],bitcount,time_us_32(),last_key);
-	};
+void KeyboardHandler(void) {
+    static uint8_t incoming=0;
+    static uint32_t prev_ms=0;
+    uint32_t now_ms;
+    uint8_t n, val;
 
-	raw_data >>= 1; //читаем 11 бит в INT16 сдвигая слева на право побитно
-
-
-//    int p = gpio_get(KBD_DATA_PIN);
-//    gpio_put(25,p);
-//    DEH_printf("%x\r\n", p);
-
-	if(gpio_get(KBD_DATA_PIN)>0){
-		raw_data|= 0x8000;
-	}
-	if ((bitcount > 0) && (bitcount < 9)){
-		parity+=gpio_get(KBD_DATA_PIN);
-	}
-
-
-	if ((bitcount++ == 10)) { //11 бит?
+    val = gpio_get(KBD_DATA_PIN);
+    now_ms = time_us_32();
+    if (now_ms - prev_ms > 250) {
+        bitcount = 0;
+        incoming = 0;
+    }
+    prev_ms = now_ms;
+    n = bitcount - 1;
+    if (n <= 7) {
+        incoming |= (val << n);
+    }
+    bitcount++;
+    if (bitcount == 11) {
         uint8_t i = head + 1;
-       // DEH_printf("%x %i %i\r\n ", raw_data, i, tail);
-		if (i >= KBD_BUFFER_SIZE) i = 0;
-		if (i != tail) {
-			uint32_t temp = raw_data;
-			while(repeat>0){
-				temp>>=5; //сдвигаем вправо до нулевого принятого бита
-				if((temp&0x01)^1){ //стартовый бит=0?
-					temp>>=1; //пропускаем стартовый бит
-					data=(temp&0xFF); //выколупываем скан код
-					temp>>=8; //пропускаем данные до бита чётности и стопового бита
-					parity&=1;
-					//printf("parity:%d>%d\n",parity,((temp&0x01)^1)); //&&()
-					if(((temp&0x02)>0)&&(((temp&0x01)^1)==parity)){ //стоповый бит == 1? И четность совпала?
-						kbd_buffer[i] = data; //сохраняем данные
-						head = i;
-                        //DEH_printf("DATA: %x\r\n", data);
-						return;
-					} else{
-						temp = raw_data<<1; //стоповый бит не равен единице - сдвигаем данные на бит вправо и пытаемся перечитать.
-						repeat--; // минус 1  попытка распознавания
-					}
-				} else{
-					temp = raw_data<<1; //стартовый бит не равен нулю - сдвигаем данные на бит вправо и пытаемся перечитать.
-					repeat--; // минус 1  попытка распознавания
-				}
-			}
-			//DEH_printf("BU[%02d][%02X]>%d>%d>%d\n",i,kbd_buffer[i],bitcount,time_us_32(),last_key);//4635 us //us_to_ms(time_us_32())
-			//data = 0x00;
-			//d_sleep_us(25);
-			return;
-		}
-		
-	}
+        if (i >= KBD_BUFFER_SIZE) i = 0;
+        if (i != tail) {
+            kbd_buffer[i] = incoming;
+            head = i;
+        }
+        bitcount = 0;
+        incoming = 0;
+    }
 }
 
 uint8_t __not_in_flash_func(get_scan_code)(void){ //__not_in_flash_func()
-	if((time_us_32()-last_key)<1000) return 0;
-	if (tail == head) return 0;
-	//d_sleep_us(25);
-	uint8_t c, i;
-	i = tail;
-	i++;
-	if (i >= KBD_BUFFER_SIZE) i = 0;
-	c = kbd_buffer[i];
-	tail = i;
-	//printf("SC[%02d][%02d][%02X]\n",head,tail,kbd_buffer[i]);
-	return c;
+    uint8_t c, i;
+    i = tail;
+    if (i == head) return 0;
+    i++;
+    if (i >= KBD_BUFFER_SIZE) i = 0;
+    c = kbd_buffer[i];
+    tail = i;
+    return c;
+
 }
 
 bool decode_kbd(){

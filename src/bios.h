@@ -254,7 +254,7 @@ static uint8_t CharBuffer=0;
 static uint8_t UTF8next=0;
 
 static bool keyboard_available() {
-    if (CharBuffer || UTF8next) return true;
+    //if (CharBuffer || UTF8next) return true;
     CharBuffer = get_scancode();
     if (CharBuffer) return true;
     return false;

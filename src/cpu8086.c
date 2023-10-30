@@ -25,9 +25,11 @@
 #include "i8259.h"
 
 #if PICO_ON_DEVICE
+
 #include "pico/time.h"
 #include "ps2.h"
 #include "vga.h"
+
 #else
 
 #include "SDL2/SDL.h"
@@ -725,6 +727,7 @@ void intcall86(uint8_t intnum) {
             switch (CPU_AH) {
                 case 0x00:
                     videomode = CPU_AL;
+                    memset(VRAM, 0x0, sizeof VRAM);
                     //CopyCharROM();
                     //printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
 #if PICO_ON_DEVICE
@@ -1635,8 +1638,8 @@ void handleinput(void) {
 
 void __inline exec86(uint32_t execloops) {
 #if PICO_ON_DEVICE
-    if (keyboard_available()) {
-        c = keyboard_read();
+    c = get_scancode();
+    if (c) {
         if (c != 0x80) {
             previous_c = c;
             if ((c == 0x34) && (RAM[0x417] & 0x0c)) {
@@ -1650,6 +1653,24 @@ void __inline exec86(uint32_t execloops) {
             doirq(1);
         }
     }
+
+    /*
+    if (keyboard_available()) {
+        c = get_scan_code();
+        if (c != 0x80) {
+            previous_c = c;
+            if ((c == 0x34) && (RAM[0x417] & 0x0c)) {
+                curshow = false;
+                reset86();
+            } else {
+                doirq(1);
+            }
+        } else {
+            portram[0x60] = previous_c + 0x80;
+            doirq(1);
+        }
+    }
+     */
 #endif
 /*
     if (runEvery(CURSOR_SPEED)) {                                           // blink the cursor
