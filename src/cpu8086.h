@@ -91,7 +91,7 @@ static inline void decodeflagsword(uint16_t x) {
 #define CPU_CH    regs.byteregs[regch]
 #define CPU_DH    regs.byteregs[regdh]
 
-#define VRAM_SIZE 16
+#define VRAM_SIZE 32
 #define RAM_SIZE (200)
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern uint8_t RAM[RAM_SIZE << 10];
@@ -129,7 +129,7 @@ extern uint16_t readw86(uint32_t addr32);
 
 extern void cpu_push(uint16_t pushval);
 
-extern uint16_t cpu_pop(void);
+extern uint16_t read_keyboard(void);
 
 extern void cpu_IRET(void);
 

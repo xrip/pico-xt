@@ -1,6 +1,7 @@
 #pragma GCC optimize("Ofast")
 
 #include "cga.h"
+
 extern "C" {
 #include "cpu8086.h"
 }
@@ -8,11 +9,13 @@ extern "C" {
 #ifndef OVERCLOCKING
 #define OVERCLOCKING 270
 #endif
+
 #include <pico/time.h>
 #include <pico/multicore.h>
 #include <pico/stdlib.h>
 #include <hardware/vreg.h>
 #include "pico/stdio.h"
+
 extern "C" {
 #include "vga.h"
 #include "ps2.h"
@@ -33,6 +36,7 @@ bool runing = true;
 #if PICO_ON_DEVICE
 
 struct semaphore vga_start_semaphore;
+
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
     initVGA();
@@ -45,25 +49,20 @@ void __time_critical_func(render_core)() {
     setVGA_color_flash_mode(true, true);
 
 
-
     setVGAmode(VGA640x480_text_80_30);
     for (int i = 0; i < 16; ++i) {
-        //uint32_t usepal = (portram[0x3D9]>>5) & 1;
-        //uint32_t intensity = ( (portram[0x3D9]>>4) & 1) << 3;
-        for (int usepal = 0; usepal < 1; ++usepal)
-            for (int intensity = 0; intensity < 1; ++intensity) {
-                setVGA_color_palette(i, cga_color(i*2+usepal+intensity));
-            }
+        setVGA_color_palette(i, cga_color(i*2));
 
     }
     sem_acquire_blocking(&vga_start_semaphore);
 
     while (true) {
-        cpu_pop();
-        sleep_ms(55);
+        read_keyboard();
+        sleep_ms(15);
     }
 
 }
+
 #else
 extern uint16_t pr3D9;
 static int RendererThread(void *ptr) {

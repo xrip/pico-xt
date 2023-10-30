@@ -634,7 +634,7 @@ uint16_t pop() {
     return tempval;
 }
 
-uint16_t cpu_pop(void) {
+uint16_t read_keyboard(void) {
     doirq(0);
 }
 
