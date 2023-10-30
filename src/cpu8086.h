@@ -96,6 +96,8 @@ static inline void decodeflagsword(uint16_t x) {
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern uint8_t RAM[RAM_SIZE << 10];
 
+
+
 #define pokeb(a, b) RAM[a]=(b)
 #define peekb(a)   RAM[a]
 
@@ -113,11 +115,8 @@ extern union _bytewordregs_ {
     uint8_t byteregs[8];
 } regs;
 
-extern uint16_t segregs[4];
 
 extern void write86(uint32_t addr32, uint8_t value);
-
-extern void init86();
 
 extern void reset86(void);
 
@@ -127,12 +126,11 @@ extern uint8_t read86(uint32_t addr32);
 
 extern uint16_t readw86(uint32_t addr32);
 
-extern void cpu_push(uint16_t pushval);
-
 extern uint16_t read_keyboard(void);
 
-extern void cpu_IRET(void);
 
 extern int cpu_hlt_handler(void);
-void handleinput ( void );
+
+void handleinput(void);
+
 #endif //TINY8086_CPU8086_H

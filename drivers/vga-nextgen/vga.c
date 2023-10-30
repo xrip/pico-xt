@@ -12,6 +12,7 @@
 #include "stdlib.h"
 #include "fnt8x16.h"
 
+#include "../../src/cga.h"
 uint16_t pio_program_VGA_instructions[] = {
                        
 
@@ -174,14 +175,21 @@ void __not_in_flash_func(dma_handler_VGA)() {
             //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
               uint16_t* fast_color=&txt_palette_fast[4*(*line_tex_buf++)];
 
+              if (cursor_blink_state && (line_active >> 4 == CURY && i == CURX && sh_ch >= 11 && sh_ch <= 13)) {
+                  *vbuf_OUT16++ = fast_color[3];
+                  *vbuf_OUT16++ = fast_color[3];
+                  *vbuf_OUT16++ = fast_color[3];
+                  *vbuf_OUT16++ = fast_color[3];
+              } else {
 
-              *vbuf_OUT16++=fast_color[d&3];
-              d>>=2;
-              *vbuf_OUT16++=fast_color[d&3];
-              d>>=2;
-              *vbuf_OUT16++=fast_color[d&3];
-              d>>=2;
-              *vbuf_OUT16++=fast_color[d&3];
+                  *vbuf_OUT16++ = fast_color[d & 3];
+                  d >>= 2;
+                  *vbuf_OUT16++ = fast_color[d & 3];
+                  d >>= 2;
+                  *vbuf_OUT16++ = fast_color[d & 3];
+                  d >>= 2;
+                  *vbuf_OUT16++ = fast_color[d & 3];
+              }
             //  continue;
             
             //по 1 пикселу очень медленно, но не надо доп буфера палитры

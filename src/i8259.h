@@ -25,6 +25,7 @@ struct structpic {
 } i8259;
 
 #if !PICO_ON_DEVICE
+
 #include <windows.h>
 
 unsigned long millis() {
@@ -48,6 +49,7 @@ unsigned long millis() {
 
     return (unsigned long) ((time_now - start_time) / 10000);
 }
+
 #else
 #include "pico/time.h"
 #define millis() (time_us_32())

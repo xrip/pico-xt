@@ -1,10 +1,9 @@
 #pragma GCC optimize("Ofast")
 
-#include "cga.h"
-
 extern "C" {
 #include "cpu8086.h"
 }
+#include "cga.h"
 #if PICO_ON_DEVICE
 #ifndef OVERCLOCKING
 #define OVERCLOCKING 270
@@ -52,25 +51,33 @@ void __time_critical_func(render_core)() {
     setVGAmode(VGA640x480_text_80_30);
     for (int i = 0; i < 16; ++i) {
         setVGA_color_palette(i, cga_color(i*2));
-
     }
     sem_acquire_blocking(&vga_start_semaphore);
 
+    uint8_t tick50ms = 0;
     while (true) {
         read_keyboard();
-        sleep_ms(15);
+        sleep_ms(50);
+        if (tick50ms == 0 || tick50ms == 10) {
+            cursor_blink_state ^= 1;
+        }
+
+        if (tick50ms < 20) {
+            tick50ms++;
+        } else {
+            tick50ms = 0;
+        }
     }
 
 }
 
 #else
 extern uint16_t pr3D9;
+
 static int RendererThread(void *ptr) {
 
     while (runing) {
         exec86(200);
-        //tick(1000);
-        //pollkb();
     }
     return 0;
 }
@@ -78,7 +85,6 @@ static int RendererThread(void *ptr) {
 #endif
 
 int main() {
-//    init86();
 #if PICO_ON_DEVICE
 #if (OVERCLOCKING > 270)
     hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
@@ -149,10 +155,14 @@ int main() {
                     uint8_t color = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 1];
 
                     for (uint8_t bit = 0; bit < 8; bit++) {
-                        if ((glyph_row >> bit) & 1) {
+                        if (cursor_blink_state && (y >> 4 == CURY && x == CURX && (y % 16) >= 12 && (y % 16) <= 13)) {
                             pixels[y * 640 + (8 * x + bit)] = dosColorPalette[color & 0x0F];
                         } else {
-                            pixels[y * 640 + (8 * x + bit)] = dosColorPalette[color >> 4];
+                            if ((glyph_row >> bit) & 1) {
+                                pixels[y * 640 + (8 * x + bit)] = dosColorPalette[color & 0x0F];
+                            } else {
+                                pixels[y * 640 + (8 * x + bit)] = dosColorPalette[color >> 4];
+                            }
                         }
                     }
                 }
@@ -161,13 +171,13 @@ int main() {
             const uint8_t vidmode = 4;
 
             uint32_t *pix = pixels;
-            uint32_t usepal = (pr3D9>>5) & 1;
-            uint32_t intensity = ( (pr3D9>>4) & 1) << 3;
+            uint32_t usepal = (pr3D9 >> 5) & 1;
+            uint32_t intensity = ((pr3D9 >> 4) & 1) << 3;
             for (int y = 0; y < 200; y++) {
                 for (int x = 0; x < 320; x++) {
                     uint32_t charx = x;
                     uint32_t chary = y;
-                    uint32_t vidptr = /*0xB8000 + */( (chary>>1) * 80) + ( (chary & 1) * 8192) + (charx >> 2);
+                    uint32_t vidptr = /*0xB8000 + */((chary >> 1) * 80) + ((chary & 1) * 8192) + (charx >> 2);
                     uint32_t curpixel = VRAM[vidptr];
                     uint32_t color;
                     switch (charx & 3) {
@@ -175,18 +185,18 @@ int main() {
                             curpixel = curpixel & 3;
                             break;
                         case 2:
-                            curpixel = (curpixel>>2) & 3;
+                            curpixel = (curpixel >> 2) & 3;
                             break;
                         case 1:
-                            curpixel = (curpixel>>4) & 3;
+                            curpixel = (curpixel >> 4) & 3;
                             break;
                         case 0:
-                            curpixel = (curpixel>>6) & 3;
+                            curpixel = (curpixel >> 6) & 3;
                             break;
                     }
-                    if (vidmode==4) {
+                    if (vidmode == 4) {
                         curpixel = curpixel * 2 + usepal + intensity;
-                        if (curpixel == (usepal + intensity) )
+                        if (curpixel == (usepal + intensity))
                             curpixel = 0;
                         color = cga_color(curpixel);
                         //prestretch[y][x] = color;

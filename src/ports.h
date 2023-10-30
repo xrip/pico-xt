@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "i8259.h"
 #include "cga.h"
+
 #if PICO_ON_DEVICE
 #include "vga.h"
 #endif
@@ -121,14 +122,22 @@ uint16_t portin(uint16_t portnum) {
             return crt_controller[crt_controller_idx];
         case 0x3D8:
             switch (videomode) {
-                case 0: return (0x2C);
-                case 1: return (0x28);
-                case 2: return (0x2D);
-                case 3: return (0x29);
-                case 4: return (0x0E);
-                case 5: return (0x0A);
-                case 6: return (0x1E);
-                default: return (0x29);
+                case 0:
+                    return (0x2C);
+                case 1:
+                    return (0x28);
+                case 2:
+                    return (0x2D);
+                case 3:
+                    return (0x29);
+                case 4:
+                    return (0x0E);
+                case 5:
+                    return (0x0A);
+                case 6:
+                    return (0x1E);
+                default:
+                    return (0x29);
             }
 
         case 0x3D9:
@@ -144,7 +153,7 @@ uint16_t portin(uint16_t portnum) {
     }
 }
 
-static void portout16(uint16_t portnum, uint16_t value) {
+static __inline void portout16(uint16_t portnum, uint16_t value) {
 #ifdef DEBUG_PORT_TRAFFIC
     printf("IO: writing WORD port %Xh with data %04Xh\n", portnum, value);
 #endif
@@ -152,7 +161,7 @@ static void portout16(uint16_t portnum, uint16_t value) {
     portout(portnum + 1, (uint8_t) (value >> 8));
 }
 
-static uint16_t portin16(uint16_t portnum) {
+static __inline uint16_t portin16(uint16_t portnum) {
     uint16_t ret = (uint16_t) portin(portnum);
     ret |= ((uint16_t) portin(portnum + 1) << 8);
 #ifdef DEBUG_PORT_TRAFFIC

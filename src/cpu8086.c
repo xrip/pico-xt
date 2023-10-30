@@ -25,15 +25,12 @@
 #include "i8259.h"
 
 #if PICO_ON_DEVICE
-
 #include "pico/time.h"
 #include "ps2.h"
 #include "vga.h"
-
 #else
 
 #include "SDL2/SDL.h"
-#include <conio.h>
 
 #endif
 
@@ -70,6 +67,7 @@ static const uint8_t parity[0x100] = {
         0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
 };
 uint8_t RAM[RAM_SIZE << 10];
+uint8_t VRAM[VRAM_SIZE << 10];
 
 uint16_t oper1, oper2, res16, disp16, temp16, dummy, stacksize, frametemp;
 uint8_t oper1b, oper2b, res8, disp8, temp8, nestlev, addrbyte;
@@ -634,16 +632,23 @@ uint16_t pop() {
     return tempval;
 }
 
-uint16_t read_keyboard(void) {
+uint16_t __inline read_keyboard(void) {
     doirq(0);
 }
 
 
 #if !PICO_ON_DEVICE
+
 uint32_t ClockTick(uint32_t interval, void *name) {
     doirq(0);
     return interval;
 }
+
+uint32_t BlinkTimer(uint32_t interval, void *name) {
+   cursor_blink_state ^= 1;
+   return interval;
+}
+
 #else
 
 bool ClockTick(struct repeating_timer *t) {
@@ -656,6 +661,7 @@ bool ClockTick(struct repeating_timer *t) {
 void reset86() {
 #if !PICO_ON_DEVICE
     SDL_AddTimer(55, ClockTick, "timer");
+    SDL_AddTimer(500, BlinkTimer, "blink");
 #else
 
 #endif
@@ -720,7 +726,7 @@ void intcall86(uint8_t intnum) {
                 case 0x00:
                     videomode = CPU_AL;
                     //CopyCharROM();
-                    printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
+                    //printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
 #if PICO_ON_DEVICE
                     if (videomode == 3 || videomode == 0x56) {
                         setVGAmode(VGA640x480_text_80_30);
