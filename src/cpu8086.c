@@ -25,9 +25,11 @@
 #include "i8259.h"
 
 #if PICO_ON_DEVICE
+
 #include "pico/time.h"
 #include "ps2.h"
 #include "vga.h"
+
 #else
 
 #include "SDL2/SDL.h"
@@ -55,7 +57,7 @@ uint8_t videomode = 3;
 #define putsegreg(regid, writeval)  segregs[regid] = writeval
 #define segbase(x)  ((uint32_t) x << 4)
 
-uint8_t byteregtable[8] = {regal, regcl, regdl, regbl, regah, regch, regdh, regbh};
+uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
 static const uint8_t parity[0x100] = {
         1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
@@ -121,45 +123,22 @@ void modregrm() {
 }
 
 void write86(uint32_t addr32, uint8_t value) {
-    tempaddr32 = addr32 & 0xFFFFF;
-    /*
-    if ((tempaddr32 >= 0xC0000)) {
-        printf("readonly ram 0x%x\r\n", tempaddr32);
-        return;
+    if ((addr32) < (RAM_SIZE << 10)) {
+        RAM[addr32] = value;
+    } else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xBC000UL)) {             // CGA video RAM range
+        addr32 -= 0xB8000UL;
+        if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
+            VRAM[addr32 & 4095] = value;                                           // 4k if we are in text mode
+        } else {
+            VRAM[addr32 & 16383] = value;                                          // 16k for graphic mode!!!
+        }
+    } else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
+        addr32 -= 0xCC000UL;
+    } else if ((addr32) > 0xFFFFFUL) {
+        //SRAM_write(addr32, value);
     }
-     */
-    // RAM
-    if (tempaddr32 < 0xA0000) {
-        RAM[tempaddr32] = value;
-    } else if (tempaddr32 <= 0xBFFFF) {
-            // CGA video RAM range
-            if (((addr32) >= 0xB8000) && ((addr32) < 0xBC000)) {
-
-                if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
-                    addr32 -= 0xB8000;
-                    VRAM[addr32 & 4095] = value;                                           // 4k if we are in text mode
-                } else {
-                    //if (value != 0xff)
-                    //printf("CGA Write %x: %x\r\n", addr32, value);
-                    addr32 -= 0xB8000;
-                    VRAM[addr32 & 16383] = value;                                          // 16k for graphic mode!!!
-                }
-                return;
-            }
-            // VGA/EGA video RAM range
-            VRAM[(tempaddr32 - 0xA0000) & VRAM_SIZE] = value;
-            return;
-
-
-        updatedscreen = 1;
-    }
-#ifdef DEBUG_BIOS_DATA_AREA_CPU_ACCESS
-    if ((addr32 & 0xFFF00) == 0x400)
-        printf("DEBUG: CPU accesses (WRITE) BDA at %Xh, value it writes: %Xh\n", addr32, value);
-#endif
-
-
 }
+
 
 void writew86(uint32_t addr32, uint16_t value) {
     write86(addr32, (uint8_t) value);
@@ -167,74 +146,86 @@ void writew86(uint32_t addr32, uint16_t value) {
 }
 
 uint8_t read86(uint32_t addr32) {
-
-    // BDA hardcoded values
-    switch (addr32) {
-        case 0x465:
-            switch (videomode) {
-                case 0:
-                    return (0x2C);
-                case 1:
-                    return (0x28);
-                case 2:
-                    return (0x2D);
-                case 3:
-                    return (0x29);
-                case 4:
-                    return (0x0E);
-                case 5:
-                    return (0x0A);
-                case 6:
-                    return (0x1E);
-                default:
-                    return (0x29);
-            }
-        case 0x413:
-            return RAM_SIZE;
-        case 0x414:
-            return 0;
-        case 0x410:
-            return 0x61; // //video type CGA 80x25 : 0x41 vga, 0x61 cga
-    }
-
-    addr32 &= 0xFFFFF;
-
-    if ((addr32 >= 0xA0000) && (addr32 <= 0xBFFFF)) {
-        // CGA video vRAM range
-        if ((addr32 >= 0xB8000) && (addr32 < 0xBC000)) {
-            addr32 -= 0xB8000;
-            if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
-                return VRAM[addr32 & 4095];
-            } else {
-                return VRAM[addr32 & 16383];                                                       //16k CGA MEMORY!!!
-            }
-        }
-
-        // VGA/EGA VRAM
-        return VRAM[(addr32 - 0xA0000) & VRAM_SIZE];
-    }
-
-    // BIOS
-    if ((addr32 >= 0xFE000) && (addr32 < 0x100000)) {
-        return BIOS[addr32 - 0xFE000];
-    }
-
-    // VARIOUS ROM
-    if (addr32 >= 0xC0000) {
-        return 0x0;
-    }
-
-#ifdef DEBUG_BIOS_DATA_AREA_CPU_ACCESS
-    if ((addr32 & 0xFFF00) == 0x400)
-        printf("DEBUG: CPU accesses (READ) BDA at %Xh, value there: %Xh\n", addr32, RAM[addr32]);
-#endif
     if (addr32 < (RAM_SIZE << 10)) {
-        return RAM[addr32];
-    } else {
-        printf("READ: %x\r\n", addr32);
+        // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
+
+        switch (addr32) { //some hardcoded values for the BIOS data area
+
+            case 0x400:     // serial COM1: address at 0x03F8
+                return (0xF8);
+            case 0x401:
+                return (0x03);
+
+            case 0x402:
+            case 0x403:
+                return (0x00);
+
+            case 0x410:
+                return (0x61); //video type CGA 80x25
+
+            case 0x411:
+                return (0x02); // WS: one serial port
+
+            case 0x413:
+                return RAM_SIZE;
+            case 0x414:
+                return 0;
+
+            case 0x463:
+                return (0x3d4);
+
+            case 0x465:
+                switch (videomode) {
+                    case 0:
+                        return (0x2C);
+                    case 1:
+                        return (0x28);
+                    case 2:
+                        return (0x2D);
+                    case 3:
+                        return (0x29);
+                    case 4:
+                        return (0x0E);
+                    case 5:
+                        return (0x0A);
+                    case 6:
+                        return (0x1E);
+                    default:
+                        return (0x29);
+                }
+
+            case 0x466:
+                return pr3D9;
+
+            case 0x475:                //hard drive count
+                return (hdcount);
+
+            default:
+                return RAM[addr32];
+        }
+    } else if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {                              // BIOS ROM range
+        addr32 -= 0xFE000UL;
+        return BIOS[addr32];
+    } else if ((addr32 >= 0xB8000UL) && (addr32 < 0xBC000UL)) {                               // CGA video RAM range
+        addr32 -= 0xB8000UL;
+        if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
+            return VRAM[addr32 & 4095];
+        } else {
+            return VRAM[addr32 & 16383];                                                       //16k CGA MEMORY!!!
+        }
+    } else if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) {
+        addr32 -= 0xCC000UL;
+    } else if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) {                               // IBM BASIC ROM LOW
+        addr32 -= 0xF6000UL;
+        return BASICL[addr32];
+    } else if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) {                               // IBM BASIC ROM HIGH
+        addr32 -= 0xFA000UL;
+        return BASICH[addr32];
+    } else if ((addr32) > 0xFFFFFUL) {
+        //SRAM_read(addr32);
     }
-    return 0x90;
 }
+
 
 uint16_t readw86(uint32_t addr32) {
     return ((uint16_t) read86(addr32) | (uint16_t) (read86(addr32 + 1) << 8));
@@ -648,17 +639,18 @@ uint16_t cpu_pop(void) {
 }
 
 
-
 #if !PICO_ON_DEVICE
 uint32_t ClockTick(uint32_t interval, void *name) {
     doirq(0);
     return interval;
 }
 #else
+
 bool ClockTick(struct repeating_timer *t) {
     doirq(0);
     return true;
 }
+
 #endif
 
 void reset86() {
@@ -730,7 +722,7 @@ void intcall86(uint8_t intnum) {
                     //CopyCharROM();
                     printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
 #if PICO_ON_DEVICE
-                    if (videomode == 3 || videomode == 0x56 ) {
+                    if (videomode == 3 || videomode == 0x56) {
                         setVGAmode(VGA640x480_text_80_30);
                     } else {
                         setVGAmode(CGA_320x200x4);
@@ -738,87 +730,88 @@ void intcall86(uint8_t intnum) {
 #endif
                     // Установить видеорежим
                     break;
-                case 0x1A: //get display combination code (ps, vga/mcga)
-                    CPU_AL = 0x1A;
-                    CPU_BL = 0x04;
-                    CPU_BH = 0x08;
-                    return;
 #if 0
-                case 0x02: // Установить позицию курсора
-                    CURX = CPU_DL;
-                    CURY = CPU_DH;
-                    return;
-                case 0x03: // Получить позицию курсора
-                    CPU_DL = CURX;
-                    CPU_DH = CURY;
-                    return;
-                case 0x06:
-                    if (!CPU_AL) {
-                        // FIXME!! Нормально сделай!
-                        memset(VRAM, 0x00, 160 * 25);
+                    case 0x1A: //get display combination code (ps, vga/mcga)
+                        CPU_AL = 0x1A;
+                        CPU_BL = 0x04;
+                        CPU_BH = 0x08;
                         return;
-                    }
-                    break;
-                case 0x08: // Получим чар под курсором
-                    CPU_AL = VRAM[(CURY * 160 + CURX * 2) + 0];
-                    CPU_AH = VRAM[(CURY * 160 + CURX * 2) + 1];
-                    return;
-                case 0x09:
-                    /*09H писать символ/атрибут в текущей позиции курсора
-                       вход:  BH = номер видео страницы
-                       AL = записываемый символ
-                       CX = счетчик (сколько экземпляров символа записать)
-                       BL = видео атрибут (текст) или цвет (графика)
-                        (графические режимы: +80H означает XOR с символом на экране)*/
-                    //printf("color %c %x %i\r\n",  CPU_AL, CPU_CX, CPU_BL);
-                    color = CPU_BL;
-                case 0x0A:
-                    /*0aH писать символ в текущей позиции курсора
-                      вход:  BH = номер видео страницы
-                      AL = записываемый символ
-                      CX = счетчик (сколько экземпляров символа записать)*/
-                    for (uint16_t j = 0; j < CPU_CX; j++) {
+
+                    case 0x02: // Установить позицию курсора
+                        CURX = CPU_DL;
+                        CURY = CPU_DH;
+                        return;
+                    case 0x03: // Получить позицию курсора
+                        CPU_DL = CURX;
+                        CPU_DH = CURY;
+                        return;
+                    case 0x06:
+                        if (!CPU_AL) {
+                            // FIXME!! Нормально сделай!
+                            memset(VRAM, 0x00, 160 * 25);
+                            return;
+                        }
+                        break;
+                    case 0x08: // Получим чар под курсором
+                        CPU_AL = VRAM[(CURY * 160 + CURX * 2) + 0];
+                        CPU_AH = VRAM[(CURY * 160 + CURX * 2) + 1];
+                        return;
+                    case 0x09:
+                        /*09H писать символ/атрибут в текущей позиции курсора
+                           вход:  BH = номер видео страницы
+                           AL = записываемый символ
+                           CX = счетчик (сколько экземпляров символа записать)
+                           BL = видео атрибут (текст) или цвет (графика)
+                            (графические режимы: +80H означает XOR с символом на экране)*/
+                        //printf("color %c %x %i\r\n",  CPU_AL, CPU_CX, CPU_BL);
+                        color = CPU_BL;
+                    case 0x0A:
+                        /*0aH писать символ в текущей позиции курсора
+                          вход:  BH = номер видео страницы
+                          AL = записываемый символ
+                          CX = счетчик (сколько экземпляров символа записать)*/
+                        for (uint16_t j = 0; j < CPU_CX; j++) {
+                            bios_putchar(CPU_AL);
+
+                        }
+
+                        return;
+                    case 0x0E:
+                        /*0eH писать символ на активную видео страницу (эмуляция телетайпа)
+                          вход:  AL = записываемый символ (использует существующий атрибут)
+                          BL = цвет переднего плана (для графических режимов)*/
                         bios_putchar(CPU_AL);
-
-                    }
-
-                    return;
-                case 0x0E:
-                    /*0eH писать символ на активную видео страницу (эмуляция телетайпа)
-                      вход:  AL = записываемый символ (использует существующий атрибут)
-                      BL = цвет переднего плана (для графических режимов)*/
-                    bios_putchar(CPU_AL);
-                    return;
+                        return;
 #endif
             }
             break;
 #if 0
-        case 0x16:
-            switch (CPU_AH) {
-                case 0x10:
-                case 0x00:
-                    /*00H читать (ожидать) следующую нажатую клавишу
-                    выход: AL = ASCII символ (если AL=0, AH содержит расширенный код ASCII )
-                          AH = сканкод  или расширенный код ASCII*/
-                    CPU_AX = kbhit() ? getch() : 0; //kbd_get_buffer(1);
-//                    CPU_AL = 0;
-//                    CPU_AH =  _kbhit() ? getch() : 0; //kbd_get_buffer(1);
+            case 0x16:
+                switch (CPU_AH) {
+                    case 0x10:
+                    case 0x00:
+                        /*00H читать (ожидать) следующую нажатую клавишу
+                        выход: AL = ASCII символ (если AL=0, AH содержит расширенный код ASCII )
+                              AH = сканкод  или расширенный код ASCII*/
+                        CPU_AX = kbhit() ? getch() : 0; //kbd_get_buffer(1);
+    //                    CPU_AL = 0;
+    //                    CPU_AH =  _kbhit() ? getch() : 0; //kbd_get_buffer(1);
 
-                    return;
+                        return;
 
-                case 0x11:
-                case 0x01:
-                    CPU_AX = kbhit() ? getch() : 0;//kbd_get_buffer(0);
-//                    CPU_AL =  _kbhit() ? getch() : 0;
-//                    CPU_AH =  _kbhit() ? getch() : 0; //kbd_get_buffer(1);
+                    case 0x11:
+                    case 0x01:
+                        CPU_AX = kbhit() ? getch() : 0;//kbd_get_buffer(0);
+    //                    CPU_AL =  _kbhit() ? getch() : 0;
+    //                    CPU_AH =  _kbhit() ? getch() : 0; //kbd_get_buffer(1);
 
-                    if (CPU_AX)
-                        CPU_FL_ZF = 0;
-                    else
-                        CPU_FL_ZF = 1;
-                    return;
-            }
-            break;
+                        if (CPU_AX)
+                            CPU_FL_ZF = 0;
+                        else
+                            CPU_FL_ZF = 1;
+                        return;
+                }
+                break;
 #endif
             /* case 0x19: // bootstrap
                  didbootstrap = 1;
@@ -1620,10 +1613,10 @@ void handleinput(void) {
 void __inline exec86(uint32_t execloops) {
 #if PICO_ON_DEVICE
     if (keyboard_available()) {
-        c =keyboard_read();
+        c = keyboard_read();
         if (c != 0x80) {
             previous_c = c;
-            if ((c == 0x34) && (RAM[0x417]&0x0c)) {
+            if ((c == 0x34) && (RAM[0x417] & 0x0c)) {
                 curshow = false;
                 reset86();
             } else {
