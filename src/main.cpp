@@ -1,5 +1,3 @@
-#pragma GCC optimize("Ofast")
-
 extern "C" {
 #include "cpu8086.h"
 }
@@ -44,7 +42,7 @@ void __time_critical_func(render_core)() {
 
     setVGA_text_buf(VRAM);
     setVGA_bg_color(0);
-    setVGAbuf_pos(0, 0);
+    setVGAbuf_pos(0, 20);
     setVGA_color_flash_mode(true, true);
 
 

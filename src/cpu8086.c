@@ -1633,27 +1633,12 @@ void handleinput(void) {
         }
     }
 }
-
+#else
+extern uint8_t kbloop;
+extern void ps2poll();
 #endif
-
 void __inline exec86(uint32_t execloops) {
 #if PICO_ON_DEVICE
-    c = get_scancode();
-    if (c) {
-        if (c != 0x80) {
-            previous_c = c;
-            if ((c == 0x34) && (RAM[0x417] & 0x0c)) {
-                curshow = false;
-                reset86();
-            } else {
-                doirq(1);
-            }
-        } else {
-            portram[0x60] = previous_c + 0x80;
-            doirq(1);
-        }
-    }
-
     /*
     if (keyboard_available()) {
         c = get_scan_code();
@@ -1690,6 +1675,15 @@ void __inline exec86(uint32_t execloops) {
     //counterticks = (uint64_t) ( (double) timerfreq / (double) 65536.0);
 
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
+#if PICO_ON_DEVICE
+        if (kbloop) {
+/*            uint32_t msnow;
+            msnow = time_us_32();
+            while ((time_us_32() - msnow) < 20000) { }*/
+            kbloop = 0;
+            ps2poll();
+        }
+#endif
         if (trap_toggle) {
             intcall86(1);
         }
