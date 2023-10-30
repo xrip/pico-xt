@@ -1,5 +1,6 @@
 #pragma GCC optimize("Ofast")
 
+#include "cga.h"
 extern "C" {
 #include "cpu8086.h"
 }
@@ -28,38 +29,6 @@ SDL_Surface *screen;
 #endif
 
 bool runing = true;
-
-const uint8_t cga_palette[16][3] = { //R, G, B
-        { 0x00, 0x00, 0x00 }, //black
-        { 0x00, 0x00, 0xAA }, //blue
-        { 0x00, 0xAA, 0x00 }, //green
-        { 0x00, 0xAA, 0xAA }, //cyan
-        { 0xAA, 0x00, 0x00 }, //red
-        { 0xAA, 0x00, 0xAA }, //magenta
-        { 0xAA, 0x55, 0x00 }, //brown
-        { 0xAA, 0xAA, 0xAA }, //light gray
-        { 0x55, 0x55, 0x55 }, //dark gray
-        { 0x55, 0x55, 0xFF }, //light blue
-        { 0x55, 0xFF, 0x55 }, //light green
-        { 0x55, 0xFF, 0xFF }, //light cyan
-        { 0xFF, 0x55, 0x55 }, //light red
-        { 0xFF, 0x55, 0xFF }, //light magenta
-        { 0xFF, 0xFF, 0x55 }, //yellow
-        { 0xFF, 0xFF, 0xFF }  //white
-};
-
-const uint8_t cga_gfxpal[2][2][4] = { //palettes for 320x200 graphics mode
-        {
-                { 0, 2,  4,  6 }, //normal palettes
-                { 0, 3,  5,  7 }
-        },
-        {
-                { 0, 10, 12, 14 }, //intense palettes
-                { 0, 11, 13, 15 }
-        }
-};
-
-#define cga_color(c) ((uint32_t)cga_palette[c][2] | ((uint32_t)cga_palette[c][1]<<8) | ((uint32_t)cga_palette[c][0]<<16))
 
 #if PICO_ON_DEVICE
 
@@ -227,8 +196,8 @@ int main() {
             const uint8_t vidmode = 4;
 
             uint32_t *pix = pixels;
-            uint32_t usepal = 1 ;// (portram[0x3D9]>>5) & 1;
-            uint32_t intensity = 0; // ( (portram[0x3D9]>>4) & 1) << 3;
+            uint32_t usepal = (pr3D9>>5) & 1;
+            uint32_t intensity = ( (pr3D9>>4) & 1) << 3;
             for (int y = 0; y < 200; y++) {
                 for (int x = 0; x < 320; x++) {
                     uint32_t charx = x;
