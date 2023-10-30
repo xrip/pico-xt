@@ -1,10 +1,19 @@
 //
 // Created by xrip on 30.10.2023.
 //
+#pragma once
 
 #ifndef PICO_XT_CGA_H
 #define PICO_XT_CGA_H
 #include <stdint.h>
+
+const uint32_t dosColorPalette[16] = {
+        0x000000, 0x0000AA, 0x00AA00, 0x00AAAA,
+        0xAA0000, 0xAA00AA, 0xAA5500, 0xAAAAAA,
+        0x555555, 0x5555FF, 0x55FF55, 0x55FFFF,
+        0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF
+};
+
 
 const uint8_t cga_palette[16][3] = { //R, G, B
         { 0x00, 0x00, 0x00 }, //black

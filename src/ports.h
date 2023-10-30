@@ -5,8 +5,10 @@
 
 #include <stdint.h>
 #include "i8259.h"
-#include "vga.h"
 #include "cga.h"
+#if PICO_ON_DEVICE
+#include "vga.h"
+#endif
 
 uint16_t pit0counter = 65535;
 uint32_t speakercountdown, latch42, pit0latch, pit0command, pit0divisor;
@@ -14,6 +16,7 @@ uint16_t portram[256];
 uint8_t crt_controller_idx, crt_controller[256];
 uint16_t port3da;
 uint16_t pr3D9;
+uint16_t pr3D8;
 
 void portout(uint16_t portnum, uint16_t value) {
     switch (portnum) {
@@ -68,16 +71,25 @@ void portout(uint16_t portnum, uint16_t value) {
                 //setcursor(((uint16_t)crt_controller[0x0E] << 8) | crt_controller[0x0F]);
             }
             break;
+            // CGA mode  switch
+        case 0x3D8:
+            //printf("wr pr3D8 %x\r\n", value);
+            pr3D8 = value;
+
+            videomode = (value & 0x02) ? 4 : 3;
+            break;
         case 0x3DA:
             break;
 
         case 0x3D9:
             pr3D9 = value;
+#if PICO_ON_DEVICE
             uint32_t usepal = (value>>5) & 1;
             uint32_t intensity = ( (value>>4) & 1) << 3;
             for (int i = 0; i < 16; ++i) {
                 setVGA_color_palette(i, cga_color(i*2+usepal+intensity));
             }
+#endif
             break;
         default:
             if (portnum < 256) portram[portnum] = value;

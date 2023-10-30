@@ -730,6 +730,23 @@ void intcall86(uint8_t intnum) {
 #endif
                     // Установить видеорежим
                     break;
+/*
+                case 0x01:                            // show cursor
+                    if (regs.byteregs[regch] == 0x32) {
+                        curshow = false;
+                        break;
+                    }
+                    else if ((regs.byteregs[regch] == 0x06) && (regs.byteregs[regcl] == 0x07)) {
+                        CURSOR_ASCII = 95;
+                        curshow = true;
+                        break;
+                    }
+                    else if ((regs.byteregs[regch] == 0x00) && (regs.byteregs[regcl] == 0x07)) {
+                        CURSOR_ASCII = 219;
+                        curshow = true;
+                    }
+                    break;
+*/
 #if 0
                     case 0x1A: //get display combination code (ps, vga/mcga)
                         CPU_AL = 0x1A;
