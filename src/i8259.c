@@ -1,60 +1,10 @@
-//
-// Created by xrip on 23.10.2023.
-//
-#pragma once
-#ifndef TINY8086_I8259_H
-#define TINY8086_I8259_H
 /* i8259.c - emulation code for the Intel 8259 controller.
    Note: This is not a very complete i8259 interrupt controller
    implementation, but for the purposes of a PC, it's all we need. */
 
-#include <stdint.h>
-#include <memory.h>
+#include "emu.h"
 
-struct structpic {
-    uint8_t imr; //mask register
-    uint8_t irr; //request register
-    uint8_t isr; //service register
-    uint8_t icwstep; //used during initialization to keep track of which ICW we're at
-    uint8_t icw[5];
-    uint8_t intoffset; //interrupt vector offset
-    uint8_t priority; //which IRQ has highest priority
-    uint8_t autoeoi; //automatic EOI mode
-    uint8_t readmode; //remember what to return on read register from OCW3
-    uint8_t enabled;
-} i8259;
-
-#if !PICO_ON_DEVICE
-
-#include <windows.h>
-
-unsigned long millis() {
-    static unsigned long start_time = 0;
-    static bool timer_initialized = false;
-    SYSTEMTIME current_time;
-    FILETIME file_time;
-    unsigned long long time_now;
-
-    if (!timer_initialized) {
-        GetSystemTime(&current_time);
-        SystemTimeToFileTime(&current_time, &file_time);
-        start_time =
-                (((unsigned long long) file_time.dwHighDateTime) << 32) | (unsigned long long) file_time.dwLowDateTime;
-        timer_initialized = true;
-    }
-
-    GetSystemTime(&current_time);
-    SystemTimeToFileTime(&current_time, &file_time);
-    time_now = (((unsigned long long) file_time.dwHighDateTime) << 32) | (unsigned long long) file_time.dwLowDateTime;
-
-    return (unsigned long) ((time_now - start_time) / 10000);
-}
-
-#else
-#include "pico/time.h"
-#define millis() (time_us_32())
-
-#endif
+struct structpic i8259;
 
 void init8259() {
     memset((void *) &i8259, 0, sizeof(i8259));
@@ -71,10 +21,9 @@ uint8_t in8259(uint16_t portnum) {
     return (0); //can't get here, but the compiler bitches
 }
 
-uint32_t makeupticks = 0;
+extern uint32_t makeupticks;
 
 void out8259(uint16_t portnum, uint8_t value) {
-    //printf("out8259 %i %i\r\n", portnum, value);
     uint8_t i;
     switch (portnum & 1) {
         case 0:
@@ -127,5 +76,3 @@ void doirq(uint8_t irqnum) {
     i8259.irr |= (1 << irqnum);
 }
 
-
-#endif //TINY8086_I8259_H

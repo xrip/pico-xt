@@ -7,7 +7,6 @@
 
 volatile int bitcount;
 volatile uint16_t data;
-volatile uint8_t parity;
 static uint8_t ps2bufsize = 0;
 uint8_t ps2buffer[KBD_BUFFER_SIZE];
 uint8_t kbloop = 0;
@@ -130,7 +129,7 @@ void Init_kbd(void) {
                                        (gpio_irq_callback_t) &KeyboardHandler); //
 }
 
-extern uint16_t portram[256];
+extern uint8_t portram[0x400];
 
 extern void doirq(uint8_t irqnum);
 

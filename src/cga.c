@@ -4,6 +4,8 @@
 #include "cga.h"
 #include <stdbool.h>
 
+uint8_t VRAM[16384];
+
 uint8_t cursor_blink_state = 0;
 
 const uint32_t dosColorPalette[16] = {

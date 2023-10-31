@@ -1,16 +1,12 @@
 //
 // Created by xrip on 23.10.2023.
 //
-#pragma once
 #ifndef TINY8086_DISK_H
 #define TINY8086_DISK_H
 
-#include "stdint.h"
+#include "emu.h"
 #include "memory.h"
-#include "cpu8086.h"
-
-extern uint8_t RAM[RAM_SIZE << 10];
-
+extern uint8_t RAM[];
 struct struct_drive {
     //HOSTFS_FILE	*diskfile;
     size_t filesize;
@@ -379,7 +375,7 @@ void diskhandler(void) {
     lastdiskah[CPU_DL] = CPU_AH;
     lastdiskcf[CPU_DL] = CPU_FL_CF;
     if (CPU_DL & 0x80)
-        RAM[0x474] = CPU_AH;
+        RAM[0x474] =  CPU_AH;
 }
 
 #endif //TINY8086_DISK_H
