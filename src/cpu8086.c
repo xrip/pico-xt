@@ -150,21 +150,8 @@ uint8_t read86(uint32_t addr32) {
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 
         switch (addr32) { //some hardcoded values for the BIOS data area
-
-            case 0x400:     // serial COM1: address at 0x03F8
-                return (0xF8);
-            case 0x401:
-                return (0x03);
-
-            case 0x402:
-            case 0x403:
-                return (0x00);
-
             case 0x410:
-                return (0x61); //video type CGA 80x25
-
-            case 0x411:
-                return (0x02); // WS: one serial port
+                return (0b00100001); //video type CGA 80x25
 
             case 0x413:
                 return RAM_SIZE;
@@ -172,7 +159,9 @@ uint8_t read86(uint32_t addr32) {
                 return 0;
 
             case 0x463:
-                return (0x3d4);
+                return (0xd4);
+            case 0x464:
+                return (0x3);
 
             case 0x465:
                 switch (videomode) {
@@ -669,15 +658,17 @@ void reset86() {
 #endif
     init8259();
     memset(RAM, 0x0, RAM_SIZE);
+    memset(VRAM, 0x0, VRAM_SIZE);
 
-    segregs[regcs] = 0xFFFF;
-    segregs[regss] = 0x0000;
-    segregs[regsp] = 0xFFFE;
+    CPU_CS = 0xFFFF;
+    CPU_SS = 0x0000;
+    CPU_SP = 0x0000;
 
     ip = 0x0000;
+
     hltstate = 0;
     videomode = 3;
-    insertdisk(0, sizeof FD0, FD0);
+    insertdisk(0, sizeof FD0, (char *) FD0);
 }
 
 uint16_t readrm16(uint8_t rmval) {

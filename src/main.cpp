@@ -48,7 +48,7 @@ void __time_critical_func(render_core)() {
 
     setVGAmode(VGA640x480_text_80_30);
     for (int i = 0; i < 16; ++i) {
-        setVGA_color_palette(i, cga_color(i*2));
+        setVGA_color_palette(i, cga_color(i));
     }
     sem_acquire_blocking(&vga_start_semaphore);
 
@@ -147,8 +147,7 @@ int main() {
 //            SDL_SetWindowSize(window, 640, 400);
             for (uint16_t y = 0; y < 400; y++) {
                 for (uint8_t x = 0; x < 80; x++) {
-                    char c = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 0];
-                    //printf("%c", c);
+                    uint8_t c = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 0];
                     uint8_t glyph_row = fnt8x16[c * 16 + y % 16];
                     uint8_t color = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 1];
 
