@@ -1677,9 +1677,9 @@ void __inline exec86(uint32_t execloops) {
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
 #if PICO_ON_DEVICE
         if (kbloop) {
-/*            uint32_t msnow;
-            msnow = time_us_32();
-            while ((time_us_32() - msnow) < 20000) { }*/
+            uint32_t msnow;
+            msnow = time_us_64();
+            while ((time_us_64() - msnow) < 20000) { }
             kbloop = 0;
             ps2poll();
         }
