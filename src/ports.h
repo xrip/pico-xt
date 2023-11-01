@@ -88,7 +88,7 @@ void portout(uint16_t portnum, uint16_t value) {
             uint32_t usepal = (value>>5) & 1;
             uint32_t intensity = ( (value>>4) & 1) << 3;
             for (int i = 0; i < 16; ++i) {
-                setVGA_color_palette(i, cga_color(i+usepal+intensity));
+                setVGA_color_palette(i, cga_color(i*2+usepal+intensity));
             }
 #endif
             break;

@@ -33,6 +33,8 @@ else ()
 
     add_subdirectory(drivers/vga-nextgen)
     add_subdirectory(drivers/ps2)
+    add_subdirectory(drivers/fatfs)
+    add_subdirectory(drivers/sdcard)
 endif ()
 
 # INCLUDE FILES THAT SHOULD BE COMPILED:
@@ -62,8 +64,8 @@ if (PICO_PLATFORM STREQUAL "host")
     endforeach ()
 
 else ()
-    if(OVERCLOCKING)
-        set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME  "${PROJECT_NAME}-${OVERCLOCKING}MHz")
+    if (OVERCLOCKING)
+        set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}-${OVERCLOCKING}MHz")
 
         target_compile_definitions(${PROJECT_NAME} PRIVATE OVERCLOCKING=${OVERCLOCKING})
 
@@ -79,6 +81,8 @@ else ()
     target_link_libraries(${PROJECT_NAME} PRIVATE
             vga-nextgen
             ps2
+            sdcard
+            fatfs
 
             pico_runtime
             pico_stdlib
@@ -94,8 +98,13 @@ else ()
             hardware_flash
     )
     target_compile_definitions(${PROJECT_NAME} PRIVATE
-    PICO_DEFAULT_UART_RX_PIN=17
-    PICO_DEFAULT_UART_TX_PIN=16
+            PICO_DEFAULT_UART_RX_PIN=17
+            PICO_DEFAULT_UART_TX_PIN=16
+            # SDCARD
+            SDCARD_PIN_SPI0_CS=5
+            SDCARD_PIN_SPI0_SCK=2
+            SDCARD_PIN_SPI0_MOSI=3
+            SDCARD_PIN_SPI0_MISO=4
     )
 endif ()
 

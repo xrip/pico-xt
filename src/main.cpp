@@ -12,7 +12,9 @@ extern "C" {
 #include <pico/stdlib.h>
 #include <hardware/vreg.h>
 #include "pico/stdio.h"
-
+#include "f_util.h"
+#include "ff.h"
+static FATFS fs;
 extern "C" {
 #include "vga.h"
 #include "ps2.h"
@@ -48,13 +50,13 @@ void __time_critical_func(render_core)() {
 
     setVGAmode(VGA640x480_text_80_30);
     for (int i = 0; i < 16; ++i) {
-        setVGA_color_palette(i, cga_color(i));
+        setVGA_color_palette(i, cga_color(i*2));
     }
     sem_acquire_blocking(&vga_start_semaphore);
 
     uint8_t tick50ms = 0;
     while (true) {
-        read_keyboard();
+        timer_interrupt();
         sleep_ms(50);
         if (tick50ms == 0 || tick50ms == 10) {
             cursor_blink_state ^= 1;

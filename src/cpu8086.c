@@ -151,7 +151,7 @@ uint8_t read86(uint32_t addr32) {
 
         switch (addr32) { //some hardcoded values for the BIOS data area
             case 0x410:
-                return (0b00100001); //video type CGA 80x25
+                return (0b01100001); //video type CGA 80x25
 
             case 0x413:
                 return RAM_SIZE;
@@ -623,7 +623,7 @@ uint16_t pop() {
     return tempval;
 }
 
-uint16_t __inline read_keyboard(void) {
+uint16_t __inline timer_interrupt(void) {
     doirq(0);
 }
 
@@ -668,7 +668,12 @@ void reset86() {
 
     hltstate = 0;
     videomode = 3;
-    insertdisk(0, sizeof FD0, (char *) FD0);
+
+
+    if(  insertdisk(1, 0, NULL, "\\XT\\fdd0.img") )
+        insertdisk(0, sizeof FD0, (char *) FD0, NULL);
+    insertdisk(1, 0, NULL, "\\XT\\fdd1.img");
+    insertdisk(128, 0, NULL, "\\XT\\hdd.img");
 }
 
 uint16_t readrm16(uint8_t rmval) {

@@ -126,7 +126,7 @@ extern uint8_t read86(uint32_t addr32);
 
 extern uint16_t readw86(uint32_t addr32);
 
-extern uint16_t read_keyboard(void);
+extern uint16_t timer_interrupt(void);
 
 
 extern int cpu_hlt_handler(void);
