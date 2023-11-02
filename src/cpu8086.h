@@ -91,8 +91,8 @@ static inline void decodeflagsword(uint16_t x) {
 #define CPU_CH    regs.byteregs[regch]
 #define CPU_DH    regs.byteregs[regdh]
 
-#define VRAM_SIZE 32
-#define RAM_SIZE (200)
+#define VRAM_SIZE 16
+#define RAM_SIZE (640)
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern uint8_t RAM[RAM_SIZE << 10];
 

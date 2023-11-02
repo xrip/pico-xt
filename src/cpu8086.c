@@ -154,9 +154,9 @@ uint8_t read86(uint32_t addr32) {
                 return (0b01100001); //video type CGA 80x25
 
             case 0x413:
-                return RAM_SIZE;
+                return (RAM_SIZE & 0xFF);
             case 0x414:
-                return 0;
+                return ((RAM_SIZE >> 8) & 0xFF);
 
             case 0x463:
                 return (0xd4);
@@ -670,10 +670,10 @@ void reset86() {
     videomode = 3;
 
 
-    if(  insertdisk(1, 0, NULL, "\\XT\\fdd0.img") )
+    //if(  insertdisk(1, 0, NULL, "\\XT\\fdd0.img") )
         insertdisk(0, sizeof FD0, (char *) FD0, NULL);
-    insertdisk(1, 0, NULL, "\\XT\\fdd1.img");
-    insertdisk(128, 0, NULL, "\\XT\\hdd.img");
+    //insertdisk(1, 0, NULL, "\\XT\\fdd1.img");
+    insertdisk(128, 0, NULL, "hdd.img");
 }
 
 uint16_t readrm16(uint8_t rmval) {
