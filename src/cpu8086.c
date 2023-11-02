@@ -23,6 +23,7 @@
 //#include "pcxtbios.h"
 #include "rom.h"
 #include "i8259.h"
+//#include "ram.h"
 
 #if PICO_ON_DEVICE
 
@@ -124,7 +125,7 @@ void modregrm() {
 
 void write86(uint32_t addr32, uint8_t value) {
     if ((addr32) < (RAM_SIZE << 10)) {
-        RAM[addr32] = value;
+            RAM[addr32] = value;
     } else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xBC000UL)) {             // CGA video RAM range
         addr32 -= 0xB8000UL;
         if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
@@ -190,7 +191,7 @@ uint8_t read86(uint32_t addr32) {
                 return (hdcount);
 
             default:
-                return RAM[addr32];
+                    return RAM[addr32];
         }
     } else if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {                              // BIOS ROM range
         addr32 -= 0xFE000UL;
@@ -653,8 +654,6 @@ void reset86() {
 #if !PICO_ON_DEVICE
     SDL_AddTimer(55, ClockTick, "timer");
     SDL_AddTimer(500, BlinkTimer, "blink");
-#else
-
 #endif
     init8259();
     memset(RAM, 0x0, RAM_SIZE);
@@ -673,7 +672,11 @@ void reset86() {
     //if(  insertdisk(1, 0, NULL, "\\XT\\fdd0.img") )
         insertdisk(0, sizeof FD0, (char *) FD0, NULL);
     //insertdisk(1, 0, NULL, "\\XT\\fdd1.img");
+#if PICO_ON_DEVICE
+    insertdisk(128, 0, NULL, "\\XT\\hdd.img");
+#else
     insertdisk(128, 0, NULL, "hdd.img");
+#endif
 }
 
 uint16_t readrm16(uint8_t rmval) {
