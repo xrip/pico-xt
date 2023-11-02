@@ -1,6 +1,7 @@
 extern "C" {
 #include "emu.h"
 }
+
 #include "cga.h"
 #include "FD0.h"
 
@@ -320,6 +321,7 @@ uint32_t BlinkTimer(uint32_t interval, void *name) {
 }
 
 #endif
+
 int main() {
 #if PICO_ON_DEVICE
 #if (OVERCLOCKING > 270)
@@ -371,10 +373,10 @@ int main() {
         return -1;
     }
 
-    SDL_AddTimer(55, ClockTick, (void *) "clock");
+//    SDL_AddTimer(55, ClockTick, (void *) "clock");
     SDL_AddTimer(500, BlinkTimer, (void *) "blink");
 #endif
-    insertdisk(0, sizeof FD0, (char *) FD0);
+    insertdisk(0);
     init8253();
     init8259();
     reset86();
@@ -391,7 +393,7 @@ int main() {
 //            SDL_SetWindowSize(window, 640, 400);
             for (uint16_t y = 0; y < 400; y++) {
                 for (uint8_t x = 0; x < 80; x++) {
-                    char c = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 0];
+                    uint8_t c = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 0];
                     //printf("%c", c);
                     uint8_t glyph_row = fnt8x16[c * 16 + y % 16];
                     uint8_t color = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 1];

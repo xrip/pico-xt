@@ -4,7 +4,7 @@
 #include "cga.h"
 #include <stdbool.h>
 
-uint8_t VRAM[16384];
+uint8_t VRAM[16 << 10];
 
 uint8_t cursor_blink_state = 0;
 
@@ -46,3 +46,10 @@ const uint8_t cga_gfxpal[2][2][4] = { //palettes for 320x200 graphics mode
         }
 };
 
+uint8_t __inline VRAM_read(uint32_t addr32) {
+    return VRAM[addr32];
+}
+
+void __inline VRAM_write(uint32_t addr32, uint8_t value) {
+    VRAM[addr32] = value;
+}

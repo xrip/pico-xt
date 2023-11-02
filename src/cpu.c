@@ -1,28 +1,13 @@
 #include "emu.h"
 #include "rom.h"
 
-
-#if PICO_ON_DEVICE
-#include "vga.h"
-#include <hardware/timer.h>
-#endif
-
 extern void portout(uint16_t portnum, uint16_t value);
 
 extern uint16_t portin(uint16_t portnum);
 
-extern void diskhandler(void);
 
-extern void readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, uint16_t sect, uint16_t head,
-                     uint16_t sectcount);
-
-extern uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM);
-
-extern void doirq(uint8_t irqnum);
 
 extern uint8_t nextintr();
-
-extern struct structpic i8259;
 
 extern uint8_t curkey;
 
@@ -33,13 +18,20 @@ uint64_t curtimer, lasttimer, timerfreq;
 char *biosfile = NULL;
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
-uint8_t parity[0x100];
-
+static const uint8_t parity[0x100] = {
+        1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+        0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+        0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+        1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+        0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+        1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+        1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+        0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
+};
 
 union _bytewordregs_ regs;
-
 uint16_t segregs[6];
-uint8_t opcode, segoverride, reptype, bootdrive, fdcount = 0, hdcount = 0;
+uint8_t opcode, segoverride, reptype, bootdrive = 0, hdcount = 0, fdcount = 0;
 uint16_t savecs, saveip, ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, nt, iopriv, mode, reg, rm, msw = 0;
 uint16_t oper1, oper2, res16, disp16, temp16, dummy, stacksize, frametemp;
@@ -54,7 +46,7 @@ uint16_t *tempwordptr;
 
 uint8_t vidmode, cgabg, blankattr, vidgfxmode, vidcolor;
 uint16_t cursx, cursy, cols, rows, vgapage, cursorposition, cursorvisible;
-uint8_t updatedscreen, port3DA, port6, portout16;
+uint8_t updatedscreen, port6, portout16;
 //uint16_t VGA_SC[0xFF], VGA_CRTC[0xFF], VGA_ATTR[0xFF], VGA_GC[0xFF];
 uint32_t videobase, textbase, x, y;
 
@@ -63,8 +55,9 @@ uint8_t debugmode, showcsip, verbose, mouseemu;
 uint8_t RAM[NATIVE_RAM];
 
 void write86(uint32_t addr32, uint8_t value) {
-    if ((addr32) < NATIVE_RAM) {
+    if ((addr32) < RAM_SIZE) {
         RAM[addr32] = value;
+        return;
     } else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xBC000UL)) {             // CGA video RAM range
         addr32 -= 0xB8000UL;
         if ((vidmode == 0) || (vidmode == 1) || (vidmode == 2) || (vidmode == 3)) {
@@ -72,57 +65,68 @@ void write86(uint32_t addr32, uint8_t value) {
         } else {
             VRAM[addr32 & 16383] = value;                                          // 16k for graphic mode!!!
         }
+        return;
     } else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
         addr32 -= 0xCC000UL;
+        printf("WTF WRITE %x\r\n", addr32);
+        return;
     } else if ((addr32) > 0xFFFFFUL) {
-        //SRAM_write(addr32, value);
-    }
-}
-void write861(uint32_t addr32, uint8_t value) {
-    if (addr32 < NATIVE_RAM) {
-        RAM[addr32] = value;
-        return;
-    } else if (addr32 < RAM_SIZE) {
-        addr32 -= NATIVE_RAM;
-        RAM_write(addr32, value);
+        printf("WTF2 WRITE %x\r\n", addr32);
         return;
     }
-
-    if ((addr32 >= 0xB8000) && (addr32 < 0xC0000)) {
-        VRAM_write(addr32 - 0xB8000UL, value);
-    }
+    printf("WTF3 WRITE %x\r\n", addr32);
 }
 
 #define writew86(addr32, value) {write86((addr32),(uint8_t)(value));write86((addr32)+1,(uint8_t)((uint16_t)(value)>>8));}
 
+uint8_t read861(uint32_t addr32) {
+    switch (addr32) { //some hardcoded values for the BIOS data area
+        case 0x410: //0040:0010 is the equipment word
+            return (0x61); //video type (0x41 is VGA/EGA, 0x61 is CGA, 0x31 = MDA)
+        case 0x475: //hard drive count
+            return (hdcount);
+    }
+    if (addr32 < NATIVE_RAM) {
+        return RAM[addr32];
+    } else if (addr32 < RAM_SIZE) {
+        return RAM[addr32];
+        //return RAM_read(addr32);
+    } else if ((addr32 >= 0xB8000) && (addr32 < 0xC0000)) {
+        addr32 -= 0xB8000UL;
+        return VRAM_read(addr32);
+    } else if (addr32 >= 0xFE000UL) {
+        addr32 -= 0xFE000UL;
+        return ROM_READ(BIOS, addr32); //BIOS[addr32];
+    } else if ((addr32 >= 0xD0000) && (addr32 < 0xD0640)) {
+        //return net_read_ram(addr32 - 0xD0000);
+        return 0x00;
+    } else if ((addr32 >= 0xE0000) && (addr32 < 0xE0006)) {
+        //return net_mac[addr32 - 0xE0000];
+        return 0x00;
+    }
+#ifdef INCLUDE_ROM_BASIC
+    else if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) {
+        addr32 -= 0xF6000UL;
+        return ROM_READ(BASICL, addr32); //BASICL[addr32];
+    } else if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) {
+        addr32 -= 0xFA000UL;
+        return ROM_READ(BASICH, addr32); //BASICH[addr32];
+    }
+#endif
+    else return 0x90;
+}
 uint8_t read86(uint32_t addr32) {
-    if (addr32 < (NATIVE_RAM)) {
+    if (addr32 < RAM_SIZE) {
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 
         switch (addr32) { //some hardcoded values for the BIOS data area
-
-            case 0x400:     // serial COM1: address at 0x03F8
-                return (0xF8);
-            case 0x401:
-                return (0x03);
-
-            case 0x402:
-            case 0x403:
-                return (0x00);
-
             case 0x410:
-                return (0x61); //video type CGA 80x25
-
-            case 0x411:
-                return (0x02); // WS: one serial port
-
-            case 0x413:
-                return (NATIVE_RAM >> 10);
-            case 0x414:
-                return 0;
+                return (0b00100001); //video type CGA 80x25
 
             case 0x463:
                 return (0xd4);
+            case 0x464:
+                return (0x3);
 
             case 0x465:
                 switch (vidmode) {
@@ -172,54 +176,11 @@ uint8_t read86(uint32_t addr32) {
         addr32 -= 0xFA000UL;
         return BASICH[addr32];
     } else if ((addr32) > 0xFFFFFUL) {
+
         //SRAM_read(addr32);
     }
-}
-
-uint8_t read861(uint32_t addr32) {
-    switch (addr32) { //some hardcoded values for the BIOS data area
-
-        case 0x410: //0040:0010 is the equipment word
-            return (0x61); //video type (0x41 is VGA/EGA, 0x61 is CGA, 0x31 = MDA)
-        case 0x413:
-            return 192;
-        case 0x414:
-            return 0;
-        case 0x475: //hard drive count
-            return (hdcount);
-    }
-    if (addr32 < NATIVE_RAM) {
-        return RAM[addr32];
-    } else if (addr32 < RAM_SIZE) {
-        uint8_t ret;
-        addr32 -= NATIVE_RAM;
-        RAM_read(addr32, ret);
-        return ret;
-        //return RAM_read(addr32);
-    } else if ((addr32 >= 0xB8000) && (addr32 < 0xC0000)) {
-        addr32 -= 0xB8000UL;
-        return VRAM_read(addr32);
-    } else if (addr32 >= 0xFE000UL) {
-        addr32 -= 0xFE000UL;
-        return ROM_READ(BIOS, addr32); //BIOS[addr32];
-    }
-        /* FIXME!!
-        else if ((addr32 >= 0xD0000) && (addr32 < 0xD0640)) {
-            return net_read_ram(addr32 - 0xD0000);
-        } else if ((addr32 >= 0xE0000) && (addr32 < 0xE0006)) {
-            return net_mac[addr32 - 0xE0000];
-        }
-         */
-#ifdef INCLUDE_ROM_BASIC
-    else if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) {
-        addr32 -= 0xF6000UL;
-        return ROM_READ(BASICL, addr32); //BASICL[addr32];
-    } else if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) {
-        addr32 -= 0xFA000UL;
-        return ROM_READ(BASICH, addr32); //BASICH[addr32];
-    }
-#endif
-    else return 0x90;
+    printf("READ %x\r\n", addr32);
+    return 0x00;
 }
 
 /*#define read86(addr32) ( \
@@ -497,19 +458,14 @@ inline uint16_t pop() {
 }
 
 void reset86() {
+    memset(RAM, 0x0, 640 << 10);
+    memset(VRAM, 0x0,  16 << 10);
+
     uint16_t i, cnt, bitcount;
     segregs[regcs] = 0xFFFF;
     ip = 0x0000;
     segregs[regss] = 0x0000;
-    regs.wordregs[regsp] = 0xFFFE;
-
-    //generate parity lookup table
-    for (i = 0; i < 256; i++) {
-        bitcount = 0;
-        for (cnt = 0; cnt < 8; cnt++)
-            bitcount += ((i >> cnt) & 1);
-        if (bitcount & 1) parity[i] = 0; else parity[i] = 1;
-    }
+    regs.wordregs[regsp] = 0x0000;
 }
 
 /*inline uint16_t readrm16(uint8_t rmval) {
@@ -949,39 +905,19 @@ void intcall86(uint8_t intnum) {
     switch (intnum) {
         case 0x10: //video services
             if (regs.byteregs[regah] == 0) { //video mode set
-#ifdef ADVANCED_CLIENT
-                Serial.write(0xFF);
-                Serial.write(0x02);
-                Serial.write(regs.byteregs[regal]);
-                Serial.write(regs.byteregs[regal]); //duplicate for checksum
-                Serial.write(0xFE);
-                Serial.write(0x02);
-#endif
 #ifdef USE_DISPLAY
                 if (vidmode != regs.byteregs[regal]) clear_display();
                 palettereset();
 #endif
-                //if (vidmode != CPU_AL) clear_display();
-                vidmode = CPU_AL;
-                //memset(VRAM, 0x0, sizeof VRAM);
-                //CopyCharROM();
-                //printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
-#if PICO_ON_DEVICE
-                if (vidmode == 3 || vidmode == 0x56) {
-                    setVGAmode(VGA640x480_text_80_30);
-                } else {
-                    setVGAmode(CGA_320x200x4);
-                }
-#endif
-
+                vidmode = regs.byteregs[regal];
                 //Serial.print("vidmode = "); Serial.println(vidmode);
             }
             break;
         case 0x13: //disk services
             diskhandler();
             return;
-/*
         case 0x19: //bootstrap
+#if 0
             //Serial.println("Bootstrap!");
             if (bootdrive < 255) { //read first sector of boot drive into 07C0:0000 and execute it
                 regs.byteregs[regdl] = bootdrive;
@@ -993,12 +929,12 @@ void intcall86(uint8_t intnum) {
                 ip = 0x0000;
             }
             return;
-            */
-/* FIXME!!
+#else
+            break;
+#endif
         case 0xFC:
-            net_handler();
-            return;
-*/
+            //net_handler();
+            //return;
         default:
             break;
     }
@@ -1038,17 +974,16 @@ void exec86(uint32_t execloops) {
         /*Serial.print(segregs[regcs], HEX);
         Serial.write(':');
         Serial.println(ip, HEX);*/
-#if PICO_ON_DEVICE
 #ifdef PS2_KEYBOARD
         if (kbloop) {
           uint32_t msnow;
-          msnow = time_us_64();
-          while ((time_us_64() - msnow) < 20000) { }
+          msnow = micros();
+          while ((micros() - msnow) < 20000) { }
           kbloop = 0;
           ps2poll();
         }
 #endif
-#endif
+
         if (timerTick) {
             timerTick = 0;
             doirq(0);

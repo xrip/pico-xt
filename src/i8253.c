@@ -1,10 +1,5 @@
+#include <SDL2/SDL_timer.h>
 #include "emu.h"
-
-#ifdef MEGA
-#include <TimerOne.h>
-#else
-//IntervalTimer myTimer;
-#endif
 
 #define PIT_MODE_LATCHCOUNT  0
 #define PIT_MODE_LOBYTE 1
@@ -13,12 +8,10 @@
 
 struct i8253_s i8253;
 
-//struct i8253_s i8253;
-
 volatile uint8_t timerTick = 0;
 
 uint32_t timer_isr(uint32_t interval, void *name) {
-    printf("tick");
+//    printf("tick");
     timerTick = 1;
     return interval;
 }
@@ -49,15 +42,15 @@ void out8253(uint16_t portnum, uint8_t value) {
             //i8253.chanfreq[portnum] = (float) ( (uint32_t) ( ( (float) 1193182.0 / (float) i8253.effectivedata[portnum]) * (float) 1000.0) );
             //Serial.print("period "); Serial.println((uint32_t) ((float)1000000.0 / ( ( (float) 1193182.0 / (float) i8253.effectivedata[portnum]))));
             if (portnum == 0) {
-                //uint32_t period;
-                //period = (uint32_t) ((float) 1000000.0 / (((float) 1193182.0 / (float) i8253.effectivedata[portnum])));
+                uint32_t period;
+                period = (uint32_t) ((float) 1000000.0 / (((float) 1193182.0 / (float) i8253.effectivedata[portnum])));
 #ifdef MEGA
                 if (period < 4000) period = 4000; //limit to 250 Hz, or the emulator just can't keep up on a Mega
                 //Serial.println((float)1000000.0 / (float)period);
                 Timer1.attachInterrupt(timer_isr, period);
 #else
                 // FIXME!!
-                //SDL_AddTimer(period, timer_isr, (void *) "timer_isr");
+                SDL_AddTimer(period, timer_isr, (void *) "timer_isr");
                 // myTimer.begin(timer_isr, period);
 #endif
             }
@@ -109,7 +102,7 @@ void init8253() {
     Timer1.attachInterrupt(timer_isr, 54925);
 #else
     // FIXME!!
-    //SDL_AddTimer(54925, timer_isr, (void *) "timer_isr");
+    SDL_AddTimer(55, timer_isr, (void *) "timer_isr");
     // myTimer.begin(timer_isr, 54925);
 #endif
     //set_port_write_redirector (0x40, 0x43, &out8253);

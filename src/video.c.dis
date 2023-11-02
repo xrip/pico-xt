@@ -1,31 +1,34 @@
 #include "emu.h"
+
 #ifdef USE_TFT
-  #ifdef MEGA
-    #include <Adafruit_GFX.h>    // Core graphics library
-    #include <Adafruit_TFTLCD.h> // Hardware-specific library
-    #define LCD_CS A3 // Chip Select goes to Analog 3
-    #define LCD_CD A2 // Command/Data goes to Analog 2
-    #define LCD_WR A1 // LCD Write goes to Analog 1
-    #define LCD_RD A0 // LCD Read goes to Analog 0
+#ifdef MEGA
+#include <Adafruit_GFX.h>    // Core graphics library
+#include <Adafruit_TFTLCD.h> // Hardware-specific library
+#define LCD_CS A3 // Chip Select goes to Analog 3
+#define LCD_CD A2 // Command/Data goes to Analog 2
+#define LCD_WR A1 // LCD Write goes to Analog 1
+#define LCD_RD A0 // LCD Read goes to Analog 0
 
-    #define LCD_RESET A4 // Can alternately just connect to Arduino's reset pin
+#define LCD_RESET A4 // Can alternately just connect to Arduino's reset pin
 
-    #include <MCUFRIEND_kbv.h>
-    MCUFRIEND_kbv tft;
-    // If using the shield, all control and data lines are fixed, and
-    // a simpler declaration can optionally be used:
-    // Adafruit_TFTLCD tft;
-  #else
-    #include <SPI.h>
-    #include <ILI9341_t3.h>
-    #define TFT_DC       9
-    #define TFT_CS      10
-    #define TFT_RST    255  // 255 = unused, connect to 3.3V
-    #define TFT_MOSI    11
-    #define TFT_SCLK    13
-    #define TFT_MISO    12
-    ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC, TFT_RST, TFT_MOSI, TFT_SCLK, TFT_MISO);
-  #endif
+#include <MCUFRIEND_kbv.h>
+MCUFRIEND_kbv tft;
+// If using the shield, all control and data lines are fixed, and
+// a simpler declaration can optionally be used:
+// Adafruit_TFTLCD tft;
+#else
+
+#include <SPI.h>
+#include <ILI9341_t3.h>
+
+#define TFT_DC       9
+#define TFT_CS      10
+#define TFT_RST    255  // 255 = unused, connect to 3.3V
+#define TFT_MOSI    11
+#define TFT_SCLK    13
+#define TFT_MISO    12
+ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC, TFT_RST, TFT_MOSI, TFT_SCLK, TFT_MISO);
+#endif
 
 // Assign human-readable names to some common 16-bit color values:
 #define  BLACK   0x0000
@@ -55,509 +58,518 @@ uint32_t updateaddrs[64];
 uint8_t updatepos = 0;
 
 void VRAM_write(uint32_t addr32, uint8_t value) {
-  uint32_t origaddr;
-  origaddr = addr32;
+    uint32_t origaddr;
+    origaddr = addr32;
 #ifdef MEGA
-  addr32 = addr32 + RAM_SIZE - NATIVE_RAM;
-  RAM_write(addr32, value);
+    addr32 = addr32 + RAM_SIZE - NATIVE_RAM;
+    RAM_write(addr32, value);
 #else
-  if (addr32 < 16384) {
-    VRAM[addr32] = value;
-    #ifdef ADVANCED_CLIENT
-    uint8_t chksum;
-    Serial.write(0xFF);
-    Serial.write(0x03);
-    outByte(addr32 & 0xFF); chksum = addr32 & 0xFF;
-    outByte(addr32 >> 8); chksum += addr32 >> 8;
-    outByte(value); chksum += value;
-    outByte(chksum);
-    Serial.write(0xFE);
-    Serial.write(0x02);
-    #endif
-  }
+    if (addr32 < 16384) {
+        VRAM[addr32] = value;
+#ifdef ADVANCED_CLIENT
+        uint8_t chksum;
+        Serial.write(0xFF);
+        Serial.write(0x03);
+        outByte(addr32 & 0xFF); chksum = addr32 & 0xFF;
+        outByte(addr32 >> 8); chksum += addr32 >> 8;
+        outByte(value); chksum += value;
+        outByte(chksum);
+        Serial.write(0xFE);
+        Serial.write(0x02);
+#endif
+    }
 #endif
 
 #ifdef USE_TFT
-  if (updatepos == 64) updatescreen();
-  uint8_t i;
-  if (vidmode < 4) origaddr &= 0xFFFE;
-  for (i=0; i<updatepos; i++) {
-    if (updateaddrs[i] == origaddr) return;
-  }
-  updateaddrs[updatepos++] = origaddr;
+    if (updatepos == 64) updatescreen();
+    uint8_t i;
+    if (vidmode < 4) origaddr &= 0xFFFE;
+    for (i = 0; i < updatepos; i++) {
+        if (updateaddrs[i] == origaddr) return;
+    }
+    updateaddrs[updatepos++] = origaddr;
 #endif
 }
 
 uint8_t VRAM_read(uint32_t addr32) {
 #ifdef MEGA
-  uint8_t value;
-  addr32 = addr32 + RAM_SIZE - NATIVE_RAM;
-  RAM_read(addr32, value);
-  return value;
+    uint8_t value;
+    addr32 = addr32 + RAM_SIZE - NATIVE_RAM;
+    RAM_read(addr32, value);
+    return value;
 #else
-  if (addr32 < 16384) return VRAM[addr32];
-  return 0;
+    if (addr32 < 16384) return VRAM[addr32];
+    return 0;
 #endif
 }
 
 void updatescreen() {
 #ifdef USE_TFT
-  uint8_t i, value;
-  uint32_t origaddr;
-  for (i=0; i<updatepos; i++) {
-    origaddr = updateaddrs[i];
-    value = VRAM_read(origaddr);
-    switch (vidmode & 0x7F) {
-      case 0:
-      case 1:
-        drawtext40(origaddr, value);
-        break;
-      case 2:
-      case 3:
-      //case 7:
-        drawtext80(origaddr, value);
-        break;
-      case 4:
-        drawlorescga(origaddr, value);
-        break;
-      case 5:
-        drawlorescga(origaddr, value); //change to BW function later
-        break;
-      case 6:
-        drawhirescga(origaddr, value);
-        break;
+    uint8_t i, value;
+    uint32_t origaddr;
+    for (i = 0; i < updatepos; i++) {
+        origaddr = updateaddrs[i];
+        value = VRAM_read(origaddr);
+        switch (vidmode & 0x7F) {
+            case 0:
+            case 1:
+                drawtext40(origaddr, value);
+                break;
+            case 2:
+            case 3:
+                //case 7:
+                drawtext80(origaddr, value);
+                break;
+            case 4:
+                drawlorescga(origaddr, value);
+                break;
+            case 5:
+                drawlorescga(origaddr, value); //change to BW function later
+                break;
+            case 6:
+                drawhirescga(origaddr, value);
+                break;
+        }
     }
-  }
-  updatepos = 0;
+    updatepos = 0;
 #ifdef MEGA
-  PORTG = 0xFF; PORTE = 0xFF; PORTH = 0xFF;
+    PORTG = 0xFF; PORTE = 0xFF; PORTH = 0xFF;
 #endif
 #endif
 }
 
 #ifdef USE_TFT
-void drawtext40(uint32_t addr32, uint8_t value) {
-  uint16_t row, col;
-  addr32 &= 0xFFFE;
-  row = addr32 / 80;
-  col = (addr32 % 80) >> 1;
-  if (row < 25) {
-    uint8_t bold, attrib, cc, bg, fg;
-    attrib = VRAM_read(addr32 + 1);
-    cc = VRAM_read(addr32);
-    bg = (attrib >> 4) & 7;
-    fg = attrib & 0x0F;
-    /*if (fg & 8) bold = 1; else bold = 0;
-    switch (cc) {
-      case 0:
-      case 7:
-      case 9:
-      case 10:
-      case 13:
-      case 26:
-      case 255:
-        cc = 32;
-        break;
-    }
-    Serial.write(27); Serial.write('['); Serial.print(row + 1); Serial.write(';'); Serial.print(col + 1); Serial.write('H');
-    Serial.write(27); Serial.write('['); Serial.print(30 + ansicolor[fg]); Serial.write(';'); Serial.print(40 + ansicolor[bg]); Serial.write('m');
-    Serial.write(cc);*/
 
-    uint16_t x, y, fontdata, realy, realx;
-    for (y=0; y<8; y++) {
-      fontdata = ROM_READ(font, ((uint32_t)cc << 3) + y); //font[((uint16_t)cc << 3) + y];
-      realy = (row << 3) + y + 20;
-      realx = col << 3;
-      for (x=0; x<8; x++) {
-        if (fontdata & 1) {
-          tft.drawPixel(realx++, realy, palettecga[fg]);
-        } else {
-          tft.drawPixel(realx++, realy, palettecga[bg]);
+void drawtext40(uint32_t addr32, uint8_t value) {
+    uint16_t row, col;
+    addr32 &= 0xFFFE;
+    row = addr32 / 80;
+    col = (addr32 % 80) >> 1;
+    if (row < 25) {
+        uint8_t bold, attrib, cc, bg, fg;
+        attrib = VRAM_read(addr32 + 1);
+        cc = VRAM_read(addr32);
+        bg = (attrib >> 4) & 7;
+        fg = attrib & 0x0F;
+        /*if (fg & 8) bold = 1; else bold = 0;
+        switch (cc) {
+          case 0:
+          case 7:
+          case 9:
+          case 10:
+          case 13:
+          case 26:
+          case 255:
+            cc = 32;
+            break;
         }
-        fontdata >>= 1;
-      }
+        Serial.write(27); Serial.write('['); Serial.print(row + 1); Serial.write(';'); Serial.print(col + 1); Serial.write('H');
+        Serial.write(27); Serial.write('['); Serial.print(30 + ansicolor[fg]); Serial.write(';'); Serial.print(40 + ansicolor[bg]); Serial.write('m');
+        Serial.write(cc);*/
+
+        uint16_t x, y, fontdata, realy, realx;
+        for (y = 0; y < 8; y++) {
+            fontdata = ROM_READ(font, ((uint32_t) cc << 3) + y); //font[((uint16_t)cc << 3) + y];
+            realy = (row << 3) + y + 20;
+            realx = col << 3;
+            for (x = 0; x < 8; x++) {
+                if (fontdata & 1) {
+                    tft.drawPixel(realx++, realy, palettecga[fg]);
+                } else {
+                    tft.drawPixel(realx++, realy, palettecga[bg]);
+                }
+                fontdata >>= 1;
+            }
+        }
     }
-  }
 }
 
 void drawtext80(uint32_t addr32, uint8_t value) {
-  uint16_t row, col;
-  addr32 &= 0xFFFE;
-  row = addr32 / 160;
-  col = (addr32 % 160) >> 1;
-  if (row < 25) {
-    uint8_t bold, attrib, cc, bg, fg;
-    attrib = VRAM_read(addr32 + 1);
-    cc = VRAM_read(addr32);
-    bg = (attrib >> 4) & 7;
-    fg = attrib & 0x0F;
-    /*if (fg & 8) bold = 1; else bold = 0;
-    switch (cc) {
-      case 0:
-      case 7:
-      case 9:
-      case 10:
-      case 13:
-      case 26:
-      case 255:
-        cc = 32;
-        break;
-    }
-    Serial.write(27); Serial.write('['); Serial.print(row + 1); Serial.write(';'); Serial.print(col + 1); Serial.write('H');
-    Serial.write(27); Serial.write('['); Serial.print(30 + ansicolor[fg]); Serial.write(';'); Serial.print(40 + ansicolor[bg]); Serial.write('m');
-    Serial.write(cc);*/
-
-    uint16_t x, y, fontdata, realy, realx;
-    for (y=0; y<8; y++) {
-      fontdata = ROM_READ(font, ((uint32_t)cc << 3) + y); //font[((uint16_t)cc << 3) + y];
-      realy = (row << 3) + y + 20;
-      realx = col << 2;
-      for (x=0; x<4; x++) {
-        if (fontdata & 1) {
-          tft.drawPixel(realx++, realy, palettecga[fg]);
-        } else {
-          tft.drawPixel(realx++, realy, palettecga[bg]);
+    uint16_t row, col;
+    addr32 &= 0xFFFE;
+    row = addr32 / 160;
+    col = (addr32 % 160) >> 1;
+    if (row < 25) {
+        uint8_t bold, attrib, cc, bg, fg;
+        attrib = VRAM_read(addr32 + 1);
+        cc = VRAM_read(addr32);
+        bg = (attrib >> 4) & 7;
+        fg = attrib & 0x0F;
+        /*if (fg & 8) bold = 1; else bold = 0;
+        switch (cc) {
+          case 0:
+          case 7:
+          case 9:
+          case 10:
+          case 13:
+          case 26:
+          case 255:
+            cc = 32;
+            break;
         }
-        fontdata >>= 2;
-      }
+        Serial.write(27); Serial.write('['); Serial.print(row + 1); Serial.write(';'); Serial.print(col + 1); Serial.write('H');
+        Serial.write(27); Serial.write('['); Serial.print(30 + ansicolor[fg]); Serial.write(';'); Serial.print(40 + ansicolor[bg]); Serial.write('m');
+        Serial.write(cc);*/
+
+        uint16_t x, y, fontdata, realy, realx;
+        for (y = 0; y < 8; y++) {
+            fontdata = ROM_READ(font, ((uint32_t) cc << 3) + y); //font[((uint16_t)cc << 3) + y];
+            realy = (row << 3) + y + 20;
+            realx = col << 2;
+            for (x = 0; x < 4; x++) {
+                if (fontdata & 1) {
+                    tft.drawPixel(realx++, realy, palettecga[fg]);
+                } else {
+                    tft.drawPixel(realx++, realy, palettecga[bg]);
+                }
+                fontdata >>= 2;
+            }
+        }
     }
-  }
 }
 
 void drawlorescga(uint32_t addr32, uint8_t value) {
-  uint8_t intensity, usepal, i;
-  uint16_t x, y, color;
-  usepal = (portram[0x3D9]>>5) & 1;
-  intensity = ( (portram[0x3D9]>>4) & 1) << 3;
-  if (addr32 & 8192) y = 21; else y = 20;
-  addr32 &= 8191;
-  y += (addr32 / 80) << 1;
-  x = (addr32 % 80) << 2;
-  for (i=0; i<4; i++) {
-    uint8_t packedcolor;
-    packedcolor = value >> 6;
-    if (!packedcolor) color = 0; else color = packedcolor * 2 + usepal + intensity;
-    tft.drawPixel(x++, y, palettecga[color]);
-    value <<= 2;
-  }
+    uint8_t intensity, usepal, i;
+    uint16_t x, y, color;
+    usepal = (portram[0x3D9] >> 5) & 1;
+    intensity = ((portram[0x3D9] >> 4) & 1) << 3;
+    if (addr32 & 8192) y = 21; else y = 20;
+    addr32 &= 8191;
+    y += (addr32 / 80) << 1;
+    x = (addr32 % 80) << 2;
+    for (i = 0; i < 4; i++) {
+        uint8_t packedcolor;
+        packedcolor = value >> 6;
+        if (!packedcolor) color = 0; else color = packedcolor * 2 + usepal + intensity;
+        tft.drawPixel(x++, y, palettecga[color]);
+        value <<= 2;
+    }
 }
 
 void drawhirescga(uint32_t addr32, uint8_t value) {
-  uint8_t intensity, usepal, i;
-  uint16_t x, y, color;
-  usepal = (portram[0x3D9]>>5) & 1;
-  intensity = ( (portram[0x3D9]>>4) & 1) << 3;
-  if (addr32 & 8192) y = 21; else y = 20;
-  addr32 &= 8191;
-  y += (addr32 / 80) << 1;
-  x = (addr32 % 80) << 2;
-  for (i=0; i<4; i++) {
-    uint8_t packedcolor;
-    packedcolor = value >> 6;
-    //if (!packedcolor) color = 0; else color = packedcolor * 2 + usepal + intensity;
-    switch (packedcolor) {
-      case 0: color = 0; break;
-      case 1: case 2: color = 7; break;
-      case 3: color = 15; break;
+    uint8_t intensity, usepal, i;
+    uint16_t x, y, color;
+    usepal = (portram[0x3D9] >> 5) & 1;
+    intensity = ((portram[0x3D9] >> 4) & 1) << 3;
+    if (addr32 & 8192) y = 21; else y = 20;
+    addr32 &= 8191;
+    y += (addr32 / 80) << 1;
+    x = (addr32 % 80) << 2;
+    for (i = 0; i < 4; i++) {
+        uint8_t packedcolor;
+        packedcolor = value >> 6;
+        //if (!packedcolor) color = 0; else color = packedcolor * 2 + usepal + intensity;
+        switch (packedcolor) {
+            case 0:
+                color = 0;
+                break;
+            case 1:
+            case 2:
+                color = 7;
+                break;
+            case 3:
+                color = 15;
+                break;
+        }
+        tft.drawPixel(x++, y, palettecga[color]);
+        value <<= 2;
     }
-    tft.drawPixel(x++, y, palettecga[color]);
-    value <<= 2;
-  }
 }
 
 void palettereset() {
-  palettecga[0] = tft.color565(0, 0, 0);
-  palettecga[1] = tft.color565(0, 0, 0xAA);
-  palettecga[2] = tft.color565(0, 0xAA, 0);
-  palettecga[3] = tft.color565(0, 0xAA, 0xAA);
-  palettecga[4] = tft.color565(0xAA, 0, 0);
-  palettecga[5] = tft.color565(0xAA, 0, 0xAA);
-  palettecga[6] = tft.color565(0xAA, 0x55, 0);
-  palettecga[7] = tft.color565(0xAA, 0xAA, 0xAA);
-  palettecga[8] = tft.color565(0x55, 0x55, 0x55);
-  palettecga[9] = tft.color565(0x55, 0x55, 0xFF);
-  palettecga[10] = tft.color565(0x55, 0xFF, 0x55);
-  palettecga[11] = tft.color565(0x55, 0xFF, 0xFF);
-  palettecga[12] = tft.color565(0xFF, 0x55, 0x55);
-  palettecga[13] = tft.color565(0xFF, 0x55, 0xFF);
-  palettecga[14] = tft.color565(0xFF, 0xFF, 0x55);
-  palettecga[15] = tft.color565(0xFF, 0xFF, 0xFF);
-  palettevga[0] = tft.color565(0, 0, 0);
-  palettevga[1] = tft.color565(0, 0, 169);
-  palettevga[2] = tft.color565(0, 169, 0);
-  palettevga[3] = tft.color565(0, 169, 169);
-  palettevga[4] = tft.color565(169, 0, 0);
-  palettevga[5] = tft.color565(169, 0, 169);
-  palettevga[6] = tft.color565(169, 169, 0);
-  palettevga[7] = tft.color565(169, 169, 169);
-  palettevga[8] = tft.color565(0, 0, 84);
-  palettevga[9] = tft.color565(0, 0, 255);
-  palettevga[10] = tft.color565(0, 169, 84);
-  palettevga[11] = tft.color565(0, 169, 255);
-  palettevga[12] = tft.color565(169, 0, 84);
-  palettevga[13] = tft.color565(169, 0, 255);
-  palettevga[14] = tft.color565(169, 169, 84);
-  palettevga[15] = tft.color565(169, 169, 255);
-  palettevga[16] = tft.color565(0, 84, 0);
-  palettevga[17] = tft.color565(0, 84, 169);
-  palettevga[18] = tft.color565(0, 255, 0);
-  palettevga[19] = tft.color565(0, 255, 169);
-  palettevga[20] = tft.color565(169, 84, 0);
-  palettevga[21] = tft.color565(169, 84, 169);
-  palettevga[22] = tft.color565(169, 255, 0);
-  palettevga[23] = tft.color565(169, 255, 169);
-  palettevga[24] = tft.color565(0, 84, 84);
-  palettevga[25] = tft.color565(0, 84, 255);
-  palettevga[26] = tft.color565(0, 255, 84);
-  palettevga[27] = tft.color565(0, 255, 255);
-  palettevga[28] = tft.color565(169, 84, 84);
-  palettevga[29] = tft.color565(169, 84, 255);
-  palettevga[30] = tft.color565(169, 255, 84);
-  palettevga[31] = tft.color565(169, 255, 255);
-  palettevga[32] = tft.color565(84, 0, 0);
-  palettevga[33] = tft.color565(84, 0, 169);
-  palettevga[34] = tft.color565(84, 169, 0);
-  palettevga[35] = tft.color565(84, 169, 169);
-  palettevga[36] = tft.color565(255, 0, 0);
-  palettevga[37] = tft.color565(255, 0, 169);
-  palettevga[38] = tft.color565(255, 169, 0);
-  palettevga[39] = tft.color565(255, 169, 169);
-  palettevga[40] = tft.color565(84, 0, 84);
-  palettevga[41] = tft.color565(84, 0, 255);
-  palettevga[42] = tft.color565(84, 169, 84);
-  palettevga[43] = tft.color565(84, 169, 255);
-  palettevga[44] = tft.color565(255, 0, 84);
-  palettevga[45] = tft.color565(255, 0, 255);
-  palettevga[46] = tft.color565(255, 169, 84);
-  palettevga[47] = tft.color565(255, 169, 255);
-  palettevga[48] = tft.color565(84, 84, 0);
-  palettevga[49] = tft.color565(84, 84, 169);
-  palettevga[50] = tft.color565(84, 255, 0);
-  palettevga[51] = tft.color565(84, 255, 169);
-  palettevga[52] = tft.color565(255, 84, 0);
-  palettevga[53] = tft.color565(255, 84, 169);
-  palettevga[54] = tft.color565(255, 255, 0);
-  palettevga[55] = tft.color565(255, 255, 169);
-  palettevga[56] = tft.color565(84, 84, 84);
-  palettevga[57] = tft.color565(84, 84, 255);
-  palettevga[58] = tft.color565(84, 255, 84);
-  palettevga[59] = tft.color565(84, 255, 255);
-  palettevga[60] = tft.color565(255, 84, 84);
-  palettevga[61] = tft.color565(255, 84, 255);
-  palettevga[62] = tft.color565(255, 255, 84);
-  palettevga[63] = tft.color565(255, 255, 255);
-  palettevga[64] = tft.color565(255, 125, 125);
-  palettevga[65] = tft.color565(255, 157, 125);
-  palettevga[66] = tft.color565(255, 190, 125);
-  palettevga[67] = tft.color565(255, 222, 125);
-  palettevga[68] = tft.color565(255, 255, 125);
-  palettevga[69] = tft.color565(222, 255, 125);
-  palettevga[70] = tft.color565(190, 255, 125);
-  palettevga[71] = tft.color565(157, 255, 125);
-  palettevga[72] = tft.color565(125, 255, 125);
-  palettevga[73] = tft.color565(125, 255, 157);
-  palettevga[74] = tft.color565(125, 255, 190);
-  palettevga[75] = tft.color565(125, 255, 222);
-  palettevga[76] = tft.color565(125, 255, 255);
-  palettevga[77] = tft.color565(125, 222, 255);
-  palettevga[78] = tft.color565(125, 190, 255);
-  palettevga[79] = tft.color565(125, 157, 255);
-  palettevga[80] = tft.color565(182, 182, 255);
-  palettevga[81] = tft.color565(198, 182, 255);
-  palettevga[82] = tft.color565(218, 182, 255);
-  palettevga[83] = tft.color565(234, 182, 255);
-  palettevga[84] = tft.color565(255, 182, 255);
-  palettevga[85] = tft.color565(255, 182, 234);
-  palettevga[86] = tft.color565(255, 182, 218);
-  palettevga[87] = tft.color565(255, 182, 198);
-  palettevga[88] = tft.color565(255, 182, 182);
-  palettevga[89] = tft.color565(255, 198, 182);
-  palettevga[90] = tft.color565(255, 218, 182);
-  palettevga[91] = tft.color565(255, 234, 182);
-  palettevga[92] = tft.color565(255, 255, 182);
-  palettevga[93] = tft.color565(234, 255, 182);
-  palettevga[94] = tft.color565(218, 255, 182);
-  palettevga[95] = tft.color565(198, 255, 182);
-  palettevga[96] = tft.color565(182, 255, 182);
-  palettevga[97] = tft.color565(182, 255, 198);
-  palettevga[98] = tft.color565(182, 255, 218);
-  palettevga[99] = tft.color565(182, 255, 234);
-  palettevga[100] = tft.color565(182, 255, 255);
-  palettevga[101] = tft.color565(182, 234, 255);
-  palettevga[102] = tft.color565(182, 218, 255);
-  palettevga[103] = tft.color565(182, 198, 255);
-  palettevga[104] = tft.color565(0, 0, 113);
-  palettevga[105] = tft.color565(28, 0, 113);
-  palettevga[106] = tft.color565(56, 0, 113);
-  palettevga[107] = tft.color565(84, 0, 113);
-  palettevga[108] = tft.color565(113, 0, 113);
-  palettevga[109] = tft.color565(113, 0, 84);
-  palettevga[110] = tft.color565(113, 0, 56);
-  palettevga[111] = tft.color565(113, 0, 28);
-  palettevga[112] = tft.color565(113, 0, 0);
-  palettevga[113] = tft.color565(113, 28, 0);
-  palettevga[114] = tft.color565(113, 56, 0);
-  palettevga[115] = tft.color565(113, 84, 0);
-  palettevga[116] = tft.color565(113, 113, 0);
-  palettevga[117] = tft.color565(84, 113, 0);
-  palettevga[118] = tft.color565(56, 113, 0);
-  palettevga[119] = tft.color565(28, 113, 0);
-  palettevga[120] = tft.color565(0, 113, 0);
-  palettevga[121] = tft.color565(0, 113, 28);
-  palettevga[122] = tft.color565(0, 113, 56);
-  palettevga[123] = tft.color565(0, 113, 84);
-  palettevga[124] = tft.color565(0, 113, 113);
-  palettevga[125] = tft.color565(0, 84, 113);
-  palettevga[126] = tft.color565(0, 56, 113);
-  palettevga[127] = tft.color565(0, 28, 113);
-  palettevga[128] = tft.color565(56, 56, 113);
-  palettevga[129] = tft.color565(68, 56, 113);
-  palettevga[130] = tft.color565(84, 56, 113);
-  palettevga[131] = tft.color565(97, 56, 113);
-  palettevga[132] = tft.color565(113, 56, 113);
-  palettevga[133] = tft.color565(113, 56, 97);
-  palettevga[134] = tft.color565(113, 56, 84);
-  palettevga[135] = tft.color565(113, 56, 68);
-  palettevga[136] = tft.color565(113, 56, 56);
-  palettevga[137] = tft.color565(113, 68, 56);
-  palettevga[138] = tft.color565(113, 84, 56);
-  palettevga[139] = tft.color565(113, 97, 56);
-  palettevga[140] = tft.color565(113, 113, 56);
-  palettevga[141] = tft.color565(97, 113, 56);
-  palettevga[142] = tft.color565(84, 113, 56);
-  palettevga[143] = tft.color565(68, 113, 56);
-  palettevga[144] = tft.color565(56, 113, 56);
-  palettevga[145] = tft.color565(56, 113, 68);
-  palettevga[146] = tft.color565(56, 113, 84);
-  palettevga[147] = tft.color565(56, 113, 97);
-  palettevga[148] = tft.color565(56, 113, 113);
-  palettevga[149] = tft.color565(56, 97, 113);
-  palettevga[150] = tft.color565(56, 84, 113);
-  palettevga[151] = tft.color565(56, 68, 113);
-  palettevga[152] = tft.color565(80, 80, 113);
-  palettevga[153] = tft.color565(89, 80, 113);
-  palettevga[154] = tft.color565(97, 80, 113);
-  palettevga[155] = tft.color565(105, 80, 113);
-  palettevga[156] = tft.color565(113, 80, 113);
-  palettevga[157] = tft.color565(113, 80, 105);
-  palettevga[158] = tft.color565(113, 80, 97);
-  palettevga[159] = tft.color565(113, 80, 89);
-  palettevga[160] = tft.color565(113, 80, 80);
-  palettevga[161] = tft.color565(113, 89, 80);
-  palettevga[162] = tft.color565(113, 97, 80);
-  palettevga[163] = tft.color565(113, 105, 80);
-  palettevga[164] = tft.color565(113, 113, 80);
-  palettevga[165] = tft.color565(105, 113, 80);
-  palettevga[166] = tft.color565(97, 113, 80);
-  palettevga[167] = tft.color565(89, 113, 80);
-  palettevga[168] = tft.color565(80, 113, 80);
-  palettevga[169] = tft.color565(80, 113, 89);
-  palettevga[170] = tft.color565(80, 113, 97);
-  palettevga[171] = tft.color565(80, 113, 105);
-  palettevga[172] = tft.color565(80, 113, 113);
-  palettevga[173] = tft.color565(80, 105, 113);
-  palettevga[174] = tft.color565(80, 97, 113);
-  palettevga[175] = tft.color565(80, 89, 113);
-  palettevga[176] = tft.color565(0, 0, 64);
-  palettevga[177] = tft.color565(16, 0, 64);
-  palettevga[178] = tft.color565(32, 0, 64);
-  palettevga[179] = tft.color565(48, 0, 64);
-  palettevga[180] = tft.color565(64, 0, 64);
-  palettevga[181] = tft.color565(64, 0, 48);
-  palettevga[182] = tft.color565(64, 0, 32);
-  palettevga[183] = tft.color565(64, 0, 16);
-  palettevga[184] = tft.color565(64, 0, 0);
-  palettevga[185] = tft.color565(64, 16, 0);
-  palettevga[186] = tft.color565(64, 32, 0);
-  palettevga[187] = tft.color565(64, 48, 0);
-  palettevga[188] = tft.color565(64, 64, 0);
-  palettevga[189] = tft.color565(48, 64, 0);
-  palettevga[190] = tft.color565(32, 64, 0);
-  palettevga[191] = tft.color565(16, 64, 0);
-  palettevga[192] = tft.color565(0, 64, 0);
-  palettevga[193] = tft.color565(0, 64, 16);
-  palettevga[194] = tft.color565(0, 64, 32);
-  palettevga[195] = tft.color565(0, 64, 48);
-  palettevga[196] = tft.color565(0, 64, 64);
-  palettevga[197] = tft.color565(0, 48, 64);
-  palettevga[198] = tft.color565(0, 32, 64);
-  palettevga[199] = tft.color565(0, 16, 64);
-  palettevga[200] = tft.color565(32, 32, 64);
-  palettevga[201] = tft.color565(40, 32, 64);
-  palettevga[202] = tft.color565(48, 32, 64);
-  palettevga[203] = tft.color565(56, 32, 64);
-  palettevga[204] = tft.color565(64, 32, 64);
-  palettevga[205] = tft.color565(64, 32, 56);
-  palettevga[206] = tft.color565(64, 32, 48);
-  palettevga[207] = tft.color565(64, 32, 40);
-  palettevga[208] = tft.color565(64, 32, 32);
-  palettevga[209] = tft.color565(64, 40, 32);
-  palettevga[210] = tft.color565(64, 48, 32);
-  palettevga[211] = tft.color565(64, 56, 32);
-  palettevga[212] = tft.color565(64, 64, 32);
-  palettevga[213] = tft.color565(56, 64, 32);
-  palettevga[214] = tft.color565(48, 64, 32);
-  palettevga[215] = tft.color565(40, 64, 32);
-  palettevga[216] = tft.color565(32, 64, 32);
-  palettevga[217] = tft.color565(32, 64, 40);
-  palettevga[218] = tft.color565(32, 64, 48);
-  palettevga[219] = tft.color565(32, 64, 56);
-  palettevga[220] = tft.color565(32, 64, 64);
-  palettevga[221] = tft.color565(32, 56, 64);
-  palettevga[222] = tft.color565(32, 48, 64);
-  palettevga[223] = tft.color565(32, 40, 64);
-  palettevga[224] = tft.color565(44, 44, 64);
-  palettevga[225] = tft.color565(48, 44, 64);
-  palettevga[226] = tft.color565(52, 44, 64);
-  palettevga[227] = tft.color565(60, 44, 64);
-  palettevga[228] = tft.color565(64, 44, 64);
-  palettevga[229] = tft.color565(64, 44, 60);
-  palettevga[230] = tft.color565(64, 44, 52);
-  palettevga[231] = tft.color565(64, 44, 48);
-  palettevga[232] = tft.color565(64, 44, 44);
-  palettevga[233] = tft.color565(64, 48, 44);
-  palettevga[234] = tft.color565(64, 52, 44);
-  palettevga[235] = tft.color565(64, 60, 44);
-  palettevga[236] = tft.color565(64, 64, 44);
-  palettevga[237] = tft.color565(60, 64, 44);
-  palettevga[238] = tft.color565(52, 64, 44);
-  palettevga[239] = tft.color565(48, 64, 44);
-  palettevga[240] = tft.color565(44, 64, 44);
-  palettevga[241] = tft.color565(44, 64, 48);
-  palettevga[242] = tft.color565(44, 64, 52);
-  palettevga[243] = tft.color565(44, 64, 60);
-  palettevga[244] = tft.color565(44, 64, 64);
-  palettevga[245] = tft.color565(44, 60, 64);
-  palettevga[246] = tft.color565(44, 52, 64);
-  palettevga[247] = tft.color565(44, 48, 64);
-  palettevga[248] = tft.color565(0, 0, 0);
-  palettevga[249] = tft.color565(0, 0, 0);
-  palettevga[250] = tft.color565(0, 0, 0);
-  palettevga[251] = tft.color565(0, 0, 0);
-  palettevga[252] = tft.color565(0, 0, 0);
-  palettevga[253] = tft.color565(0, 0, 0);
-  palettevga[254] = tft.color565(0, 0, 0);
-  palettevga[255] = tft.color565(0, 0, 0);
+    palettecga[0] = tft.color565(0, 0, 0);
+    palettecga[1] = tft.color565(0, 0, 0xAA);
+    palettecga[2] = tft.color565(0, 0xAA, 0);
+    palettecga[3] = tft.color565(0, 0xAA, 0xAA);
+    palettecga[4] = tft.color565(0xAA, 0, 0);
+    palettecga[5] = tft.color565(0xAA, 0, 0xAA);
+    palettecga[6] = tft.color565(0xAA, 0x55, 0);
+    palettecga[7] = tft.color565(0xAA, 0xAA, 0xAA);
+    palettecga[8] = tft.color565(0x55, 0x55, 0x55);
+    palettecga[9] = tft.color565(0x55, 0x55, 0xFF);
+    palettecga[10] = tft.color565(0x55, 0xFF, 0x55);
+    palettecga[11] = tft.color565(0x55, 0xFF, 0xFF);
+    palettecga[12] = tft.color565(0xFF, 0x55, 0x55);
+    palettecga[13] = tft.color565(0xFF, 0x55, 0xFF);
+    palettecga[14] = tft.color565(0xFF, 0xFF, 0x55);
+    palettecga[15] = tft.color565(0xFF, 0xFF, 0xFF);
+    palettevga[0] = tft.color565(0, 0, 0);
+    palettevga[1] = tft.color565(0, 0, 169);
+    palettevga[2] = tft.color565(0, 169, 0);
+    palettevga[3] = tft.color565(0, 169, 169);
+    palettevga[4] = tft.color565(169, 0, 0);
+    palettevga[5] = tft.color565(169, 0, 169);
+    palettevga[6] = tft.color565(169, 169, 0);
+    palettevga[7] = tft.color565(169, 169, 169);
+    palettevga[8] = tft.color565(0, 0, 84);
+    palettevga[9] = tft.color565(0, 0, 255);
+    palettevga[10] = tft.color565(0, 169, 84);
+    palettevga[11] = tft.color565(0, 169, 255);
+    palettevga[12] = tft.color565(169, 0, 84);
+    palettevga[13] = tft.color565(169, 0, 255);
+    palettevga[14] = tft.color565(169, 169, 84);
+    palettevga[15] = tft.color565(169, 169, 255);
+    palettevga[16] = tft.color565(0, 84, 0);
+    palettevga[17] = tft.color565(0, 84, 169);
+    palettevga[18] = tft.color565(0, 255, 0);
+    palettevga[19] = tft.color565(0, 255, 169);
+    palettevga[20] = tft.color565(169, 84, 0);
+    palettevga[21] = tft.color565(169, 84, 169);
+    palettevga[22] = tft.color565(169, 255, 0);
+    palettevga[23] = tft.color565(169, 255, 169);
+    palettevga[24] = tft.color565(0, 84, 84);
+    palettevga[25] = tft.color565(0, 84, 255);
+    palettevga[26] = tft.color565(0, 255, 84);
+    palettevga[27] = tft.color565(0, 255, 255);
+    palettevga[28] = tft.color565(169, 84, 84);
+    palettevga[29] = tft.color565(169, 84, 255);
+    palettevga[30] = tft.color565(169, 255, 84);
+    palettevga[31] = tft.color565(169, 255, 255);
+    palettevga[32] = tft.color565(84, 0, 0);
+    palettevga[33] = tft.color565(84, 0, 169);
+    palettevga[34] = tft.color565(84, 169, 0);
+    palettevga[35] = tft.color565(84, 169, 169);
+    palettevga[36] = tft.color565(255, 0, 0);
+    palettevga[37] = tft.color565(255, 0, 169);
+    palettevga[38] = tft.color565(255, 169, 0);
+    palettevga[39] = tft.color565(255, 169, 169);
+    palettevga[40] = tft.color565(84, 0, 84);
+    palettevga[41] = tft.color565(84, 0, 255);
+    palettevga[42] = tft.color565(84, 169, 84);
+    palettevga[43] = tft.color565(84, 169, 255);
+    palettevga[44] = tft.color565(255, 0, 84);
+    palettevga[45] = tft.color565(255, 0, 255);
+    palettevga[46] = tft.color565(255, 169, 84);
+    palettevga[47] = tft.color565(255, 169, 255);
+    palettevga[48] = tft.color565(84, 84, 0);
+    palettevga[49] = tft.color565(84, 84, 169);
+    palettevga[50] = tft.color565(84, 255, 0);
+    palettevga[51] = tft.color565(84, 255, 169);
+    palettevga[52] = tft.color565(255, 84, 0);
+    palettevga[53] = tft.color565(255, 84, 169);
+    palettevga[54] = tft.color565(255, 255, 0);
+    palettevga[55] = tft.color565(255, 255, 169);
+    palettevga[56] = tft.color565(84, 84, 84);
+    palettevga[57] = tft.color565(84, 84, 255);
+    palettevga[58] = tft.color565(84, 255, 84);
+    palettevga[59] = tft.color565(84, 255, 255);
+    palettevga[60] = tft.color565(255, 84, 84);
+    palettevga[61] = tft.color565(255, 84, 255);
+    palettevga[62] = tft.color565(255, 255, 84);
+    palettevga[63] = tft.color565(255, 255, 255);
+    palettevga[64] = tft.color565(255, 125, 125);
+    palettevga[65] = tft.color565(255, 157, 125);
+    palettevga[66] = tft.color565(255, 190, 125);
+    palettevga[67] = tft.color565(255, 222, 125);
+    palettevga[68] = tft.color565(255, 255, 125);
+    palettevga[69] = tft.color565(222, 255, 125);
+    palettevga[70] = tft.color565(190, 255, 125);
+    palettevga[71] = tft.color565(157, 255, 125);
+    palettevga[72] = tft.color565(125, 255, 125);
+    palettevga[73] = tft.color565(125, 255, 157);
+    palettevga[74] = tft.color565(125, 255, 190);
+    palettevga[75] = tft.color565(125, 255, 222);
+    palettevga[76] = tft.color565(125, 255, 255);
+    palettevga[77] = tft.color565(125, 222, 255);
+    palettevga[78] = tft.color565(125, 190, 255);
+    palettevga[79] = tft.color565(125, 157, 255);
+    palettevga[80] = tft.color565(182, 182, 255);
+    palettevga[81] = tft.color565(198, 182, 255);
+    palettevga[82] = tft.color565(218, 182, 255);
+    palettevga[83] = tft.color565(234, 182, 255);
+    palettevga[84] = tft.color565(255, 182, 255);
+    palettevga[85] = tft.color565(255, 182, 234);
+    palettevga[86] = tft.color565(255, 182, 218);
+    palettevga[87] = tft.color565(255, 182, 198);
+    palettevga[88] = tft.color565(255, 182, 182);
+    palettevga[89] = tft.color565(255, 198, 182);
+    palettevga[90] = tft.color565(255, 218, 182);
+    palettevga[91] = tft.color565(255, 234, 182);
+    palettevga[92] = tft.color565(255, 255, 182);
+    palettevga[93] = tft.color565(234, 255, 182);
+    palettevga[94] = tft.color565(218, 255, 182);
+    palettevga[95] = tft.color565(198, 255, 182);
+    palettevga[96] = tft.color565(182, 255, 182);
+    palettevga[97] = tft.color565(182, 255, 198);
+    palettevga[98] = tft.color565(182, 255, 218);
+    palettevga[99] = tft.color565(182, 255, 234);
+    palettevga[100] = tft.color565(182, 255, 255);
+    palettevga[101] = tft.color565(182, 234, 255);
+    palettevga[102] = tft.color565(182, 218, 255);
+    palettevga[103] = tft.color565(182, 198, 255);
+    palettevga[104] = tft.color565(0, 0, 113);
+    palettevga[105] = tft.color565(28, 0, 113);
+    palettevga[106] = tft.color565(56, 0, 113);
+    palettevga[107] = tft.color565(84, 0, 113);
+    palettevga[108] = tft.color565(113, 0, 113);
+    palettevga[109] = tft.color565(113, 0, 84);
+    palettevga[110] = tft.color565(113, 0, 56);
+    palettevga[111] = tft.color565(113, 0, 28);
+    palettevga[112] = tft.color565(113, 0, 0);
+    palettevga[113] = tft.color565(113, 28, 0);
+    palettevga[114] = tft.color565(113, 56, 0);
+    palettevga[115] = tft.color565(113, 84, 0);
+    palettevga[116] = tft.color565(113, 113, 0);
+    palettevga[117] = tft.color565(84, 113, 0);
+    palettevga[118] = tft.color565(56, 113, 0);
+    palettevga[119] = tft.color565(28, 113, 0);
+    palettevga[120] = tft.color565(0, 113, 0);
+    palettevga[121] = tft.color565(0, 113, 28);
+    palettevga[122] = tft.color565(0, 113, 56);
+    palettevga[123] = tft.color565(0, 113, 84);
+    palettevga[124] = tft.color565(0, 113, 113);
+    palettevga[125] = tft.color565(0, 84, 113);
+    palettevga[126] = tft.color565(0, 56, 113);
+    palettevga[127] = tft.color565(0, 28, 113);
+    palettevga[128] = tft.color565(56, 56, 113);
+    palettevga[129] = tft.color565(68, 56, 113);
+    palettevga[130] = tft.color565(84, 56, 113);
+    palettevga[131] = tft.color565(97, 56, 113);
+    palettevga[132] = tft.color565(113, 56, 113);
+    palettevga[133] = tft.color565(113, 56, 97);
+    palettevga[134] = tft.color565(113, 56, 84);
+    palettevga[135] = tft.color565(113, 56, 68);
+    palettevga[136] = tft.color565(113, 56, 56);
+    palettevga[137] = tft.color565(113, 68, 56);
+    palettevga[138] = tft.color565(113, 84, 56);
+    palettevga[139] = tft.color565(113, 97, 56);
+    palettevga[140] = tft.color565(113, 113, 56);
+    palettevga[141] = tft.color565(97, 113, 56);
+    palettevga[142] = tft.color565(84, 113, 56);
+    palettevga[143] = tft.color565(68, 113, 56);
+    palettevga[144] = tft.color565(56, 113, 56);
+    palettevga[145] = tft.color565(56, 113, 68);
+    palettevga[146] = tft.color565(56, 113, 84);
+    palettevga[147] = tft.color565(56, 113, 97);
+    palettevga[148] = tft.color565(56, 113, 113);
+    palettevga[149] = tft.color565(56, 97, 113);
+    palettevga[150] = tft.color565(56, 84, 113);
+    palettevga[151] = tft.color565(56, 68, 113);
+    palettevga[152] = tft.color565(80, 80, 113);
+    palettevga[153] = tft.color565(89, 80, 113);
+    palettevga[154] = tft.color565(97, 80, 113);
+    palettevga[155] = tft.color565(105, 80, 113);
+    palettevga[156] = tft.color565(113, 80, 113);
+    palettevga[157] = tft.color565(113, 80, 105);
+    palettevga[158] = tft.color565(113, 80, 97);
+    palettevga[159] = tft.color565(113, 80, 89);
+    palettevga[160] = tft.color565(113, 80, 80);
+    palettevga[161] = tft.color565(113, 89, 80);
+    palettevga[162] = tft.color565(113, 97, 80);
+    palettevga[163] = tft.color565(113, 105, 80);
+    palettevga[164] = tft.color565(113, 113, 80);
+    palettevga[165] = tft.color565(105, 113, 80);
+    palettevga[166] = tft.color565(97, 113, 80);
+    palettevga[167] = tft.color565(89, 113, 80);
+    palettevga[168] = tft.color565(80, 113, 80);
+    palettevga[169] = tft.color565(80, 113, 89);
+    palettevga[170] = tft.color565(80, 113, 97);
+    palettevga[171] = tft.color565(80, 113, 105);
+    palettevga[172] = tft.color565(80, 113, 113);
+    palettevga[173] = tft.color565(80, 105, 113);
+    palettevga[174] = tft.color565(80, 97, 113);
+    palettevga[175] = tft.color565(80, 89, 113);
+    palettevga[176] = tft.color565(0, 0, 64);
+    palettevga[177] = tft.color565(16, 0, 64);
+    palettevga[178] = tft.color565(32, 0, 64);
+    palettevga[179] = tft.color565(48, 0, 64);
+    palettevga[180] = tft.color565(64, 0, 64);
+    palettevga[181] = tft.color565(64, 0, 48);
+    palettevga[182] = tft.color565(64, 0, 32);
+    palettevga[183] = tft.color565(64, 0, 16);
+    palettevga[184] = tft.color565(64, 0, 0);
+    palettevga[185] = tft.color565(64, 16, 0);
+    palettevga[186] = tft.color565(64, 32, 0);
+    palettevga[187] = tft.color565(64, 48, 0);
+    palettevga[188] = tft.color565(64, 64, 0);
+    palettevga[189] = tft.color565(48, 64, 0);
+    palettevga[190] = tft.color565(32, 64, 0);
+    palettevga[191] = tft.color565(16, 64, 0);
+    palettevga[192] = tft.color565(0, 64, 0);
+    palettevga[193] = tft.color565(0, 64, 16);
+    palettevga[194] = tft.color565(0, 64, 32);
+    palettevga[195] = tft.color565(0, 64, 48);
+    palettevga[196] = tft.color565(0, 64, 64);
+    palettevga[197] = tft.color565(0, 48, 64);
+    palettevga[198] = tft.color565(0, 32, 64);
+    palettevga[199] = tft.color565(0, 16, 64);
+    palettevga[200] = tft.color565(32, 32, 64);
+    palettevga[201] = tft.color565(40, 32, 64);
+    palettevga[202] = tft.color565(48, 32, 64);
+    palettevga[203] = tft.color565(56, 32, 64);
+    palettevga[204] = tft.color565(64, 32, 64);
+    palettevga[205] = tft.color565(64, 32, 56);
+    palettevga[206] = tft.color565(64, 32, 48);
+    palettevga[207] = tft.color565(64, 32, 40);
+    palettevga[208] = tft.color565(64, 32, 32);
+    palettevga[209] = tft.color565(64, 40, 32);
+    palettevga[210] = tft.color565(64, 48, 32);
+    palettevga[211] = tft.color565(64, 56, 32);
+    palettevga[212] = tft.color565(64, 64, 32);
+    palettevga[213] = tft.color565(56, 64, 32);
+    palettevga[214] = tft.color565(48, 64, 32);
+    palettevga[215] = tft.color565(40, 64, 32);
+    palettevga[216] = tft.color565(32, 64, 32);
+    palettevga[217] = tft.color565(32, 64, 40);
+    palettevga[218] = tft.color565(32, 64, 48);
+    palettevga[219] = tft.color565(32, 64, 56);
+    palettevga[220] = tft.color565(32, 64, 64);
+    palettevga[221] = tft.color565(32, 56, 64);
+    palettevga[222] = tft.color565(32, 48, 64);
+    palettevga[223] = tft.color565(32, 40, 64);
+    palettevga[224] = tft.color565(44, 44, 64);
+    palettevga[225] = tft.color565(48, 44, 64);
+    palettevga[226] = tft.color565(52, 44, 64);
+    palettevga[227] = tft.color565(60, 44, 64);
+    palettevga[228] = tft.color565(64, 44, 64);
+    palettevga[229] = tft.color565(64, 44, 60);
+    palettevga[230] = tft.color565(64, 44, 52);
+    palettevga[231] = tft.color565(64, 44, 48);
+    palettevga[232] = tft.color565(64, 44, 44);
+    palettevga[233] = tft.color565(64, 48, 44);
+    palettevga[234] = tft.color565(64, 52, 44);
+    palettevga[235] = tft.color565(64, 60, 44);
+    palettevga[236] = tft.color565(64, 64, 44);
+    palettevga[237] = tft.color565(60, 64, 44);
+    palettevga[238] = tft.color565(52, 64, 44);
+    palettevga[239] = tft.color565(48, 64, 44);
+    palettevga[240] = tft.color565(44, 64, 44);
+    palettevga[241] = tft.color565(44, 64, 48);
+    palettevga[242] = tft.color565(44, 64, 52);
+    palettevga[243] = tft.color565(44, 64, 60);
+    palettevga[244] = tft.color565(44, 64, 64);
+    palettevga[245] = tft.color565(44, 60, 64);
+    palettevga[246] = tft.color565(44, 52, 64);
+    palettevga[247] = tft.color565(44, 48, 64);
+    palettevga[248] = tft.color565(0, 0, 0);
+    palettevga[249] = tft.color565(0, 0, 0);
+    palettevga[250] = tft.color565(0, 0, 0);
+    palettevga[251] = tft.color565(0, 0, 0);
+    palettevga[252] = tft.color565(0, 0, 0);
+    palettevga[253] = tft.color565(0, 0, 0);
+    palettevga[254] = tft.color565(0, 0, 0);
+    palettevga[255] = tft.color565(0, 0, 0);
 }
+
 #endif
 
 void video_init() {
 #ifdef USE_TFT
 #ifdef MEGA
-  tft.reset();
+    tft.reset();
 
-  uint16_t identifier = tft.readID();
-  identifier=0x9341;
-  
-  tft.begin(identifier);
+    uint16_t identifier = tft.readID();
+    identifier=0x9341;
+
+    tft.begin(identifier);
 #endif
-  tft.begin();
-  tft.setRotation(1);
-  tft.fillScreen(BLACK);
+    tft.begin();
+    tft.setRotation(1);
+    tft.fillScreen(BLACK);
 #ifdef MEGA
-  PORTG = 0xFF; PORTE = 0xFF; PORTH = 0xFF;
+    PORTG = 0xFF; PORTE = 0xFF; PORTH = 0xFF;
 #endif
-  palettereset();
+    palettereset();
 #endif
 }
 

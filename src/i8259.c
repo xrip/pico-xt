@@ -4,7 +4,8 @@
 
 #include "emu.h"
 
-struct structpic i8259;
+struct i8259_s i8259;
+
 
 void init8259() {
     memset((void *) &i8259, 0, sizeof(i8259));
@@ -73,6 +74,7 @@ uint8_t nextintr() {
 }
 
 void doirq(uint8_t irqnum) {
+    printf("IRQ %i\r\n", irqnum);
     i8259.irr |= (1 << irqnum);
 }
 
