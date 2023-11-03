@@ -1,7 +1,7 @@
 extern "C" {
-#include "cpu8086.h"
+#include "emulator.h"
 }
-#include "cga.h"
+
 #if PICO_ON_DEVICE
 #ifndef OVERCLOCKING
 #define OVERCLOCKING 270
@@ -56,7 +56,7 @@ void __time_critical_func(render_core)() {
 
     uint8_t tick50ms = 0;
     while (true) {
-        timer_interrupt();
+        timer_tick();
         sleep_ms(50);
         if (tick50ms == 0 || tick50ms == 10) {
             cursor_blink_state ^= 1;
@@ -72,7 +72,7 @@ void __time_critical_func(render_core)() {
 }
 
 #else
-extern uint16_t pr3D9;
+extern uint16_t port3D9;
 
 static int RendererThread(void *ptr) {
 
@@ -170,8 +170,8 @@ int main() {
             const uint8_t vidmode = 4;
 
             uint32_t *pix = pixels;
-            uint32_t usepal = (pr3D9 >> 5) & 1;
-            uint32_t intensity = ((pr3D9 >> 4) & 1) << 3;
+            uint32_t usepal = (port3D9 >> 5) & 1;
+            uint32_t intensity = ((port3D9 >> 4) & 1) << 3;
             for (int y = 0; y < 200; y++) {
                 for (int x = 0; x < 320; x++) {
                     uint32_t charx = x;
