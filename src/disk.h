@@ -19,8 +19,10 @@
 #include "ff.h"
 static FATFS fs;
 #define _FILE FIL
+_FILE file;
 #else
 #define _FILE SDL_RWops
+_FILE * file;
 #endif
 struct struct_drive {
     _FILE * diskfile;
@@ -37,7 +39,7 @@ struct struct_drive {
 struct struct_drive disk[4];
 
 static uint8_t sectorbuffer[512];
-_FILE file;
+
 
 void ejectdisk(uint8_t drivenum) {
     if (drivenum & 0x80) drivenum -= 126;

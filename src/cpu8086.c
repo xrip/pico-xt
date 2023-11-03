@@ -671,7 +671,8 @@ void reset86() {
 
     //if(  insertdisk(1, 0, NULL, "\\XT\\fdd0.img") )
         insertdisk(0, sizeof FD0, (char *) FD0, NULL);
-    //insertdisk(1, 0, NULL, "\\XT\\fdd1.img");
+    //insertdisk(0, 0, NULL, "360.img");
+//    insertdisk(0, 0, NULL, "\\XT\\fdd1.img");
 #if PICO_ON_DEVICE
     insertdisk(128, 0, NULL, "\\XT\\hdd.img");
 #else
@@ -1675,7 +1676,7 @@ void __inline exec86(uint32_t execloops) {
 
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
 #if PICO_ON_DEVICE
-        if (kbloop) {
+        if (0 && kbloop) {
             uint32_t msnow;
             msnow = time_us_64();
             while ((time_us_64() - msnow) < 20000) { }
