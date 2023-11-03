@@ -154,13 +154,15 @@ int main() {
     while (runing) {
 #if !PICO_ON_DEVICE
         handleinput();
-        if (videomode == 3 || videomode == 0x56) {
+        uint8_t mode = videomode & 0x0F;
+        if (mode <= 3 || mode == 0x56) {
+            uint8_t cols = videomode <= 1 ? 40 : 80;
 //            SDL_SetWindowSize(window, 640, 400);
             for (uint16_t y = 0; y < 400; y++) {
-                for (uint8_t x = 0; x < 80; x++) {
-                    uint8_t c = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 0];
+                for (uint8_t x = 0; x < cols; x++) {
+                    uint8_t c = VRAM[/*0xB8000 + */(y / 16) * (cols * 2) + x * 2 + 0];
                     uint8_t glyph_row = fnt8x16[c * 16 + y % 16];
-                    uint8_t color = VRAM[/*0xB8000 + */(y / 16) * 160 + x * 2 + 1];
+                    uint8_t color = VRAM[/*0xB8000 + */(y / 16) * (cols * 2) + x * 2 + 1];
 
                     for (uint8_t bit = 0; bit < 8; bit++) {
                         if (cursor_blink_state && (y >> 4 == CURY && x == CURX && (y % 16) >= 12 && (y % 16) <= 13)) {
@@ -175,9 +177,7 @@ int main() {
                     }
                 }
             }
-        } else {
-            const uint8_t vidmode = 4;
-
+        } else if( mode <= 6) {
             uint32_t *pix = pixels;
             uint32_t usepal = (port3D9 >> 5) & 1;
             uint32_t intensity = ((port3D9 >> 4) & 1) << 3;
@@ -202,7 +202,7 @@ int main() {
                             curpixel = (curpixel >> 6) & 3;
                             break;
                     }
-                    if (vidmode == 4) {
+                    if (mode == 4) {
                         curpixel = curpixel * 2 + usepal + intensity;
                         if (curpixel == (usepal + intensity))
                             curpixel = 0;
@@ -217,6 +217,18 @@ int main() {
                     }
                 }
                 pix += 320;
+            }
+        } else if (mode == 66 ) {
+            uint32_t *pix = pixels;
+            for (int y = 0; y < 200; y++) {
+                for (int x = 0; x < 640; x++) {
+                    uint32_t charx = x;
+                    uint32_t chary = y;
+                    uint32_t vidptr = /*0xB8000 + */((chary >> 1) * 80) + ((chary & 1) * 8192) + (charx >> 2);
+                    uint32_t curpixel = (VRAM[vidptr]>> (7- (charx&7) ) ) &1;
+                    *pix++ = cga_color(curpixel * 15);
+                }
+                //pix += 640;
             }
         }
         SDL_UpdateWindowSurface(window);

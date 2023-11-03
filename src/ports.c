@@ -65,10 +65,21 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
             // CGA mode  switch
         case 0x3D8:
-            //printf("wr pr3D8 %x\r\n", value);
+            printf("wr pr3D8 %x\r\n", value);
             port3D8 = value;
-
-            videomode = (value & 0x02) ? 4 : 3;
+/*            if (value == 0x28) {
+                setVGAmode(VGA640x480_text_40_30);
+            }*/
+/*            switch (value) {
+                case 0x2C: videomode = 0; break;
+                case 0x28: videomode = 1; break;
+                case 0x2D: videomode = 2; break;
+                case 0x29: videomode = 3; break;
+                case 0x0E: videomode = 4; break;
+                case 0x0A: videomode = 5; break;
+                case 0x1E: videomode = 6; break;
+                default: videomode = 3; break;
+            }*/
             break;
         case 0x3DA:
             break;

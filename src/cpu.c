@@ -132,7 +132,7 @@ uint8_t read86(uint32_t addr32) {
             case 0x464:
                 return (0x3);
 
-            case 0x465:
+/*            case 0x465:
                 switch (videomode) {
                     case 0:
                         return (0x2C);
@@ -150,7 +150,7 @@ uint8_t read86(uint32_t addr32) {
                         return (0x1E);
                     default:
                         return (0x29);
-                }
+                }*/
 
             case 0x466:
                 return port3D9;
@@ -692,7 +692,7 @@ void intcall86(uint8_t intnum) {
 
                     // FIXME!!
                     RAM[0x449] = videomode;
-                    RAM[0x44A] = (uint8_t) 80;
+                    RAM[0x44A] = (uint8_t) videomode <= 2? 40 : 80;
                     RAM[0x44B] = 0;
                     RAM[0x484] = (uint8_t) (25 - 1);
 
@@ -700,12 +700,25 @@ void intcall86(uint8_t intnum) {
                         memset(VRAM, 0x0, sizeof VRAM);
                     }
                     //CopyCharROM();
-                    //printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
+                    printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
 #if PICO_ON_DEVICE
-                    if (videomode == 3 || videomode == 0x56) {
-                        setVGAmode(VGA640x480_text_80_30);
-                    } else {
-                        setVGAmode(CGA_320x200x4);
+                    switch (videomode) {
+                        case 0:
+                        case 1:
+                            setVGAmode(VGA640x480_text_40_30);
+                            break;
+                        case 2:
+                        case 3:
+                            setVGAmode(VGA640x480_text_80_30);
+                            break;
+                        case 4:
+                        case 5:
+                        case 6:
+                            setVGAmode(CGA_320x200x4);
+                            break;
+                        case 66:
+                            setVGAmode(CGA_640x200x2);
+                            break;
                     }
 #endif
                     // Установить видеорежим

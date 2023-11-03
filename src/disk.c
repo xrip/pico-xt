@@ -6,6 +6,7 @@
 #include "emulator.h"
 
 #if PICO_ON_DEVICE
+#include <pico/stdlib.h>
 #else
 #include <SDL2/SDL.h>
 #endif
@@ -201,13 +202,13 @@ bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, 
             memcpy(sectorbuffer, &disk[drivenum].data[fileoffset], 512);
         } else {
 #if PICO_ON_DEVICE
-
+            gpio_put(PICO_DEFAULT_LED_PIN, true);
             UINT bytes_read;
             result = f_read(disk[drivenum].diskfile, sectorbuffer, 512, &bytes_read);
             printf("drivenum %i :: f_read result: %s (%d)\r\n", drivenum, FRESULT_str(result), bytes_read);
             if (FR_OK != result)
                 break;
-
+            gpio_put(PICO_DEFAULT_LED_PIN, false);
 #else
             SDL_RWread(file, &sectorbuffer[0], 512,1);
 #endif

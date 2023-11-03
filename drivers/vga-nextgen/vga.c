@@ -6,7 +6,7 @@
 
 #include "hardware/dma.h"
 #include "hardware/irq.h"
-#include <string.h> 
+#include <string.h>
 #include "hardware/pio.h"
 #include "pico/stdlib.h"
 #include "stdlib.h"
@@ -14,11 +14,11 @@
 
 #include "../../src/cga.h"
 uint16_t pio_program_VGA_instructions[] = {
-                       
+
 
             //     .wrap_target
-    0x6008, //  0: out    pins, 8                    
-            //     .wrap                
+    0x6008, //  0: out    pins, 8
+            //     .wrap
 };
 
 const struct pio_program pio_program_VGA = {
@@ -86,22 +86,22 @@ enum VGA_mode_t mode_VGA;
 
 void __not_in_flash_func(dma_handler_VGA)() {
 
-    dma_hw->ints0 = 1u << dma_chan_ctrl;   
+    dma_hw->ints0 = 1u << dma_chan_ctrl;
     static uint32_t frame_i=0;
     static uint32_t line_active=0;
     static uint8_t* vbuf=NULL;
     line_active++;
     if (line_active==N_lines_total) {line_active=0;frame_i++;vbuf=g_buf;}
-    
+
     if (line_active>=N_lines_visible)
         {
-            //заполнение цветом фона 
+            //заполнение цветом фона
             if ((line_active==N_lines_visible)|(line_active==(N_lines_visible+3)))
             {
-                uint32_t* ptr_vbuf_OUT=lines_pattern[2+((line_active)&1)];  
-                ptr_vbuf_OUT+=shift_picture/4; 
+                uint32_t* ptr_vbuf_OUT=lines_pattern[2+((line_active)&1)];
+                ptr_vbuf_OUT+=shift_picture/4;
                 int p_i=((line_active&is_flash_line)+(frame_i&is_flash_frame))&1;
-                uint32_t color32=bg_color[p_i]; 
+                uint32_t color32=bg_color[p_i];
                 for(int i=visible_line_size/2;i--;)
                 {
                     *ptr_vbuf_OUT++=color32;
@@ -110,13 +110,13 @@ void __not_in_flash_func(dma_handler_VGA)() {
 
             }
             //синхросигналы
-            if((line_active>=line_VS_begin)&&(line_active<=line_VS_end)) 
+            if((line_active>=line_VS_begin)&&(line_active<=line_VS_end))
                 dma_channel_set_read_addr(dma_chan_ctrl,&lines_pattern[1], false);//VS SYNC
             else
                 dma_channel_set_read_addr(dma_chan_ctrl,&lines_pattern[0], false);
             return;
         }
-    
+
     if (!(vbuf)) {dma_channel_set_read_addr(dma_chan_ctrl,&lines_pattern[0], false) ;return;}//если нет видеобуфера - рисуем пустую строку
     int line=0;
     int l_inx=0;
@@ -125,13 +125,14 @@ void __not_in_flash_func(dma_handler_VGA)() {
     uint  div_factor=2;
     switch (mode_VGA)
     {
+    case CGA_640x200x2:
     case CGA_320x200x4:
     case EGA_320x200x16:
     case VGA640x480div2:
         l_inx=line_active/2;
         if (line_active%2) return;
         line=(line_active)/2-g_buf_shy;
-       
+
 
         break;
     case VGA640x480div3:
@@ -139,12 +140,13 @@ void __not_in_flash_func(dma_handler_VGA)() {
         if (line_active%3) return;
         div_factor=3;
         line=(line_active)/3-g_buf_shy;
-       
+
 
         break;
+    case VGA640x480_text_40_30:
     case VGA640x480_text_80_30:
 
-        ptr_vbuf_OUT=&lines_pattern[2+((line_active)&1)];     
+        ptr_vbuf_OUT=&lines_pattern[2+((line_active)&1)];
         // uint8_t* vbuf_OUT=(uint8_t*)(*ptr_vbuf_OUT);
         // vbuf_OUT+=shift_picture;
         uint16_t* vbuf_OUT16=(uint16_t*)(*ptr_vbuf_OUT);
@@ -160,15 +162,16 @@ void __not_in_flash_func(dma_handler_VGA)() {
 
         uint8_t* line_tex_buf=&text_buf[i_ch*chrs_in_line*2]; //указатель откуда начать считывать символы
         uint8_t* line_tex_buf_color=&text_buf[i_ch*chrs_in_line]+1;//указатель откуда начать считывать цвета символов
-        
-       
+
+
         uint8_t col[2];
+
         for(int i=0;i<chrs_in_line;i++)
         {
-            
-            
+
+
               uint8_t d=fnt8x16[(*line_tex_buf++)*font_H+sh_ch];//из таблицы символов получаем "срез" текущего символа
-            
+
             //выводим по 2 пиксела из доп. буфера текстовой палитры
             //достаточно быстро , но тратим 2к на буфер
 
@@ -191,11 +194,11 @@ void __not_in_flash_func(dma_handler_VGA)() {
                   *vbuf_OUT16++ = fast_color[d & 3];
               }
             //  continue;
-            
+
             //по 1 пикселу очень медленно, но не надо доп буфера палитры
             //   col[1]=txt_palette[(*line_tex_buf_color)&0xf];
             //   col[0]=txt_palette[(*line_tex_buf_color++)>>4];
-               
+
             //     *vbuf_OUT++=col[d&1];
             //     d>>=1;
             //     *vbuf_OUT++=col[d&1];
@@ -212,32 +215,31 @@ void __not_in_flash_func(dma_handler_VGA)() {
             //     d>>=1;
             //     *vbuf_OUT++=col[d&1];
 
-        
-            
+
+
         }
-
 
         dma_channel_set_read_addr(dma_chan_ctrl,ptr_vbuf_OUT, false) ;
         return;
         break;
-    
+
     default:
         return;
     }
-    
+
 
     dma_channel_set_read_addr(dma_chan_ctrl,&lines_pattern[2+((l_inx)&1)], false);
 
     if (line<0) return;
     if (line>=g_buf_height){
-            // заполнение линии цветом фона 
+            // заполнение линии цветом фона
 
                 if ((line==g_buf_height)|(line==(g_buf_height+1))|(line==(g_buf_height+2)))
-                {   
+                {
 
-                    uint32_t* ptr_vbuf_OUT=lines_pattern[2+((l_inx)&1)];   
+                    uint32_t* ptr_vbuf_OUT=lines_pattern[2+((l_inx)&1)];
                     int p_i=((l_inx&is_flash_line)+(frame_i&is_flash_frame))&1;
-                    uint32_t color32=bg_color[p_i]; 
+                    uint32_t color32=bg_color[p_i];
 
                     ptr_vbuf_OUT+=shift_picture/4;
                     for(int i=visible_line_size/2;i--;)
@@ -246,9 +248,9 @@ void __not_in_flash_func(dma_handler_VGA)() {
                     }
                 }
 
-            
-                 return ;          
-                            } ; 
+
+                 return ;
+                            } ;
 
     //зона прорисовки изображения
     //начальные точки буферов
@@ -257,9 +259,9 @@ void __not_in_flash_func(dma_handler_VGA)() {
     //uint8_t* vbuf8=vbuf+(line*g_buf_width/4); //2bit buf
     //uint8_t* vbuf8=vbuf+((line&1)*8192+(line>>1)*g_buf_width/4);
     uint8_t* vbuf8=vbuf + ((line >> 1) * 80) + ((line & 1) * 8192);
-    ptr_vbuf_OUT=&lines_pattern[2+((l_inx)&1)];     
-  
-    
+    ptr_vbuf_OUT=&lines_pattern[2+((l_inx)&1)];
+
+
     uint16_t* vbuf_OUT=(uint16_t*)(*ptr_vbuf_OUT);
     vbuf_OUT+=shift_picture/2; //смещение началы вывода на размер синхросигнала
 
@@ -284,12 +286,28 @@ void __not_in_flash_func(dma_handler_VGA)() {
     int p_i=((line&is_flash_line)+(frame_i&is_flash_frame))&1;
 
     uint16_t* pal= palette[p_i];
-    
-    
+
+
 
     uint8_t *vbuf_OUT8;
     switch (mode_VGA)
     {
+        case CGA_640x200x2:
+            vbuf_OUT8=(uint8_t *)vbuf_OUT;
+            //1bit buf
+            for(int i=N_loop/8;i--;)
+            {
+                *vbuf_OUT8++=pal[(*vbuf8 >> 7) & 1];
+                *vbuf_OUT8++=pal[(*vbuf8 >> 6) & 1];
+                *vbuf_OUT8++=pal[(*vbuf8 >> 5) & 1];
+                *vbuf_OUT8++=pal[(*vbuf8 >> 4) & 1];
+                *vbuf_OUT8++=pal[(*vbuf8 >> 3) & 1];
+                *vbuf_OUT8++=pal[(*vbuf8 >> 2) & 1];
+                *vbuf_OUT8++=pal[(*vbuf8 >> 1) & 1];
+                *vbuf_OUT8++=pal[(*vbuf8 >> 0) & 1];
+                vbuf8++;
+            }
+            break;
         case CGA_320x200x4:
             //2bit buf
             for(int i=N_loop/4;i--;)
@@ -318,7 +336,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
             // for(int i=N_loop;i--;)
             //     {
             //             *vbuf_OUT++=pal[*vbuf8++];
-                        
+
             //     }   
             //4bit buf 
              for(int i=N_loop/2;i--;)
@@ -328,7 +346,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
                     *vbuf_OUT++=pal[(*vbuf8>>4)&0xf];
 
                         vbuf8++;
-                }          
+                }
             break;
     case VGA640x480div3:
             vbuf_OUT8=(uint8_t *)vbuf_OUT;
@@ -337,22 +355,22 @@ void __not_in_flash_func(dma_handler_VGA)() {
                         *vbuf_OUT8++=pal[*vbuf8];
                         *vbuf_OUT8++=pal[*vbuf8]>>8;
                         *vbuf_OUT8++=pal[*vbuf8++];
-                        
-                }        
+
+                }
             break;
-    
+
     default:
         break;
     }
-   
-   
-        
+
+
+
     dma_channel_set_read_addr(dma_chan_ctrl,ptr_vbuf_OUT, false) ;
 
 
 
-    
-  
+
+
 }
 
 
@@ -361,21 +379,21 @@ void __not_in_flash_func(dma_handler_VGA)() {
 
 void setVGAmode(enum VGA_mode_t modeVGA)
 {
-    if (_SM_VGA<0) return;//если  VGA не инициализирована -  
+    if (_SM_VGA<0) return;//если  VGA не инициализирована -
     //pio_sm_set_enabled(PIO_VGA, _SM_VGA, false);
     //sleep_ms(10);
     if ((txt_palette_fast)&&(lines_pattern_data)) { mode_VGA=modeVGA; return;};
-    uint8_t TMPL_VHS8=0;  
-    uint8_t TMPL_VS8=0;  
-    uint8_t TMPL_HS8=0;  
-    uint8_t TMPL_LINE8=0;  
+    uint8_t TMPL_VHS8=0;
+    uint8_t TMPL_VS8=0;
+    uint8_t TMPL_HS8=0;
+    uint8_t TMPL_LINE8=0;
 
     int line_size;
     double fdiv=100;
     int HS_SIZE=4;
     int HS_SHIFT=100;
     //  irq_remove_handler(VGA_DMA_IRQ,irq_get_exclusive_handler(VGA_DMA_IRQ));
-   
+
     // if (txt_palette_fast) {
     //                 free(txt_palette_fast);
     //                 txt_palette_fast=NULL;
@@ -383,11 +401,12 @@ void setVGAmode(enum VGA_mode_t modeVGA)
 
     switch (modeVGA)
     {
+    case VGA640x480_text_40_30:
     case VGA640x480_text_80_30:
-        text_buf_width=80;
+        text_buf_width = (modeVGA == VGA640x480_text_40_30 ? 40 : 80);
         text_buf_height=30;
           //текстовая палитра
-        
+
         for(int i=0;i<16;i++)
         {
 
@@ -402,7 +421,7 @@ void setVGAmode(enum VGA_mode_t modeVGA)
                 {
                     uint8_t c1=txt_palette[i&0xf];
                     uint8_t c0=txt_palette[i>>4];
-                    
+
                     txt_palette_fast[i*4+0]=(c0)|(c0<<8);
                     txt_palette_fast[i*4+1]=(c1)|(c0<<8);
                     txt_palette_fast[i*4+2]=(c0)|(c1<<8);
@@ -412,21 +431,22 @@ void setVGAmode(enum VGA_mode_t modeVGA)
 
 
 
-         }  
+         }
 
-        
+
+    case CGA_640x200x2:
     case CGA_320x200x4:
     case EGA_320x200x16:
     case VGA640x480div3:
     case VGA640x480div2:
-        
-        TMPL_LINE8=0b11000000; 
-        HS_SHIFT=328*2;
-        HS_SIZE=48*2; 
 
-        
+        TMPL_LINE8=0b11000000;
+        HS_SHIFT=328*2;
+        HS_SIZE=48*2;
+
+
         line_size=400*2;
-        
+
         shift_picture=line_size-HS_SHIFT;
 
         palette16_mask=0xc0c0;
@@ -443,10 +463,10 @@ void setVGAmode(enum VGA_mode_t modeVGA)
         //   irq_set_exclusive_handler(VGA_DMA_IRQ, dma_handler_VGA);
 
         break;
-    
-        
-      
-    
+
+
+
+
     default:
         return;
         break;
@@ -461,15 +481,15 @@ void setVGAmode(enum VGA_mode_t modeVGA)
             palette[0][i] = (palette[0][i] & 0x3f3f) | palette16_mask;
             palette[1][i] = (palette[1][i] & 0x3f3f) | palette16_mask;
     }
-  
-    
-  
 
-   
+
+
+
+
 
     //line_size=4*(line_size>>2)+4;
     //инициализация шаблонов строк и синхросигнала
-    
+
 
 
     // if (lines_pattern_data) 
@@ -480,13 +500,13 @@ void setVGAmode(enum VGA_mode_t modeVGA)
     if (!(lines_pattern_data))//выделение памяти, если не выделено
     {
             uint32_t div32=(uint32_t) (fdiv * (1 << 16)+0.0);
-            PIO_VGA->sm[_SM_VGA].clkdiv=div32&0xfffff000; //делитель для конкретной sm 
-            dma_channel_set_trans_count(dma_chan,line_size/4, false); 
+            PIO_VGA->sm[_SM_VGA].clkdiv=div32&0xfffff000; //делитель для конкретной sm
+            dma_channel_set_trans_count(dma_chan,line_size/4, false);
 
 
             lines_pattern_data=(uint32_t *)calloc(line_size*4/4,sizeof(uint32_t));;
 
-   
+
             for(int i=0;i<4;i++)
                 {
                     lines_pattern[i]=&lines_pattern_data[i*(line_size/4)];
@@ -510,22 +530,22 @@ void setVGAmode(enum VGA_mode_t modeVGA)
                 //memset(base_ptr+HS_SHIFT,TMPL_VHS8,HS_SIZE);
                 //выровненная синхра вначале
                 memset(base_ptr,TMPL_VHS8,HS_SIZE);
-                
+
                 //заготовки для строк с изображением
                 base_ptr=(uint8_t* )lines_pattern[2];
                 memcpy(base_ptr,lines_pattern[0],line_size);
                 base_ptr=(uint8_t* )lines_pattern[3];
                 memcpy(base_ptr,lines_pattern[0],line_size);
-   
-   
-   
-   
-   
+
+
+
+
+
     }
-   
 
 
-    
+
+
 
     mode_VGA=modeVGA;
 
@@ -544,10 +564,10 @@ void setVGAbuf(uint8_t* buf, uint16_t w,uint16_t h)
 
 
 void setVGAbuf_pos(int x,int y)
-{   
+{
     g_buf_shx=x;
     g_buf_shy=y;
-    
+
 
 };
 
@@ -568,15 +588,15 @@ void clrScr(uint8_t color)
     memset(text_buf_color, (color<<4), text_buf_height*text_buf_width);
 
 };
-void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) 
+void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor)
 {
-    if ((y<0)|(y>=text_buf_height)) return; 
+    if ((y<0)|(y>=text_buf_height)) return;
     int len = strlen(string);
     if  (x<0)
         {
-            if ((len+x)>0) 
+            if ((len+x)>0)
                 {
-                    string+=-x;                    
+                    string+=-x;
                     x=0;
 
                 }
@@ -594,7 +614,7 @@ void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor)
 
         }
 
-   
+
 };
 
 
@@ -602,7 +622,7 @@ void setVGA_bg_color( uint32_t color888)
 {
     uint8_t conv0[]={0b00,0b00,0b01,0b10,0b10,0b10,0b11,0b11};
     uint8_t conv1[]={0b00,0b01,0b01,0b01,0b10,0b11,0b11,0b11};
-    
+
     uint8_t b=((color888&0xff)/42);
 
     uint8_t r=(((color888>>16)&0xff)/42);
@@ -612,7 +632,7 @@ void setVGA_bg_color( uint32_t color888)
     uint8_t c_lo=(conv1[r]<<4)|(conv1[g]<<2)|conv1[b];
     bg_color[0]=(((((c_hi<<8)|c_lo)&0x3f3f)|palette16_mask)<<16)|((((c_hi<<8)|c_lo)&0x3f3f)|palette16_mask);
     bg_color[1]=(((((c_lo<<8)|c_hi)&0x3f3f)|palette16_mask)<<16)|((((c_lo<<8)|c_hi)&0x3f3f)|palette16_mask);
-    
+
 };
 
 void setVGA_color_palette(uint8_t i_color, uint32_t color888)
@@ -648,8 +668,8 @@ void initVGA()
 
         uint8_t c_hi=0xc0|(conv0[r]<<4)|(conv0[g]<<2)|b;
         uint8_t c_lo=0xc0|(conv1[r]<<4)|(conv1[g]<<2)|b;
-        
-       
+
+
 
         palette[0][i]=(c_hi<<8)|c_lo;
         palette[1][i]=(c_lo<<8)|c_hi;
@@ -677,9 +697,9 @@ void initVGA()
 
     for(int i=0;i<8;i++){gpio_init(beginVGA_PIN+i);
     gpio_set_dir(beginVGA_PIN+i,GPIO_OUT);pio_gpio_init(PIO_VGA, beginVGA_PIN+i);};//резервируем под выход PIO
-  
+
     //pio_sm_config c = pio_vga_program_get_default_config(offset); 
-   
+
     pio_sm_set_consecutive_pindirs(PIO_VGA, sm, beginVGA_PIN, 8, true);//конфигурация пинов на выход
 
     pio_sm_config c = pio_get_default_sm_config();
@@ -690,16 +710,16 @@ void initVGA()
     sm_config_set_out_shift(&c, true, true, 32);
     sm_config_set_out_pins(&c, beginVGA_PIN, 8);
     pio_sm_init(PIO_VGA, sm, offset, &c);
-    
-    
+
+
 
     pio_sm_set_enabled(PIO_VGA, sm, true);
 
 
-   
+
     //инициализация DMA
 
-    
+
     dma_chan_ctrl = dma_claim_unused_channel(true);
     dma_chan = dma_claim_unused_channel(true);
     //основной ДМА канал для данных
@@ -714,19 +734,19 @@ void initVGA()
 
     channel_config_set_dreq(&c0, dreq);
     channel_config_set_chain_to(&c0, dma_chan_ctrl);                        // chain to other channel
-   
+
     dma_channel_configure(
         dma_chan,
         &c0,
-        &PIO_VGA->txf[sm], // Write address 
-        lines_pattern[0],             // read address 
+        &PIO_VGA->txf[sm], // Write address
+        lines_pattern[0],             // read address
         600/4, //
         false             // Don't start yet
     );
     //канал DMA для контроля основного канала
     dma_channel_config c1 = dma_channel_get_default_config(dma_chan_ctrl);
     channel_config_set_transfer_data_size(&c1, DMA_SIZE_32);
-    
+
     channel_config_set_read_increment(&c1, false);
     channel_config_set_write_increment(&c1, false);
     channel_config_set_chain_to(&c1, dma_chan);                         // chain to other channel
@@ -737,18 +757,18 @@ void initVGA()
     dma_channel_configure(
         dma_chan_ctrl,
         &c1,
-        &dma_hw->ch[dma_chan].read_addr, // Write address 
+        &dma_hw->ch[dma_chan].read_addr, // Write address
         &lines_pattern[0],             // read address
-        1, // 
+        1, //
         false             // Don't start yet
     );
     //dma_channel_set_read_addr(dma_chan, &DMA_BUF_ADDR[0], false);
 
-    
-  
- 
-    setVGAmode(VGA640x480div2);    
-   
+
+
+
+    setVGAmode(VGA640x480div2);
+
 
     irq_set_exclusive_handler(VGA_DMA_IRQ, dma_handler_VGA);
 
@@ -756,6 +776,6 @@ void initVGA()
 
     irq_set_enabled(VGA_DMA_IRQ, true);
     dma_start_channel_mask((1u << dma_chan)) ;
-    
+
 
 };
