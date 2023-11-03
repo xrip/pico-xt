@@ -51,7 +51,7 @@ uint8_t VRAM[VRAM_SIZE << 10];
 
 uint8_t oper1b, oper2b, res8, nestlev, addrbyte;
 uint16_t saveip, savecs, oper1, oper2, res16, disp16, temp16, dummy, stacksize, frametemp;
-uint32_t temp1, temp2, temp3,ea;
+uint32_t temp1, temp2, temp3, ea;
 uint64_t totalexec;
 
 union _bytewordregs_ regs;
@@ -683,8 +683,22 @@ void intcall86(uint8_t intnum) {
             //printf("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
             switch (CPU_AH) {
                 case 0x00:
-                    videomode = CPU_AL;
-                    memset(VRAM, 0x0, sizeof VRAM);
+                    videomode = CPU_AL & 0x7F;
+                    if (videomode == 4) {
+                        port3D9 = 48;
+                    } else {
+                        port3D9 = 0;
+                    }
+
+                    // FIXME!!
+                    RAM[0x449] = videomode;
+                    RAM[0x44A] = (uint8_t) 80;
+                    RAM[0x44B] = 0;
+                    RAM[0x484] = (uint8_t) (25 - 1);
+
+                    if ((CPU_AL & 0x80) == 0x00) {
+                        memset(VRAM, 0x0, sizeof VRAM);
+                    }
                     //CopyCharROM();
                     //printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
 #if PICO_ON_DEVICE
@@ -695,6 +709,10 @@ void intcall86(uint8_t intnum) {
                     }
 #endif
                     // Установить видеорежим
+                    break;
+                case 0x1A: //get display combination code (ps, vga/mcga)
+                    CPU_AL = 0x1A;
+                    CPU_BL = 0x8;
                     break;
 /*
                 case 0x01:                            // show cursor
@@ -2414,207 +2432,207 @@ void __inline exec86(uint32_t execloops) {
                 break;
 
 #ifndef CPU_8086
-                case 0x60:  /* 60 PUSHA (80186+) */
-                    oldsp = CPU_SP;
-                    push(CPU_AX);
-                    push(CPU_CX);
-                    push(CPU_DX);
-                    push(CPU_BX);
-                    push(oldsp);
-                    push(CPU_BP);
-                    push(CPU_SI);
-                    push(CPU_DI);
-                    break;
+            case 0x60:  /* 60 PUSHA (80186+) */
+                oldsp = CPU_SP;
+                push(CPU_AX);
+                push(CPU_CX);
+                push(CPU_DX);
+                push(CPU_BX);
+                push(oldsp);
+                push(CPU_BP);
+                push(CPU_SI);
+                push(CPU_DI);
+                break;
 
-                case 0x61:  /* 61 POPA (80186+) */
-                    CPU_DI = pop();
-                    CPU_SI = pop();
-                    CPU_BP = pop();
+            case 0x61:  /* 61 POPA (80186+) */
+                CPU_DI = pop();
+                CPU_SI = pop();
+                CPU_BP = pop();
 //                    dummy = pop();
-                    CPU_BX = pop();
-                    CPU_DX = pop();
-                    CPU_CX = pop();
-                    CPU_AX = pop();
-                    break;
+                CPU_BX = pop();
+                CPU_DX = pop();
+                CPU_CX = pop();
+                CPU_AX = pop();
+                break;
 
-                case 0x62: /* 62 BOUND Gv, Ev (80186+) */
-                    modregrm();
-                    getea(rm);
-                    if (signext32 (getreg16(reg)) < signext32 (getmem16(ea >> 4, ea & 15))) {
+            case 0x62: /* 62 BOUND Gv, Ev (80186+) */
+                modregrm();
+                getea(rm);
+                if (signext32 (getreg16(reg)) < signext32 (getmem16(ea >> 4, ea & 15))) {
+                    intcall86(5); //bounds check exception
+                } else {
+                    ea += 2;
+                    if (signext32 (getreg16(reg)) > signext32 (getmem16(ea >> 4, ea & 15))) {
                         intcall86(5); //bounds check exception
-                    } else {
-                        ea += 2;
-                        if (signext32 (getreg16(reg)) > signext32 (getmem16(ea >> 4, ea & 15))) {
-                            intcall86(5); //bounds check exception
-                        }
                     }
+                }
+                break;
+
+            case 0x68:  /* 68 PUSH Iv (80186+) */
+                push(getmem16 (CPU_CS, ip));
+                StepIP (2);
+                break;
+
+            case 0x69:  /* 69 IMUL Gv Ev Iv (80186+) */
+                modregrm();
+                temp1 = readrm16(rm);
+                temp2 = getmem16 (CPU_CS, ip);
+                StepIP (2);
+                if ((temp1 & 0x8000L) == 0x8000L) {
+                    temp1 = temp1 | 0xFFFF0000L;
+                }
+
+                if ((temp2 & 0x8000L) == 0x8000L) {
+                    temp2 = temp2 | 0xFFFF0000L;
+                }
+
+                temp3 = temp1 * temp2;
+                putreg16 (reg, temp3 & 0xFFFFL);
+                if (temp3 & 0xFFFF0000L) {
+                    cf = 1;
+                    of = 1;
+                } else {
+                    cf = 0;
+                    of = 0;
+                }
+                break;
+
+            case 0x6A:  /* 6A PUSH Ib (80186+) */
+                push(getmem8 (CPU_CS, ip));
+                StepIP (1);
+                break;
+
+            case 0x6B:  /* 6B IMUL Gv Eb Ib (80186+) */
+                modregrm();
+                temp1 = readrm16(rm);
+                temp2 = signext (getmem8(CPU_CS, ip));
+                StepIP (1);
+                if ((temp1 & 0x8000L) == 0x8000L) {
+                    temp1 = temp1 | 0xFFFF0000L;
+                }
+
+                if ((temp2 & 0x8000L) == 0x8000L) {
+                    temp2 = temp2 | 0xFFFF0000L;
+                }
+
+                temp3 = temp1 * temp2;
+                putreg16 (reg, temp3 & 0xFFFFL);
+                if (temp3 & 0xFFFF0000L) {
+                    cf = 1;
+                    of = 1;
+                } else {
+                    cf = 0;
+                    of = 0;
+                }
+                break;
+
+            case 0x6C:  /* 6E INSB */
+                if (reptype && (CPU_CX == 0)) {
                     break;
+                }
 
-                case 0x68:  /* 68 PUSH Iv (80186+) */
-                    push(getmem16 (CPU_CS, ip));
-                    StepIP (2);
+                putmem8 (useseg, CPU_SI, portin(CPU_DX));
+                if (df) {
+                    CPU_SI = CPU_SI - 1;
+                    CPU_DI = CPU_DI - 1;
+                } else {
+                    CPU_SI = CPU_SI + 1;
+                    CPU_DI = CPU_DI + 1;
+                }
+
+                if (reptype) {
+                    CPU_CX = CPU_CX - 1;
+                }
+
+                totalexec++;
+                loopcount++;
+                if (!reptype) {
                     break;
+                }
 
-                case 0x69:  /* 69 IMUL Gv Ev Iv (80186+) */
-                    modregrm();
-                    temp1 = readrm16(rm);
-                    temp2 = getmem16 (CPU_CS, ip);
-                    StepIP (2);
-                    if ((temp1 & 0x8000L) == 0x8000L) {
-                        temp1 = temp1 | 0xFFFF0000L;
-                    }
+                ip = firstip;
+                break;
 
-                    if ((temp2 & 0x8000L) == 0x8000L) {
-                        temp2 = temp2 | 0xFFFF0000L;
-                    }
-
-                    temp3 = temp1 * temp2;
-                    putreg16 (reg, temp3 & 0xFFFFL);
-                    if (temp3 & 0xFFFF0000L) {
-                        cf = 1;
-                        of = 1;
-                    } else {
-                        cf = 0;
-                        of = 0;
-                    }
+            case 0x6D:  /* 6F INSW */
+                if (reptype && (CPU_CX == 0)) {
                     break;
+                }
 
-                case 0x6A:  /* 6A PUSH Ib (80186+) */
-                    push(getmem8 (CPU_CS, ip));
-                    StepIP (1);
+                putmem16 (useseg, CPU_SI, portin16(CPU_DX));
+                if (df) {
+                    CPU_SI = CPU_SI - 2;
+                    CPU_DI = CPU_DI - 2;
+                } else {
+                    CPU_SI = CPU_SI + 2;
+                    CPU_DI = CPU_DI + 2;
+                }
+
+                if (reptype) {
+                    CPU_CX = CPU_CX - 1;
+                }
+
+                totalexec++;
+                loopcount++;
+                if (!reptype) {
                     break;
+                }
 
-                case 0x6B:  /* 6B IMUL Gv Eb Ib (80186+) */
-                    modregrm();
-                    temp1 = readrm16(rm);
-                    temp2 = signext (getmem8(CPU_CS, ip));
-                    StepIP (1);
-                    if ((temp1 & 0x8000L) == 0x8000L) {
-                        temp1 = temp1 | 0xFFFF0000L;
-                    }
+                ip = firstip;
+                break;
 
-                    if ((temp2 & 0x8000L) == 0x8000L) {
-                        temp2 = temp2 | 0xFFFF0000L;
-                    }
-
-                    temp3 = temp1 * temp2;
-                    putreg16 (reg, temp3 & 0xFFFFL);
-                    if (temp3 & 0xFFFF0000L) {
-                        cf = 1;
-                        of = 1;
-                    } else {
-                        cf = 0;
-                        of = 0;
-                    }
+            case 0x6E:  /* 6E OUTSB */
+                if (reptype && (CPU_CX == 0)) {
                     break;
+                }
 
-                case 0x6C:  /* 6E INSB */
-                    if (reptype && (CPU_CX == 0)) {
-                        break;
-                    }
+                portout(CPU_DX, getmem8 (useseg, CPU_SI));
+                if (df) {
+                    CPU_SI = CPU_SI - 1;
+                    CPU_DI = CPU_DI - 1;
+                } else {
+                    CPU_SI = CPU_SI + 1;
+                    CPU_DI = CPU_DI + 1;
+                }
 
-                    putmem8 (useseg, CPU_SI, portin (CPU_DX) );
-                    if (df) {
-                        CPU_SI = CPU_SI - 1;
-                        CPU_DI = CPU_DI - 1;
-                    } else {
-                        CPU_SI = CPU_SI + 1;
-                        CPU_DI = CPU_DI + 1;
-                    }
+                if (reptype) {
+                    CPU_CX = CPU_CX - 1;
+                }
 
-                    if (reptype) {
-                        CPU_CX = CPU_CX - 1;
-                    }
-
-                    totalexec++;
-                    loopcount++;
-                    if (!reptype) {
-                        break;
-                    }
-
-                    ip = firstip;
+                totalexec++;
+                loopcount++;
+                if (!reptype) {
                     break;
+                }
 
-                case 0x6D:  /* 6F INSW */
-                    if (reptype && (CPU_CX == 0)) {
-                        break;
-                    }
+                ip = firstip;
+                break;
 
-                    putmem16 (useseg, CPU_SI, portin16 (CPU_DX) );
-                    if (df) {
-                        CPU_SI = CPU_SI - 2;
-                        CPU_DI = CPU_DI - 2;
-                    } else {
-                        CPU_SI = CPU_SI + 2;
-                        CPU_DI = CPU_DI + 2;
-                    }
-
-                    if (reptype) {
-                        CPU_CX = CPU_CX - 1;
-                    }
-
-                    totalexec++;
-                    loopcount++;
-                    if (!reptype) {
-                        break;
-                    }
-
-                    ip = firstip;
+            case 0x6F:  /* 6F OUTSW */
+                if (reptype && (CPU_CX == 0)) {
                     break;
+                }
 
-                case 0x6E:  /* 6E OUTSB */
-                    if (reptype && (CPU_CX == 0)) {
-                        break;
-                    }
+                portout16(CPU_DX, getmem16 (useseg, CPU_SI));
+                if (df) {
+                    CPU_SI = CPU_SI - 2;
+                    CPU_DI = CPU_DI - 2;
+                } else {
+                    CPU_SI = CPU_SI + 2;
+                    CPU_DI = CPU_DI + 2;
+                }
 
-                    portout (CPU_DX, getmem8 (useseg, CPU_SI) );
-                    if (df) {
-                        CPU_SI = CPU_SI - 1;
-                        CPU_DI = CPU_DI - 1;
-                    } else {
-                        CPU_SI = CPU_SI + 1;
-                        CPU_DI = CPU_DI + 1;
-                    }
+                if (reptype) {
+                    CPU_CX = CPU_CX - 1;
+                }
 
-                    if (reptype) {
-                        CPU_CX = CPU_CX - 1;
-                    }
-
-                    totalexec++;
-                    loopcount++;
-                    if (!reptype) {
-                        break;
-                    }
-
-                    ip = firstip;
+                totalexec++;
+                loopcount++;
+                if (!reptype) {
                     break;
+                }
 
-                case 0x6F:  /* 6F OUTSW */
-                    if (reptype && (CPU_CX == 0)) {
-                        break;
-                    }
-
-                    portout16 (CPU_DX, getmem16 (useseg, CPU_SI) );
-                    if (df) {
-                        CPU_SI = CPU_SI - 2;
-                        CPU_DI = CPU_DI - 2;
-                    } else {
-                        CPU_SI = CPU_SI + 2;
-                        CPU_DI = CPU_DI + 2;
-                    }
-
-                    if (reptype) {
-                        CPU_CX = CPU_CX - 1;
-                    }
-
-                    totalexec++;
-                    loopcount++;
-                    if (!reptype) {
-                        break;
-                    }
-
-                    ip = firstip;
-                    break;
+                ip = firstip;
+                break;
 #endif
             case 0x70:  /* 70 JO Jb */
                 temp16 = signext (getmem8(CPU_CS, ip));

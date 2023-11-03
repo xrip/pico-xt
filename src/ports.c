@@ -60,8 +60,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3D5:
             crt_controller[crt_controller_idx] = value;
             if ((crt_controller_idx == 0x0E) || (crt_controller_idx == 0x0F)) {
-                CURX = ((uint16_t)crt_controller[0x0E] << 8);
-                CURY = crt_controller[0x0F];
+                //setcursor(((uint16_t)crt_controller[0x0E] << 8) | crt_controller[0x0F]);
             }
             break;
             // CGA mode  switch
