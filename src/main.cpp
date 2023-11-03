@@ -128,12 +128,21 @@ int main() {
                               SDL_WINDOW_SHOWN);
 
     screen = SDL_GetWindowSurface(window);
-    unsigned int *pixels = (unsigned int *) screen->pixels;
+    auto *pixels = (unsigned int *) screen->pixels;
 
-    if (!SDL_CreateThread(RendererThread, "renderer", NULL)) {
+    if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
         fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
         return -1;
     }
+#endif
+    //if(  insertdisk(1, 0, NULL, "\\XT\\fdd0.img") )
+    insertdisk(0, sizeof FD0, (char *) FD0, NULL);
+    //insertdisk(0, 0, NULL, "360.img");
+//    insertdisk(0, 0, NULL, "\\XT\\fdd1.img");
+#if PICO_ON_DEVICE
+    insertdisk(128, 0, NULL, "\\XT\\hdd.img");
+#else
+    insertdisk(128, 0, NULL, "hdd.img");
 #endif
     reset86();
     //draw_text("hello world!", 0, 0, 15, 1);

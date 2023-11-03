@@ -628,8 +628,8 @@ void reset86() {
     SDL_AddTimer(500, BlinkTimer, "blink");
 #endif
     init8259();
-    memset(RAM, 0x0, RAM_SIZE);
-    memset(VRAM, 0x0, VRAM_SIZE);
+    memset(RAM, 0x0, RAM_SIZE << 10);
+    memset(VRAM, 0x0, VRAM_SIZE << 10);
 
     CPU_CS = 0xFFFF;
     CPU_SS = 0x0000;
@@ -639,17 +639,6 @@ void reset86() {
 
     hltstate = 0;
     videomode = 3;
-
-
-    //if(  insertdisk(1, 0, NULL, "\\XT\\fdd0.img") )
-    insertdisk(0, sizeof FD0, (char *) FD0, NULL);
-    //insertdisk(0, 0, NULL, "360.img");
-//    insertdisk(0, 0, NULL, "\\XT\\fdd1.img");
-#if PICO_ON_DEVICE
-    insertdisk(128, 0, NULL, "\\XT\\hdd.img");
-#else
-    insertdisk(128, 0, NULL, "hdd.img");
-#endif
 }
 
 uint16_t readrm16(uint8_t rmval) {
