@@ -31,7 +31,6 @@ struct struct_drive {
     char *data;
 };
 
-// FIXME!! Уменьшить до 2 флопи, 2 хдд
 struct struct_drive disk[4];
 
 static uint8_t sectorbuffer[512];
