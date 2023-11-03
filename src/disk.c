@@ -6,14 +6,18 @@
 #include "emulator.h"
 
 #if PICO_ON_DEVICE
+
 #include <pico/stdlib.h>
+
 #else
 #include <SDL2/SDL.h>
 #endif
 
 #if PICO_ON_DEVICE
+
 #include "f_util.h"
 #include "ff.h"
+
 static FATFS fs;
 #define _FILE FIL
 _FILE file;
@@ -22,7 +26,7 @@ _FILE file;
 _FILE * file;
 #endif
 struct struct_drive {
-    _FILE * diskfile;
+    _FILE *diskfile;
     size_t filesize;
     uint16_t cyls;
     uint16_t sects;
@@ -40,7 +44,7 @@ static uint8_t sectorbuffer[512];
 void ejectdisk(uint8_t drivenum) {
     if (drivenum & 0x80) drivenum -= 126;
 
-        if (disk[drivenum].inserted) {
+    if (disk[drivenum].inserted) {
         disk[drivenum].inserted = 0;
         if (drivenum >= 0x80)
             hdcount--;
@@ -49,7 +53,7 @@ void ejectdisk(uint8_t drivenum) {
     }
 }
 
-uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char* pathname) {
+uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
     if (drivenum & 0x80) drivenum -= 126;
     if (pathname != NULL) {
 #if PICO_ON_DEVICE
@@ -169,19 +173,20 @@ bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, 
         CPU_AH = 0x04;    // sector not found
         goto error;
     }
-    lba =  ((uint32_t) cyl * (uint32_t) disk[drivenum].heads + (uint32_t) head) * (uint32_t) disk[drivenum].sects + (uint32_t) sect - 1;
+    lba = ((uint32_t) cyl * (uint32_t) disk[drivenum].heads + (uint32_t) head) * (uint32_t) disk[drivenum].sects +
+          (uint32_t) sect - 1;
     fileoffset = lba * 512;
     //fileoffset = chs2ofs(drivenum, cyl, head, sect);
 
     if (disk[drivenum].data == NULL && fileoffset > 0) {
 #if PICO_ON_DEVICE
         result = f_lseek(disk[drivenum].diskfile, fileoffset);
-        printf("drivenum %i :: f_lseek offs %i result: %s (%d)\r\n", drivenum,  fileoffset, FRESULT_str(result), result);
+        printf("drivenum %i :: f_lseek offs %i result: %s (%d)\r\n", drivenum, fileoffset, FRESULT_str(result), result);
 #else
         SDL_RWseek(file, fileoffset, RW_SEEK_SET);
 #endif
     }
-        //SDL_RWseek(disk[drivenum].diskfile, fileoffset, RW_SEEK_SET);
+    //SDL_RWseek(disk[drivenum].diskfile, fileoffset, RW_SEEK_SET);
 
     if (fileoffset > disk[drivenum].filesize) {
         printf("sector no found\r\n");
@@ -298,7 +303,7 @@ bios_writedisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl,
 #if PICO_ON_DEVICE
     if (disk[drivenum].diskfile != NULL && f_lseek(disk[drivenum].diskfile, fileoffset) != FR_OK) {
         //printf("Write seek error");
-        CPU_AH = 0x04;	// sector not found
+        CPU_AH = 0x04;    // sector not found
         goto error;
     }
 #else
@@ -317,7 +322,7 @@ bios_writedisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl,
             result = f_write(disk[drivenum].diskfile, sectorbuffer, 512, &writen_bytes);
             printf("drivenum %i :: f_write result: %s (%d)\r\n", drivenum, FRESULT_str(result), writen_bytes);
 #else
-//            SDL_RWwrite(file, sectorbuffer, 512, 1);
+            //            SDL_RWwrite(file, sectorbuffer, 512, 1);
 #endif
         }
     }

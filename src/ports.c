@@ -89,8 +89,10 @@ void portout(uint16_t portnum, uint16_t value) {
 #if PICO_ON_DEVICE
             uint32_t usepal = (value >> 5) & 1;
             uint32_t intensity = ((value >> 4) & 1) << 3;
+            uint32_t curpixel;
             for (int i = 0; i < 16; ++i) {
-                setVGA_color_palette(i, cga_color(i * 2 + usepal + intensity));
+                curpixel = i*2 + usepal + intensity;
+                setVGA_color_palette(i, cga_palette[curpixel]);
             }
 #endif
             break;

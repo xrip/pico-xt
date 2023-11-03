@@ -3,6 +3,7 @@
    implementation, but for the purposes of a PC, it's all we need. */
 
 #include "emulator.h"
+
 struct i8259_s i8259;
 
 void init8259() {

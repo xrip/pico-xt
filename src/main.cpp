@@ -14,6 +14,7 @@ extern "C" {
 #include "pico/stdio.h"
 #include "f_util.h"
 #include "ff.h"
+
 static FATFS fs;
 extern "C" {
 #include "vga.h"
@@ -50,7 +51,7 @@ void __time_critical_func(render_core)() {
 
     setVGAmode(VGA640x480_text_80_30);
     for (int i = 0; i < 16; ++i) {
-        setVGA_color_palette(i, cga_color(i*2));
+        setVGA_color_palette(i, cga_palette[i]);
     }
     sem_acquire_blocking(&vga_start_semaphore);
 
@@ -166,12 +167,12 @@ int main() {
 
                     for (uint8_t bit = 0; bit < 8; bit++) {
                         if (cursor_blink_state && (y >> 4 == CURY && x == CURX && (y % 16) >= 12 && (y % 16) <= 13)) {
-                            pixels[y * 640 + (8 * x + bit)] = dosColorPalette[color & 0x0F];
+                            pixels[y * 640 + (8 * x + bit)] = cga_palette[color & 0x0F];
                         } else {
                             if ((glyph_row >> bit) & 1) {
-                                pixels[y * 640 + (8 * x + bit)] = dosColorPalette[color & 0x0F];
+                                pixels[y * 640 + (8 * x + bit)] = cga_palette[color & 0x0F];
                             } else {
-                                pixels[y * 640 + (8 * x + bit)] = dosColorPalette[color >> 4];
+                                pixels[y * 640 + (8 * x + bit)] = cga_palette[color >> 4];
                             }
                         }
                     }
@@ -206,12 +207,12 @@ int main() {
                         curpixel = curpixel * 2 + usepal + intensity;
                         if (curpixel == (usepal + intensity))
                             curpixel = 0;
-                        color = cga_color(curpixel);
+                        color = cga_palette[curpixel];
                         //prestretch[y][x] = color;
                         *pix++ = color;
                     } else {
                         curpixel = curpixel * 63;
-                        color = cga_color(curpixel);
+                        color = cga_palette[curpixel];
                         //prestretch[y][x] = color;
                         *pix++ = color;
                     }
@@ -226,7 +227,7 @@ int main() {
                     uint32_t chary = y;
                     uint32_t vidptr = /*0xB8000 + */((chary >> 1) * 80) + ((chary & 1) * 8192) + (charx >> 2);
                     uint32_t curpixel = (VRAM[vidptr]>> (7- (charx&7) ) ) &1;
-                    *pix++ = cga_color(curpixel * 15);
+                    *pix++ = cga_palette[curpixel * 15];
                 }
                 //pix += 640;
             }

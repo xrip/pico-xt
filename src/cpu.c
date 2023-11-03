@@ -20,9 +20,11 @@
 #include "emulator.h"
 
 #if PICO_ON_DEVICE
+
 #include "pico/time.h"
 #include "ps2.h"
 #include "vga.h"
+
 #else
 
 #include "SDL2/SDL.h"
@@ -692,7 +694,7 @@ void intcall86(uint8_t intnum) {
 
                     // FIXME!!
                     RAM[0x449] = videomode;
-                    RAM[0x44A] = (uint8_t) videomode <= 2? 40 : 80;
+                    RAM[0x44A] = (uint8_t) videomode <= 2 ? 40 : 80;
                     RAM[0x44B] = 0;
                     RAM[0x484] = (uint8_t) (25 - 1);
 
@@ -1624,7 +1626,9 @@ void handleinput(void) {
 
 #else
 extern uint8_t kbloop;
+
 extern void ps2poll();
+
 #endif
 
 void __inline exec86(uint32_t execloops) {
@@ -1669,7 +1673,7 @@ void __inline exec86(uint32_t execloops) {
         if (0 && kbloop) {
             uint32_t msnow;
             msnow = time_us_64();
-            while ((time_us_64() - msnow) < 20000) { }
+            while ((time_us_64() - msnow) < 20000) {}
             kbloop = 0;
             ps2poll();
         }

@@ -135,30 +135,44 @@ extern union _bytewordregs_ {
 } regs;
 
 void diskhandler();
-uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char* pathname);
+
+uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname);
 
 void write86(uint32_t addr32, uint8_t value);
+
 void reset86(void);
 
 void exec86(uint32_t execloops);
+
 uint8_t read86(uint32_t addr32);
+
 uint16_t readw86(uint32_t addr32);
+
 uint16_t timer_tick();
 
 void portout(uint16_t portnum, uint16_t value);
+
 uint16_t portin(uint16_t portnum);
+
 void portout16(uint16_t portnum, uint16_t value);
+
 uint16_t portin16(uint16_t portnum);
 
 void init8259();
+
 void out8259(uint16_t portnum, uint8_t value);
+
 uint8_t in8259(uint16_t portnum);
+
 uint8_t nextintr();
+
 void doirq(uint8_t irqnum);
 
 
 void init8253();
+
 void out8253(uint16_t portnum, uint8_t value);
+
 uint8_t in8253(uint16_t portnum);
 
 #if !PICO_ON_DEVICE
@@ -166,7 +180,7 @@ void handleinput(void);
 #endif
 
 
-extern struct i8259_s  {
+extern struct i8259_s {
     uint8_t imr; //mask register
     uint8_t irr; //request register
     uint8_t isr; //service register
