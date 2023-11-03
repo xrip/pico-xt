@@ -27,8 +27,10 @@ unsigned long millis() {
 }
 
 #else
+
 #include "vga.h"
 #include "pico/time.h"
+
 #define millis() (time_us_64())
 #endif
 
@@ -46,43 +48,11 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x21: //i8259
             out8259(portnum, value);
             return;
-        case 0x40: //pit 0 data port
-            switch (pit0command) {
-                case 0xB6:
-                case 0x34:
-                case 0x36:
-                    if (pit0latch == 0) {
-                        pit0divisor = (pit0divisor & 0xFF00) + (value & 0xFF);
-                        pit0latch = 1;
-                        return;
-                    } else {
-                        pit0divisor = (pit0divisor & 0xFF) + (value & 0xFF) * 256;
-                        pit0latch = 0;
-                        if (pit0divisor == 0) pit0divisor = 65536;
-                        return;
-                    }
-            }
-            break;
-        case 0x42: //speaker countdown
-            if (latch42 == 0) {
-                speakercountdown = (speakercountdown & 0xFF00) + value;
-                latch42 = 1;
-            } else {
-                speakercountdown = (speakercountdown & 0xFF) + value * 256;
-                latch42 = 0;
-            }
-            break;
-        case 0x43: //pit 0 command port
-            pit0command = value;
-            switch (pit0command) {
-                case 0x34:
-                case 0x36: //reprogram pit 0 divisor
-                    pit0latch = 0;
-                    break;
-                default:
-                    latch42 = 0;
-                    break;
-            }
+        case 0x40:
+        case 0x41:
+        case 0x42:
+        case 0x43: //i8253
+            out8253(portnum, value);
             break;
         case 0x3D4:
             crt_controller_idx = value;
@@ -90,7 +60,8 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3D5:
             crt_controller[crt_controller_idx] = value;
             if ((crt_controller_idx == 0x0E) || (crt_controller_idx == 0x0F)) {
-                //setcursor(((uint16_t)crt_controller[0x0E] << 8) | crt_controller[0x0F]);
+                CURX = ((uint16_t)crt_controller[0x0E] << 8);
+                CURY = crt_controller[0x0F];
             }
             break;
             // CGA mode  switch
@@ -106,10 +77,10 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3D9:
             port3D9 = value;
 #if PICO_ON_DEVICE
-            uint32_t usepal = (value>>5) & 1;
-            uint32_t intensity = ( (value>>4) & 1) << 3;
+            uint32_t usepal = (value >> 5) & 1;
+            uint32_t intensity = ((value >> 4) & 1) << 3;
             for (int i = 0; i < 16; ++i) {
-                setVGA_color_palette(i, cga_color(i*2+usepal+intensity));
+                setVGA_color_palette(i, cga_color(i * 2 + usepal + intensity));
             }
 #endif
             break;
@@ -122,18 +93,12 @@ uint16_t portin(uint16_t portnum) {
     switch (portnum) {
         case 0x20:
         case 0x21: //i8259
-            return (in8259(portnum));
+            return in8259(portnum);
         case 0x40:
-            if (pit0latch == 0) {
-                pit0counter = (millis() % 55) * 1192;
-                pit0latch = 1;
-                return (pit0counter & 0xFF);
-            } else {
-                pit0latch = 0;
-                return ((pit0counter >> 8) & 0xFF);
-            }
-        case 0x43:
-            return (pit0command);
+        case 0x41:
+        case 0x42:
+        case 0x43: //i8253
+            return in8253(portnum);
         case 0x60:
         case 0x64:
             return portram[portnum];
@@ -168,9 +133,9 @@ uint16_t portin(uint16_t portnum) {
             port3DA ^= 1;
             if (!(port3DA & 1)) port3DA ^= 8;
             //port3da = random(256);
-            return (port3DA);
+            return port3DA;
         default:
-            return (0xFF);
+            return 0xFF;
     }
 }
 

@@ -156,6 +156,11 @@ uint8_t in8259(uint16_t portnum);
 uint8_t nextintr();
 void doirq(uint8_t irqnum);
 
+
+void init8253();
+void out8253(uint16_t portnum, uint8_t value);
+uint8_t in8253(uint16_t portnum);
+
 #if !PICO_ON_DEVICE
 void handleinput(void);
 #endif
@@ -173,4 +178,15 @@ extern struct i8259_s  {
     uint8_t readmode; //remember what to return on read register from OCW3
     uint8_t enabled;
 } i8259;
+
+extern struct i8253_s {
+    uint16_t chandata[3];
+    uint8_t accessmode[3];
+    uint8_t bytetoggle[3];
+    uint32_t effectivedata[3];
+    float chanfreq[3];
+    uint8_t active[3];
+    uint16_t counter[3];
+} i8253;
+
 #endif //TINY8086_CPU8086_H
