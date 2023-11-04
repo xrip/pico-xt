@@ -98,6 +98,9 @@ else ()
             hardware_flash
     )
     target_compile_definitions(${PROJECT_NAME} PRIVATE
+            PICO_HEAP_SIZE=0
+            USE_ZONE_FOR_MALLOC=1
+
             PICO_DEFAULT_UART_RX_PIN=17
             PICO_DEFAULT_UART_TX_PIN=16
             # SDCARD

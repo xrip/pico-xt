@@ -2,7 +2,6 @@
 // Created by xrip on 30.10.2023.
 //
 #include "cga.h"
-#include <stdbool.h>
 
 uint8_t cursor_blink_state = 0;
 
