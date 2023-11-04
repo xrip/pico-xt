@@ -2462,10 +2462,11 @@ void __inline exec86(uint32_t execloops) {
                 break;
 
             case 0x61:  /* 61 POPA (80186+) */
+
                 CPU_DI = pop();
                 CPU_SI = pop();
                 CPU_BP = pop();
-//                    dummy = pop();
+                uint16_t dummy = pop();
                 CPU_BX = pop();
                 CPU_DX = pop();
                 CPU_CX = pop();
