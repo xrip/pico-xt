@@ -60,7 +60,7 @@ void __time_critical_func(render_core)() {
 
     uint8_t tick50ms = 0;
     while (true) {
-        timer_tick();
+        doirq(0);
         sleep_ms(timer_period);
         if (tick50ms == 0 || tick50ms == 10) {
             cursor_blink_state ^= 1;

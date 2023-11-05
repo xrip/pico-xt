@@ -1,44 +1,9 @@
 /* ports.c - handles port I/O for Fake86 CPU core. it's ugly, will fix up later. */
 #include "emulator.h"
 
-#if !PICO_ON_DEVICE
-#include <windows.h>
-
-unsigned long millis() {
-    static unsigned long start_time = 0;
-    static bool timer_initialized = false;
-    SYSTEMTIME current_time;
-    FILETIME file_time;
-    unsigned long long time_now;
-
-    if (!timer_initialized) {
-        GetSystemTime(&current_time);
-        SystemTimeToFileTime(&current_time, &file_time);
-        start_time =
-                (((unsigned long long) file_time.dwHighDateTime) << 32) | (unsigned long long) file_time.dwLowDateTime;
-        timer_initialized = true;
-    }
-
-    GetSystemTime(&current_time);
-    SystemTimeToFileTime(&current_time, &file_time);
-    time_now = (((unsigned long long) file_time.dwHighDateTime) << 32) | (unsigned long long) file_time.dwLowDateTime;
-
-    return (unsigned long) ((time_now - start_time) / 10000);
-}
-
-#else
-#include "vga.h"
-
-#define millis() (time_us_64())
-#endif
-
-
 uint16_t portram[256];
 uint8_t crt_controller_idx, crt_controller[256];
-uint16_t port3DA;
-uint16_t port3D9;
-uint16_t port3D8;
-uint16_t port201;
+uint16_t port3D8, port3D9, port3DA, port201;
 
 void portout(uint16_t portnum, uint16_t value) {
     if (portnum == 0x80) {

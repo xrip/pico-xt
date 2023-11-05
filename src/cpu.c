@@ -35,6 +35,7 @@ uint8_t opcode, segoverride, reptype, hdcount = 0, fdcount = 0, hltstate = 0;
 uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 uint8_t videomode = 3;
+int timer_period = 55;
 
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
@@ -596,14 +597,7 @@ __inline uint16_t pop() {
     CPU_SP = CPU_SP + 2;
     return tempval;
 }
-int timer_period = 55;
-__inline uint16_t timer_tick(void) {
-    doirq(0);
-}
-
-
 #if !PICO_ON_DEVICE
-
 uint32_t ClockTick(uint32_t interval, void *name) {
     doirq(0);
     return timer_period;
@@ -613,14 +607,6 @@ uint32_t BlinkTimer(uint32_t interval, void *name) {
     cursor_blink_state ^= 1;
     return interval;
 }
-
-#else
-
-bool ClockTick(struct repeating_timer *t) {
-    doirq(0);
-    return true;
-}
-
 #endif
 
 void reset86() {
@@ -628,6 +614,7 @@ void reset86() {
     SDL_AddTimer(timer_period, ClockTick, "timer");
     SDL_AddTimer(500, BlinkTimer, "blink");
 #endif
+    init8253();
     init8259();
     memset(RAM, 0x0, RAM_SIZE << 10);
     memset(VRAM, 0x0, VRAM_SIZE << 10);

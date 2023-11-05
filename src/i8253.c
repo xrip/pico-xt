@@ -18,7 +18,7 @@ void out8253(uint16_t portnum, uint8_t value) {
                 ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 0))) {
                 curbyte = 0;
             } else if ((i8253.accessmode[portnum] == PIT_MODE_HIBYTE) ||
-                     ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 1))) {
+                       ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 1))) {
                 curbyte = 1;
             }
 
@@ -38,7 +38,7 @@ void out8253(uint16_t portnum, uint8_t value) {
                 uint slice_num = pwm_gpio_to_slice_num(26);
                 pwm_init(slice_num, &config, true);
 
-                if (portram[0x61]&2){
+                if (portram[0x61] & 2) {
                     pwm_set_gpio_level(26, 127);                    // set 50% (127) duty cycle ==> Sound output on
                 } else {
                     pwm_set_gpio_level(26, 0);                      // set 0% (0) duty clcle ==> Sound output off
@@ -55,12 +55,9 @@ void out8253(uint16_t portnum, uint8_t value) {
                                                            (float) 1000.0));
 #if 1
             if (portnum == 0) {
-              uint8_t period = 1;
-              // Timer freq 1,193,180
-              period += ((uint32_t) ((float)1000000.0 / ( ( (float) 1193182.0 / (float) i8253.effectivedata[portnum]))) / 1000);
-     //         myTimer.begin(timer_isr, period);
-                printf("TIMER %i SET?!\r\n ", period);
-                timer_period = period;
+                // Timer freq 1,193,180
+                timer_period = 1 + ((uint32_t) ((float) 1000000.0 /
+                                                (((float) 1193182.0 / (float) i8253.effectivedata[portnum]))) / 1000);
             }
 #endif
             break;
@@ -106,8 +103,5 @@ uint8_t in8253(uint16_t portnum) {
 
 void init8253() {
     memset(&i8253, 0, sizeof(i8253));
-#if 0
-    myTimer.begin(timer_isr, 54925);
-#endif
 }
 
