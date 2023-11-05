@@ -1,4 +1,6 @@
 /* ports.c - handles port I/O for Fake86 CPU core. it's ugly, will fix up later. */
+#include <hardware/pwm.h>
+#include <hardware/gpio.h>
 #include "emulator.h"
 
 #if !PICO_ON_DEVICE
@@ -34,6 +36,12 @@ unsigned long millis() {
 #define millis() (time_us_64())
 #endif
 
+void play_sound(uint pin, uint frequency) {
+    uint period = 1000000 / frequency;  // calculate the period in microseconds
+    pwm_set_chan_level(pwm_gpio_to_slice_num(pin), pwm_gpio_to_channel(pin), period / 2);  // set the duty cycle to 50%
+}
+
+uint8_t speakerenabled = 0;
 uint16_t pit0counter = 65535;
 uint32_t speakercountdown, latch42, pit0latch, pit0command, pit0divisor;
 uint16_t portram[256];
@@ -41,7 +49,7 @@ uint8_t crt_controller_idx, crt_controller[256];
 uint16_t port3DA;
 uint16_t port3D9;
 uint16_t port3D8;
-
+#define RGB888(r, g, b) ((r<<16) | (g << 8 ) | b )
 void portout(uint16_t portnum, uint16_t value) {
     switch (portnum) {
         case 0x20:
@@ -54,6 +62,16 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x43: //i8253
             out8253(portnum, value);
             break;
+
+        case 0x61: // 061H  PPI port B.
+            portram[portnum] = value;
+            if ((value & 3) == 3) {
+                //pwm_set_enabled(pwm_gpio_to_slice_num(26), true);  // enable PWM
+                pwm_set_gpio_level(26, 127);
+            } else {
+                pwm_set_gpio_level(26, 0);
+            }
+            return;
         case 0x3D4:
             crt_controller_idx = value;
             break;

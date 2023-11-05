@@ -14,8 +14,8 @@
 #include "startup_disk.h"
 //#define CPU_8086
 
-#define VRAM_SIZE 16
-#define RAM_SIZE (200)
+#define VRAM_SIZE 32
+#define RAM_SIZE 200
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern uint8_t RAM[RAM_SIZE << 10];
 
@@ -41,11 +41,14 @@ extern uint8_t RAM[RAM_SIZE << 10];
 #define regdh 5
 #define regbl 6
 #define regbh 7
-
+#include <hardware/pwm.h>
 extern uint8_t opcode, segoverride, reptype, bootdrive, hdcount, fdcount, hltstate;
 extern uint16_t segregs[4], savecs, saveip, ip, useseg, oldsp;
 extern uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 extern uint8_t videomode;
+extern uint8_t speakerenabled;
+extern int timer_period;
+extern pwm_config config;
 
 static inline uint16_t makeflagsword(void) {
     return 2 | (uint16_t) cf | ((uint16_t) pf << 2) | ((uint16_t) af << 4) | ((uint16_t) zf << 6) |
@@ -133,6 +136,8 @@ extern union _bytewordregs_ {
     uint16_t wordregs[8];
     uint8_t byteregs[8];
 } regs;
+
+
 
 void diskhandler();
 

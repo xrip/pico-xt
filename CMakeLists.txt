@@ -35,6 +35,7 @@ else ()
     add_subdirectory(drivers/ps2)
     add_subdirectory(drivers/fatfs)
     add_subdirectory(drivers/sdcard)
+    add_subdirectory(drivers/nespad)
 endif ()
 
 # INCLUDE FILES THAT SHOULD BE COMPILED:
@@ -81,6 +82,7 @@ else ()
     target_link_libraries(${PROJECT_NAME} PRIVATE
             vga-nextgen
             ps2
+            nespad
             sdcard
             fatfs
 
@@ -103,11 +105,18 @@ else ()
 
             PICO_DEFAULT_UART_RX_PIN=17
             PICO_DEFAULT_UART_TX_PIN=16
+
             # SDCARD
             SDCARD_PIN_SPI0_CS=5
             SDCARD_PIN_SPI0_SCK=2
             SDCARD_PIN_SPI0_MOSI=3
             SDCARD_PIN_SPI0_MISO=4
+
+            # NES Gamepad
+            USE_NESPAD
+            NES_GPIO_CLK=14
+            NES_GPIO_DATA=16
+            NES_GPIO_LAT=15
     )
 endif ()
 

@@ -593,7 +593,7 @@ __inline uint16_t pop() {
     CPU_SP = CPU_SP + 2;
     return tempval;
 }
-
+int timer_period = 55;
 __inline uint16_t timer_tick(void) {
     doirq(0);
 }
@@ -603,7 +603,7 @@ __inline uint16_t timer_tick(void) {
 
 uint32_t ClockTick(uint32_t interval, void *name) {
     doirq(0);
-    return interval;
+    return timer_period;
 }
 
 uint32_t BlinkTimer(uint32_t interval, void *name) {
@@ -622,7 +622,7 @@ bool ClockTick(struct repeating_timer *t) {
 
 void reset86() {
 #if !PICO_ON_DEVICE
-    SDL_AddTimer(55, ClockTick, "timer");
+    SDL_AddTimer(timer_period, ClockTick, "timer");
     SDL_AddTimer(500, BlinkTimer, "blink");
 #endif
     init8259();

@@ -9,9 +9,11 @@ extern "C" {
 
 #include <pico/time.h>
 #include <pico/multicore.h>
+#include <hardware/pwm.h>
+#include "hardware/clocks.h"
 #include <pico/stdlib.h>
 #include <hardware/vreg.h>
-#include "pico/stdio.h"
+#include <pico/stdio.h>
 #include "f_util.h"
 #include "ff.h"
 
@@ -58,7 +60,7 @@ void __time_critical_func(render_core)() {
     uint8_t tick50ms = 0;
     while (true) {
         timer_tick();
-        sleep_ms(50);
+        sleep_ms(timer_period);
         if (tick50ms == 0 || tick50ms == 10) {
             cursor_blink_state ^= 1;
         }
@@ -73,17 +75,29 @@ void __time_critical_func(render_core)() {
 }
 
 #else
-extern uint16_t port3D9;
+
 
 static int RendererThread(void *ptr) {
 
     while (runing) {
-        exec86(200);
+        exec86(2000);
     }
     return 0;
 }
 
 #endif
+
+#define  PWM_PIN0 26
+pwm_config config;
+void setup_pwm(uint pin) {
+    gpio_set_function(pin, GPIO_FUNC_PWM);
+    //uint slice_num = pwm_gpio_to_slice_num(pin);
+    config = pwm_get_default_config();
+    // Set the PWM frequency to 261Hz
+    //pwm_config_set_wrap(&config, 44100 );
+    //pwm_config_set_clkdiv(&config, 16);
+    //pwm_init(slice_num, &config, true);
+}
 
 int main() {
 #if PICO_ON_DEVICE
@@ -103,6 +117,7 @@ int main() {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
+    setup_pwm(PWM_PIN0);
 
     for (int i = 0; i < 6; i++) {
         sleep_ms(33);

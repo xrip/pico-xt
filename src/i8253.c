@@ -1,3 +1,5 @@
+#include <hardware/pwm.h>
+#include <hardware/gpio.h>
 #include "emulator.h"
 
 #define PIT_MODE_LATCHCOUNT  0
@@ -8,35 +10,59 @@
 struct i8253_s i8253;
 
 void out8253(uint16_t portnum, uint8_t value) {
-    uint8_t curbyte;
+    uint8_t curbyte = 0;
     portnum &= 3;
     switch (portnum) {
         case 0:
         case 1:
         case 2: //channel data
             if ((i8253.accessmode[portnum] == PIT_MODE_LOBYTE) ||
-                ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 0)))
+                ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 0))) {
                 curbyte = 0;
-            else if ((i8253.accessmode[portnum] == PIT_MODE_HIBYTE) ||
-                     ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 1)))
+            } else if ((i8253.accessmode[portnum] == PIT_MODE_HIBYTE) ||
+                     ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 1))) {
                 curbyte = 1;
+            }
+
             if (curbyte == 0) { //low byte
                 i8253.chandata[portnum] = (i8253.chandata[portnum] & 0xFF00) | value;
             } else {   //high byte
                 i8253.chandata[portnum] = (i8253.chandata[portnum] & 0x00FF) | ((uint16_t) value << 8);
             }
-            if (i8253.chandata[portnum] == 0) i8253.effectivedata[portnum] = 65536;
-            else i8253.effectivedata[portnum] = i8253.chandata[portnum];
+
+            if (i8253.chandata[portnum] == 0) {
+                i8253.effectivedata[portnum] = 65536;
+            } else {
+                i8253.effectivedata[portnum] = i8253.chandata[portnum];
+
+                pwm_config_set_wrap(&config, i8253.effectivedata[portnum]);
+                pwm_config_set_clkdiv(&config, 127);
+                uint slice_num = pwm_gpio_to_slice_num(26);
+                pwm_init(slice_num, &config, true);
+
+                if (portram[0x61]&2){
+                    pwm_set_gpio_level(26, 127);                    // set 50% (127) duty cycle ==> Sound output on
+                } else {
+                    pwm_set_gpio_level(26, 0);                      // set 0% (0) duty clcle ==> Sound output off
+                }
+
+            }
+
             i8253.active[portnum] = 1;
-            if (i8253.accessmode[portnum] == PIT_MODE_TOGGLE)
+            if (i8253.accessmode[portnum] == PIT_MODE_TOGGLE) {
                 i8253.bytetoggle[portnum] = (~i8253.bytetoggle[portnum]) & 1;
+            }
+
             i8253.chanfreq[portnum] = (float) ((uint32_t) (((float) 1193182.0 / (float) i8253.effectivedata[portnum]) *
                                                            (float) 1000.0));
-#if 0
+#if 1
             if (portnum == 0) {
-              uint32_t period;
-              period = (uint32_t) ((float)1000000.0 / ( ( (float) 1193182.0 / (float) i8253.effectivedata[portnum])));
-              myTimer.begin(timer_isr, period);
+              uint8_t period = 1;
+              // Timer freq 1,193,180
+              period += ((uint32_t) ((float)1000000.0 / ( ( (float) 1193182.0 / (float) i8253.effectivedata[portnum]))) / 1000);
+     //         myTimer.begin(timer_isr, period);
+                printf("TIMER %i SET?!\r\n ", period);
+                timer_period = period;
             }
 #endif
             break;
