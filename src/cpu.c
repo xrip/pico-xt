@@ -122,7 +122,10 @@ uint8_t read86(uint32_t addr32) {
 
         switch (addr32) { //some hardcoded values for the BIOS data area
             case 0x410:
-                return (0b01100001); //video type CGA 80x25
+                return (0b01100011); //video type CGA 80x25
+
+            case 0x411:
+                return (0b00010000);
 
             case 0x413:
                 return (RAM_SIZE & 0xFF);
@@ -134,7 +137,7 @@ uint8_t read86(uint32_t addr32) {
             case 0x464:
                 return (0x3);
 
-/*            case 0x465:
+            case 0x465:
                 switch (videomode) {
                     case 0:
                         return (0x2C);
@@ -152,7 +155,7 @@ uint8_t read86(uint32_t addr32) {
                         return (0x1E);
                     default:
                         return (0x29);
-                }*/
+                }
 
             case 0x466:
                 return port3D9;

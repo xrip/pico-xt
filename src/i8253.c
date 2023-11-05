@@ -1,5 +1,3 @@
-#include <hardware/pwm.h>
-#include <hardware/gpio.h>
 #include "emulator.h"
 
 #define PIT_MODE_LATCHCOUNT  0
@@ -34,7 +32,7 @@ void out8253(uint16_t portnum, uint8_t value) {
                 i8253.effectivedata[portnum] = 65536;
             } else {
                 i8253.effectivedata[portnum] = i8253.chandata[portnum];
-
+#if PICO_ON_DEVICE
                 pwm_config_set_wrap(&config, i8253.effectivedata[portnum]);
                 pwm_config_set_clkdiv(&config, 127);
                 uint slice_num = pwm_gpio_to_slice_num(26);
@@ -45,7 +43,7 @@ void out8253(uint16_t portnum, uint8_t value) {
                 } else {
                     pwm_set_gpio_level(26, 0);                      // set 0% (0) duty clcle ==> Sound output off
                 }
-
+#endif
             }
 
             i8253.active[portnum] = 1;

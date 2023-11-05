@@ -16,6 +16,7 @@ extern "C" {
 #include <pico/stdio.h>
 #include "f_util.h"
 #include "ff.h"
+#include "nespad.h"
 
 static FATFS fs;
 extern "C" {
@@ -87,17 +88,10 @@ static int RendererThread(void *ptr) {
 
 #endif
 
+#if PICO_ON_DEVICE
 #define  PWM_PIN0 26
-pwm_config config;
-void setup_pwm(uint pin) {
-    gpio_set_function(pin, GPIO_FUNC_PWM);
-    //uint slice_num = pwm_gpio_to_slice_num(pin);
-    config = pwm_get_default_config();
-    // Set the PWM frequency to 261Hz
-    //pwm_config_set_wrap(&config, 44100 );
-    //pwm_config_set_clkdiv(&config, 16);
-    //pwm_init(slice_num, &config, true);
-}
+pwm_config config = pwm_get_default_config();
+#endif
 
 int main() {
 #if PICO_ON_DEVICE
@@ -117,7 +111,7 @@ int main() {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
-    setup_pwm(PWM_PIN0);
+    gpio_set_function(PWM_PIN0, GPIO_FUNC_PWM);
 
     for (int i = 0; i < 6; i++) {
         sleep_ms(33);
@@ -126,7 +120,11 @@ int main() {
         gpio_put(PICO_DEFAULT_LED_PIN, false);
     }
 
+    //nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
+
+
     Init_kbd();
+
     sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);
     sem_release(&vga_start_semaphore);

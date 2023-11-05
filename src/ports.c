@@ -1,6 +1,4 @@
 /* ports.c - handles port I/O for Fake86 CPU core. it's ugly, will fix up later. */
-#include <hardware/pwm.h>
-#include <hardware/gpio.h>
 #include "emulator.h"
 
 #if !PICO_ON_DEVICE
@@ -29,28 +27,23 @@ unsigned long millis() {
 }
 
 #else
-
 #include "vga.h"
-#include "pico/time.h"
 
 #define millis() (time_us_64())
 #endif
 
-void play_sound(uint pin, uint frequency) {
-    uint period = 1000000 / frequency;  // calculate the period in microseconds
-    pwm_set_chan_level(pwm_gpio_to_slice_num(pin), pwm_gpio_to_channel(pin), period / 2);  // set the duty cycle to 50%
-}
 
-uint8_t speakerenabled = 0;
-uint16_t pit0counter = 65535;
-uint32_t speakercountdown, latch42, pit0latch, pit0command, pit0divisor;
 uint16_t portram[256];
 uint8_t crt_controller_idx, crt_controller[256];
 uint16_t port3DA;
 uint16_t port3D9;
 uint16_t port3D8;
-#define RGB888(r, g, b) ((r<<16) | (g << 8 ) | b )
+uint16_t port201;
+
 void portout(uint16_t portnum, uint16_t value) {
+    if (portnum == 0x80) {
+        printf("Diagnostic port out: %04X\r\n", value);
+    }
     switch (portnum) {
         case 0x20:
         case 0x21: //i8259
@@ -65,13 +58,18 @@ void portout(uint16_t portnum, uint16_t value) {
 
         case 0x61: // 061H  PPI port B.
             portram[portnum] = value;
+#if PICO_ON_DEVICE
             if ((value & 3) == 3) {
-                //pwm_set_enabled(pwm_gpio_to_slice_num(26), true);  // enable PWM
                 pwm_set_gpio_level(26, 127);
             } else {
                 pwm_set_gpio_level(26, 0);
             }
+#endif
             return;
+
+        case 0x201:
+            port201 = value;
+            break;
         case 0x3D4:
             crt_controller_idx = value;
             break;
@@ -83,7 +81,7 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
             // CGA mode  switch
         case 0x3D8:
-            printf("wr pr3D8 %x\r\n", value);
+//            printf("wr pr3D8 %x\r\n", value);
             port3D8 = value;
 /*            if (value == 0x28) {
                 setVGAmode(VGA640x480_text_40_30);
@@ -132,6 +130,8 @@ uint16_t portin(uint16_t portnum) {
         case 0x60:
         case 0x64:
             return portram[portnum];
+        case 0x201:
+            return port201;
         case 0x3D4:
             return crt_controller_idx;
         case 0x3D5:

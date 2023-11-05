@@ -1,20 +1,9 @@
 //
 // Created by xrip on 23.10.2023.
 //
-#include "stdint.h"
-#include "memory.h"
 #include "emulator.h"
 
 #if PICO_ON_DEVICE
-
-#include <pico/stdlib.h>
-
-#else
-#include <SDL2/SDL.h>
-#endif
-
-#if PICO_ON_DEVICE
-
 #include "f_util.h"
 #include "ff.h"
 
@@ -22,6 +11,7 @@ static FATFS fs;
 #define _FILE FIL
 _FILE file;
 #else
+#include <SDL2/SDL.h>
 #define _FILE SDL_RWops
 _FILE * file;
 #endif
@@ -58,10 +48,10 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
     if (pathname != NULL) {
 #if PICO_ON_DEVICE
         FRESULT result = f_mount(&fs, "", 1);
-        printf("drivenum %i :: f_mount result: %s (%d)\r\n", drivenum, FRESULT_str(result), result);
+//        printf("drivenum %i :: f_mount result: %s (%d)\r\n", drivenum, FRESULT_str(result), result);
 
         result = f_open(&file, pathname, FA_READ | FA_WRITE);
-        printf("drivenum %i :: f_open result: %s (%d)\r\n", drivenum, FRESULT_str(result), result);
+//        printf("drivenum %i :: f_open result: %s (%d)\r\n", drivenum, FRESULT_str(result), result);
         if (FR_OK != result) {
             return 1;
         }
@@ -181,7 +171,7 @@ bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, 
     if (disk[drivenum].data == NULL && fileoffset > 0) {
 #if PICO_ON_DEVICE
         result = f_lseek(disk[drivenum].diskfile, fileoffset);
-        printf("drivenum %i :: f_lseek offs %i result: %s (%d)\r\n", drivenum, fileoffset, FRESULT_str(result), result);
+//        printf("drivenum %i :: f_lseek offs %i result: %s (%d)\r\n", drivenum, fileoffset, FRESULT_str(result), result);
 #else
         SDL_RWseek(file, fileoffset, RW_SEEK_SET);
 #endif
@@ -210,7 +200,7 @@ bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, 
             gpio_put(PICO_DEFAULT_LED_PIN, true);
             UINT bytes_read;
             result = f_read(disk[drivenum].diskfile, sectorbuffer, 512, &bytes_read);
-            printf("drivenum %i :: f_read result: %s (%d)\r\n", drivenum, FRESULT_str(result), bytes_read);
+//            printf("drivenum %i :: f_read result: %s (%d)\r\n", drivenum, FRESULT_str(result), bytes_read);
             if (FR_OK != result)
                 break;
             gpio_put(PICO_DEFAULT_LED_PIN, false);
@@ -320,7 +310,7 @@ bios_writedisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl,
 #if PICO_ON_DEVICE
             UINT writen_bytes;
             result = f_write(disk[drivenum].diskfile, sectorbuffer, 512, &writen_bytes);
-            printf("drivenum %i :: f_write result: %s (%d)\r\n", drivenum, FRESULT_str(result), writen_bytes);
+//            printf("drivenum %i :: f_write result: %s (%d)\r\n", drivenum, FRESULT_str(result), writen_bytes);
 #else
             //            SDL_RWwrite(file, sectorbuffer, 512, 1);
 #endif

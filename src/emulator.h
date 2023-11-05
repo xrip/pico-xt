@@ -13,6 +13,12 @@
 #include "rom.h"
 #include "startup_disk.h"
 //#define CPU_8086
+#if PICO_ON_DEVICE
+#include <hardware/pwm.h>
+#include <hardware/gpio.h>
+#include <pico/time.h>
+#include <pico/stdlib.h>
+#endif
 
 #define VRAM_SIZE 32
 #define RAM_SIZE 200
@@ -41,14 +47,15 @@ extern uint8_t RAM[RAM_SIZE << 10];
 #define regdh 5
 #define regbl 6
 #define regbh 7
-#include <hardware/pwm.h>
 extern uint8_t opcode, segoverride, reptype, bootdrive, hdcount, fdcount, hltstate;
 extern uint16_t segregs[4], savecs, saveip, ip, useseg, oldsp;
 extern uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 extern uint8_t videomode;
 extern uint8_t speakerenabled;
 extern int timer_period;
+#if PICO_ON_DEVICE
 extern pwm_config config;
+#endif
 
 static inline uint16_t makeflagsword(void) {
     return 2 | (uint16_t) cf | ((uint16_t) pf << 2) | ((uint16_t) af << 4) | ((uint16_t) zf << 6) |
@@ -130,7 +137,7 @@ static inline uint16_t peekw(int a) {
 }
 
 extern uint16_t portram[256];
-extern uint16_t port3D8, port3D9;
+extern uint16_t port3D8, port3D9, port201;
 
 extern union _bytewordregs_ {
     uint16_t wordregs[8];
