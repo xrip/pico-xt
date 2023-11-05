@@ -20,8 +20,8 @@
 #include <pico/stdlib.h>
 #endif
 
-#define VRAM_SIZE 32
-#define RAM_SIZE 640
+#define VRAM_SIZE 16
+#define RAM_SIZE 200
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern uint8_t RAM[RAM_SIZE << 10];
 

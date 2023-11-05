@@ -25,7 +25,6 @@ extern "C" {
 }
 #else
 #define SDL_MAIN_HANDLED
-
 #include "SDL2/SDL.h"
 #include "../drivers/vga-nextgen/fnt8x16.h"
 
@@ -79,7 +78,6 @@ void __time_critical_func(render_core)() {
 
 
 static int RendererThread(void *ptr) {
-
     while (runing) {
         exec86(2000);
     }
@@ -191,7 +189,7 @@ int main() {
                     }
                 }
             }
-        } else if( mode <= 6) {
+        } else if( mode < 6) {
             uint32_t *pix = pixels;
             uint32_t usepal = (port3D9 >> 5) & 1;
             uint32_t intensity = ((port3D9 >> 4) & 1) << 3;
@@ -232,17 +230,16 @@ int main() {
                 }
                 pix += 320;
             }
-        } else if (mode == 66 ) {
+        } else if (mode == 6 ) {
             uint32_t *pix = pixels;
             for (int y = 0; y < 200; y++) {
                 for (int x = 0; x < 640; x++) {
                     uint32_t charx = x;
                     uint32_t chary = y;
-                    uint32_t vidptr = /*0xB8000 + */((chary >> 1) * 80) + ((chary & 1) * 8192) + (charx >> 2);
+                    uint32_t vidptr = /*0xB8000 + */((chary >> 1) * 80) + ((chary & 1) * 8192) + (charx >> 3);
                     uint32_t curpixel = (VRAM[vidptr]>> (7- (charx&7) ) ) &1;
                     *pix++ = cga_palette[curpixel * 15];
                 }
-                //pix += 640;
             }
         }
         SDL_UpdateWindowSurface(window);

@@ -692,7 +692,7 @@ void intcall86(uint8_t intnum) {
                         memset(VRAM, 0x0, sizeof VRAM);
                     }
                     //CopyCharROM();
-                    printf("VBIOS: Mode 0x%x\r\n", CPU_AX);
+                    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
 #if PICO_ON_DEVICE
                     switch (videomode) {
                         case 0:
