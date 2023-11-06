@@ -723,10 +723,9 @@ void intcall86(uint8_t intnum) {
                             break;
                         case 4:
                         case 5:
-                        case 6:
                             setVGAmode(CGA_320x200x4);
                             break;
-                        case 66:
+                        case 6:
                             setVGAmode(CGA_640x200x2);
                             break;
                     }

@@ -292,7 +292,8 @@ void __not_in_flash_func(dma_handler_VGA)() {
         case CGA_640x200x2:
             vbuf_OUT8 = (uint8_t *) vbuf_OUT;
             //1bit buf
-            for (int i = N_loop / 8; i--;) {
+            for (int i = N_loop / 4; i--;) {
+
                 *vbuf_OUT8++ = pal[(*vbuf8 >> 7) & 1];
                 *vbuf_OUT8++ = pal[(*vbuf8 >> 6) & 1];
                 *vbuf_OUT8++ = pal[(*vbuf8 >> 5) & 1];
