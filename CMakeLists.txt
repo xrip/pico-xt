@@ -28,7 +28,6 @@ if (PICO_PLATFORM STREQUAL "host")
             ${SDL2_LIB_DIR}
     )
 else ()
-
     #add_compile_definitions(${PROJECT_NAME} NO_GRAPHICS)
 
     add_subdirectory(drivers/vga-nextgen)
@@ -51,6 +50,9 @@ message(STATUS "")
 
 
 add_executable(${PROJECT_NAME} ${SRC})
+
+pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip")
+pico_set_program_version(pico-xt "development version")
 
 if (PICO_PLATFORM STREQUAL "host")
     target_link_libraries(${PROJECT_NAME} SDL2)
