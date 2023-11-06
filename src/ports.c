@@ -78,6 +78,7 @@ void portout(uint16_t portnum, uint16_t value) {
                 setVGA_color_palette(i, cga_palette[curpixel]);
             }
 #endif
+            setVGA_color_palette(0, cga_palette[0]);
             break;
         default:
             if (portnum < 256) portram[portnum] = value;
