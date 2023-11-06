@@ -110,11 +110,18 @@ int main() {
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
     gpio_set_function(PWM_PIN0, GPIO_FUNC_PWM);
+    gpio_set_function(PWM_PIN0+1, GPIO_FUNC_PWM);
+    uint slice_num = pwm_gpio_to_slice_num(PWM_PIN0+1);
+    pwm_set_chan_level(slice_num, PWM_CHAN_A, 1);
+    pwm_set_chan_level(slice_num, PWM_CHAN_B, 3);
+    pwm_config_set_wrap(&config, 261);
+    pwm_config_set_clkdiv(&config, 127);
+    pwm_init(slice_num, &config, true);
 
     for (int i = 0; i < 6; i++) {
-        sleep_ms(33);
+        sleep_ms(23);
         gpio_put(PICO_DEFAULT_LED_PIN, true);
-        sleep_ms(33);
+        sleep_ms(23);
         gpio_put(PICO_DEFAULT_LED_PIN, false);
     }
 

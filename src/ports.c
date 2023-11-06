@@ -26,15 +26,17 @@ void portout(uint16_t portnum, uint16_t value) {
 #if PICO_ON_DEVICE
             if ((value & 3) == 3) {
                 pwm_set_gpio_level(26, 127);
+                pwm_set_gpio_level(27, 127);
             } else {
                 pwm_set_gpio_level(26, 0);
+                pwm_set_gpio_level(27, 0);
             }
 #endif
-            return;
-
-        case 0x201:
-            port201 = value;
             break;
+
+/*        case 0x201:
+            port201 = value;
+            break;*/
         case 0x3D4:
             crt_controller_idx = value;
             break;
@@ -93,10 +95,11 @@ uint16_t portin(uint16_t portnum) {
         case 0x43: //i8253
             return in8253(portnum);
         case 0x60:
+        case 0x61:
         case 0x64:
             return portram[portnum];
-        case 0x201:
-            return port201;
+/*        case 0x201:
+            return port201;*/
         case 0x3D4:
             return crt_controller_idx;
         case 0x3D5:

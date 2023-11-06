@@ -123,10 +123,28 @@ uint8_t read86(uint32_t addr32) {
 
         switch (addr32) { //some hardcoded values for the BIOS data area
             case 0x410:
-                return (0b01100011); //video type CGA 80x25
-
+/*
+ *
+		|7|6|5|4|3|2|1|0| 40:10 (value in INT 11 register AL)
+		 | | | | | | | `- IPL diskette installed
+		 | | | | | | `-- math coprocessor
+		 | | | | |-+--- old PC system board RAM < 256K
+		 | | | | | `-- pointing device installed (PS/2)
+		 | | | | `--- not used on PS/2
+		 | | `------ initial video mode
+		 `--------- # of diskette drives, less 1
+ */
+                return (0b01100111); //video type CGA 80x25
+/*
+ * 		|7|6|5|4|3|2|1|0| 40:11  (value in INT 11 register AH)
+		 | | | | | | | `- 0 if DMA installed
+		 | | | | `------ number of serial ports
+		 | | | `------- game adapter
+		 | | `-------- not used, internal modem (PS/2)
+		 `----------- number of printer ports
+ */
             case 0x411:
-                return (0b00010000);
+                return (0b00000000);
 
             case 0x413:
                 return (RAM_SIZE & 0xFF);
@@ -516,7 +534,7 @@ __inline void op_sbb16() {
     flag_sbb16(oper1, oper2, cf);
 }
 
-__inline void getea(uint8_t rmval) {
+ static inline void getea(uint8_t rmval) {
     uint32_t tempea;
 
     tempea = 0;
@@ -687,12 +705,12 @@ void intcall86(uint8_t intnum) {
                     RAM[0x44A] = (uint8_t) videomode <= 2 ? 40 : 80;
                     RAM[0x44B] = 0;
                     RAM[0x484] = (uint8_t) (25 - 1);
-
+#ifdef EGA
                     if ((CPU_AL & 0x80) == 0x00) {
                         memset(VRAM, 0x0, sizeof VRAM);
                     }
-                    //CopyCharROM();
-                    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
+#endif
+//                    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
 #if PICO_ON_DEVICE
                     switch (videomode) {
                         case 0:

@@ -30,6 +30,8 @@ void out8253(uint16_t portnum, uint8_t value) {
 
             if (i8253.chandata[portnum] == 0) {
                 i8253.effectivedata[portnum] = 65536;
+                pwm_set_gpio_level(26, 0);                      // set 0% (0) duty clcle ==> Sound output off
+                pwm_set_gpio_level(27, 0);                      // set 0% (0) duty clcle ==> Sound output off
             } else {
                 i8253.effectivedata[portnum] = i8253.chandata[portnum];
 #if PICO_ON_DEVICE
@@ -39,9 +41,12 @@ void out8253(uint16_t portnum, uint8_t value) {
                 pwm_init(slice_num, &config, true);
 
                 if (portram[0x61] & 2) {
+
                     pwm_set_gpio_level(26, 127);                    // set 50% (127) duty cycle ==> Sound output on
+                    pwm_set_gpio_level(27, 127);                    // set 50% (127) duty cycle ==> Sound output on
                 } else {
                     pwm_set_gpio_level(26, 0);                      // set 0% (0) duty clcle ==> Sound output off
+                    pwm_set_gpio_level(27, 0);                      // set 0% (0) duty clcle ==> Sound output off
                 }
 #endif
             }
