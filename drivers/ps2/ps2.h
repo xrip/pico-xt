@@ -8,6 +8,9 @@
 #define KBD_DATA_PIN	(1)
 #define KBD_BUFFER_SIZE 128
 
+#define PS2_LED_SCROLL_LOCK 1
+#define PS2_LED_NUM_LOCK    2
+#define PS2_LED_CAPS_LOCK   4
 
 extern uint8_t kbloop;
 
@@ -17,8 +20,8 @@ uint32_t ps2getcode(void);
 
 void Init_kbd(void);
 void Deinit_kbd(void);
-
-
+void ps2_toggle_led(uint8_t led);
+int16_t ps2_send(uint8_t data);
 
 struct ps2_struct_group
 {

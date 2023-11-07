@@ -1,6 +1,8 @@
 /* ports.c - handles port I/O for Fake86 CPU core. it's ugly, will fix up later. */
 #include "emulator.h"
-
+#if PICO_ON_DEVICE
+#include "ps2.h"
+#endif
 uint16_t portram[256];
 uint8_t crt_controller_idx, crt_controller[256];
 uint16_t port3D8, port3D9, port3DA, port201;
@@ -21,6 +23,11 @@ void portout(uint16_t portnum, uint16_t value) {
             out8253(portnum, value);
             break;
 
+#if PICO_ON_DEVICE
+        case 0x64: // Passthrought all
+            portram[portnum] = value;
+            ps2_send(value);
+#endif
         case 0x61: // 061H  PPI port B.
             portram[portnum] = value;
 #if PICO_ON_DEVICE

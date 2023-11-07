@@ -860,6 +860,9 @@ void intcall86(uint8_t intnum) {
                      ip = 0x0000;
                  }
                  return;*/
+        case 0x19:
+            ps2_send(0xFF);
+            break;
         case 0x13:
         case 0xFD:
             diskhandler();
@@ -1400,12 +1403,6 @@ void op_grp5() {
     }
 }
 
-char c;
-char previous_c;
-
-bool curset = false;
-bool curshow = false;
-uint8_t CURSOR_ASCII = 95;         // normal = 95, other = box, (not in used)
 #if !PICO_ON_DEVICE
 int hijacked_input = 0;
 static uint8_t keydown[0x100];
@@ -1632,43 +1629,13 @@ void handleinput(void) {
 }
 
 #else
-extern uint8_t kbloop;
+
 
 extern void ps2poll();
 
 #endif
 
 void __inline exec86(uint32_t execloops) {
-#if PICO_ON_DEVICE
-    /*
-    if (keyboard_available()) {
-        c = get_scan_code();
-        if (c != 0x80) {
-            previous_c = c;
-            if ((c == 0x34) && (RAM[0x417] & 0x0c)) {
-                curshow = false;
-                reset86();
-            } else {
-                doirq(1);
-            }
-        } else {
-            portram[0x60] = previous_c + 0x80;
-            doirq(1);
-        }
-    }
-     */
-#endif
-/*
-    if (runEvery(CURSOR_SPEED)) {                                           // blink the cursor
-        if (curshow) {
-            if (curset) curset = false;
-            else if (!curset) curset = true;
-        } else {
-            curset = false;
-        }
-    }
-*/
-
     uint8_t docontinue;
     static uint16_t firstip;
     static uint16_t trap_toggle = 0;
