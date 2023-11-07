@@ -860,13 +860,16 @@ void intcall86(uint8_t intnum) {
                      ip = 0x0000;
                  }
                  return;*/
-#if PICO_ON_DEVICE
+
         case 0x19:
             insertdisk(0, sizeof FD0, (char *) FD0, NULL);
+#if PICO_ON_DEVICE
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             ps2_send(0xFF);
-            break;
+#else
+            insertdisk(128, 0, NULL, "hdd.img");
 #endif
+            break;
         case 0x13:
         case 0xFD:
             diskhandler();
