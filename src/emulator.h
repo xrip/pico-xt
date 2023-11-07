@@ -21,10 +21,9 @@
 #endif
 
 #define VRAM_SIZE 16
-#define RAM_SIZE 200
+#define RAM_SIZE (64*3+26)
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern uint8_t RAM[RAM_SIZE << 10];
-
 
 #define regax 0
 #define regcx 1

@@ -165,7 +165,8 @@ void __not_in_flash_func(dma_handler_VGA)() {
             uint8_t col[2];
 
             for (int i = 0; i < chrs_in_line; i++) {
-                uint8_t d = fnt8x16[(*line_tex_buf++) * font_H + sh_ch];//из таблицы символов получаем "срез" текущего символа
+                uint8_t d = fnt8x16[(*line_tex_buf++) * font_H +
+                                    sh_ch];//из таблицы символов получаем "срез" текущего символа
 
                 //выводим по 2 пиксела из доп. буфера текстовой палитры
                 //достаточно быстро , но тратим 2к на буфер
@@ -179,13 +180,13 @@ void __not_in_flash_func(dma_handler_VGA)() {
                     *vbuf_OUT16++ = fast_color[3];
                     *vbuf_OUT16++ = fast_color[3];
                 } else {
-                        *vbuf_OUT16++ = fast_color[d & 3];
-                        d >>= 2;
-                        *vbuf_OUT16++ = fast_color[d & 3];
-                        d >>= 2;
-                        *vbuf_OUT16++ = fast_color[d & 3];
-                        d >>= 2;
-                        *vbuf_OUT16++ = fast_color[d & 3];
+                    *vbuf_OUT16++ = fast_color[d & 3];
+                    d >>= 2;
+                    *vbuf_OUT16++ = fast_color[d & 3];
+                    d >>= 2;
+                    *vbuf_OUT16++ = fast_color[d & 3];
+                    d >>= 2;
+                    *vbuf_OUT16++ = fast_color[d & 3];
                 }
                 //  continue;
 
@@ -366,7 +367,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
 void setVGAmode(enum VGA_mode_t modeVGA) {
     if (modeVGA == VGA640x480_text_40_30) {
         text_buf_width = 40;
-} else {
+    } else {
         text_buf_width = 80;
     }
     if (_SM_VGA < 0) return;//если  VGA не инициализирована -

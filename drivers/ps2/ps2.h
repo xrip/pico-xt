@@ -7,7 +7,7 @@
 
 #define KBD_CLOCK_PIN    (0)
 #define KBD_DATA_PIN    (1)
-#define KBD_BUFFER_SIZE 128
+#define KBD_BUFFER_SIZE 16
 
 #define PS2_LED_SCROLL_LOCK 1
 #define PS2_LED_NUM_LOCK    2

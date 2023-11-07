@@ -112,7 +112,7 @@ void write86(uint32_t addr32, uint8_t value) {
 }
 
 
- static inline void writew86(uint32_t addr32, uint16_t value) {
+static inline void writew86(uint32_t addr32, uint16_t value) {
     write86(addr32, (uint8_t) value);
     write86(addr32 + 1, (uint8_t) (value >> 8));
 }
@@ -464,77 +464,77 @@ void flag_sub16(uint16_t v1, uint16_t v2) {
     }
 }
 
- static inline void op_adc8() {
+static inline void op_adc8() {
     res8 = oper1b + oper2b + cf;
     flag_adc8(oper1b, oper2b, cf);
 }
 
- static inline void op_adc16() {
+static inline void op_adc16() {
     res16 = oper1 + oper2 + cf;
     flag_adc16(oper1, oper2, cf);
 }
 
- static inline void op_add8() {
+static inline void op_add8() {
     res8 = oper1b + oper2b;
     flag_add8(oper1b, oper2b);
 }
 
- static inline void op_add16() {
+static inline void op_add16() {
     res16 = oper1 + oper2;
     flag_add16(oper1, oper2);
 }
 
- static inline void op_and8() {
+static inline void op_and8() {
     res8 = oper1b & oper2b;
     flag_log8(res8);
 }
 
- static inline void op_and16() {
+static inline void op_and16() {
     res16 = oper1 & oper2;
     flag_log16(res16);
 }
 
- static inline void op_or8() {
+static inline void op_or8() {
     res8 = oper1b | oper2b;
     flag_log8(res8);
 }
 
- static inline void op_or16() {
+static inline void op_or16() {
     res16 = oper1 | oper2;
     flag_log16(res16);
 }
 
- static inline void op_xor8() {
+static inline void op_xor8() {
     res8 = oper1b ^ oper2b;
     flag_log8(res8);
 }
 
- static inline void op_xor16() {
+static inline void op_xor16() {
     res16 = oper1 ^ oper2;
     flag_log16(res16);
 }
 
- static inline void op_sub8() {
+static inline void op_sub8() {
     res8 = oper1b - oper2b;
     flag_sub8(oper1b, oper2b);
 }
 
- static inline void op_sub16() {
+static inline void op_sub16() {
     res16 = oper1 - oper2;
     flag_sub16(oper1, oper2);
 }
 
- static inline void op_sbb8() {
+static inline void op_sbb8() {
     res8 = oper1b - (oper2b + cf);
     flag_sbb8(oper1b, oper2b, cf);
 }
 
- static inline void op_sbb16() {
+static inline void op_sbb16() {
     res16 = oper1 - (oper2 + cf);
     flag_sbb16(oper1, oper2, cf);
 }
 
- static inline void getea(uint8_t rmval) {
+static inline void getea(uint8_t rmval) {
     uint32_t tempea;
 
     tempea = 0;
@@ -615,6 +615,7 @@ static inline uint16_t pop() {
     CPU_SP = CPU_SP + 2;
     return tempval;
 }
+
 #if !PICO_ON_DEVICE
 uint32_t ClockTick(uint32_t interval, void *name) {
     doirq(0);
