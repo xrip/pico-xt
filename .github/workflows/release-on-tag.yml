@@ -75,7 +75,7 @@ jobs:
             run: |
                  export PICO_SDK_PATH=$HOME/pico-sdk && \
                  mkdir build && cd build && \
-                 cmake -DCMAKE_BUILD_TYPE=Release .. && \
+                 cmake -DCMAKE_BUILD_TYPE=MinSizeRel .. && \
                  make
 
           - name: Create release

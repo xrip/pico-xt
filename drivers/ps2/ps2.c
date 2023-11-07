@@ -189,7 +189,7 @@ void ps2_toggle_led(uint8_t led) {
     led_status ^= led;
 
     ps2_send(0xED);
-    busy_wait_ms(18);
+    busy_wait_ms(50);
     ps2_send(led_status);
 }
 

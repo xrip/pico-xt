@@ -112,7 +112,7 @@ void write86(uint32_t addr32, uint8_t value) {
 }
 
 
-__inline void writew86(uint32_t addr32, uint16_t value) {
+ static inline void writew86(uint32_t addr32, uint16_t value) {
     write86(addr32, (uint8_t) value);
     write86(addr32 + 1, (uint8_t) (value >> 8));
 }
@@ -464,72 +464,72 @@ void flag_sub16(uint16_t v1, uint16_t v2) {
     }
 }
 
-__inline void op_adc8() {
+ static inline void op_adc8() {
     res8 = oper1b + oper2b + cf;
     flag_adc8(oper1b, oper2b, cf);
 }
 
-__inline void op_adc16() {
+ static inline void op_adc16() {
     res16 = oper1 + oper2 + cf;
     flag_adc16(oper1, oper2, cf);
 }
 
-__inline void op_add8() {
+ static inline void op_add8() {
     res8 = oper1b + oper2b;
     flag_add8(oper1b, oper2b);
 }
 
-__inline void op_add16() {
+ static inline void op_add16() {
     res16 = oper1 + oper2;
     flag_add16(oper1, oper2);
 }
 
-__inline void op_and8() {
+ static inline void op_and8() {
     res8 = oper1b & oper2b;
     flag_log8(res8);
 }
 
-__inline void op_and16() {
+ static inline void op_and16() {
     res16 = oper1 & oper2;
     flag_log16(res16);
 }
 
-__inline void op_or8() {
+ static inline void op_or8() {
     res8 = oper1b | oper2b;
     flag_log8(res8);
 }
 
-__inline void op_or16() {
+ static inline void op_or16() {
     res16 = oper1 | oper2;
     flag_log16(res16);
 }
 
-__inline void op_xor8() {
+ static inline void op_xor8() {
     res8 = oper1b ^ oper2b;
     flag_log8(res8);
 }
 
-__inline void op_xor16() {
+ static inline void op_xor16() {
     res16 = oper1 ^ oper2;
     flag_log16(res16);
 }
 
-__inline void op_sub8() {
+ static inline void op_sub8() {
     res8 = oper1b - oper2b;
     flag_sub8(oper1b, oper2b);
 }
 
-__inline void op_sub16() {
+ static inline void op_sub16() {
     res16 = oper1 - oper2;
     flag_sub16(oper1, oper2);
 }
 
-__inline void op_sbb8() {
+ static inline void op_sbb8() {
     res8 = oper1b - (oper2b + cf);
     flag_sbb8(oper1b, oper2b, cf);
 }
 
-__inline void op_sbb16() {
+ static inline void op_sbb16() {
     res16 = oper1 - (oper2 + cf);
     flag_sbb16(oper1, oper2, cf);
 }
@@ -602,12 +602,12 @@ __inline void op_sbb16() {
     ea = (tempea & 0xFFFF) + (useseg << 4);
 }
 
-__inline void push(uint16_t pushval) {
+static inline void push(uint16_t pushval) {
     CPU_SP = CPU_SP - 2;
     putmem16 (CPU_SS, CPU_SP, pushval);
 }
 
-__inline uint16_t pop() {
+static inline uint16_t pop() {
 
     uint16_t tempval;
 
@@ -860,9 +860,13 @@ void intcall86(uint8_t intnum) {
                      ip = 0x0000;
                  }
                  return;*/
+#if PICO_ON_DEVICE
         case 0x19:
+            insertdisk(0, sizeof FD0, (char *) FD0, NULL);
+            insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             ps2_send(0xFF);
             break;
+#endif
         case 0x13:
         case 0xFD:
             diskhandler();

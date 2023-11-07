@@ -155,11 +155,11 @@ int main() {
     }
 #endif
     //if(  insertdisk(1, 0, NULL, "\\XT\\fdd0.img") )
-    insertdisk(0, sizeof FD0, (char *) FD0, NULL);
+//    insertdisk(0, sizeof FD0, (char *) FD0, NULL);
     //insertdisk(0, 0, NULL, "360.img");
 //    insertdisk(0, 0, NULL, "\\XT\\fdd1.img");
 #if PICO_ON_DEVICE
-    insertdisk(128, 0, NULL, "\\XT\\hdd.img");
+//    insertdisk(128, 0, NULL, "\\XT\\hdd.img");
 #else
     insertdisk(128, 0, NULL, "hdd.img");
 #endif
