@@ -1,7 +1,10 @@
 /* ports.c - handles port I/O for Fake86 CPU core. it's ugly, will fix up later. */
 #include "emulator.h"
+
 #if PICO_ON_DEVICE
+
 #include "ps2.h"
+
 #endif
 uint16_t portram[256];
 uint8_t crt_controller_idx, crt_controller[256];
@@ -81,7 +84,7 @@ void portout(uint16_t portnum, uint16_t value) {
             uint32_t intensity = ((value >> 4) & 1) << 3;
             uint32_t curpixel;
             for (int i = 0; i < 16; i++) {
-                curpixel = i*2 + usepal + intensity;
+                curpixel = i * 2 + usepal + intensity;
                 setVGA_color_palette(i, cga_palette[curpixel]);
             }
             setVGA_color_palette(0, cga_palette[0]);

@@ -18,47 +18,44 @@ volatile int16_t ps2_error = PS2_ERR_NONE;
 
 void ps2poll();
 
-static void clock_lo(void)
-{
+static void clock_lo(void) {
     gpio_set_dir(KBD_CLOCK_PIN, GPIO_OUT);
     gpio_put(KBD_CLOCK_PIN, 0);
 }
-static inline void clock_hi(void)
-{
+
+static inline void clock_hi(void) {
     gpio_set_dir(KBD_CLOCK_PIN, GPIO_OUT);
     gpio_put(KBD_CLOCK_PIN, 1);
 }
-static bool clock_in(void)
-{
+
+static bool clock_in(void) {
     gpio_set_dir(KBD_CLOCK_PIN, GPIO_IN);
     asm("nop");
     return gpio_get(KBD_CLOCK_PIN);
 }
 
-static void data_lo(void)
-{
+static void data_lo(void) {
     gpio_set_dir(KBD_DATA_PIN, GPIO_OUT);
     gpio_put(KBD_DATA_PIN, 0);
 }
-static void data_hi(void)
-{
+
+static void data_hi(void) {
     gpio_set_dir(KBD_DATA_PIN, GPIO_OUT);
     gpio_put(KBD_DATA_PIN, 1);
 }
-static inline bool data_in(void)
-{
+
+static inline bool data_in(void) {
     gpio_set_dir(KBD_DATA_PIN, GPIO_IN);
     asm("nop");
     return gpio_get(KBD_DATA_PIN);
 }
 
-static void inhibit(void)
-{
+static void inhibit(void) {
     clock_lo();
     data_hi();
 }
-static void idle(void)
-{
+
+static void idle(void) {
     clock_hi();
     data_hi();
 }
@@ -66,24 +63,39 @@ static void idle(void)
 #define wait_us(us)     busy_wait_us_32(us)
 #define wait_ms(ms)     busy_wait_ms(ms)
 
-static inline uint16_t wait_clock_lo(uint16_t us)
-{
-    while (clock_in()  && us) { asm(""); wait_us(1); us--; }
+static inline uint16_t wait_clock_lo(uint16_t us) {
+    while (clock_in() && us) {
+        asm("");
+        wait_us(1);
+        us--;
+    }
     return us;
 }
-static inline uint16_t wait_clock_hi(uint16_t us)
-{
-    while (!clock_in() && us) { asm(""); wait_us(1); us--; }
+
+static inline uint16_t wait_clock_hi(uint16_t us) {
+    while (!clock_in() && us) {
+        asm("");
+        wait_us(1);
+        us--;
+    }
     return us;
 }
-static inline uint16_t wait_data_lo(uint16_t us)
-{
-    while (data_in() && us)  { asm(""); wait_us(1); us--; }
+
+static inline uint16_t wait_data_lo(uint16_t us) {
+    while (data_in() && us) {
+        asm("");
+        wait_us(1);
+        us--;
+    }
     return us;
 }
-static inline uint16_t wait_data_hi(uint16_t us)
-{
-    while (!data_in() && us)  { asm(""); wait_us(1); us--; }
+
+static inline uint16_t wait_data_hi(uint16_t us) {
+    while (!data_in() && us) {
+        asm("");
+        wait_us(1);
+        us--;
+    }
     return us;
 }
 
@@ -94,19 +106,17 @@ static inline uint16_t wait_data_hi(uint16_t us)
     } \
 } while (0)
 
-static void int_on(void)
-{
+static void int_on(void) {
     gpio_set_dir(KBD_CLOCK_PIN, GPIO_IN);
     gpio_set_dir(KBD_DATA_PIN, GPIO_IN);
     gpio_set_irq_enabled(KBD_CLOCK_PIN, GPIO_IRQ_EDGE_FALL, true);
 }
-static void int_off(void)
-{
+
+static void int_off(void) {
     gpio_set_irq_enabled(KBD_CLOCK_PIN, GPIO_IRQ_EDGE_FALL, false);
 }
 
-static int16_t ps2_recv_response(void)
-{
+static int16_t ps2_recv_response(void) {
     // Command may take 25ms/20ms at most([5]p.46, [3]p.21)
     uint8_t retry = 25;
     int16_t c = -1;
@@ -116,12 +126,11 @@ static int16_t ps2_recv_response(void)
     return c;
 }
 
-int16_t ps2_send(uint8_t data)
-{
+int16_t ps2_send(uint8_t data) {
     bool parity = true;
     ps2_error = PS2_ERR_NONE;
 
-    printf("KBD set s%02X \r\n", data);
+    //printf("KBD set s%02X \r\n", data);
 
     int_off();
 
@@ -138,14 +147,14 @@ int16_t ps2_send(uint8_t data)
     /* Data bit[2-9] */
     for (uint8_t i = 0; i < 8; i++) {
         wait_us(15);
-        if (data&(1<<i)) {
+        if (data & (1 << i)) {
             parity = !parity;
             data_hi();
         } else {
             data_lo();
         }
-        WAIT(clock_hi, 100, (int16_t) (2 + i*0x10));
-        WAIT(clock_lo, 100, (int16_t) (3 + i*0x10));
+        WAIT(clock_hi, 100, (int16_t) (2 + i * 0x10));
+        WAIT(clock_lo, 100, (int16_t) (3 + i * 0x10));
     }
 
     /* Parity bit */
@@ -169,20 +178,19 @@ int16_t ps2_send(uint8_t data)
     int_on();
     return ps2_recv_response();
     ERROR:
-    printf("KBD error %02X \r\n", ps2_error); ps2_error = 0;
+    printf("KBD error %02X \r\n", ps2_error);
+    ps2_error = 0;
     idle();
     int_on();
     return -0xf;
 }
 
-void ps2_toggle_led(uint8_t led)
-{
+void ps2_toggle_led(uint8_t led) {
     led_status ^= led;
 
     ps2_send(0xED);
-    busy_wait_ms(5);
+    busy_wait_ms(18);
     ps2_send(led_status);
-//    }
 }
 
 uint8_t ps2_to_xt_1(uint32_t val) {
@@ -326,12 +334,13 @@ void Init_kbd(void) {
 }
 
 extern uint16_t portram[256];
+
 extern void doirq(uint8_t irqnum);
 
 void ps2poll() {
     uint32_t ps2scancode;
     ps2scancode = ps2getcode();
-    if (!ps2scancode){
+    if (!ps2scancode) {
         return;
     }
     portram[0x60] = ps2scancode;
