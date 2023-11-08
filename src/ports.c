@@ -56,40 +56,56 @@ void portout(uint16_t portnum, uint16_t value) {
                 //setcursor(((uint16_t)crt_controller[0x0E] << 8) | crt_controller[0x0F]);
             }
             break;
-            // CGA mode  switch
-        case 0x3D8:
+        case 0x3D8: // CGA Mode control register
             // https://www.seasip.info/VintagePC/cga.html
 //            printf("wr pr3D8 %x\r\n", value);
             port3D8 = value;
+
 /*
+ * Bit 0: High resolution
+ * This bit should only be set in the 80-column text mode.
+ * It changes various timing parameters (to display 160 bytes per row instead of 80); the CRTC will need to be reprogrammed accordingly.
+ */
+            if ((videomode == 2 || videomode == 3) && value == 1) {
+/*
+ * This is really the 80x25 text mode. The CRTC is reprogrammed to decrease character height to two pixels,
+ * giving an 80x100 text mode.
+ * Then all character cells are filled with character 0xDE, so that the left-hand side is drawn using
+ * the background colour and the right-hand side with the foreground colour.
+ * The attribute bytes are then used to create the screen graphics.
+ * The high 4 bits of a byte give the colour of the left-hand "pixel",
+ * and the low 4 bits give the colour of the right-hand "pixel".
+ */
+printf("160x100 CGA %i\r\n", value);
+                videomode = 76;
+            }
+            /*
  * Bit 2: Black and white
 If the card is displaying on a composite monitor, this disables the NTSC color(sic) burst, giving black and white output. On an RGB monitor it has no effect except in the 320x200 graphics mode, when it selects a third palette (black/red/cyan/white). This palette is not documented, and not all of IBM's later CGA-compatible cards support it.
 
 If this bit is set to zero in 640x200 mode, you get colour composite mode.
  */
-            if ((value >> 2) & 1)
-                switch (videomode) {
+            if (videomode == 5 && (value >> 2) & 1) {
 #if PICO_ON_DEVICE
-                case 5:
-                    // (black/red/cyan/white)
-                    setVGA_color_palette(0, cga_palette[0]);
-                    setVGA_color_palette(1, cga_palette[4]);
-                    setVGA_color_palette(2, cga_palette[3]);
-                    setVGA_color_palette(3, cga_palette[15]);
-                    break;
+                // (black/red/cyan/white)
+                setVGA_color_palette(0, cga_palette[0]);
+                setVGA_color_palette(1, cga_palette[4]);
+                setVGA_color_palette(2, cga_palette[3]);
+                setVGA_color_palette(3, cga_palette[15]);
 #endif
-                    case 6:
-#if PICO_ON_DEVICE
-                        setVGAmode(CGA_160x200x16);
-             for (int i = 0; i < 16; i++) {
-                setVGA_color_palette(i, cga_composite_palette[i]);
-            }
-#else
-                        videomode = 66;
-#endif
-                        break;
 
-                }
+            }
+            if (videomode == 6 && value == 0b1010) {
+#if PICO_ON_DEVICE
+                setVGAmode(CGA_160x200x16);
+     for (int i = 0; i < 16; i++) {
+        setVGA_color_palette(i, cga_composite_palette[i]);
+    }
+#else
+                videomode = 66;
+#endif
+                break;
+            }
 
 
 /*            if (value == 0x28) {
