@@ -282,10 +282,24 @@ int main() {
                     }
                 }
             }
+        } else if (mode == 66 ) {
+            uint32_t *pix = pixels;
+            for (int y = 0; y < 200; y++) {
+                for (int x = 0; x < 160; x++) {
+                    uint32_t charx = x;
+                    uint32_t chary = y;
+                    uint32_t vidptr = /*0xB8000 + */((chary >> 1) * 80) + ((chary & 1) * 8192) + (charx >> 1);
+                    uint32_t curpixel = VRAM[vidptr];
+                    //*vbuf_OUT++ = pal[(*vbuf8) & 0xf];
+                    //*vbuf_OUT++ = pal[(*vbuf8 >> 4) & 0xf];
+                    *pix++ = cga_palette[(curpixel >> 4) & 0xf];
+                    *pix++ = cga_palette[curpixel & 0xf];
+                }
+            }
         }
         SDL_UpdateWindowSurface(window);
 #else
-        exec86(200);
+        exec86(2000);
 #endif
     }
     return 0;

@@ -12,7 +12,7 @@
 #include "cga.h"
 #include "rom.h"
 #include "startup_disk.h"
-#include "fd1.h"
+#include "fdd.h"
 //#define CPU_8086
 #if PICO_ON_DEVICE
 #include <hardware/pwm.h>
@@ -22,7 +22,7 @@
 #endif
 
 #define VRAM_SIZE 16
-#define RAM_SIZE (64*3+26)
+#define RAM_SIZE (64*3+24)
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern uint8_t RAM[RAM_SIZE << 10];
 

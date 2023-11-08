@@ -4,6 +4,7 @@
 #if PICO_ON_DEVICE
 
 #include "ps2.h"
+#include "vga.h"
 
 #endif
 uint16_t portram[256];
@@ -27,9 +28,9 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
 
 #if PICO_ON_DEVICE
-            case 0x64: // Passthrought all
-                portram[portnum] = value;
-                ps2_send(value);
+        case 0x64: // Passthrought all
+            portram[portnum] = value;
+            ps2_send(value);
 #endif
         case 0x61: // 061H  PPI port B.
             portram[portnum] = value;
@@ -52,7 +53,7 @@ void portout(uint16_t portnum, uint16_t value) {
             crt_controller_idx = value;
             break;
         case 0x3D5:
-            printf("port3d5 0x%x\r\n", value);
+            //printf("port3d5 0x%x\r\n", value);
             crt_controller[crt_controller_idx] = value;
             if ((crt_controller_idx == 0x0E) || (crt_controller_idx == 0x0F)) {
                 //setcursor(((uint16_t)crt_controller[0x0E] << 8) | crt_controller[0x0F]);
@@ -62,7 +63,7 @@ void portout(uint16_t portnum, uint16_t value) {
             // https://www.seasip.info/VintagePC/cga.html
             port3D8 = value;
 
-            printf("port3D8 0x%x\r\n", value);
+            //printf("port3D8 0x%x\r\n", value);
             // third cga palette (black/red/cyan/white)
             if (videomode == 5 && (port3D8 >> 2) & 1) {
 #if PICO_ON_DEVICE
@@ -87,10 +88,11 @@ void portout(uint16_t portnum, uint16_t value) {
             if ((videomode == 6 || videomode == 8) && (port3D8 & 0x0f) == 0b1010) {
                 printf("160x200x16");
 #if PICO_ON_DEVICE
-                setVGAmode(CGA_160x200x16);
-                 for (int i = 0; i < 16; i++) {
+                for (int i = 0; i < 16; i++) {
                     setVGA_color_palette(i, cga_composite_palette[i]);
                 }
+                setVGAmode(CGA_160x200x16);
+
 #else
                 videomode = 66;
 #endif
@@ -99,6 +101,9 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3D9:
             port3D9 = value;
 #if PICO_ON_DEVICE
+            if ((videomode == 6 || videomode == 8) && (port3D8 & 0x0f) == 0b1010) {
+                break;
+            }
             uint32_t usepal = (value >> 5) & 1;
             uint32_t intensity = ((value >> 4) & 1) << 3;
             uint32_t curpixel;

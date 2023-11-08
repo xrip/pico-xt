@@ -24,7 +24,6 @@ const uint32_t cga_palette[16] = { //R, G, B
          0xFFFFFF   //white
 };
 
-
 const uint32_t cga_composite_palette[16] = { //R, G, B
         0x000000 , // black
         0x006300 , // d.green

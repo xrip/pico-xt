@@ -686,9 +686,6 @@ void writerm8(uint8_t rmval, uint8_t value) {
 }
 
 void intcall86(uint8_t intnum) {
-    static uint16_t lastint10ax;
-    uint16_t oldregax;
-
     switch (intnum) {
         case 0x10:
             //printf("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
@@ -1652,15 +1649,6 @@ void __inline exec86(uint32_t execloops) {
     //counterticks = (uint64_t) ( (double) timerfreq / (double) 65536.0);
 
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
-#if PICO_ON_DEVICE
-        if (0 && kbloop) {
-            uint32_t msnow;
-            msnow = time_us_64();
-            while ((time_us_64() - msnow) < 20000) {}
-            kbloop = 0;
-            ps2poll();
-        }
-#endif
         if (trap_toggle) {
             intcall86(1);
         }
