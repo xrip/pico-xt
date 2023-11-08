@@ -12,6 +12,7 @@
 #include "cga.h"
 #include "rom.h"
 #include "startup_disk.h"
+#include "fd1.h"
 //#define CPU_8086
 #if PICO_ON_DEVICE
 #include <hardware/pwm.h>

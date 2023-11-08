@@ -711,7 +711,7 @@ void intcall86(uint8_t intnum) {
                         memset(VRAM, 0x0, sizeof VRAM);
                     }
 #endif
-//                    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
+                    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
 #if PICO_ON_DEVICE
                     switch (videomode) {
                         case 0:
@@ -864,6 +864,7 @@ void intcall86(uint8_t intnum) {
 
         case 0x19:
             insertdisk(0, sizeof FD0, (char *) FD0, NULL);
+            insertdisk(1, sizeof FD1, (char *) FD1, NULL);
 #if PICO_ON_DEVICE
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             ps2_send(0xFF);

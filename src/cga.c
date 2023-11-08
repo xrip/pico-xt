@@ -23,3 +23,23 @@ const uint32_t cga_palette[16] = { //R, G, B
          0xFFFF55 , //yellow
          0xFFFFFF   //white
 };
+
+
+const uint32_t cga_composite_palette[16] = { //R, G, B
+        0x000000 , // black
+        0x006300 , // d.green
+        0x0042E2 , // d.blue
+        0x009FFD , // m.blue
+        0xA6005E , // red
+        0x77737A , // gray
+        0xD14DFF , // purple
+        0x99ACFF , // l.blue
+        0x4D4000 , // brown
+        0x00B900 , // l.green
+        0x77737A , // gray 2
+        0x00EB91 , // aqua
+        0xFF4400 , // orange
+        0xDFC400 , // yellow
+        0xFF85F0 , // pink
+        0xFFFCFF   //white
+};
