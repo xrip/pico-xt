@@ -82,7 +82,7 @@ static int RendererThread(void *ptr) {
     while (runing) {
         exec86(2000);
 #if !PICO_ON_DEVICE
-        //SDL_Delay(3);
+        //SDL_Delay(1);
 #endif
     }
     return 0;
@@ -242,7 +242,7 @@ int main() {
                     *pix++ = cga_palette[curpixel * 15];
                 }
             }
-        } else if (mode == 66) {
+        } else if (mode == 66 || mode == 8) {
             uint32_t *pix = pixels;
             for (int y = 0; y < 200; y++) {
                 for (int x = 0; x < 160; x++) {
