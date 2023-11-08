@@ -280,8 +280,8 @@ void __not_in_flash_func(dma_handler_VGA)() {
         vbuf_OUT += g_buf_shx * 2 / div_factor;
 
 
-    int N_loop = MIN((visible_line_size - ((g_buf_shx > 0) ? (g_buf_shx) : 0)), max_loop);
-    if (N_loop < 0) return;
+    int x_pixels = MIN((visible_line_size - ((g_buf_shx > 0) ? (g_buf_shx) : 0)), max_loop);
+    if (x_pixels < 0) return;
 
     int p_i = ((line & is_flash_line) + (frame_i & is_flash_frame)) & 1;
 
@@ -293,7 +293,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
         case CGA_640x200x2:
             vbuf_OUT8 = (uint8_t *) vbuf_OUT;
             //1bit buf
-            for (int i = N_loop / 4; i--;) {
+            for (int i = x_pixels / 4; i--;) {
 
                 *vbuf_OUT8++ = pal[(*vbuf8 >> 7) & 1];
                 *vbuf_OUT8++ = pal[(*vbuf8 >> 6) & 1];
@@ -308,7 +308,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
             break;
         case CGA_320x200x4:
             //2bit buf
-            for (int i = N_loop / 4; i--;) {
+            for (int i = x_pixels / 4; i--;) {
                 *vbuf_OUT++ = pal[(*vbuf8 >> 6) & 3];
                 *vbuf_OUT++ = pal[(*vbuf8 >> 4) & 3];
                 *vbuf_OUT++ = pal[(*vbuf8 >> 2) & 3];
@@ -318,9 +318,15 @@ void __not_in_flash_func(dma_handler_VGA)() {
             break;
         case CGA_160x200x16:
             //4bit buf
-            for (int i = N_loop / 2; i--;) {
+            for (int i = x_pixels / 2; i--;) {
                 //поменять местами, если надо дугое чередование
                 *vbuf_OUT++ = pal[(*vbuf8) & 0xf];
+                *vbuf_OUT++ = pal[(*vbuf8) & 0xf];
+                *vbuf_OUT++ = pal[(*vbuf8) & 0xf];
+                *vbuf_OUT++ = pal[(*vbuf8) & 0xf];
+                *vbuf_OUT++ = pal[(*vbuf8 >> 4) & 0xf];
+                *vbuf_OUT++ = pal[(*vbuf8 >> 4) & 0xf];
+                *vbuf_OUT++ = pal[(*vbuf8 >> 4) & 0xf];
                 *vbuf_OUT++ = pal[(*vbuf8 >> 4) & 0xf];
 
                 vbuf8++;
@@ -329,13 +335,13 @@ void __not_in_flash_func(dma_handler_VGA)() {
 
         case VGA640x480div2:
             //8bit buf
-            // for(int i=N_loop;i--;)
+            // for(int i=x_pixels;i--;)
             //     {
             //             *vbuf_OUT++=pal[*vbuf8++];
 
             //     }   
             //4bit buf 
-            for (int i = N_loop / 2; i--;) {
+            for (int i = x_pixels / 2; i--;) {
                 //поменять местами, если надо дугое чередование
                 *vbuf_OUT++ = pal[(*vbuf8) & 0xf];
                 *vbuf_OUT++ = pal[(*vbuf8 >> 4) & 0xf];
@@ -345,7 +351,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
             break;
         case VGA640x480div3:
             vbuf_OUT8 = (uint8_t *) vbuf_OUT;
-            for (int i = N_loop; i--;) {
+            for (int i = x_pixels; i--;) {
                 *vbuf_OUT8++ = pal[*vbuf8];
                 *vbuf_OUT8++ = pal[*vbuf8] >> 8;
                 *vbuf_OUT8++ = pal[*vbuf8++];
