@@ -82,7 +82,7 @@ static int RendererThread(void *ptr) {
     while (runing) {
         exec86(2000);
 #if !PICO_ON_DEVICE
-        SDL_Delay(3);
+        //SDL_Delay(3);
 #endif
     }
     return 0;
