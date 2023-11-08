@@ -243,6 +243,7 @@ int main() {
                 }
             }
         } else if (mode == 66 || mode == 8) {
+
             uint32_t *pix = pixels;
             for (int y = 0; y < 200; y++) {
                 for (int x = 0; x < 160; x++) {

@@ -48,6 +48,7 @@ void portout(uint16_t portnum, uint16_t value) {
             port201 = value;
             break;*/
         case 0x3D4:
+            // http://www.techhelpmanual.com/901-color_graphics_adapter_i_o_ports.html
             crt_controller_idx = value;
             break;
         case 0x3D5:
@@ -60,6 +61,7 @@ void portout(uint16_t portnum, uint16_t value) {
             // https://www.seasip.info/VintagePC/cga.html
             port3D8 = value;
 
+            printf("port3D8 0x%x\r\n", value);
             // third cga palette (black/red/cyan/white)
             if (videomode == 5 && (port3D8 >> 2) & 1) {
 #if PICO_ON_DEVICE
@@ -72,6 +74,7 @@ void portout(uint16_t portnum, uint16_t value) {
 
             // 160x100x16
             if ((videomode == 2 || videomode == 3) && (port3D8 & 0x0f) == 0b0001) {
+                printf("160x100x16");
 #if PICO_ON_DEVICE
                 setVGAmode(CGA_160x100x16);
 #else
@@ -80,7 +83,8 @@ void portout(uint16_t portnum, uint16_t value) {
             }
 
             // 160x200x16
-            if (videomode == 6 && (port3D8 & 0x0f) == 0b1010) {
+            if ((videomode == 6 || videomode == 8) && (port3D8 & 0x0f) == 0b1010) {
+                printf("160x200x16");
 #if PICO_ON_DEVICE
                 setVGAmode(CGA_160x200x16);
                  for (int i = 0; i < 16; i++) {
