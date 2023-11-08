@@ -65,6 +65,9 @@ void portout(uint16_t portnum, uint16_t value) {
             if (videomode == 6 && (value >> 2) & 1) {
 #if PICO_ON_DEVICE
                 setVGAmode(CGA_160x200x16);
+             for (int i = 0; i < 16; i++) {
+                setVGA_color_palette(i, cga_composite_palette[i]);
+            }
 #else
                 videomode = 66;
 #endif
