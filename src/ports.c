@@ -52,6 +52,7 @@ void portout(uint16_t portnum, uint16_t value) {
             crt_controller_idx = value;
             break;
         case 0x3D5:
+            printf("port3d5 0x%x\r\n", value);
             crt_controller[crt_controller_idx] = value;
             if ((crt_controller_idx == 0x0E) || (crt_controller_idx == 0x0F)) {
                 //setcursor(((uint16_t)crt_controller[0x0E] << 8) | crt_controller[0x0F]);
