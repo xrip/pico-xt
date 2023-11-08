@@ -27,9 +27,9 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
 
 #if PICO_ON_DEVICE
-        case 0x64: // Passthrought all
-            portram[portnum] = value;
-            ps2_send(value);
+            case 0x64: // Passthrought all
+                portram[portnum] = value;
+                ps2_send(value);
 #endif
         case 0x61: // 061H  PPI port B.
             portram[portnum] = value;
@@ -61,17 +61,37 @@ void portout(uint16_t portnum, uint16_t value) {
             // https://www.seasip.info/VintagePC/cga.html
 //            printf("wr pr3D8 %x\r\n", value);
             port3D8 = value;
+/*
+ * Bit 2: Black and white
+If the card is displaying on a composite monitor, this disables the NTSC color(sic) burst, giving black and white output. On an RGB monitor it has no effect except in the 320x200 graphics mode, when it selects a third palette (black/red/cyan/white). This palette is not documented, and not all of IBM's later CGA-compatible cards support it.
 
-            if (videomode == 6 && (value >> 2) & 1) {
+If this bit is set to zero in 640x200 mode, you get colour composite mode.
+ */
+            if ((value >> 2) & 1)
+                switch (videomode) {
 #if PICO_ON_DEVICE
-                setVGAmode(CGA_160x200x16);
+                case 5:
+                    // (black/red/cyan/white)
+                    setVGA_color_palette(0, cga_palette[0]);
+                    setVGA_color_palette(1, cga_palette[4]);
+                    setVGA_color_palette(2, cga_palette[3]);
+                    setVGA_color_palette(3, cga_palette[15]);
+                    break;
+#endif
+                    case 6:
+#if PICO_ON_DEVICE
+                        setVGAmode(CGA_160x200x16);
              for (int i = 0; i < 16; i++) {
                 setVGA_color_palette(i, cga_composite_palette[i]);
             }
 #else
-                videomode = 66;
+                        videomode = 66;
 #endif
-            }
+                        break;
+
+                }
+
+
 /*            if (value == 0x28) {
                 setVGAmode(VGA640x480_text_40_30);
             }*/
