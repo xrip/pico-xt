@@ -58,8 +58,17 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
             // CGA mode  switch
         case 0x3D8:
+            // https://www.seasip.info/VintagePC/cga.html
 //            printf("wr pr3D8 %x\r\n", value);
             port3D8 = value;
+
+            if (videomode == 6 && (value >> 2) & 1) {
+#if PICO_ON_DEVICE
+                setVGAmode(CGA_160x200x16);
+#else
+                videomode = 66;
+#endif
+            }
 /*            if (value == 0x28) {
                 setVGAmode(VGA640x480_text_40_30);
             }*/
@@ -74,9 +83,6 @@ void portout(uint16_t portnum, uint16_t value) {
                 default: videomode = 3; break;
             }*/
             break;
-        case 0x3DA:
-            break;
-
         case 0x3D9:
             port3D9 = value;
 #if PICO_ON_DEVICE
@@ -89,7 +95,8 @@ void portout(uint16_t portnum, uint16_t value) {
             }
             setVGA_color_palette(0, cga_palette[0]);
 #endif
-
+            break;
+        case 0x3DA:
             break;
         default:
             if (portnum < 256) portram[portnum] = value;

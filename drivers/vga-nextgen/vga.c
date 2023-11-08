@@ -125,7 +125,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
     switch (mode_VGA) {
         case CGA_640x200x2:
         case CGA_320x200x4:
-        case EGA_320x200x16:
+        case CGA_160x200x16:
         case VGA640x480div2:
             l_inx = line_active / 2;
             if (line_active % 2) return;
@@ -316,7 +316,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
                 vbuf8++;
             }
             break;
-        case EGA_320x200x16:
+        case CGA_160x200x16:
             //4bit buf
             for (int i = N_loop / 2; i--;) {
                 //поменять местами, если надо дугое чередование
@@ -424,7 +424,7 @@ void setVGAmode(enum VGA_mode_t modeVGA) {
 
         case CGA_640x200x2:
         case CGA_320x200x4:
-        case EGA_320x200x16:
+        case CGA_160x200x16:
         case VGA640x480div3:
         case VGA640x480div2:
 
