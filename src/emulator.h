@@ -22,7 +22,7 @@
 #endif
 
 #define VRAM_SIZE 16
-#define RAM_SIZE (64*3+24)
+#define RAM_SIZE (64*3+26)
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern uint8_t RAM[RAM_SIZE << 10];
 

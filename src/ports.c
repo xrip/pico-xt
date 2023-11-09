@@ -58,6 +58,7 @@ void portout(uint16_t portnum, uint16_t value) {
             if ((crt_controller_idx == 0x0E) || (crt_controller_idx == 0x0F)) {
                 //setcursor(((uint16_t)crt_controller[0x0E] << 8) | crt_controller[0x0F]);
             }
+
             break;
         case 0x3D8: // CGA Mode control register
             // https://www.seasip.info/VintagePC/cga.html
@@ -85,14 +86,13 @@ void portout(uint16_t portnum, uint16_t value) {
             }
 
             // 160x200x16
-            if ((videomode == 6 || videomode == 8) && (port3D8 & 0x0f) == 0b1010) {
+            if (videomode == 6 && (port3D8 & 0x0f) == 0b1010) {
                 printf("160x200x16");
 #if PICO_ON_DEVICE
-                for (int i = 0; i < 16; i++) {
-                    setVGA_color_palette(i, cga_composite_palette[i]);
-                }
-                setVGAmode(CGA_160x200x16);
-
+                    for (int i = 0; i < 16; i++) {
+                        setVGA_color_palette(i, cga_composite_palette[0][i]);
+                    }
+                    setVGAmode(CGA_160x200x16);
 #else
                 videomode = 66;
 #endif
@@ -104,14 +104,13 @@ void portout(uint16_t portnum, uint16_t value) {
             if ((videomode == 6 || videomode == 8) && (port3D8 & 0x0f) == 0b1010) {
                 break;
             }
-            uint32_t usepal = (value >> 5) & 1;
-            uint32_t intensity = ((value >> 4) & 1) << 3;
-            uint32_t curpixel;
-            for (int i = 0; i < 16; i++) {
-                curpixel = i * 2 + usepal + intensity;
-                setVGA_color_palette(i, cga_palette[curpixel]);
+            cga_colorset = (value >> 5) & 1;
+            cga_intensity = ((value >> 4) & 1);
+            printf("colorset %i, int %i\r\n", cga_colorset, cga_intensity);
+            for (int i = 0; i < 4; i++) {
+                setVGA_color_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
             }
-            setVGA_color_palette(0, cga_palette[0]);
+            //setVGA_color_palette(0, cga_palette[0]);
 #endif
             break;
         case 0x3DA:
@@ -142,28 +141,9 @@ uint16_t portin(uint16_t portnum) {
         case 0x3D5:
             return crt_controller[crt_controller_idx];
         case 0x3D8:
-            switch (videomode) {
-                case 0:
-                    return (0x2C);
-                case 1:
-                    return (0x28);
-                case 2:
-                    return (0x2D);
-                case 3:
-                    return (0x29);
-                case 4:
-                    return (0x0E);
-                case 5:
-                    return (0x0A);
-                case 6:
-                    return (0x1E);
-                default:
-                    return (0x29);
-            }
-
+            return port3D8;
         case 0x3D9:
             return port3D9;
-
         case 0x3DA:
             port3DA ^= 1;
             if (!(port3DA & 1)) port3DA ^= 8;

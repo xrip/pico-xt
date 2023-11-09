@@ -684,7 +684,7 @@ void writerm8(uint8_t rmval, uint8_t value) {
         putreg8 (rmval, value);
     }
 }
-
+uint8_t tandy_hack = 0;
 void intcall86(uint8_t intnum) {
     switch (intnum) {
         case 0x10:
@@ -721,20 +721,33 @@ void intcall86(uint8_t intnum) {
                             break;
                         case 4:
                         case 5:
-                            setVGAmode(CGA_320x200x4);
+                            if (!tandy_hack) {
+                                setVGAmode(CGA_320x200x4);
+                            } else {
+                                tandy_hack = 0;
+                            }
                             break;
                         case 6:
                             setVGAmode(CGA_640x200x2);
+                            break;
+                        case 8:
+                        case 0x15:
+                            for (int i = 0; i < 16; i++) {
+                                setVGA_color_palette(i, tandy_palette[i]);
+                            }
+                            setVGAmode(CGA_160x200x16);
+                            tandy_hack = 1;
                             break;
                     }
 #endif
                     // Установить видеорежим
                     break;
+/*
                 case 0x1A: //get display combination code (ps, vga/mcga)
                     CPU_AL = 0x1A;
                     CPU_BL = 0x8;
                     break;
-/*
+
                 case 0x01:                            // show cursor
                     if (regs.byteregs[regch] == 0x32) {
                         curshow = false;
