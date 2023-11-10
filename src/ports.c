@@ -30,7 +30,7 @@ void portout(uint16_t portnum, uint16_t value) {
 #if PICO_ON_DEVICE
         case 0x64: // Passthrought all
             portram[portnum] = value;
-            ps2_send(value);
+            keyboard_send(value);
 #endif
         case 0x61: // 061H  PPI port B.
             portram[portnum] = value;

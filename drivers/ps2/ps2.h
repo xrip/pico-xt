@@ -19,13 +19,13 @@ void KeyboardHandler();//uint /*gpio*/, uint32_t /*event_mask*/
 uint32_t ps2getcode(void);
 
 
-void Init_kbd(void);
+void keyboard_init(void);
 
 void Deinit_kbd(void);
 
-void ps2_toggle_led(uint8_t led);
+void keyboard_toggle_led(uint8_t led);
 
-int16_t ps2_send(uint8_t data);
+int16_t keyboard_send(uint8_t data);
 
 struct ps2_struct_group {
     unsigned char character;

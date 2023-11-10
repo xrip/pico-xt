@@ -42,6 +42,7 @@ struct semaphore vga_start_semaphore;
 
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
+    keyboard_init();
     graphics_init();
 
     graphics_set_buffer(VRAM, 320, 200);
@@ -52,7 +53,8 @@ void __time_critical_func(render_core)() {
     graphics_set_flashmode(true, true);
 
 
-    graphics_set_mode(TEXTMODE_80x30);
+    //graphics_set_mode(TEXTMODE_80x30);
+
     for (int i = 0; i < 16; ++i) {
         graphics_set_palette(i, cga_palette[i]);
     }
@@ -131,8 +133,6 @@ int main() {
 
     //nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
 
-
-    Init_kbd();
 
     sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);

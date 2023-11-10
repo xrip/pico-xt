@@ -561,7 +561,7 @@ void graphics_set_bgcolor(uint32_t color888) {
 
 };
 
-void graphics_set_palette(uint8_t i_color, uint32_t color888) {
+void graphics_set_palette(uint8_t i, uint32_t color888) {
     uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
     uint8_t conv1[] = { 0b00, 0b01, 0b01, 0b01, 0b10, 0b11, 0b11, 0b11 };
 
@@ -573,8 +573,8 @@ void graphics_set_palette(uint8_t i_color, uint32_t color888) {
     uint8_t c_hi = (conv0[r] << 4) | (conv0[g] << 2) | conv0[b];
     uint8_t c_lo = (conv1[r] << 4) | (conv1[g] << 2) | conv1[b];
 
-    palette[0][i_color] = (((c_hi << 8) | c_lo) & 0x3f3f) | palette16_mask;
-    palette[1][i_color] = (((c_lo << 8) | c_hi) & 0x3f3f) | palette16_mask;
+    palette[0][i] = (((c_hi << 8) | c_lo) & 0x3f3f) | palette16_mask;
+    palette[1][i] = (((c_lo << 8) | c_hi) & 0x3f3f) | palette16_mask;
 
 };
 

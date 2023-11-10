@@ -126,7 +126,7 @@ static int16_t ps2_recv_response(void) {
     return c;
 }
 
-int16_t ps2_send(uint8_t data) {
+int16_t keyboard_send(uint8_t data) {
     bool parity = true;
     ps2_error = PS2_ERR_NONE;
 
@@ -185,12 +185,12 @@ int16_t ps2_send(uint8_t data) {
     return -0xf;
 }
 
-void ps2_toggle_led(uint8_t led) {
+void keyboard_toggle_led(uint8_t led) {
     led_status ^= led;
 
-    ps2_send(0xED);
+    keyboard_send(0xED);
     busy_wait_ms(50);
-    ps2_send(led_status);
+    keyboard_send(led_status);
 }
 
 uint8_t ps2_to_xt_1(uint32_t val) {
@@ -252,13 +252,13 @@ uint32_t ps2getcode() {
 
     switch (retval) {
         case 0x45:
-            ps2_toggle_led(PS2_LED_NUM_LOCK);
+            keyboard_toggle_led(PS2_LED_NUM_LOCK);
             break;
         case 0x46:
-            ps2_toggle_led(PS2_LED_SCROLL_LOCK);
+            keyboard_toggle_led(PS2_LED_SCROLL_LOCK);
             break;
         case 0x3A:
-            ps2_toggle_led(PS2_LED_CAPS_LOCK);
+            keyboard_toggle_led(PS2_LED_CAPS_LOCK);
             break;
     }
     return retval;
@@ -294,7 +294,7 @@ void KeyboardHandler(void) {
     kbloop = 1;
 }
 
-void Init_kbd(void) {
+void keyboard_init(void) {
     bitcount = 0;
     memset(ps2buffer, 0, KBD_BUFFER_SIZE);
 

@@ -877,7 +877,7 @@ void intcall86(uint8_t intnum) {
             insertdisk(1, sizeof FD1, (char *) FD1, NULL);
 #if PICO_ON_DEVICE
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
-            ps2_send(0xFF);
+            keyboard_send(0xFF);
 #else
             insertdisk(128, 0, NULL, "hdd.img");
 #endif
