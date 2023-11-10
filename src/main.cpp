@@ -42,19 +42,19 @@ struct semaphore vga_start_semaphore;
 
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
-    initVGA();
+    graphics_init();
 
-    setVGAbuf(VRAM, 320, 200);
+    graphics_set_buffer(VRAM, 320, 200);
+    graphics_set_textbuffer(VRAM);
 
-    setVGA_text_buf(VRAM);
-    setVGA_bg_color(0);
-    setVGAbuf_pos(0, 20);
-    setVGA_color_flash_mode(true, true);
+    graphics_set_bgcolor(0);
+    graphics_set_offset(0, 20);
+    graphics_set_flashmode(true, true);
 
 
-    setVGAmode(VGA640x480_text_80_30);
+    graphics_set_mode(TEXTMODE_80x30);
     for (int i = 0; i < 16; ++i) {
-        setVGA_color_palette(i, cga_palette[i]);
+        graphics_set_palette(i, cga_palette[i]);
     }
     sem_acquire_blocking(&vga_start_semaphore);
 
@@ -265,9 +265,9 @@ int main() {
 //            SDL_SetWindowSize(window, 640, 400);
             for (uint16_t y = 0; y < 400; y++) {
                 for (uint8_t x = 0; x < cols; x++) {
-                    uint8_t c = VRAM[/*0xB8000 + */(y / 4) * (cols * 2) + x * 2 + 0];
+                    uint8_t c = VRAM[(y / 4) * (cols * 2) + x * 2 + 0];
                     uint8_t glyph_row = fnt8x16[c * 16 + y % 16];
-                    uint8_t color = VRAM[/*0xB8000 + */(y / 4) * (cols * 2) + x * 2 + 1];
+                    uint8_t color = VRAM[(y / 4) * (cols * 2) + x * 2 + 1];
 
                     for (uint8_t bit = 0; bit < 8; bit++) {
                         if (cursor_blink_state && (y >> 4 == CURY && x == CURX && (y % 16) >= 12 && (y % 16) <= 13)) {
@@ -299,7 +299,7 @@ int main() {
         }
         SDL_UpdateWindowSurface(window);
 #else
-        exec86(2000);
+        exec86(340);
 #endif
     }
     return 0;

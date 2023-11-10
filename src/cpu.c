@@ -713,29 +713,29 @@ void intcall86(uint8_t intnum) {
                     switch (videomode) {
                         case 0:
                         case 1:
-                            setVGAmode(VGA640x480_text_40_30);
+                            graphics_set_mode(TEXTMODE_40x30);
                             break;
                         case 2:
                         case 3:
-                            setVGAmode(VGA640x480_text_80_30);
+                            graphics_set_mode(TEXTMODE_80x30);
                             break;
                         case 4:
                         case 5:
                             if (!tandy_hack) {
-                                setVGAmode(CGA_320x200x4);
+                                graphics_set_mode(CGA_320x200x4);
                             } else {
                                 tandy_hack = 0;
                             }
                             break;
                         case 6:
-                            setVGAmode(CGA_640x200x2);
+                            graphics_set_mode(CGA_640x200x2);
                             break;
                         case 8:
                         case 0x15:
                             for (int i = 0; i < 16; i++) {
-                                setVGA_color_palette(i, tandy_palette[i]);
+                                graphics_set_palette(i, tandy_palette[i]);
                             }
-                            setVGAmode(CGA_160x200x16);
+                            graphics_set_mode(CGA_160x200x16);
                             tandy_hack = 1;
                             break;
                     }

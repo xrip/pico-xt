@@ -68,10 +68,10 @@ void portout(uint16_t portnum, uint16_t value) {
             // third cga palette (black/red/cyan/white)
             if (videomode == 5 && (port3D8 >> 2) & 1) {
 #if PICO_ON_DEVICE
-                setVGA_color_palette(0, cga_palette[0]);
-                setVGA_color_palette(1, cga_palette[4]);
-                setVGA_color_palette(2, cga_palette[3]);
-                setVGA_color_palette(3, cga_palette[15]);
+                graphics_set_palette(0, cga_palette[0]);
+                graphics_set_palette(1, cga_palette[4]);
+                graphics_set_palette(2, cga_palette[3]);
+                graphics_set_palette(3, cga_palette[15]);
 #endif
             }
 
@@ -79,7 +79,7 @@ void portout(uint16_t portnum, uint16_t value) {
             if ((videomode == 2 || videomode == 3) && (port3D8 & 0x0f) == 0b0001) {
                 printf("160x100x16");
 #if PICO_ON_DEVICE
-                setVGAmode(CGA_160x100x16);
+                graphics_set_mode(TEXTMODE_160x100);
 #else
                 videomode = 76;
 #endif
@@ -90,9 +90,9 @@ void portout(uint16_t portnum, uint16_t value) {
                 printf("160x200x16");
 #if PICO_ON_DEVICE
                     for (int i = 0; i < 16; i++) {
-                        setVGA_color_palette(i, cga_composite_palette[0][i]);
+                        graphics_set_palette(i, cga_composite_palette[0][i]);
                     }
-                    setVGAmode(CGA_160x200x16);
+                graphics_set_mode(CGA_160x200x16);
 #else
                 videomode = 66;
 #endif
@@ -108,7 +108,7 @@ void portout(uint16_t portnum, uint16_t value) {
             cga_intensity = ((value >> 4) & 1);
             printf("colorset %i, int %i\r\n", cga_colorset, cga_intensity);
             for (int i = 0; i < 4; i++) {
-                setVGA_color_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
+                graphics_set_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
             }
             //setVGA_color_palette(0, cga_palette[0]);
 #endif

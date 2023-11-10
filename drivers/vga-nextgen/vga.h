@@ -3,27 +3,40 @@
 #include "inttypes.h"
 #include "stdbool.h"
 
-enum VGA_mode_t{CGA_160x200x16, CGA_160x100x16, CGA_320x200x4, CGA_640x200x2, VGA640x480div2,VGA640x480div3,VGA640x480_text_40_30, VGA640x480_text_80_30};
-
 #define PIO_VGA (pio0)
 #define beginVGA_PIN (6)
 #define VGA_DMA_IRQ (DMA_IRQ_0)
-void initVGA();
-void setVGAbuf(uint8_t* buf, uint16_t w,uint16_t h);
 
-void setVGA_text_buf(uint8_t* buf_text);
+enum graphics_mode_t {
+    TEXTMODE_40x30,
+    TEXTMODE_80x30,
+    TEXTMODE_160x100,
+
+    CGA_160x200x16,
+    CGA_320x200x4,
+    CGA_640x200x2,
+
+    VGA_640x480x256_DIV_2,
+    VGA_640x480x256_DIV_3,
+};
 
 
+void graphics_init();
 
-void setVGAbuf_pos(int x,int y);
-void setVGAmode(enum VGA_mode_t mode_VGA);
+void graphics_set_buffer(uint8_t *buffer, uint16_t width, uint16_t height);
 
-void setVGA_color_flash_mode(bool flash_line,bool flash_frame);
-void setVGA_color_palette(uint8_t i_color, uint32_t color888);
-void setVGA_color_palette_222(uint8_t i_color, uint32_t color888);
+void graphics_set_textbuffer(uint8_t *buffer);
 
-void setVGA_bg_color( uint32_t color888);
+void graphics_set_offset(int x, int y);
 
+void graphics_set_mode(enum graphics_mode_t mode);
+
+void graphics_set_flashmode(bool flash_line, bool flash_frame);
+
+void graphics_set_palette(uint8_t i_color, uint32_t color888);
+
+void graphics_set_bgcolor(uint32_t color888);
 
 void clrScr(uint8_t color);
-void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) ;
+
+void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor);
