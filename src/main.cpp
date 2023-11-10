@@ -48,7 +48,7 @@ void __time_critical_func(render_core)() {
     graphics_set_textbuffer(VRAM);
 
     graphics_set_bgcolor(0);
-    graphics_set_offset(0, 20);
+    graphics_set_offset(0, 0);
     graphics_set_flashmode(true, true);
 
 

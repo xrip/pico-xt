@@ -298,7 +298,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
         case VGA_640x480x256_DIV_2:
             // FIXME сломано сейчас. Вернуть 8битный цвет
             for (int i = width / 2; i--;) {
-                //поменять местами, если надо дугое чередование
+                //поменять местами, если надо другое чередование
                 *output_buffer_16bit++ = current_palette[(*input_buffer_8bit) & 0xf];
                 *output_buffer_16bit++ = current_palette[(*input_buffer_8bit >> 4) & 0xf];
 

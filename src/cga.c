@@ -5,31 +5,31 @@
 
 uint8_t cursor_blink_state = 0;
 uint8_t cga_intensity = 0;
-uint8_t cga_colorset  = 0;
+uint8_t cga_colorset = 0;
 
 const uint32_t cga_palette[16] = { //R, G, B
-         0x000000 , //black
-         0x0000AA , //blue
-         0x00AA00 , //green
-         0x00AAAA , //cyan
-         0xAA0000 , //red
-         0xAA00AA , //magenta
-         0xAA5500 , //brown
-         0xAAAAAA , //light gray
-         0x555555 , //dark gray
-         0x5555FF , //light blue
-         0x55FF55 , //light green
-         0x55FFFF , //light cyan
-         0xFF5555 , //light red
-         0xFF55FF , //light magenta
-         0xFFFF55 , //yellow
-         0xFFFFFF   //white
+        0x000000, //black
+        0x0000AA, //blue
+        0x00AA00, //green
+        0x00AAAA, //cyan
+        0xAA0000, //red
+        0xAA00AA, //magenta
+        0xAA5500, //brown
+        0xAAAAAA, //light gray
+        0x555555, //dark gray
+        0x5555FF, //light blue
+        0x55FF55, //light green
+        0x55FFFF, //light cyan
+        0xFF5555, //light red
+        0xFF55FF, //light magenta
+        0xFFFF55, //yellow
+        0xFFFFFF   //white
 };
 
 const uint8_t cga_gfxpal[2][2][4] = { //palettes for 320x200 graphics mode
         {
-                { 0, 2, 4, 6 }, //normal palettes
-                { 0, 3, 5, 7 }
+                { 0, 2,  4,  6 }, //normal palettes
+                { 0, 3,  5,  7 }
         },
         {
                 { 0, 10, 12, 14 }, //intense palettes
@@ -37,7 +37,7 @@ const uint8_t cga_gfxpal[2][2][4] = { //palettes for 320x200 graphics mode
         }
 };
 
-const uint32_t  cga_composite_palette[3][16] = { //R, G, B
+const uint32_t cga_composite_palette[3][16] = { //R, G, B
         // 640x200
         {
                 0x000000, // black
