@@ -24,13 +24,13 @@
 #include "pico/time.h"
 #include "ps2.h"
 #include "vga.h"
-
+#include "psram_spi.h"
 #else
 
 #include "SDL2/SDL.h"
 
 #endif
-
+extern psram_spi_inst_t psram_spi;
 uint8_t opcode, segoverride, reptype, hdcount = 0, fdcount = 0, hltstate = 0;
 uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
@@ -97,6 +97,7 @@ void modregrm() {
 void write86(uint32_t addr32, uint8_t value) {
     if ((addr32) < (RAM_SIZE << 10)) {
         RAM[addr32] = value;
+        return;
     } else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xBC000UL)) {             // CGA video RAM range
         addr32 -= 0xB8000UL;
         if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
@@ -104,11 +105,13 @@ void write86(uint32_t addr32, uint8_t value) {
         } else {
             VRAM[addr32 & 16383] = value;                                          // 16k for graphic mode!!!
         }
+        return;
     } else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
         addr32 -= 0xCC000UL;
     } else if ((addr32) > 0xFFFFFUL) {
         //SRAM_write(addr32, value);
     }
+    psram_write8(&psram_spi, addr32, value);
 }
 
 
@@ -145,12 +148,12 @@ uint8_t read86(uint32_t addr32) {
  */
             case 0x411:
                 return (0b00000000);
-
+/*
             case 0x413:
                 return (RAM_SIZE & 0xFF);
             case 0x414:
                 return ((RAM_SIZE >> 8) & 0xFF);
-
+*/
             case 0x463:
                 return (0xd4);
             case 0x464:
@@ -206,6 +209,9 @@ uint8_t read86(uint32_t addr32) {
     } else if ((addr32) > 0xFFFFFUL) {
         //SRAM_read(addr32);
     }
+    return psram_read8(&psram_spi, addr32);
+    //psram_write16(&psram_spi, 0xBEEF, 0xFEED);
+    //uint16_t rr = psram_read16(&psram_spi, 0xBEEF);
 }
 
 

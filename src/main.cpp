@@ -16,7 +16,7 @@ extern "C" {
 #include <pico/stdio.h>
 #include "f_util.h"
 #include "ff.h"
-#include "nespad.h"
+#include "psram_spi.h"
 
 static FATFS fs;
 extern "C" {
@@ -94,6 +94,7 @@ static int RendererThread(void *ptr) {
 #if PICO_ON_DEVICE
 #define  PWM_PIN0 26
 pwm_config config = pwm_get_default_config();
+psram_spi_inst_t psram_spi;
 #endif
 
 int main() {
@@ -106,7 +107,7 @@ int main() {
 #else
     vreg_set_voltage(VREG_VOLTAGE_1_15);
     sleep_ms(33);
-    set_sys_clock_khz(270000, true);
+    set_sys_clock_khz(200000, true);
 #endif
 
     stdio_init_all();
@@ -133,11 +134,28 @@ int main() {
     //nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     keyboard_init();
 
+
+
     sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);
     sem_release(&vga_start_semaphore);
 
     sleep_ms(50);
+
+    printf("Initing PSRAM...");
+    psram_spi = psram_spi_init(pio0, -1);
+    psram_write16(&psram_spi, 0xBEEF, 0xFEED);
+    uint16_t rr = psram_read16(&psram_spi, 0xBEEF);
+
+    graphics_set_mode(TEXTMODE_80x30);
+    char str[255] = { 0 };
+    sprintf(str, "%lx PSRAM CORRUPTED", rr);
+    //sleep_ms(50);
+    if (rr != 0xFEED) {
+        draw_text(str, 0,0, 15, 0);
+        while (1);
+    }
+
 
 #else
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
