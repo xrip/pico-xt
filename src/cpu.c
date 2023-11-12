@@ -111,13 +111,19 @@ void write86(uint32_t addr32, uint8_t value) {
     } else if ((addr32) > 0xFFFFFUL) {
         //SRAM_write(addr32, value);
     }
-    psram_write8(&psram_spi, addr32, value);
+    if (PSRAM_AVAILABLE) {
+        psram_write8(&psram_spi, addr32, value);
+    }
 }
 
 
 static inline void writew86(uint32_t addr32, uint16_t value) {
-    write86(addr32, (uint8_t) value);
-    write86(addr32 + 1, (uint8_t) (value >> 8));
+    if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
+        psram_write16(&psram_spi, addr32, value);
+    } else {
+        write86(addr32, (uint8_t) value);
+        write86(addr32 + 1, (uint8_t) (value >> 8));
+    }
 }
 
 uint8_t read86(uint32_t addr32) {
@@ -209,13 +215,20 @@ uint8_t read86(uint32_t addr32) {
     } else if ((addr32) > 0xFFFFFUL) {
         //SRAM_read(addr32);
     }
-    return psram_read8(&psram_spi, addr32);
+    if (PSRAM_AVAILABLE) {
+        return psram_read8(&psram_spi, addr32);
+    } else {
+        //return 0x00;
+    }
     //psram_write16(&psram_spi, 0xBEEF, 0xFEED);
     //uint16_t rr = psram_read16(&psram_spi, 0xBEEF);
 }
 
 
 __inline uint16_t readw86(uint32_t addr32) {
+    if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
+        return psram_read16(&psram_spi, addr32);
+    }
     return ((uint16_t) read86(addr32) | (uint16_t) (read86(addr32 + 1) << 8));
 }
 

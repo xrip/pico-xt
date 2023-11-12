@@ -33,7 +33,7 @@ SDL_Window *window;
 
 SDL_Surface *screen;
 #endif
-
+bool PSRAM_AVAILABLE = false;
 bool runing = true;
 
 #if PICO_ON_DEVICE
@@ -142,20 +142,11 @@ int main() {
 
     sleep_ms(50);
 
-    printf("Initing PSRAM...");
+#if 1
     psram_spi = psram_spi_init(pio0, -1);
-    psram_write16(&psram_spi, 0xBEEF, 0xFEED);
-    uint16_t rr = psram_read16(&psram_spi, 0xBEEF);
-
-    graphics_set_mode(TEXTMODE_80x30);
-    char str[255] = { 0 };
-    sprintf(str, "%lx PSRAM CORRUPTED", rr);
-    //sleep_ms(50);
-    if (rr != 0xFEED) {
-        draw_text(str, 0,0, 15, 0);
-        while (1);
-    }
-
+    psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
+    PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
+#endif
 
 #else
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
