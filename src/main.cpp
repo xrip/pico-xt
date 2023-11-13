@@ -143,6 +143,8 @@ int main() {
     sleep_ms(50);
 
 #if 1
+
+    // TODO: сделать нормально
     psram_spi = psram_spi_init(pio0, -1);
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
     PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
@@ -168,12 +170,6 @@ int main() {
 #endif
 
     reset86();
-    //draw_text("hello world!", 0, 0, 15, 1);
-
-    //while (1) {};
-
-
-    //draw_text("TEST", 0, 0, 166, 0);
     while (runing) {
 #if !PICO_ON_DEVICE
         handleinput();

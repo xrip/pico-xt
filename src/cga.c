@@ -41,20 +41,20 @@ const uint32_t cga_composite_palette[3][16] = { //R, G, B
         // 640x200
         {
                 0x000000, // black
-                0x006e02, // d.green
-                0x0301fc, // d.blue
-                0x0095fc, // m.blue
-                0xaf0202, // red
-                0x4c5244, // gray
-                0xdc01fd, // purple
-                0x9472ff, // l.blue
-                0x2f3c03, // brown
-                0x00e400, // l.green
-                0x5a4b4e, // gray 2
-                0x01f5a6, // aqua
-                0xf92f02, // orange
-                0x9ed501, // yellow
-                0xfe3dc4, // pink
+                0x007100, // d.green
+                0x003fff, // d.blue
+                0x00abff, // m.blue
+                0xc10065, // red
+                0x737373, // gray
+                0xe639ff, // purple
+                0x8ca8ff, // l.blue
+                0x554600, // brown
+                0x00cd00, // l.green
+                0x00cd00, // gray 2
+                0x00fc7e, // aqua
+                0xff3900, // orange
+                0xe4cc00, // yellow
+                0xff7af2, // pink
                 0xffffff  //white
         },
         { // 320x200 pal 1
