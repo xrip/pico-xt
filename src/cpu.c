@@ -25,12 +25,13 @@
 #include "ps2.h"
 #include "vga.h"
 #include "psram_spi.h"
+extern psram_spi_inst_t psram_spi;
 #else
 
 #include "SDL2/SDL.h"
 
 #endif
-extern psram_spi_inst_t psram_spi;
+
 uint8_t opcode, segoverride, reptype, hdcount = 0, fdcount = 0, hltstate = 0;
 uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
@@ -111,19 +112,26 @@ void write86(uint32_t addr32, uint8_t value) {
     } else if ((addr32) > 0xFFFFFUL) {
         //SRAM_write(addr32, value);
     }
+#if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         psram_write8(&psram_spi, addr32, value);
     }
+#endif
 }
 
 
 static inline void writew86(uint32_t addr32, uint16_t value) {
+#if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
     } else {
+#else
         write86(addr32, (uint8_t) value);
         write86(addr32 + 1, (uint8_t) (value >> 8));
+#endif
+#if PICO_ON_DEVICE
     }
+#endif
 }
 
 uint8_t read86(uint32_t addr32) {
@@ -215,20 +223,24 @@ uint8_t read86(uint32_t addr32) {
     } else if ((addr32) > 0xFFFFFUL) {
         //SRAM_read(addr32);
     }
+#if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         return psram_read8(&psram_spi, addr32);
     } else {
         //return 0x00;
     }
+#endif
     //psram_write16(&psram_spi, 0xBEEF, 0xFEED);
     //uint16_t rr = psram_read16(&psram_spi, 0xBEEF);
 }
 
 
 __inline uint16_t readw86(uint32_t addr32) {
+#if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         return psram_read16(&psram_spi, addr32);
     }
+#endif
     return ((uint16_t) read86(addr32) | (uint16_t) (read86(addr32 + 1) << 8));
 }
 

@@ -181,11 +181,11 @@ int main() {
             for (uint16_t y = 0; y < 400; y++) {
                 for (uint8_t x = 0; x < cols; x++) {
                     uint8_t c = VRAM[/*0xB8000 + */(y / 16) * (cols * 2) + x * 2 + 0];
-                    uint8_t glyph_row = fnt8x16[c * 16 + y % 16];
+                    uint8_t glyph_row = font_8x16[c * 16 + y % 16];
                     uint8_t color = VRAM[/*0xB8000 + */(y / 16) * (cols * 2) + x * 2 + 1];
 
                     for (uint8_t bit = 0; bit < 8; bit++) {
-                        if (cursor_blink_state && (y >> 4 == CURY && x == CURX && (y % 16) >= 12 && (y % 16) <= 13)) {
+                        if (cursor_blink_state && (y >> 4 == CURSOR_Y && x == CURSOR_X && (y % 16) >= 12 && (y % 16) <= 13)) {
                             pixels[y * 640 + (8 * x + bit)] = cga_palette[color & 0x0F];
                         } else {
                             if ((glyph_row >> bit) & 1) {
@@ -253,15 +253,15 @@ int main() {
                 for (int x = 0; x < 160; x++) {
                     uint32_t vidptr = /*0xB8000 + */((y  >> 1) * 80) + ((y  & 1) * 8192) + x;
                     uint32_t curpixel = (VRAM[vidptr] >> 4) & 15;
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
+                    *pix++ = cga_composite_palette[0][curpixel];
+                    *pix++ = cga_composite_palette[0][curpixel];
+                    *pix++ = cga_composite_palette[0][curpixel];
+                    *pix++ = cga_composite_palette[0][curpixel];
                     curpixel = (VRAM[vidptr]) & 15;
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
+                    *pix++ = cga_composite_palette[0][curpixel];
+                    *pix++ = cga_composite_palette[0][curpixel];
+                    *pix++ = cga_composite_palette[0][curpixel];
+                    *pix++ = cga_composite_palette[0][curpixel];
                 }
             }
         } else if (mode == 76) {
@@ -270,11 +270,11 @@ int main() {
             for (uint16_t y = 0; y < 400; y++) {
                 for (uint8_t x = 0; x < cols; x++) {
                     uint8_t c = VRAM[(y / 4) * (cols * 2) + x * 2 + 0];
-                    uint8_t glyph_row = fnt8x16[c * 16 + y % 16];
+                    uint8_t glyph_row = font_8x16[c * 16 + y % 16];
                     uint8_t color = VRAM[(y / 4) * (cols * 2) + x * 2 + 1];
 
                     for (uint8_t bit = 0; bit < 8; bit++) {
-                        if (cursor_blink_state && (y >> 4 == CURY && x == CURX && (y % 16) >= 12 && (y % 16) <= 13)) {
+                        if (cursor_blink_state && (y >> 4 == CURSOR_Y && x == CURSOR_X && (y % 16) >= 12 && (y % 16) <= 13)) {
                             pixels[y * 640 + (8 * x + bit)] = cga_palette[color & 0x0F];
                         } else {
                             if ((glyph_row >> bit) & 1) {

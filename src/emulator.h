@@ -22,7 +22,11 @@
 #endif
 
 #define VRAM_SIZE 16
-#define RAM_SIZE 192+16 // (64*3+26)
+#if PICO_ON_DEVICE
+#define RAM_SIZE (192+16)
+#else
+#define RAM_SIZE (640) // (64*3+26)
+#endif
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern uint8_t RAM[RAM_SIZE << 10];
 extern bool PSRAM_AVAILABLE;
