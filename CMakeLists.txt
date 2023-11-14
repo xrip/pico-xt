@@ -34,7 +34,7 @@ else ()
     add_subdirectory(drivers/ps2)
     add_subdirectory(drivers/fatfs)
     add_subdirectory(drivers/sdcard)
-    add_subdirectory(drivers/psram)
+    #add_subdirectory(drivers/psram)
 endif ()
 
 # INCLUDE FILES THAT SHOULD BE COMPILED:
@@ -83,7 +83,7 @@ else ()
     target_link_libraries(${PROJECT_NAME} PRIVATE
             vga-nextgen
             ps2
-            psram
+        #    psram
             sdcard
             fatfs
 

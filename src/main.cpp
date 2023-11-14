@@ -16,7 +16,9 @@ extern "C" {
 #include <pico/stdio.h>
 #include "f_util.h"
 #include "ff.h"
+#ifdef PSRAM
 #include "psram_spi.h"
+#endif
 
 static FATFS fs;
 extern "C" {
@@ -33,7 +35,11 @@ SDL_Window *window;
 
 SDL_Surface *screen;
 #endif
+#ifdef PSRAM
 bool PSRAM_AVAILABLE = false;
+#else
+bool PSRAM_AVAILABLE = true;
+#endif
 bool runing = true;
 
 #if PICO_ON_DEVICE
@@ -94,7 +100,9 @@ static int RendererThread(void *ptr) {
 #if PICO_ON_DEVICE
 #define  PWM_PIN0 26
 pwm_config config = pwm_get_default_config();
+#ifdef PSRAM
 psram_spi_inst_t psram_spi;
+#endif
 #endif
 
 int main() {
@@ -142,8 +150,7 @@ int main() {
 
     sleep_ms(50);
 
-#if 1
-
+#ifdef PSRAM
     // TODO: сделать нормально
     psram_spi = psram_spi_init(pio0, -1);
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
