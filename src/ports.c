@@ -45,9 +45,9 @@ void portout(uint16_t portnum, uint16_t value) {
 #endif
             break;
 
-/*        case 0x201:
-            port201 = value;
-            break;*/
+        /*        case 0x201:
+                    port201 = value;
+                    break;*/
         case 0x3D4:
             // http://www.techhelpmanual.com/901-color_graphics_adapter_i_o_ports.html
             crt_controller_idx = value;
@@ -64,8 +64,8 @@ void portout(uint16_t portnum, uint16_t value) {
             // https://www.seasip.info/VintagePC/cga.html
             port3D8 = value;
 
-            //printf("port3D8 0x%x\r\n", value);
-            // third cga palette (black/red/cyan/white)
+        //printf("port3D8 0x%x\r\n", value);
+        // third cga palette (black/red/cyan/white)
             if (videomode == 5 && (port3D8 >> 2) & 1) {
 #if PICO_ON_DEVICE
                 graphics_set_palette(0, cga_palette[0]);
@@ -75,7 +75,7 @@ void portout(uint16_t portnum, uint16_t value) {
 #endif
             }
 
-            // 160x100x16
+        // 160x100x16
             if ((videomode == 2 || videomode == 3) && (port3D8 & 0x0f) == 0b0001) {
                 printf("160x100x16");
 #if PICO_ON_DEVICE
@@ -85,27 +85,29 @@ void portout(uint16_t portnum, uint16_t value) {
 #endif
             }
 
-            // 160x200x16
-            if (videomode == 6 && (port3D8 & 0x0f) == 0b1010) {
+        // 160x200x16
+        // TODO: Включение/выключение глобального композитного режима по хоткеямы
+            if ((videomode == 6 /*|| videomode == 4*/) && (port3D8 & 0x0f) == 0b1010) {
                 printf("160x200x16");
 #if PICO_ON_DEVICE
                     for (int i = 0; i < 16; i++) {
-                        graphics_set_palette(i, cga_composite_palette[0][i]);
+                        graphics_set_palette(i, cga_composite_palette[videomode == 6 ? 0 : 1 + cga_intensity][i]);
                     }
                 graphics_set_mode(CGA_160x200x16);
 #else
-                videomode = 66;
+                videomode = videomode == 4 ? 64 : 66;
 #endif
             }
             break;
         case 0x3D9:
             port3D9 = value;
+            cga_colorset = value >> 5 & 1;
+            cga_intensity = value >> 4 & 1;
 #if PICO_ON_DEVICE
             if ((videomode == 6 || videomode == 8) && (port3D8 & 0x0f) == 0b1010) {
                 break;
             }
-            cga_colorset = (value >> 5) & 1;
-            cga_intensity = ((value >> 4) & 1);
+
             printf("colorset %i, int %i\r\n", cga_colorset, cga_intensity);
             for (int i = 0; i < 4; i++) {
                 graphics_set_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
@@ -134,8 +136,8 @@ uint16_t portin(uint16_t portnum) {
         case 0x61:
         case 0x64:
             return portram[portnum];
-/*        case 0x201:
-            return port201;*/
+        /*        case 0x201:
+                    return port201;*/
         case 0x3D4:
             return crt_controller_idx;
         case 0x3D5:
@@ -147,7 +149,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x3DA:
             port3DA ^= 1;
             if (!(port3DA & 1)) port3DA ^= 8;
-            //port3da = random(256);
+        //port3da = random(256);
             return port3DA;
         default:
             return 0xFF;
@@ -158,13 +160,13 @@ __inline void portout16(uint16_t portnum, uint16_t value) {
 #ifdef DEBUG_PORT_TRAFFIC
     printf("IO: writing WORD port %Xh with data %04Xh\n", portnum, value);
 #endif
-    portout(portnum, (uint8_t) value);
-    portout(portnum + 1, (uint8_t) (value >> 8));
+    portout(portnum, (uint8_t)value);
+    portout(portnum + 1, (uint8_t)(value >> 8));
 }
 
 __inline uint16_t portin16(uint16_t portnum) {
-    uint16_t ret = (uint16_t) portin(portnum);
-    ret |= ((uint16_t) portin(portnum + 1) << 8);
+    uint16_t ret = (uint16_t)portin(portnum);
+    ret |= ((uint16_t)portin(portnum + 1) << 8);
 #ifdef DEBUG_PORT_TRAFFIC
     printf("IO: reading WORD port %Xh with result of data %04Xh\n", portnum, ret);
 #endif

@@ -199,8 +199,8 @@ int main() {
             }
         } else if (mode < 6) {
             uint32_t *pix = pixels;
-            uint32_t usepal = (port3D9 >> 5) & 1;
-            uint32_t intensity = ((port3D9 >> 4) & 1) << 3;
+            uint32_t usepal = cga_colorset;
+            uint32_t intensity = cga_intensity << 3;
             for (int y = 0; y < 400; y++) {
                 for (int x = 0; x < 320; x++) {
                     uint32_t vidptr = /*0xB8000 + */(((y / 2) >> 1) * 80) + (((y / 2) & 1) * 8192) + (x >> 2);
@@ -246,22 +246,22 @@ int main() {
                     *pix++ = cga_palette[curpixel * 15];
                 }
             }
-        } else if (mode == 66 || mode == 8) {
-
+        } else if (mode == 66 || mode == 8 || mode == 64) {
+            uint32_t intensity = mode == 66 ? 0 : 1+cga_intensity;
             uint32_t *pix = pixels;
             for (int y = 0; y < 200; y++) {
                 for (int x = 0; x < 160; x++) {
                     uint32_t vidptr = /*0xB8000 + */((y  >> 1) * 80) + ((y  & 1) * 8192) + x;
                     uint32_t curpixel = (VRAM[vidptr] >> 4) & 15;
-                    *pix++ = cga_composite_palette[0][curpixel];
-                    *pix++ = cga_composite_palette[0][curpixel];
-                    *pix++ = cga_composite_palette[0][curpixel];
-                    *pix++ = cga_composite_palette[0][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
                     curpixel = (VRAM[vidptr]) & 15;
-                    *pix++ = cga_composite_palette[0][curpixel];
-                    *pix++ = cga_composite_palette[0][curpixel];
-                    *pix++ = cga_composite_palette[0][curpixel];
-                    *pix++ = cga_composite_palette[0][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
                 }
             }
         } else if (mode == 76) {

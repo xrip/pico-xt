@@ -111,11 +111,11 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
     disk[drivenum].diskfile = &file;
     disk[drivenum].filesize = size;
     disk[drivenum].inserted = true;
-    disk[drivenum].readonly = disk[drivenum].data ? true : false;
     disk[drivenum].cyls = cyls;
     disk[drivenum].heads = heads;
     disk[drivenum].sects = sects;
     disk[drivenum].data = ROM;
+    disk[drivenum].readonly = disk[drivenum].data ? true : false;
 
     if (drivenum >= 2)
         hdcount++;

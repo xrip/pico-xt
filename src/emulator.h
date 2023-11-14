@@ -132,12 +132,12 @@ static inline void decodeflagsword(uint16_t x) {
 #define pokeb(a, b) RAM[a]=(b)
 #define peekb(a)   RAM[a]
 
-static inline void pokew(int a, uint16_t w) {
+static __inline void pokew(int a, uint16_t w) {
     pokeb(a, w & 0xFF);
     pokeb(a + 1, w >> 8);
 }
 
-static inline uint16_t peekw(int a) {
+static __inline uint16_t peekw(int a) {
     return peekb(a) + (peekb(a + 1) << 8);
 }
 
