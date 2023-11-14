@@ -101,7 +101,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3D9:
             port3D9 = value;
 #if PICO_ON_DEVICE
-            if ((videomode == 6 || videomode == 8) && (port3D8 & 0x0f) == 0b1010) {
+            if ((videomode == 6  && (port3D8 & 0x0f) == 0b1010) || videomode == 8) {
                 break;
             }
             cga_colorset = (value >> 5) & 1;
