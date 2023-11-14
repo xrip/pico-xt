@@ -10,9 +10,9 @@
 #include <stdbool.h>
 #include <memory.h>
 #include "cga.h"
-#include "rom.h"
-#include "startup_disk.h"
-#include "fdd.h"
+#include "../assets/rom.h"
+#include "../assets/startup_disk.h"
+#include "../assets/fdd.h"
 //#define CPU_8086
 #if PICO_ON_DEVICE
 #include <hardware/pwm.h>
