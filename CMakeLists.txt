@@ -62,10 +62,7 @@ if (PICO_PLATFORM STREQUAL "host")
     file(GLOB PROJECT_DEPENDENCIES ${SDL2_LIBRARY}/*.dll)
 
     foreach (Dependency IN LISTS PROJECT_DEPENDENCIES)
-        file(
-                COPY ${Dependency}
-                DESTINATION ${OUTPUT_DIR}
-        )
+        file(COPY ${Dependency} DESTINATION ${OUTPUT_DIR})
     endforeach ()
 
 else ()
@@ -132,12 +129,12 @@ else ()
             PSRAM_PIN_MISO=16
 
     )
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+#[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND picotool info ${OUTPUT_DIR}/$<TARGET_PROPERTY:OUTPUT_NAME>.uf2 &&
             mode COM4 baud=12 parity=n data=8 stop=1 & ping -n 3 127.1> nul &
             picotool load ${OUTPUT_DIR}/$<TARGET_PROPERTY:OUTPUT_NAME>.uf2 &&
             picotool reboot
-    )
+    )]]
 endif ()
 
 pico_enable_stdio_uart(${PROJECT_NAME} 0)

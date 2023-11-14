@@ -125,44 +125,43 @@ static inline void writew86(uint32_t addr32, uint16_t value) {
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
     } else {
-#else
+#endif
         write86(addr32, (uint8_t) value);
         write86(addr32 + 1, (uint8_t) (value >> 8));
-#endif
+
 #if PICO_ON_DEVICE
     }
 #endif
 }
 
 uint8_t read86(uint32_t addr32) {
+    //printf("read86 %lx\r\n", addr32);
     if (addr32 < (RAM_SIZE << 10)) {
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 
         switch (addr32) { //some hardcoded values for the BIOS data area
             case 0x410:
-/*
- *
-		|7|6|5|4|3|2|1|0| 40:10 (value in INT 11 register AL)
-		 | | | | | | | `- IPL diskette installed
-		 | | | | | | `-- math coprocessor
-		 | | | | |-+--- old PC system board RAM < 256K
-		 | | | | | `-- pointing device installed (PS/2)
-		 | | | | `--- not used on PS/2
-		 | | `------ initial video mode
-		 `--------- # of diskette drives, less 1
- */
                 return (0b01100111); //video type CGA 80x25
-/*
- * 		|7|6|5|4|3|2|1|0| 40:11  (value in INT 11 register AH)
-		 | | | | | | | `- 0 if DMA installed
-		 | | | | `------ number of serial ports
-		 | | | `------- game adapter
-		 | | `-------- not used, internal modem (PS/2)
-		 `----------- number of printer ports
+                /* 		  76543210  40:10 (value in INT 11 register AL)
+		                  |||||||`- IPL diskette installed
+		                  ||||||`-- math coprocessor
+		                  |||||+--- old PC system board RAM < 256K
+                          |||||`--- pointing device installed (PS/2)
+		                  ||||`---- not used on PS/2
+		                  ||`------ initial video mode
+		                  `-------- number of diskette drives, less 1
  */
             case 0x411:
                 return (0b00000000);
-/*
+/*  	                  76543210  40:11  (value in INT 11 register AH)
+		                  |||||||`- 0 if DMA installed
+		                  ||||`---- number of serial ports
+		                  |||`----- game adapter
+		                  ||`------ not used, internal modem (PS/2)
+		                  `-------- number of printer ports
+ */
+
+                /*
             case 0x413:
                 return (RAM_SIZE & 0xFF);
             case 0x414:
