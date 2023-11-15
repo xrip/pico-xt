@@ -10,9 +10,9 @@
 #include <stdbool.h>
 #include <memory.h>
 #include "cga.h"
-#include "rom.h"
-#include "startup_disk.h"
-#include "fdd.h"
+#include "../assets/rom.h"
+#include "../assets/startup_disk.h"
+#include "../assets/fdd.h"
 //#define CPU_8086
 #if PICO_ON_DEVICE
 #include <hardware/pwm.h>
@@ -21,10 +21,15 @@
 #include <pico/stdlib.h>
 #endif
 
-#define VRAM_SIZE 16
-#define RAM_SIZE (64*3+26)
-extern uint8_t VRAM[VRAM_SIZE << 10];
+#define VRAM_SIZE 32
+#if PICO_ON_DEVICE
+#define RAM_SIZE (64*3)
+#else
+#define RAM_SIZE (640) // (64*3+26)
+#endif
 extern uint8_t RAM[RAM_SIZE << 10];
+extern uint8_t VRAM[VRAM_SIZE << 10];
+extern bool PSRAM_AVAILABLE;
 
 #define regax 0
 #define regcx 1
@@ -127,17 +132,17 @@ static inline void decodeflagsword(uint16_t x) {
 #define pokeb(a, b) RAM[a]=(b)
 #define peekb(a)   RAM[a]
 
-static inline void pokew(int a, uint16_t w) {
+static __inline void pokew(int a, uint16_t w) {
     pokeb(a, w & 0xFF);
     pokeb(a + 1, w >> 8);
 }
 
-static inline uint16_t peekw(int a) {
+static __inline uint16_t peekw(int a) {
     return peekb(a) + (peekb(a + 1) << 8);
 }
 
 extern uint16_t portram[256];
-extern uint16_t port3D8, port3D9, port201;
+extern uint16_t  port378, port379, port37A, port3D8, port3D9, port201;
 
 extern union _bytewordregs_ {
     uint16_t wordregs[8];
@@ -170,6 +175,10 @@ void doirq(uint8_t irqnum);
 void init8253();
 void out8253(uint16_t portnum, uint8_t value);
 uint8_t in8253(uint16_t portnum);
+
+void outsoundsource ( uint16_t portnum, uint8_t value );
+uint8_t insoundsource ( uint16_t portnum );
+int16_t tickssource();
 
 #if !PICO_ON_DEVICE
 void handleinput(void);

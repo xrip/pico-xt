@@ -16,7 +16,7 @@ extern "C" {
 #include <pico/stdio.h>
 #include "f_util.h"
 #include "ff.h"
-#include "nespad.h"
+#include "psram_spi.h"
 
 static FATFS fs;
 extern "C" {
@@ -33,7 +33,7 @@ SDL_Window *window;
 
 SDL_Surface *screen;
 #endif
-
+bool PSRAM_AVAILABLE = false;
 bool runing = true;
 
 #if PICO_ON_DEVICE
@@ -72,6 +72,7 @@ void __time_critical_func(render_core)() {
         } else {
             tick50ms = 0;
         }
+//        tickssource();
     }
 
 }
@@ -94,7 +95,9 @@ static int RendererThread(void *ptr) {
 #if PICO_ON_DEVICE
 #define  PWM_PIN0 26
 pwm_config config = pwm_get_default_config();
+psram_spi_inst_t psram_spi;
 #endif
+
 
 int main() {
 #if PICO_ON_DEVICE
@@ -133,11 +136,21 @@ int main() {
     //nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     keyboard_init();
 
+
+
     sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);
     sem_release(&vga_start_semaphore);
 
     sleep_ms(50);
+
+#if 1
+
+    // TODO: сделать нормально
+    psram_spi = psram_spi_init(pio0, -1);
+    psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
+    PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
+#endif
 
 #else
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
@@ -152,19 +165,17 @@ int main() {
     screen = SDL_GetWindowSurface(window);
     auto *pixels = (unsigned int *) screen->pixels;
 
+    SDL_PauseAudio(0);
     if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
         fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
         return -1;
     }
+
+
+
 #endif
 
     reset86();
-    //draw_text("hello world!", 0, 0, 15, 1);
-
-    //while (1) {};
-
-
-    //draw_text("TEST", 0, 0, 166, 0);
     while (runing) {
 #if !PICO_ON_DEVICE
         handleinput();
@@ -176,11 +187,11 @@ int main() {
             for (uint16_t y = 0; y < 400; y++) {
                 for (uint8_t x = 0; x < cols; x++) {
                     uint8_t c = VRAM[/*0xB8000 + */(y / 16) * (cols * 2) + x * 2 + 0];
-                    uint8_t glyph_row = fnt8x16[c * 16 + y % 16];
+                    uint8_t glyph_row = font_8x16[c * 16 + y % 16];
                     uint8_t color = VRAM[/*0xB8000 + */(y / 16) * (cols * 2) + x * 2 + 1];
 
                     for (uint8_t bit = 0; bit < 8; bit++) {
-                        if (cursor_blink_state && (y >> 4 == CURY && x == CURX && (y % 16) >= 12 && (y % 16) <= 13)) {
+                        if (cursor_blink_state && (y >> 4 == CURSOR_Y && x == CURSOR_X && (y % 16) >= 12 && (y % 16) <= 13)) {
                             pixels[y * 640 + (8 * x + bit)] = cga_palette[color & 0x0F];
                         } else {
                             if ((glyph_row >> bit) & 1) {
@@ -194,8 +205,8 @@ int main() {
             }
         } else if (mode < 6) {
             uint32_t *pix = pixels;
-            uint32_t usepal = (port3D9 >> 5) & 1;
-            uint32_t intensity = ((port3D9 >> 4) & 1) << 3;
+            uint32_t usepal = cga_colorset;
+            uint32_t intensity = cga_intensity << 3;
             for (int y = 0; y < 400; y++) {
                 for (int x = 0; x < 320; x++) {
                     uint32_t vidptr = /*0xB8000 + */(((y / 2) >> 1) * 80) + (((y / 2) & 1) * 8192) + (x >> 2);
@@ -241,22 +252,22 @@ int main() {
                     *pix++ = cga_palette[curpixel * 15];
                 }
             }
-        } else if (mode == 66 || mode == 8) {
-
+        } else if (mode == 66 || mode == 8 || mode == 64) {
+            uint32_t intensity = mode == 66 ? 0 : 1+cga_intensity;
             uint32_t *pix = pixels;
             for (int y = 0; y < 200; y++) {
                 for (int x = 0; x < 160; x++) {
                     uint32_t vidptr = /*0xB8000 + */((y  >> 1) * 80) + ((y  & 1) * 8192) + x;
                     uint32_t curpixel = (VRAM[vidptr] >> 4) & 15;
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
                     curpixel = (VRAM[vidptr]) & 15;
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
-                    *pix++ = cga_composite_palette[curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
+                    *pix++ = cga_composite_palette[intensity][curpixel];
                 }
             }
         } else if (mode == 76) {
@@ -265,11 +276,11 @@ int main() {
             for (uint16_t y = 0; y < 400; y++) {
                 for (uint8_t x = 0; x < cols; x++) {
                     uint8_t c = VRAM[(y / 4) * (cols * 2) + x * 2 + 0];
-                    uint8_t glyph_row = fnt8x16[c * 16 + y % 16];
+                    uint8_t glyph_row = font_8x16[c * 16 + y % 16];
                     uint8_t color = VRAM[(y / 4) * (cols * 2) + x * 2 + 1];
 
                     for (uint8_t bit = 0; bit < 8; bit++) {
-                        if (cursor_blink_state && (y >> 4 == CURY && x == CURX && (y % 16) >= 12 && (y % 16) <= 13)) {
+                        if (cursor_blink_state && (y >> 4 == CURSOR_Y && x == CURSOR_X && (y % 16) >= 12 && (y % 16) <= 13)) {
                             pixels[y * 640 + (8 * x + bit)] = cga_palette[color & 0x0F];
                         } else {
                             if ((glyph_row >> bit) & 1) {
@@ -294,6 +305,21 @@ int main() {
                     *pix++ = cga_palette[(curpixel >> 4) & 0xf];
                     *pix++ = cga_palette[curpixel & 0xf];
                 }
+            }
+        } else if (mode == 9) {
+            uint32_t *pix = pixels;
+            for (int y = 0; y < 400; y++) {
+                for (int x = 0; x < 640; x++) {
+                    uint32_t vidptr =  ( (y / 2) &3) * 8192 + (y / 8 ) *160 + (x / 4);
+                    uint32_t color;
+                    if ( ( (x>>1) &1) ==0)
+                        color = cga_palette[VRAM[vidptr] >> 4];
+                    else
+                        color = cga_palette[VRAM[vidptr] & 15];
+                    //prestretch[y][x] = color;
+                    *pix++ = color;
+                }
+                //pix += 320;
             }
         }
         SDL_UpdateWindowSurface(window);

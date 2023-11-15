@@ -38,59 +38,59 @@ const uint8_t cga_gfxpal[2][2][4] = { //palettes for 320x200 graphics mode
 };
 
 const uint32_t cga_composite_palette[3][16] = { //R, G, B
-        // 640x200
+        // 640x200 Color Composite
         {
                 0x000000, // black
-                0x006e02, // d.green
-                0x0301fc, // d.blue
-                0x0095fc, // m.blue
-                0xaf0202, // red
-                0x4c5244, // gray
-                0xdc01fd, // purple
-                0x9472ff, // l.blue
-                0x2f3c03, // brown
-                0x00e400, // l.green
-                0x5a4b4e, // gray 2
-                0x01f5a6, // aqua
-                0xf92f02, // orange
-                0x9ed501, // yellow
-                0xfe3dc4, // pink
+                0x007100, // d.green
+                0x003fff, // d.blue
+                0x00abff, // m.blue
+                0xc10065, // red
+                0x737373, // gray
+                0xe639ff, // purple
+                0x8ca8ff, // l.blue
+                0x554600, // brown
+                0x00cd00, // l.green
+                0x00cd00, // gray 2
+                0x00fc7e, // aqua
+                0xff3900, // orange
+                0xe4cc00, // yellow
+                0xff7af2, // pink
                 0xffffff  //white
         },
-        { // 320x200 pal 1
+        { // 320x200 Palette 0 High Intensity Composite Color
                 0x000000, //
-                0x00b5ff, //
-                0x0073ff, //
-                0x00ceff, //
-                0xff0000, //
-                0x23d9b9, //
-                0xb98fa5, //
-                0x00f8ff, //
-                0xff0000, //
-                0x71c6ff, //
-                0xdd7def, //
-                0x36e0ff, //
-                0xff0400, //
-                0xffdf9c, //
-                0xff9489, //
-                0xffffff  //
+                0x00766d, //
+                0x00316f, //
+                0x7b3400, //
+                0x39be42, //
+                0x837649, //
+                0x539b0e, //
+                0xeb3207, //
+                0xd2c499, //
+                0xf87a9b, //
+                0xd9a06b, //
+                0xb34400, //
+                0x8bd04a, //
+                0xbe8550, //
+                0x98ad14, //
+                0x000000  // ???
         },
-        { // 320x200 pal 2
+        { // 320x200 Palette 1 High Intensity Composite Color
                 0x000000, //
-                0x009ee3, //
-                0x005ad0, //
-                0x00a5f6, //
-                0xff0800, //
-                0x45c84c, //
-                0xc07d38, //
-                0x37cd61, //
-                0xff0000, //
-                0x83b19b, //
-                0xe36687, //
-                0x7bb7ae, //
-                0xff0d00, //
-                0xc6ce2b, //
-                0xff810e, //
+                0x008bac, //
+                0x0049ae, //
+                0x009ee8, //
+                0x581c00, //
+                0x00bc9b, //
+                0x64759f, //
+                0x00cdd9, //
+                0xc81b26, //
+                0xb2c2ec, //
+                0xdd7def, //
+                0xbed3ff, //
+                0xff4900, //
+                0xf6edc0, //
+                0xffa4c3, //
                 0xffffff  //
         }
 };

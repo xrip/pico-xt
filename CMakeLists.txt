@@ -34,7 +34,7 @@ else ()
     add_subdirectory(drivers/ps2)
     add_subdirectory(drivers/fatfs)
     add_subdirectory(drivers/sdcard)
-    add_subdirectory(drivers/nespad)
+    add_subdirectory(drivers/psram)
 endif ()
 
 # INCLUDE FILES THAT SHOULD BE COMPILED:
@@ -54,16 +54,15 @@ add_executable(${PROJECT_NAME} ${SRC})
 pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip")
 pico_set_program_version(pico-xt "development version")
 
+#set(PICO_DEOPTIMIZED_DEBUG 1)
+
 if (PICO_PLATFORM STREQUAL "host")
     target_link_libraries(${PROJECT_NAME} SDL2)
     message(STATUS "Copying all dependencies to destination folder...")
     file(GLOB PROJECT_DEPENDENCIES ${SDL2_LIBRARY}/*.dll)
 
     foreach (Dependency IN LISTS PROJECT_DEPENDENCIES)
-        file(
-                COPY ${Dependency}
-                DESTINATION ${OUTPUT_DIR}
-        )
+        file(COPY ${Dependency} DESTINATION ${OUTPUT_DIR})
     endforeach ()
 
 else ()
@@ -84,7 +83,7 @@ else ()
     target_link_libraries(${PROJECT_NAME} PRIVATE
             vga-nextgen
             ps2
-            nespad
+            psram
             sdcard
             fatfs
 
@@ -105,8 +104,8 @@ else ()
             PICO_HEAP_SIZE=0
             USE_ZONE_FOR_MALLOC=1
 
-            PICO_DEFAULT_UART_RX_PIN=17
-            PICO_DEFAULT_UART_TX_PIN=16
+            PICO_DEFAULT_UART_RX_PIN=-1
+            PICO_DEFAULT_UART_TX_PIN=0
 
             # SDCARD
             SDCARD_PIN_SPI0_CS=5
@@ -119,9 +118,28 @@ else ()
             NES_GPIO_CLK=14
             NES_GPIO_DATA=16
             NES_GPIO_LAT=15
+
+            # PSRAM
+            # PSRAM_MUTEX=1
+            PSRAM_SPINLOCK=1
+            PSRAM_ASYNC=1
+            PSRAM_PIN_CS=17
+            PSRAM_PIN_SCK=18
+            PSRAM_PIN_MOSI=19
+            PSRAM_PIN_MISO=16
+
     )
+
+#[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND picotool info ${OUTPUT_DIR}/$<TARGET_PROPERTY:OUTPUT_NAME>.uf2 &&
+            picotool reboot -f -u & mode COM8 baud=12 parity=n data=8 stop=1 & ping -n 3 127.1> nul &
+            picotool load ${OUTPUT_DIR}/$<TARGET_PROPERTY:OUTPUT_NAME>.uf2 &&
+            picotool reboot
+    )]]
+
 endif ()
 
-pico_enable_stdio_uart(${PROJECT_NAME} 1)
-pico_enable_stdio_usb(${PROJECT_NAME} 0)
+pico_enable_stdio_uart(${PROJECT_NAME} 0)
+pico_enable_stdio_usb(${PROJECT_NAME} 1)
+
 pico_add_extra_outputs(${PROJECT_NAME})
