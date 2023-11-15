@@ -104,7 +104,7 @@ void write86(uint32_t addr32, uint8_t value) {
         if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
             VRAM[addr32 & 4095] = value;                                           // 4k if we are in text mode
         } else {
-            VRAM[addr32 & 16383] = value;                                          // 16k for graphic mode!!!
+            VRAM[addr32 & (16383*4)] = value;                                          // 16k for graphic mode!!!
         }
         return;
     } else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
@@ -140,6 +140,10 @@ uint8_t read86(uint32_t addr32) {
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 
         switch (addr32) { //some hardcoded values for the BIOS data area
+            case 0x408:
+                return (0x78);
+            case 0x409:
+                return (0x3);
             case 0x410:
                 return (0b01100111); //video type CGA 80x25
                 /* 		  76543210  40:10 (value in INT 11 register AL)
@@ -152,7 +156,7 @@ uint8_t read86(uint32_t addr32) {
 		                  `-------- number of diskette drives, less 1
  */
             case 0x411:
-                return (0b00000000);
+                return (0b01000000);
 /*  	                  76543210  40:11  (value in INT 11 register AH)
 		                  |||||||`- 0 if DMA installed
 		                  ||||`---- number of serial ports
@@ -209,7 +213,7 @@ uint8_t read86(uint32_t addr32) {
         if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
             return VRAM[addr32 & 4095];
         } else {
-            return VRAM[addr32 & 16383];                                                       //16k CGA MEMORY!!!
+            return VRAM[addr32 & (16383 * 4)];                                                       //16k CGA MEMORY!!!
         }
     } else if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) {
         addr32 -= 0xCC000UL;
@@ -649,6 +653,7 @@ static inline uint16_t pop() {
 #if !PICO_ON_DEVICE
 uint32_t ClockTick(uint32_t interval, void *name) {
     doirq(0);
+    tickssource();
     return timer_period;
 }
 
@@ -768,6 +773,9 @@ void intcall86(uint8_t intnum) {
                             graphics_set_mode(CGA_160x200x16);
                             tandy_hack = 1;
                             break;
+                        case 0x09:
+                            graphics_set_mode(VGA_640x480x256_DIV_2);
+                        break;
                     }
 #endif
                     // Установить видеорежим
@@ -1690,8 +1698,11 @@ void __inline exec86(uint32_t execloops) {
     static uint16_t trap_toggle = 0;
 
     //counterticks = (uint64_t) ( (double) timerfreq / (double) 65536.0);
-
+    tickssource();
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
+        //if ((totalexec & 256) == 0)
+
+
         if (trap_toggle) {
             intcall86(1);
         }

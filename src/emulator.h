@@ -21,9 +21,9 @@
 #include <pico/stdlib.h>
 #endif
 
-#define VRAM_SIZE 16
+#define VRAM_SIZE 64
 #if PICO_ON_DEVICE
-#define RAM_SIZE (192+16)
+#define RAM_SIZE (192)
 #else
 #define RAM_SIZE (640) // (64*3+26)
 #endif
@@ -142,7 +142,7 @@ static __inline uint16_t peekw(int a) {
 }
 
 extern uint16_t portram[256];
-extern uint16_t port3D8, port3D9, port201;
+extern uint16_t  port378, port379, port37A, port3D8, port3D9, port201;
 
 extern union _bytewordregs_ {
     uint16_t wordregs[8];
@@ -175,6 +175,10 @@ void doirq(uint8_t irqnum);
 void init8253();
 void out8253(uint16_t portnum, uint8_t value);
 uint8_t in8253(uint16_t portnum);
+
+void outsoundsource ( uint16_t portnum, uint8_t value );
+uint8_t insoundsource ( uint16_t portnum );
+int16_t tickssource();
 
 #if !PICO_ON_DEVICE
 void handleinput(void);

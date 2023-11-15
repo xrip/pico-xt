@@ -9,7 +9,7 @@
 #endif
 uint16_t portram[256];
 uint8_t crt_controller_idx, crt_controller[256];
-uint16_t port3D8, port3D9, port3DA, port201;
+uint16_t port378, port379, port37A, port3D8, port3D9, port3DA, port201;
 
 void portout(uint16_t portnum, uint16_t value) {
     if (portnum == 0x80) {
@@ -38,7 +38,8 @@ void portout(uint16_t portnum, uint16_t value) {
             if ((value & 3) == 3) {
                 pwm_set_gpio_level(26, 127);
                 pwm_set_gpio_level(27, 127);
-            } else {
+            }
+            else {
                 pwm_set_gpio_level(26, 0);
                 pwm_set_gpio_level(27, 0);
             }
@@ -48,6 +49,10 @@ void portout(uint16_t portnum, uint16_t value) {
         /*        case 0x201:
                     port201 = value;
                     break;*/
+        case 0x378:
+        case 0x37A:
+            outsoundsource(portnum, value);
+            break;
         case 0x3D4:
             // http://www.techhelpmanual.com/901-color_graphics_adapter_i_o_ports.html
             crt_controller_idx = value;
@@ -90,9 +95,9 @@ void portout(uint16_t portnum, uint16_t value) {
             if ((videomode == 6 /*|| videomode == 4*/) && (port3D8 & 0x0f) == 0b1010) {
                 printf("160x200x16");
 #if PICO_ON_DEVICE
-                    for (int i = 0; i < 16; i++) {
-                        graphics_set_palette(i, cga_composite_palette[videomode == 6 ? 0 : 1 + cga_intensity][i]);
-                    }
+                for (int i = 0; i < 16; i++) {
+                    graphics_set_palette(i, cga_composite_palette[videomode == 6 ? 0 : 1 + cga_intensity][i]);
+                }
                 graphics_set_mode(CGA_160x200x16);
 #else
                 videomode = videomode == 4 ? 64 : 66;
@@ -104,7 +109,7 @@ void portout(uint16_t portnum, uint16_t value) {
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;
 #if PICO_ON_DEVICE
-            if ((videomode == 6  && (port3D8 & 0x0f) == 0b1010) || videomode == 8) {
+            if ((videomode == 6 && (port3D8 & 0x0f) == 0b1010) || videomode == 8) {
                 break;
             }
 
@@ -112,7 +117,7 @@ void portout(uint16_t portnum, uint16_t value) {
             for (int i = 0; i < 4; i++) {
                 graphics_set_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
             }
-            //setVGA_color_palette(0, cga_palette[0]);
+        //setVGA_color_palette(0, cga_palette[0]);
 #endif
             break;
         case 0x3DA:
@@ -138,6 +143,8 @@ uint16_t portin(uint16_t portnum) {
             return portram[portnum];
         /*        case 0x201:
                     return port201;*/
+        case 0x379:
+            return insoundsource(portnum);
         case 0x3D4:
             return crt_controller_idx;
         case 0x3D5:

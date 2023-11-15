@@ -72,6 +72,7 @@ void __time_critical_func(render_core)() {
         } else {
             tick50ms = 0;
         }
+//        tickssource();
     }
 
 }
@@ -96,6 +97,7 @@ static int RendererThread(void *ptr) {
 pwm_config config = pwm_get_default_config();
 psram_spi_inst_t psram_spi;
 #endif
+
 
 int main() {
 #if PICO_ON_DEVICE
@@ -163,10 +165,14 @@ int main() {
     screen = SDL_GetWindowSurface(window);
     auto *pixels = (unsigned int *) screen->pixels;
 
+    SDL_PauseAudio(0);
     if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
         fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
         return -1;
     }
+
+
+
 #endif
 
     reset86();
@@ -299,6 +305,24 @@ int main() {
                     *pix++ = cga_palette[(curpixel >> 4) & 0xf];
                     *pix++ = cga_palette[curpixel & 0xf];
                 }
+            }
+        } else if (mode == 9) {
+            uint32_t *pix = pixels;
+            for (int y = 0; y < 200; y++) {
+                for (int x = 0; x < 320; x++) {
+                    uint32_t vidptr =  y*320 + x + ( (y>>1) &3) *8192;
+                    uint32_t color;
+                    if ( ( (x>>1) &1) ==0)
+                        color = cga_palette[VRAM[vidptr] >> 4];
+                    else
+                        color = cga_palette[VRAM[vidptr] & 15];
+                    //prestretch[y][x] = color;
+                    *pix++ = color;
+                    *pix++ = color;
+                    *pix++ = color;
+                    *pix++ = color;
+                }
+                //pix += 320;
             }
         }
         SDL_UpdateWindowSurface(window);
