@@ -21,9 +21,9 @@
 #include <pico/stdlib.h>
 #endif
 
-#define VRAM_SIZE 64
+#define VRAM_SIZE 32
 #if PICO_ON_DEVICE
-#define RAM_SIZE (192)
+#define RAM_SIZE (64*3)
 #else
 #define RAM_SIZE (640) // (64*3+26)
 #endif

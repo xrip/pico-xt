@@ -775,7 +775,10 @@ void intcall86(uint8_t intnum) {
                             tandy_hack = 1;
                             break;
                         case 0x09:
-                            graphics_set_mode(VGA_640x480x256_DIV_2);
+                            for (int i = 0; i < 16; i++) {
+                                graphics_set_palette(i, tandy_palette[i]);
+                            }
+                            graphics_set_mode(TGA_320x200x16);
                         break;
                     }
 #endif

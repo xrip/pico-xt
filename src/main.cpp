@@ -310,7 +310,7 @@ int main() {
             uint32_t *pix = pixels;
             for (int y = 0; y < 400; y++) {
                 for (int x = 0; x < 640; x++) {
-                    uint32_t vidptr = (y>>3) *160 + (x>>2) + ( (y>>1) &3) *8192;
+                    uint32_t vidptr =  ( (y / 2) &3) * 8192 + (y / 8 ) *160 + (x / 4);
                     uint32_t color;
                     if ( ( (x>>1) &1) ==0)
                         color = cga_palette[VRAM[vidptr] >> 4];

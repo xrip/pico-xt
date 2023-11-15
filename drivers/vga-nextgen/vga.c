@@ -124,7 +124,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
         case CGA_160x200x16:
         case CGA_320x200x4:
         case CGA_640x200x2:
-        case VGA_640x480x256_DIV_2:
+        case TGA_320x200x16:
             line_number = screen_line / 2;
             if (screen_line % 2) return;
             line = screen_line / 2 - graphics_buffer_shift_y;
@@ -221,6 +221,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
     //uint8_t* vbuf8=vbuf+(line*g_buf_width/4); //2bit buf
     //uint8_t* vbuf8=vbuf+((line&1)*8192+(line>>1)*g_buf_width/4);
     uint8_t *input_buffer_8bit = input_buffer + ((line / 2) * 80) + ((line & 1) * 8192);
+
     //output_buffer = &lines_pattern[2 + ((line_number) & 1)];
 
 
@@ -295,15 +296,14 @@ void __not_in_flash_func(dma_handler_VGA)() {
             }
             break;
 
-        case VGA_640x480x256_DIV_2:
-            // FIXME сломано сейчас. Вернуть 8битный цвет
-            for (int i = width / 2; i--;) {
-                //поменять местами, если надо другое чередование
-                *output_buffer_16bit++ = current_palette[(*input_buffer_8bit) & 0xf];
-                *output_buffer_16bit++ = current_palette[(*input_buffer_8bit >> 4) & 0xf];
-
-                input_buffer_8bit++;
-            }
+        case TGA_320x200x16:
+            //4bit buf
+                input_buffer_8bit = input_buffer + ((line & 3) * 8192) + ((line / 4) * 160) ;
+                for (int i = width / 2; i--;) {
+                    *output_buffer_16bit++ = current_palette[(*input_buffer_8bit >> 4) & 15];
+                    *output_buffer_16bit++ = current_palette[(*input_buffer_8bit) & 15];
+                    input_buffer_8bit++;
+                }
             break;
         case VGA_640x480x256_DIV_3:
             output_buffer_8bit = (uint8_t *) output_buffer_16bit;
@@ -391,7 +391,7 @@ void graphics_set_mode(enum graphics_mode_t mode) {
         case CGA_320x200x4:
         case CGA_160x200x16:
         case VGA_640x480x256_DIV_3:
-        case VGA_640x480x256_DIV_2:
+        case TGA_320x200x16:
 
             TMPL_LINE8 = 0b11000000;
             HS_SHIFT = 328 * 2;
@@ -690,7 +690,7 @@ void graphics_init() {
 
 
 
-    graphics_set_mode(VGA_640x480x256_DIV_2);
+    graphics_set_mode(TGA_320x200x16);
 
 
     irq_set_exclusive_handler(VGA_DMA_IRQ, dma_handler_VGA);
