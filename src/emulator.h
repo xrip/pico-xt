@@ -27,8 +27,8 @@
 #else
 #define RAM_SIZE (640) // (64*3+26)
 #endif
-extern uint8_t VRAM[VRAM_SIZE << 10];
 extern uint8_t RAM[RAM_SIZE << 10];
+extern uint8_t VRAM[VRAM_SIZE << 10];
 extern bool PSRAM_AVAILABLE;
 
 #define regax 0

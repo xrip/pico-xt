@@ -109,7 +109,7 @@ int main() {
 #else
     vreg_set_voltage(VREG_VOLTAGE_1_15);
     sleep_ms(33);
-    set_sys_clock_khz(200000, true);
+    set_sys_clock_khz(270000, true);
 #endif
 
     stdio_init_all();
