@@ -68,7 +68,7 @@ void __time_critical_func(render_core)() {
     uint8_t tick50ms = 0;
     while (true) {
         doirq(0);
-        sleep_ms(timer_period);
+        busy_wait_us(timer_period);
         if (tick50ms == 0 || tick50ms == 10) {
             cursor_blink_state ^= 1;
         }
@@ -78,6 +78,7 @@ void __time_critical_func(render_core)() {
         } else {
             tick50ms = 0;
         }
+//        tickssource();
     }
 
 }
@@ -87,9 +88,9 @@ void __time_critical_func(render_core)() {
 
 static int RendererThread(void *ptr) {
     while (runing) {
-        exec86(2000);
+        exec86(2000 );
 #if !PICO_ON_DEVICE
-        //SDL_Delay(1);
+        SDL_Delay(1);
 #endif
     }
     return 0;
@@ -105,6 +106,7 @@ psram_spi_inst_t psram_spi;
 #endif
 #endif
 
+
 int main() {
 #if PICO_ON_DEVICE
 #if (OVERCLOCKING > 270)
@@ -115,7 +117,7 @@ int main() {
 #else
     vreg_set_voltage(VREG_VOLTAGE_1_15);
     sleep_ms(33);
-    set_sys_clock_khz(200000, true);
+    set_sys_clock_khz(270000, true);
 #endif
 
     stdio_init_all();
@@ -170,10 +172,14 @@ int main() {
     screen = SDL_GetWindowSurface(window);
     auto *pixels = (unsigned int *) screen->pixels;
 
+    SDL_PauseAudio(0);
     if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
         fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
         return -1;
     }
+
+
+
 #endif
 
     reset86();
@@ -306,6 +312,21 @@ int main() {
                     *pix++ = cga_palette[(curpixel >> 4) & 0xf];
                     *pix++ = cga_palette[curpixel & 0xf];
                 }
+            }
+        } else if (mode == 9) {
+            uint32_t *pix = pixels;
+            for (int y = 0; y < 400; y++) {
+                for (int x = 0; x < 640; x++) {
+                    uint32_t vidptr =  ( (y / 2) &3) * 8192 + (y / 8 ) *160 + (x / 4);
+                    uint32_t color;
+                    if ( ( (x>>1) &1) ==0)
+                        color = cga_palette[VRAM[vidptr] >> 4];
+                    else
+                        color = cga_palette[VRAM[vidptr] & 15];
+                    //prestretch[y][x] = color;
+                    *pix++ = color;
+                }
+                //pix += 320;
             }
         }
         SDL_UpdateWindowSurface(window);

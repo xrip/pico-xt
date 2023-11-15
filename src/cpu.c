@@ -40,7 +40,7 @@ uint8_t opcode, segoverride, reptype, hdcount = 0, fdcount = 0, hltstate = 0;
 uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 uint8_t videomode = 3;
-int timer_period = 55;
+int timer_period = 55000;
 
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
@@ -103,13 +103,10 @@ void write86(uint32_t addr32, uint8_t value) {
     if ((addr32) < (RAM_SIZE << 10)) {
         RAM[addr32] = value;
         return;
-    } else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xBC000UL)) {             // CGA video RAM range
+    } else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {             // video RAM range
         addr32 -= 0xB8000UL;
-        if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
-            VRAM[addr32 & 4095] = value;                                           // 4k if we are in text mode
-        } else {
-            VRAM[addr32 & 16383] = value;                                          // 16k for graphic mode!!!
-        }
+
+            VRAM[addr32] = value;                                          // 16k for graphic mode!!!
         return;
     } else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
         addr32 -= 0xCC000UL;
@@ -149,6 +146,10 @@ uint8_t read86(uint32_t addr32) {
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 
         switch (addr32) { //some hardcoded values for the BIOS data area
+            case 0x408:
+                return (0x78);
+            case 0x409:
+                return (0x3);
             case 0x410:
                 return (0b01100111); //video type CGA 80x25
                 /* 		  76543210  40:10 (value in INT 11 register AL)
@@ -161,7 +162,7 @@ uint8_t read86(uint32_t addr32) {
 		                  `-------- number of diskette drives, less 1
  */
             case 0x411:
-                return (0b00000000);
+                return (0b01000000);
 /*  	                  76543210  40:11  (value in INT 11 register AH)
 		                  |||||||`- 0 if DMA installed
 		                  ||||`---- number of serial ports
@@ -213,13 +214,10 @@ uint8_t read86(uint32_t addr32) {
     } else if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {                              // BIOS ROM range
         addr32 -= 0xFE000UL;
         return BIOS[addr32];
-    } else if ((addr32 >= 0xB8000UL) && (addr32 < 0xBC000UL)) {                               // CGA video RAM range
+    } else if ((addr32 >= 0xB8000UL) && (addr32 < 0xC0000UL)) {                               // video RAM range
         addr32 -= 0xB8000UL;
-        if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
-            return VRAM[addr32 & 4095];
-        } else {
-            return VRAM[addr32 & 16383];                                                       //16k CGA MEMORY!!!
-        }
+            return VRAM[addr32];                                                       //
+
     } else if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) {
         addr32 -= 0xCC000UL;
     } else if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) {                               // IBM BASIC ROM LOW
@@ -662,7 +660,8 @@ static inline uint16_t pop() {
 #if !PICO_ON_DEVICE
 uint32_t ClockTick(uint32_t interval, void *name) {
     doirq(0);
-    return timer_period;
+    tickssource();
+    return timer_period / 1000;
 }
 
 uint32_t BlinkTimer(uint32_t interval, void *name) {
@@ -673,7 +672,7 @@ uint32_t BlinkTimer(uint32_t interval, void *name) {
 
 void reset86() {
 #if !PICO_ON_DEVICE
-    SDL_AddTimer(timer_period, ClockTick, "timer");
+    SDL_AddTimer(timer_period / 1000, ClockTick, "timer");
     SDL_AddTimer(500, BlinkTimer, "blink");
 #endif
     init8253();
@@ -751,6 +750,7 @@ void intcall86(uint8_t intnum) {
                         memset(VRAM, 0x0, sizeof VRAM);
                     }
 #endif
+                // http://www.techhelpmanual.com/114-video_modes.html
                     printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
 #if PICO_ON_DEVICE
                     switch (videomode) {
@@ -781,6 +781,12 @@ void intcall86(uint8_t intnum) {
                             graphics_set_mode(CGA_160x200x16);
                             tandy_hack = 1;
                             break;
+                        case 0x09:
+                            for (int i = 0; i < 16; i++) {
+                                graphics_set_palette(i, tandy_palette[i]);
+                            }
+                            graphics_set_mode(TGA_320x200x16);
+                        break;
                     }
 #endif
                     // Установить видеорежим
@@ -1703,8 +1709,11 @@ void __inline exec86(uint32_t execloops) {
     static uint16_t trap_toggle = 0;
 
     //counterticks = (uint64_t) ( (double) timerfreq / (double) 65536.0);
-
+    tickssource();
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
+        //if ((totalexec & 256) == 0)
+
+
         if (trap_toggle) {
             intcall86(1);
         }
