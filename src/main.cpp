@@ -308,18 +308,15 @@ int main() {
             }
         } else if (mode == 9) {
             uint32_t *pix = pixels;
-            for (int y = 0; y < 200; y++) {
-                for (int x = 0; x < 320; x++) {
-                    uint32_t vidptr =  y*320 + x + ( (y>>1) &3) *8192;
+            for (int y = 0; y < 400; y++) {
+                for (int x = 0; x < 640; x++) {
+                    uint32_t vidptr = (y>>3) *160 + (x>>2) + ( (y>>1) &3) *8192;
                     uint32_t color;
                     if ( ( (x>>1) &1) ==0)
                         color = cga_palette[VRAM[vidptr] >> 4];
                     else
                         color = cga_palette[VRAM[vidptr] & 15];
                     //prestretch[y][x] = color;
-                    *pix++ = color;
-                    *pix++ = color;
-                    *pix++ = color;
                     *pix++ = color;
                 }
                 //pix += 320;

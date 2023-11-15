@@ -99,12 +99,12 @@ void write86(uint32_t addr32, uint8_t value) {
     if ((addr32) < (RAM_SIZE << 10)) {
         RAM[addr32] = value;
         return;
-    } else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xBC000UL)) {             // CGA video RAM range
+    } else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {             // video RAM range
         addr32 -= 0xB8000UL;
         if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
             VRAM[addr32 & 4095] = value;                                           // 4k if we are in text mode
         } else {
-            VRAM[addr32 & (16383*4)] = value;                                          // 16k for graphic mode!!!
+            VRAM[addr32] = value;                                          // 16k for graphic mode!!!
         }
         return;
     } else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
@@ -208,12 +208,12 @@ uint8_t read86(uint32_t addr32) {
     } else if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {                              // BIOS ROM range
         addr32 -= 0xFE000UL;
         return BIOS[addr32];
-    } else if ((addr32 >= 0xB8000UL) && (addr32 < 0xBC000UL)) {                               // CGA video RAM range
+    } else if ((addr32 >= 0xB8000UL) && (addr32 < 0xC0000UL)) {                               // video RAM range
         addr32 -= 0xB8000UL;
         if ((videomode == 0) || (videomode == 1) || (videomode == 2) || (videomode == 3)) {
             return VRAM[addr32 & 4095];
         } else {
-            return VRAM[addr32 & (16383 * 4)];                                                       //16k CGA MEMORY!!!
+            return VRAM[addr32];                                                       //
         }
     } else if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) {
         addr32 -= 0xCC000UL;
@@ -743,6 +743,7 @@ void intcall86(uint8_t intnum) {
                         memset(VRAM, 0x0, sizeof VRAM);
                     }
 #endif
+                // http://www.techhelpmanual.com/114-video_modes.html
                     printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
 #if PICO_ON_DEVICE
                     switch (videomode) {
