@@ -648,7 +648,7 @@ static inline uint16_t pop() {
 uint32_t ClockTick(uint32_t interval, void *name) {
     doirq(0);
     tickssource();
-    return timer_period;
+    return timer_period / 1000;
 }
 
 uint32_t BlinkTimer(uint32_t interval, void *name) {
@@ -659,7 +659,7 @@ uint32_t BlinkTimer(uint32_t interval, void *name) {
 
 void reset86() {
 #if !PICO_ON_DEVICE
-    SDL_AddTimer(timer_period, ClockTick, "timer");
+    SDL_AddTimer(timer_period / 1000, ClockTick, "timer");
     SDL_AddTimer(500, BlinkTimer, "blink");
 #endif
     init8253();
