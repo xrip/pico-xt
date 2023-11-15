@@ -140,6 +140,7 @@ void write86(uint32_t addr32, uint8_t value) {
                     }
                 }
             }
+            gpio_put(PICO_DEFAULT_LED_PIN, true);
             if (max_ro_oldenes >= 0 || max_rw_oldenes == -1) { // just replace RO page
                 register uint32_t ram_page = oldest_ro_ram_page;
                 PSEUDO_RAM_PAGES[oldest_ro_flash_page] = 0x0000; // not more mapped
@@ -166,6 +167,7 @@ void write86(uint32_t addr32, uint8_t value) {
                 memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + ram_page_offset, 4096);
                 RAM[ram_page_offset + addr_in_page] = value;
             }
+            gpio_put(PICO_DEFAULT_LED_PIN, false);
         }
 #else
     if ((addr32) < (RAM_SIZE << 10)) {
@@ -210,7 +212,13 @@ static inline void writew86(uint32_t addr32, uint16_t value) {
 #endif
 }
 
+static int cnt = 0;
+static uint8_t fill_by = 0x11;
 uint8_t read86(uint32_t addr32) {
+
+    if (cnt == VRAM_SIZE << 10) { cnt = 0; fill_by++; }
+    VRAM[cnt++] = fill_by;
+
     //printf("read86 %lx\r\n", addr32);
 #ifdef PSEUDO_RAM_BASE
     if (addr32 < (PSEUDO_RAM_SIZE << 10)) {
@@ -311,6 +319,7 @@ uint8_t read86(uint32_t addr32) {
                             }
                         }
                     }
+                    gpio_put(PICO_DEFAULT_LED_PIN, true);
                     if (max_ro_oldenes >= 0 || max_rw_oldenes == -1) { // just replace RO page
                         register uint32_t ram_page = oldest_ro_ram_page;
                         PSEUDO_RAM_PAGES[oldest_ro_flash_page] = 0x0000; // not more mapped
@@ -319,6 +328,7 @@ uint8_t read86(uint32_t addr32) {
                         CURRENT_RAM_PAGE_OLDNESS += 1;
                         uint32_t ram_page_offset = (ram_page << 12);
                         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + ram_page_offset, 4096);
+                        gpio_put(PICO_DEFAULT_LED_PIN, false);
                         return RAM[ram_page_offset + addr_in_page];
                     } else {
                         // save found page to flash
@@ -335,6 +345,7 @@ uint8_t read86(uint32_t addr32) {
                         CURRENT_RAM_PAGE_OLDNESS += 1;
                         uint32_t ram_page_offset = (ram_page << 12);
                         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + ram_page_offset, 4096);
+                        gpio_put(PICO_DEFAULT_LED_PIN, false);
                         return RAM[ram_page_offset + addr_in_page];
                     }
                 }
@@ -924,7 +935,7 @@ void intcall86(uint8_t intnum) {
                     }
 #endif
                 // http://www.techhelpmanual.com/114-video_modes.html
-                    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
+                //    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
 #if PICO_ON_DEVICE
                     switch (videomode) {
                         case 0:

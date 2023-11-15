@@ -100,6 +100,9 @@ else ()
             hardware_pwm
             hardware_flash
     )
+    target_link_options(${PROJECT_NAME} PRIVATE "LINKER:--script=${CMAKE_CURRENT_LIST_DIR}/memmap.ld")
+    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/memmap.ld)
+
     target_compile_definitions(${PROJECT_NAME} PRIVATE
             PICO_HEAP_SIZE=0
             USE_ZONE_FOR_MALLOC=1
@@ -128,8 +131,11 @@ else ()
             PSRAM_PIN_MOSI=19
             PSRAM_PIN_MISO=16
 
+            # supports only for pico with 4 or more MB flashes
+            PICO_FLASH_SIZE_BYTES=4194304
             PSEUDO_RAM_BASE=0x10400000
-
+            
+            OVERCLOCKING=366
     )
 
 #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

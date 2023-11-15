@@ -36,6 +36,7 @@ extern uint8_t CURRENT_RAM_PAGE_OLDNESS;
 extern uint16_t RAM_PAGES[RAM_SIZE << 2]; // PSEUDO_RAM_PAGES idx (7-0); 15 - written, 14-8 oldness
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz);
 #endif
+//void intcall86(uint8_t intnum);
 
 extern uint8_t RAM[RAM_SIZE << 10];
 extern uint8_t VRAM[VRAM_SIZE << 10];

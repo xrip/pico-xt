@@ -161,8 +161,6 @@ int main() {
     //nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     keyboard_init();
 
-
-
     sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);
     sem_release(&vga_start_semaphore);
@@ -170,7 +168,6 @@ int main() {
     sleep_ms(50);
 
 #if 1
-
     // TODO: сделать нормально
     psram_spi = psram_spi_init(pio0, -1);
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
@@ -199,8 +196,8 @@ int main() {
 
 
 #endif
-
     reset86();
+    //intcall86(0x09);
     while (runing) {
 #if !PICO_ON_DEVICE
         handleinput();
