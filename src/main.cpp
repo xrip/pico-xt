@@ -33,6 +33,7 @@ SDL_Window *window;
 
 SDL_Surface *screen;
 #endif
+
 bool PSRAM_AVAILABLE = false;
 bool runing = true;
 
@@ -61,6 +62,7 @@ void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
     flash_range_program(addr - XIP_BASE, buff, sz);
     restore_interrupts(interrupts);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
+    char tmp[40]; sprintf(tmp, "Flash 0x%X", addr); logMsg(tmp);
 }
 
 struct semaphore vga_start_semaphore;
@@ -76,8 +78,7 @@ void __time_critical_func(render_core)() {
     graphics_set_offset(0, 0);
     graphics_set_flashmode(true, true);
 
-
-    //graphics_set_mode(TEXTMODE_80x30);
+    // graphics_set_mode(TEXTMODE_80x30);
 
     for (int i = 0; i < 16; ++i) {
         graphics_set_palette(i, cga_palette[i]);
@@ -87,7 +88,7 @@ void __time_critical_func(render_core)() {
     uint8_t tick50ms = 0;
     while (true) {
         doirq(0);
-        sleep_ms(timer_period);
+        busy_wait_us(timer_period);
         if (tick50ms == 0 || tick50ms == 10) {
             cursor_blink_state ^= 1;
         }
@@ -109,7 +110,7 @@ static int RendererThread(void *ptr) {
     while (runing) {
         exec86(2000);
 #if !PICO_ON_DEVICE
-        //SDL_Delay(1);
+        SDL_Delay(1);
 #endif
     }
     return 0;
@@ -123,13 +124,11 @@ pwm_config config = pwm_get_default_config();
 psram_spi_inst_t psram_spi;
 #endif
 
-
 int main() {
 #if PICO_ON_DEVICE
 #if (OVERCLOCKING > 270)
     hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
     sleep_ms(33);
-
     set_sys_clock_khz(OVERCLOCKING * 1000, true);
 #else
     vreg_set_voltage(VREG_VOLTAGE_1_15);
@@ -166,7 +165,6 @@ int main() {
     sem_release(&vga_start_semaphore);
 
     sleep_ms(50);
-
 #if 1
     // TODO: сделать нормально
     psram_spi = psram_spi_init(pio0, -1);
@@ -192,12 +190,9 @@ int main() {
         fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
         return -1;
     }
-
-
-
 #endif
+    graphics_set_mode(TEXTMODE_80x30); // TODO:  rem it out
     reset86();
-    //intcall86(0x09);
     while (runing) {
 #if !PICO_ON_DEVICE
         handleinput();
@@ -346,6 +341,7 @@ int main() {
         }
         SDL_UpdateWindowSurface(window);
 #else
+        sleep_ms(33);
         exec86(340);
 #endif
     }

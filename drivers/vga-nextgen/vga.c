@@ -311,20 +311,14 @@ void __not_in_flash_func(dma_handler_VGA)() {
                 *output_buffer_8bit++ = current_palette[*input_buffer_8bit];
                 *output_buffer_8bit++ = current_palette[*input_buffer_8bit] >> 8;
                 *output_buffer_8bit++ = current_palette[*input_buffer_8bit++];
-
             }
             break;
 
         default:
             break;
     }
-
-
     dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
-
-
 }
-
 
 void graphics_set_mode(enum graphics_mode_t mode) {
     switch (mode) {
@@ -511,13 +505,26 @@ void graphics_set_flashmode(bool flash_line, bool flash_frame) {
 void graphics_set_textbuffer(uint8_t *buffer) {
     text_buffer = buffer;
 };
-
+static int current_line = 0;
 void clrScr(uint8_t color) {
     memset(text_buffer, 0, text_buffer_height * text_buffer_width);
     memset(text_buf_color, (color << 4), text_buffer_height * text_buffer_width);
-
+    current_line = 0;
 };
-
+void logMsg(char * msg) {
+    if (current_line >= text_buffer_height - 1) {
+        size_t sz = text_buffer_height * text_buffer_width - text_buffer_width;
+        for(size_t i = 0; i < sz; ++i) {
+            text_buffer[i] = text_buffer[i + text_buffer_width];
+            text_buf_color[i] = text_buf_color[i + text_buffer_width];
+        }
+        memset(text_buffer + sz, 0, text_buffer_width);
+        memset(text_buf_color + sz, 1 << 4, text_buffer_width);
+        draw_text(msg, 0, current_line, 7, 1);
+    } else {
+        draw_text(msg, 0, current_line++, 7, 1);
+    }
+}
 void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {
     if ((y < 0) | (y >= text_buffer_height)) return;
     int len = strlen(string);
@@ -607,9 +614,6 @@ void graphics_init() {
 
         txt_palette[i] = (c & 0x3f) | 0xc0;
     }
-
-
-
     //инициализация PIO
     //загрузка программы в один из PIO
     uint offset = pio_add_program(PIO_VGA, &pio_program_VGA);
@@ -629,20 +633,14 @@ void graphics_init() {
     pio_sm_config c = pio_get_default_sm_config();
     sm_config_set_wrap(&c, offset + 0, offset + (pio_program_VGA.length - 1));
 
-
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);//увеличение буфера TX за счёт RX до 8-ми 
     sm_config_set_out_shift(&c, true, true, 32);
     sm_config_set_out_pins(&c, beginVGA_PIN, 8);
     pio_sm_init(PIO_VGA, sm, offset, &c);
 
-
     pio_sm_set_enabled(PIO_VGA, sm, true);
 
-
-
     //инициализация DMA
-
-
     dma_chan_ctrl = dma_claim_unused_channel(true);
     dma_chan = dma_claim_unused_channel(true);
     //основной ДМА канал для данных
@@ -675,8 +673,6 @@ void graphics_init() {
     channel_config_set_chain_to(&c1, dma_chan);                         // chain to other channel
     //channel_config_set_dreq(&c1, DREQ_PIO0_TX0);
 
-
-
     dma_channel_configure(
             dma_chan_ctrl,
             &c1,
@@ -687,11 +683,7 @@ void graphics_init() {
     );
     //dma_channel_set_read_addr(dma_chan, &DMA_BUF_ADDR[0], false);
 
-
-
-
     graphics_set_mode(TGA_320x200x16);
-
 
     irq_set_exclusive_handler(VGA_DMA_IRQ, dma_handler_VGA);
 
@@ -699,6 +691,4 @@ void graphics_init() {
 
     irq_set_enabled(VGA_DMA_IRQ, true);
     dma_start_channel_mask((1u << dma_chan));
-
-
 };

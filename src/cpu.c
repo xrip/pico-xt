@@ -26,6 +26,7 @@
 #include "vga.h"
 #include "psram_spi.h"
 extern psram_spi_inst_t psram_spi;
+
 #else
 
 #include "SDL2/SDL.h"
@@ -36,7 +37,7 @@ uint8_t opcode, segoverride, reptype, hdcount = 0, fdcount = 0, hltstate = 0;
 uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 uint8_t videomode = 3;
-int timer_period = 55;
+int timer_period = 55000;
 
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
@@ -103,6 +104,7 @@ void modregrm() {
 void write86(uint32_t addr32, uint8_t value) {
 #if PSEUDO_RAM_BASE
     if ((addr32) < (PSEUDO_RAM_SIZE << 10)) {
+        // char tmp[40]; sprintf(tmp, "W 0x%X <- %d", addr32, value); logMsg(tmp);
         // TODO: definde function
         register uint32_t flash_page = addr32 >> 12; // 4KB page idx
         register uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
@@ -140,7 +142,6 @@ void write86(uint32_t addr32, uint8_t value) {
                     }
                 }
             }
-            gpio_put(PICO_DEFAULT_LED_PIN, true);
             if (max_ro_oldenes >= 0 || max_rw_oldenes == -1) { // just replace RO page
                 register uint32_t ram_page = oldest_ro_ram_page;
                 PSEUDO_RAM_PAGES[oldest_ro_flash_page] = 0x0000; // not more mapped
@@ -148,6 +149,11 @@ void write86(uint32_t addr32, uint8_t value) {
                 RAM_PAGES[oldest_ro_ram_page] = 0x8000 | (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
                 CURRENT_RAM_PAGE_OLDNESS += 1;
                 uint32_t ram_page_offset = (ram_page << 12);
+                
+                char tmp[40];
+                sprintf(tmp, "W1 0x%X <- %d ramP: %d; romPx: %d -> ", addr32, value, oldest_ro_ram_page, oldest_ro_flash_page, flash_page);
+                logMsg(tmp);
+
                 memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + ram_page_offset, 4096);
                 RAM[ram_page_offset + addr_in_page] = value;
             } else {
@@ -164,24 +170,26 @@ void write86(uint32_t addr32, uint8_t value) {
                 RAM_PAGES[oldest_rw_ram_page] = 0x8000 | (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
                 CURRENT_RAM_PAGE_OLDNESS += 1;
                 uint32_t ram_page_offset = (ram_page << 12);
+                
+                char tmp[40];
+                sprintf(tmp, "W2 0x%X <- %d ramP: %d; romPx: %d -> ", addr32, value, oldest_rw_ram_page, oldest_rw_flash_page, flash_page);
+                logMsg(tmp);
+
                 memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + ram_page_offset, 4096);
                 RAM[ram_page_offset + addr_in_page] = value;
             }
-            gpio_put(PICO_DEFAULT_LED_PIN, false);
         }
 #else
     if ((addr32) < (RAM_SIZE << 10)) {
         RAM[addr32] = value;
 #endif
         return;
-    }
-    else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
+    } else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
         // video RAM range
         addr32 -= 0xB8000UL;
         VRAM[addr32] = value; // 16k for graphic mode!!!
         return;
-    }
-    else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
+    } else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
         addr32 -= 0xCC000UL;
     }
     else if ((addr32) > 0xFFFFFUL) {
@@ -198,27 +206,23 @@ static inline void writew86(uint32_t addr32, uint16_t value) {
 #if PICO_ON_DEVICE
 #if PSEUDO_RAM_BASE
     { // TODO: optimize
+        write86(addr32, (uint8_t) value);
+        write86(addr32 + 1, (uint8_t) (value >> 8));
+    }
 #else
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
     }
-    else {
+    else
 #endif
 #endif
-        write86(addr32, (uint8_t)value);
-        write86(addr32 + 1, (uint8_t)(value >> 8));
-#if PICO_ON_DEVICE
+    {
+        write86(addr32, (uint8_t) value);
+        write86(addr32 + 1, (uint8_t) (value >> 8));
     }
-#endif
 }
 
-static int cnt = 0;
-static uint8_t fill_by = 0x11;
 uint8_t read86(uint32_t addr32) {
-
-    if (cnt == VRAM_SIZE << 10) { cnt = 0; fill_by++; }
-    VRAM[cnt++] = fill_by;
-
     //printf("read86 %lx\r\n", addr32);
 #ifdef PSEUDO_RAM_BASE
     if (addr32 < (PSEUDO_RAM_SIZE << 10)) {
@@ -226,8 +230,7 @@ uint8_t read86(uint32_t addr32) {
     if (addr32 < (RAM_SIZE << 10)) {
 #endif
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
-        switch (addr32) {
-            //some hardcoded values for the BIOS data area
+        switch (addr32) { //some hardcoded values for the BIOS data area
             case 0x408:
                 return (0x78);
             case 0x409:
@@ -252,12 +255,12 @@ uint8_t read86(uint32_t addr32) {
                                       ||`------ not used, internal modem (PS/2)
                                       `-------- number of printer ports
             */
-        /*
-        case 0x413:
-            return (RAM_SIZE & 0xFF);
-        case 0x414:
-            return ((RAM_SIZE >> 8) & 0xFF);
-        */
+            /*
+            case 0x413:
+                return (RAM_SIZE & 0xFF);
+            case 0x414:
+                return ((RAM_SIZE >> 8) & 0xFF);
+            */
             case 0x463:
                 return (0xd4);
             case 0x464:
@@ -287,13 +290,17 @@ uint8_t read86(uint32_t addr32) {
                 return (hdcount);
             default:
 #ifdef PSEUDO_RAM_BASE
-            { // TODO: function
+            {
+                //char tmp[40]; sprintf(tmp, "R 0x%X", addr32); logMsg(tmp);
+                // TODO: function
                 register uint32_t flash_page = addr32 >> 12; // 4KB page idx
                 register uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
                 register uint32_t addr_in_page = addr32 - (flash_page << 12);
                 if (flash_page_desc & 0x8000) { // higest (15) bit is set, it means - the page already in RAM
                     register uint32_t ram_page = flash_page_desc & 0x00FF; // max 256 4k pages (1MB)
-                    return RAM[(ram_page << 12) + addr_in_page];
+                    uint8_t res = RAM[(ram_page << 12) + addr_in_page];
+                    //sprintf(tmp, "R[(0x%X << 12) + 0x%X] 0x%X: %d", ram_page, addr_in_page, addr32, res); logMsg(tmp);
+                    return res;
                     // TODO: think about RO oldeness (more often used to be saved in RAM longer)
                 } else {
                     uint16_t oldest_rw_flash_page = 0; int16_t max_rw_oldenes = -1; uint16_t oldest_rw_ram_page = 0;
@@ -319,7 +326,7 @@ uint8_t read86(uint32_t addr32) {
                             }
                         }
                     }
-                    gpio_put(PICO_DEFAULT_LED_PIN, true);
+                    //sprintf(tmp, "R max_ro_oldenes 0x%X; max_rw_oldenes 0x%X", max_ro_oldenes, max_rw_oldenes); logMsg(tmp);
                     if (max_ro_oldenes >= 0 || max_rw_oldenes == -1) { // just replace RO page
                         register uint32_t ram_page = oldest_ro_ram_page;
                         PSEUDO_RAM_PAGES[oldest_ro_flash_page] = 0x0000; // not more mapped
@@ -327,8 +334,12 @@ uint8_t read86(uint32_t addr32) {
                         RAM_PAGES[oldest_ro_ram_page] = (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
                         CURRENT_RAM_PAGE_OLDNESS += 1;
                         uint32_t ram_page_offset = (ram_page << 12);
+               
+                char tmp[40];
+                sprintf(tmp, "R1 0x%X %d ramP: %d; romPx: %d -> ", addr32, oldest_ro_ram_page, oldest_ro_flash_page, flash_page);
+                logMsg(tmp);
+
                         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + ram_page_offset, 4096);
-                        gpio_put(PICO_DEFAULT_LED_PIN, false);
                         return RAM[ram_page_offset + addr_in_page];
                     } else {
                         // save found page to flash
@@ -344,8 +355,12 @@ uint8_t read86(uint32_t addr32) {
                         RAM_PAGES[oldest_rw_ram_page] = (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
                         CURRENT_RAM_PAGE_OLDNESS += 1;
                         uint32_t ram_page_offset = (ram_page << 12);
+                
+                char tmp[40];
+                sprintf(tmp, "R2 0x%X ramP: %d; romPx: %d -> ", addr32, oldest_rw_ram_page, oldest_rw_flash_page, flash_page);
+                logMsg(tmp);
+
                         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + ram_page_offset, 4096);
-                        gpio_put(PICO_DEFAULT_LED_PIN, false);
                         return RAM[ram_page_offset + addr_in_page];
                     }
                 }
@@ -833,7 +848,7 @@ static inline uint16_t pop() {
 uint32_t ClockTick(uint32_t interval, void *name) {
     doirq(0);
     tickssource();
-    return timer_period;
+    return timer_period / 1000;
 }
 
 uint32_t BlinkTimer(uint32_t interval, void *name) {
@@ -844,7 +859,7 @@ uint32_t BlinkTimer(uint32_t interval, void *name) {
 
 void reset86() {
 #if !PICO_ON_DEVICE
-    SDL_AddTimer(timer_period, ClockTick, "timer");
+    SDL_AddTimer(timer_period / 1000, ClockTick, "timer");
     SDL_AddTimer(500, BlinkTimer, "blink");
 #endif
     init8253();

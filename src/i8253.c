@@ -58,13 +58,12 @@ void out8253(uint16_t portnum, uint8_t value) {
                 i8253.bytetoggle[portnum] = (~i8253.bytetoggle[portnum]) & 1;
             }
 
-            i8253.chanfreq[portnum] = (float) ((uint32_t) (((float) 1193182.0 / (float) i8253.effectivedata[portnum]) *
-                                                           (float) 1000.0));
+        i8253.chanfreq[portnum] = (float) ( (uint32_t) ( ( (float) 1193182.0 / (float) i8253.effectivedata[portnum]) * (float) 1000.0) ) / (float) 1000.0;
 #if 1
             if (portnum == 0) {
                 // Timer freq 1,193,180
-                timer_period = 1 + ((uint32_t) ((float) 1000000.0 /
-                                                (((float) 1193182.0 / (float) i8253.effectivedata[portnum]))) / 1000);
+                timer_period = ((uint32_t) ((float) 1000000.0 /
+                                                (((float) 1193182.0 / (float) i8253.effectivedata[portnum]))));
             }
 #endif
             break;
