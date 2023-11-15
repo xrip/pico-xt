@@ -62,7 +62,7 @@ void __time_critical_func(render_core)() {
     uint8_t tick50ms = 0;
     while (true) {
         doirq(0);
-        sleep_ms(timer_period);
+        busy_wait_us(timer_period);
         if (tick50ms == 0 || tick50ms == 10) {
             cursor_blink_state ^= 1;
         }
@@ -82,9 +82,9 @@ void __time_critical_func(render_core)() {
 
 static int RendererThread(void *ptr) {
     while (runing) {
-        exec86(2000);
+        exec86(2000 );
 #if !PICO_ON_DEVICE
-        //SDL_Delay(1);
+        SDL_Delay(1);
 #endif
     }
     return 0;
