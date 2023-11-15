@@ -128,6 +128,8 @@ else ()
             PSRAM_PIN_MOSI=19
             PSRAM_PIN_MISO=16
 
+            PSEUDO_RAM_BASE=0x10400000
+
     )
 
 #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

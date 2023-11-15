@@ -22,11 +22,21 @@
 #endif
 
 #define VRAM_SIZE 32
+
 #if PICO_ON_DEVICE
 #define RAM_SIZE (64*3)
 #else
 #define RAM_SIZE (640) // (64*3+26)
 #endif
+
+#if PSEUDO_RAM_BASE
+#define PSEUDO_RAM_SIZE (640)
+extern uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_SIZE << 2]; // 4KB blocks
+extern uint8_t CURRENT_RAM_PAGE_OLDNESS;
+extern uint16_t RAM_PAGES[RAM_SIZE << 2]; // PSEUDO_RAM_PAGES idx (7-0); 15 - written, 14-8 oldness
+void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz);
+#endif
+
 extern uint8_t RAM[RAM_SIZE << 10];
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern bool PSRAM_AVAILABLE;

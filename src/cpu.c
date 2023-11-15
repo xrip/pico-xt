@@ -52,6 +52,11 @@ static const uint8_t parity[0x100] = {
 };
 uint8_t RAM[RAM_SIZE << 10];
 uint8_t VRAM[VRAM_SIZE << 10];
+#if PSEUDO_RAM_BASE
+uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_SIZE << 2] = { 0 }; // 4KB blocks
+uint8_t CURRENT_RAM_PAGE_OLDNESS = 0;
+uint16_t RAM_PAGES[RAM_SIZE << 2] = { 0 };
+#endif
 
 uint8_t oper1b, oper2b, res8, nestlev, addrbyte;
 uint16_t saveip, savecs, oper1, oper2, res16, disp16, temp16, dummy, stacksize, frametemp;
@@ -96,14 +101,81 @@ void modregrm() {
 }
 
 void write86(uint32_t addr32, uint8_t value) {
+#if PSEUDO_RAM_BASE
+    if ((addr32) < (PSEUDO_RAM_SIZE << 10)) {
+        // TODO: definde function
+        register uint32_t flash_page = addr32 >> 12; // 4KB page idx
+        register uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
+        register uint32_t addr_in_page = addr32 - (flash_page << 12);
+        if (flash_page_desc & 0x8000) { // higest (15) bit is set, it means - the page already in RAM
+            flash_page_desc |= 0x4000; // mark it as changed - bit 14
+            PSEUDO_RAM_PAGES[flash_page] = flash_page_desc;
+            register uint32_t ram_page = flash_page_desc & 0x00FF; // max 256 4k pages (1MB)
+            RAM[(ram_page << 12) + addr_in_page] = value;
+            register uint16_t ram_page_desc = RAM_PAGES[ram_page];
+            if (!(ram_page_desc & 0x8000)) { // higest (15) bit is set, it means - the page has changes
+                RAM_PAGES[ram_page] = ram_page_desc = 0x8000; // mark it as changed - bit 15
+            }
+        } else {
+            uint16_t oldest_rw_flash_page = 0; int16_t max_rw_oldenes = -1; uint16_t oldest_rw_ram_page = 0;
+            uint16_t oldest_ro_flash_page = 0; int16_t max_ro_oldenes = -1; uint16_t oldest_ro_ram_page = 0;
+            for (uint16_t ram_page = 0; ram_page < RAM_SIZE << 2; ++ram_page) {
+                uint16_t ram_page_desc = RAM_PAGES[ram_page];
+                uint16_t oldeness = (ram_page_desc & 0x7F00) >> 8; // 14-8 -> 6-0
+                uint16_t flash_page_idx = (ram_page_desc & 0x00FF) >> 8; // 7-0
+                if (oldeness < CURRENT_RAM_PAGE_OLDNESS) {
+                    oldeness += CURRENT_RAM_PAGE_OLDNESS;
+                }
+                if (ram_page_desc & 0x8000) { // higest (15) bit is set, it means - the page has changes
+                    if (oldeness > max_rw_oldenes) {
+                        max_rw_oldenes = oldeness;
+                        oldest_rw_flash_page = flash_page_idx;
+                        oldest_rw_ram_page = ram_page;
+                    }
+                } else {
+                    if (oldeness > max_ro_oldenes) {
+                        max_ro_oldenes = oldeness;
+                        oldest_ro_flash_page = flash_page_idx;
+                        oldest_ro_ram_page = ram_page;
+                    }
+                }
+            }
+            if (max_ro_oldenes >= 0 || max_rw_oldenes == -1) { // just replace RO page
+                register uint32_t ram_page = oldest_ro_ram_page;
+                PSEUDO_RAM_PAGES[oldest_ro_flash_page] = 0x0000; // not more mapped
+                PSEUDO_RAM_PAGES[flash_page] = 0x8000 | 0x4000 | ram_page; // in ram & changed + ram_page
+                RAM_PAGES[oldest_ro_ram_page] = 0x8000 | (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
+                CURRENT_RAM_PAGE_OLDNESS += 1;
+                uint32_t ram_page_offset = (ram_page << 12);
+                memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + ram_page_offset, 4096);
+                RAM[ram_page_offset + addr_in_page] = value;
+            } else {
+                // save found page to flash
+                flash_range_program3(
+                    PSEUDO_RAM_BASE + (oldest_rw_ram_page << 12),
+                    (const u_int8_t*)RAM + (oldest_rw_ram_page << 12),
+                    4096
+                );
+                // use new page:
+                register uint32_t ram_page = oldest_rw_ram_page;
+                PSEUDO_RAM_PAGES[oldest_rw_flash_page] = 0x0000; // not more mapped
+                PSEUDO_RAM_PAGES[flash_page] = 0x8000 | 0x4000 | ram_page; // in ram & changed + ram_page
+                RAM_PAGES[oldest_rw_ram_page] = 0x8000 | (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
+                CURRENT_RAM_PAGE_OLDNESS += 1;
+                uint32_t ram_page_offset = (ram_page << 12);
+                memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + ram_page_offset, 4096);
+                RAM[ram_page_offset + addr_in_page] = value;
+            }
+        }
+#else
     if ((addr32) < (RAM_SIZE << 10)) {
         RAM[addr32] = value;
+#endif
         return;
     }
     else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
         // video RAM range
         addr32 -= 0xB8000UL;
-
         VRAM[addr32] = value; // 16k for graphic mode!!!
         return;
     }
@@ -120,17 +192,19 @@ void write86(uint32_t addr32, uint8_t value) {
 #endif
 }
 
-
 static inline void writew86(uint32_t addr32, uint16_t value) {
 #if PICO_ON_DEVICE
+#if PSEUDO_RAM_BASE
+    { // TODO: optimize
+#else
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
     }
     else {
 #endif
+#endif
         write86(addr32, (uint8_t)value);
         write86(addr32 + 1, (uint8_t)(value >> 8));
-
 #if PICO_ON_DEVICE
     }
 #endif
@@ -138,9 +212,12 @@ static inline void writew86(uint32_t addr32, uint16_t value) {
 
 uint8_t read86(uint32_t addr32) {
     //printf("read86 %lx\r\n", addr32);
+#ifdef PSEUDO_RAM_BASE
+    if (addr32 < (PSEUDO_RAM_SIZE << 10)) {
+#else
     if (addr32 < (RAM_SIZE << 10)) {
+#endif
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
-
         switch (addr32) {
             //some hardcoded values for the BIOS data area
             case 0x408:
@@ -157,7 +234,7 @@ uint8_t read86(uint32_t addr32) {
                       ||||`---- not used on PS/2
                       ||`------ initial video mode
                       `-------- number of diskette drives, less 1
-*/
+            */
             case 0x411:
                 return (0b01000000);
             /*  	                  76543210  40:11  (value in INT 11 register AH)
@@ -166,19 +243,17 @@ uint8_t read86(uint32_t addr32) {
                                       |||`----- game adapter
                                       ||`------ not used, internal modem (PS/2)
                                       `-------- number of printer ports
-             */
-
-            /*
+            */
+        /*
         case 0x413:
             return (RAM_SIZE & 0xFF);
         case 0x414:
             return ((RAM_SIZE >> 8) & 0xFF);
-*/
+        */
             case 0x463:
                 return (0xd4);
             case 0x464:
                 return (0x3);
-
             case 0x465:
                 switch (videomode) {
                     case 0:
@@ -198,15 +273,75 @@ uint8_t read86(uint32_t addr32) {
                     default:
                         return (0x29);
                 }
-
             case 0x466:
                 return port3D9;
-
             case 0x475: //hard drive count
                 return (hdcount);
-
             default:
+#ifdef PSEUDO_RAM_BASE
+            { // TODO: function
+                register uint32_t flash_page = addr32 >> 12; // 4KB page idx
+                register uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
+                register uint32_t addr_in_page = addr32 - (flash_page << 12);
+                if (flash_page_desc & 0x8000) { // higest (15) bit is set, it means - the page already in RAM
+                    register uint32_t ram_page = flash_page_desc & 0x00FF; // max 256 4k pages (1MB)
+                    return RAM[(ram_page << 12) + addr_in_page];
+                    // TODO: think about RO oldeness (more often used to be saved in RAM longer)
+                } else {
+                    uint16_t oldest_rw_flash_page = 0; int16_t max_rw_oldenes = -1; uint16_t oldest_rw_ram_page = 0;
+                    uint16_t oldest_ro_flash_page = 0; int16_t max_ro_oldenes = -1; uint16_t oldest_ro_ram_page = 0;
+                    for (uint16_t ram_page = 0; ram_page < RAM_SIZE << 2; ++ram_page) {
+                        uint16_t ram_page_desc = RAM_PAGES[ram_page];
+                        uint16_t oldeness = (ram_page_desc & 0x7F00) >> 8; // 14-8 -> 6-0
+                        uint16_t flash_page_idx = (ram_page_desc & 0x00FF) >> 8; // 7-0
+                        if (oldeness < CURRENT_RAM_PAGE_OLDNESS) {
+                            oldeness += CURRENT_RAM_PAGE_OLDNESS;
+                        }
+                        if (ram_page_desc & 0x8000) { // higest (15) bit is set, it means - the page has changes
+                            if (oldeness > max_rw_oldenes) {
+                                max_rw_oldenes = oldeness;
+                                oldest_rw_flash_page = flash_page_idx;
+                                oldest_rw_ram_page = ram_page;
+                            }
+                        } else {
+                            if (oldeness > max_ro_oldenes) {
+                                max_ro_oldenes = oldeness;
+                                oldest_ro_flash_page = flash_page_idx;
+                                oldest_ro_ram_page = ram_page;
+                            }
+                        }
+                    }
+                    if (max_ro_oldenes >= 0 || max_rw_oldenes == -1) { // just replace RO page
+                        register uint32_t ram_page = oldest_ro_ram_page;
+                        PSEUDO_RAM_PAGES[oldest_ro_flash_page] = 0x0000; // not more mapped
+                        PSEUDO_RAM_PAGES[flash_page] = 0x8000 | ram_page; // in ram + ram_page
+                        RAM_PAGES[oldest_ro_ram_page] = (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
+                        CURRENT_RAM_PAGE_OLDNESS += 1;
+                        uint32_t ram_page_offset = (ram_page << 12);
+                        memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + ram_page_offset, 4096);
+                        return RAM[ram_page_offset + addr_in_page];
+                    } else {
+                        // save found page to flash
+                        flash_range_program3(
+                            PSEUDO_RAM_BASE + (oldest_rw_ram_page << 12),
+                            (const char*)RAM + (oldest_rw_ram_page << 12),
+                            4096
+                        );
+                        // use new page:
+                        register uint32_t ram_page = oldest_rw_ram_page;
+                        PSEUDO_RAM_PAGES[oldest_rw_flash_page] = 0x0000; // not more mapped
+                        PSEUDO_RAM_PAGES[flash_page] = 0x8000 | ram_page; // in ram + ram_page
+                        RAM_PAGES[oldest_rw_ram_page] = (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
+                        CURRENT_RAM_PAGE_OLDNESS += 1;
+                        uint32_t ram_page_offset = (ram_page << 12);
+                        memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + ram_page_offset, 4096);
+                        return RAM[ram_page_offset + addr_in_page];
+                    }
+                }
+            }
+#else
                 return RAM[addr32];
+#endif
         }
     }
     else if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
@@ -250,9 +385,11 @@ uint8_t read86(uint32_t addr32) {
 
 __inline uint16_t readw86(uint32_t addr32) {
 #if PICO_ON_DEVICE
+#ifndef PSEUDO_RAM_BASE // TODO:
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         return psram_read16(&psram_spi, addr32);
     }
+#endif
 #endif
     return ((uint16_t)read86(addr32) | (uint16_t)(read86(addr32 + 1) << 8));
 }
@@ -703,6 +840,11 @@ void reset86() {
     init8259();
     memset(RAM, 0x0, RAM_SIZE << 10);
     memset(VRAM, 0x0, VRAM_SIZE << 10);
+#if PSEUDO_RAM_BASE
+    memset(PSEUDO_RAM_PAGES, 0x0, PSEUDO_RAM_SIZE << 1);
+    memset(RAM_PAGES, 0x0, RAM_SIZE << 1);
+    CURRENT_RAM_PAGE_OLDNESS = 0;
+#endif
 
     CPU_CS = 0xFFFF;
     CPU_SS = 0x0000;
