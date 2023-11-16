@@ -319,7 +319,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
     }
     dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
 }
-
+extern volatile bool block_irq;
 void graphics_set_mode(enum graphics_mode_t mode) {
     switch (mode) {
         case TEXTMODE_40x30:
@@ -512,27 +512,11 @@ void clrScr(uint8_t color) {
     current_line = 0;
 };
 
-extern volatile bool block_irq;
 void logMsg(char * msg) {
-    bool was_blocked = block_irq;
-    block_irq = 0;
-    if (graphics_mode != TEXTMODE_80x30) {
-        graphics_set_mode(TEXTMODE_80x30);
-    }
     if (current_line >= 30 - 1) {
-        size_t sz = 30 * 80 - 80;
-        for(size_t i = 0; i < sz; ++i) {
-            text_buffer[i] = text_buffer[i + 80];
-            text_buf_color[i] = text_buf_color[i + 80];
-        }
-        memset(text_buffer + sz, 0, 80);
-        memset(text_buf_color + sz, 1 << 4, 80);
-        draw_text(msg, 0, current_line, 7, 1);
-    } else {
-        draw_text(msg, 0, current_line++, 7, 1);
+        current_line = 0;
     }
-    sleep_ms(1500);
-    block_irq = was_blocked;
+    draw_text(msg, 0, current_line++, 7, 1);
 }
 
 void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {
