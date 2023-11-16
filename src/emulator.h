@@ -31,9 +31,9 @@
 
 #if PSEUDO_RAM_BASE
 #define PSEUDO_RAM_SIZE (640)
-#define PSEUDO_RAM_BLOCKS (PSEUDO_RAM_SIZE << 2)
+#define PSEUDO_RAM_BLOCKS (PSEUDO_RAM_SIZE >> 2)
 extern uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS]; // 4KB blocks
-#define RAM_BLOCKS (RAM_SIZE << 2)
+#define RAM_BLOCKS (RAM_SIZE >> 2)
 extern uint16_t RAM_PAGES[RAM_BLOCKS]; // PSEUDO_RAM_PAGES idx (7-0); 15 - written, 14-8 oldness
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz);
 #endif
