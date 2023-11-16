@@ -39,6 +39,7 @@ uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 uint8_t videomode = 3;
 int timer_period = 55000;
 volatile bool block_irq = 0;
+volatile bool blocked_by_wait = 0;
 
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
@@ -52,7 +53,7 @@ static const uint8_t parity[0x100] = {
     1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
     0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
 };
-uint8_t RAM[RAM_SIZE << 10];
+__aligned(4096) uint8_t RAM[RAM_SIZE << 10];
 uint8_t VRAM[VRAM_SIZE << 10];
 #if PSEUDO_RAM_BASE
 uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS] = { 0 }; // 4KB blocks
@@ -105,8 +106,8 @@ void modregrm() {
 
 #if PSEUDO_RAM_BASE
 #define MAX_OLDENESS 0x7F
-//#include <pico/multicore.h>
-//static critical_section_t cs;
+#include <pico/multicore.h>
+static critical_section_t cs;
 uint32_t get_ram_page_for(const uint32_t addr32) {
     uint32_t flash_page = addr32 >> 12; // 4KB page idx
     uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
@@ -114,7 +115,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
          return flash_page_desc & 0x7FFF; // actually max 256 4k pages (1MB), but may be more;)
     }
     block_irq = 1;
-    //critical_section_enter_blocking(&cs);
+    critical_section_enter_blocking(&cs);
     // char tmp[40]; sprintf(tmp, "0 FLASH page: 0x%X DESC: 0x%X", flash_page, flash_page_desc); logMsg(tmp);
     // lookup for oldest page to unload
     uint16_t oldest_rw_flash_page = 1; int16_t min_rw_oldenes = 2*MAX_OLDENESS + 1; uint16_t oldest_rw_ram_page = 1;
@@ -166,7 +167,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         // sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
         block_irq = 0;
-        //critical_section_exit(&cs);
+        critical_section_exit(&cs);
         return ram_page;
     }
     // No RO page, lets flush found RW page to flash
@@ -191,7 +192,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     // sprintf(tmp, "3 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
     block_irq = 0;
-    //critical_section_exit(&cs);
+    critical_section_exit(&cs);
     return ram_page;
 }
 #endif
@@ -829,6 +830,7 @@ void reset86() {
     memset(RAM, 0x0, RAM_SIZE << 10);
     memset(VRAM, 0x0, VRAM_SIZE << 10);
 #if PSEUDO_RAM_BASE
+    critical_section_init(&cs);
     block_irq = 1;
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     CURRENT_RAM_PAGE_OLDNESS = 0;

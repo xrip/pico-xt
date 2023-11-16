@@ -70,6 +70,7 @@ extern uint8_t videomode;
 extern uint8_t speakerenabled;
 extern int timer_period;
 extern volatile bool block_irq;
+extern volatile bool blocked_by_wait;
 #if PICO_ON_DEVICE
 extern pwm_config config;
 #endif

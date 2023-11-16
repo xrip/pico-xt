@@ -42,19 +42,22 @@ bool runing = true;
 #include <hardware/flash.h>
 // TODO: own C file
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
+    while(blocked_by_wait) {
+        // TODO: semaphor?
+    }
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char tmp[40]; sprintf(tmp, "Flash 0x%X", addr); logMsg(tmp);
+    // char tmp[40]; sprintf(tmp, "Flash erase 0x%X (%d)", addr, sz); logMsg(tmp);
     uint32_t interrupts = save_and_disable_interrupts();
     // multicore_lockout_start_blocking();
     flash_range_erase(addr - XIP_BASE, sz);
+    // sprintf(tmp, "Flash write 0x%X<-0x%X", addr, buff); logMsg(tmp);
     flash_range_program(addr - XIP_BASE, buff, sz);
-    restore_interrupts(interrupts);
     // multicore_lockout_end_blocking();
+    restore_interrupts(interrupts);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
 struct semaphore vga_start_semaphore;
-
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
     graphics_init();
@@ -74,12 +77,41 @@ void __time_critical_func(render_core)() {
     sem_acquire_blocking(&vga_start_semaphore);
 
     uint8_t tick50ms = 0;
+    uint32_t interrupts;
     while (true) {
+        bool unblock = false;
         while (block_irq) {
-            tick50ms = tick50ms; // TODO: ?
+            interrupts = save_and_disable_interrupts();
+            unblock = true;
         }
+        if (unblock) {
+            restore_interrupts(interrupts);
+        }
+
         doirq(0);
+
+        unblock = false;
+        while (block_irq) {
+            interrupts = save_and_disable_interrupts();
+            unblock = true;
+        }
+        if (unblock) {
+            restore_interrupts(interrupts);
+        }
+
+        blocked_by_wait = true;
         busy_wait_us(timer_period);
+        blocked_by_wait = false;
+
+        unblock = false;
+        while (block_irq) {
+            interrupts = save_and_disable_interrupts();
+            unblock = true;
+        }
+        if (unblock) {
+            restore_interrupts(interrupts);
+        }
+
         if (tick50ms == 0 || tick50ms == 10) {
             cursor_blink_state ^= 1;
         }
@@ -154,7 +186,7 @@ int main() {
     sem_release(&vga_start_semaphore);
 
     sleep_ms(50);
-#if 1
+#if PSRAM
     // TODO: сделать нормально
     psram_spi = psram_spi_init(pio0, -1);
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
@@ -180,7 +212,7 @@ int main() {
         return -1;
     }
 #endif
-    graphics_set_mode(TEXTMODE_80x30);
+    // graphics_set_mode(TEXTMODE_80x30);
     reset86();
     while (runing) {
 #if !PICO_ON_DEVICE

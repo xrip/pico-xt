@@ -319,7 +319,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
     }
     dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
 }
-extern volatile bool block_irq;
+
 void graphics_set_mode(enum graphics_mode_t mode) {
     switch (mode) {
         case TEXTMODE_40x30:
@@ -531,7 +531,6 @@ void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {
         }
     }
     if (x >= text_buffer_width) return;
-
     uint8_t *t_buf = text_buffer + (text_buffer_width * y) + x;
     //uint8_t* t_buf_c=text_buf+(text_buf_width*y)+x+1;
     for (int xi = x; xi < text_buffer_width; xi++) {
