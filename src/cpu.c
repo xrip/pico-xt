@@ -151,7 +151,7 @@ uint8_t read86(uint32_t addr32) {
             case 0x409:
                 return (0x3);
             case 0x410:
-                return (0b01100111); //video type CGA 80x25
+                return (0b01100001); //video type CGA 80x25
                 /* 		  76543210  40:10 (value in INT 11 register AL)
 		                  |||||||`- IPL diskette installed
 		                  ||||||`-- math coprocessor
@@ -751,6 +751,7 @@ void intcall86(uint8_t intnum) {
                     }
 #endif
                 // http://www.techhelpmanual.com/114-video_modes.html
+                // http://www.techhelpmanual.com/89-video_memory_layouts.html
                     printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
 #if PICO_ON_DEVICE
                     switch (videomode) {
