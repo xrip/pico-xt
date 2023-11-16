@@ -180,7 +180,7 @@ int main() {
         return -1;
     }
 #endif
-    // graphics_set_mode(TEXTMODE_80x30);
+    graphics_set_mode(TEXTMODE_80x30);
     reset86();
     while (runing) {
 #if !PICO_ON_DEVICE

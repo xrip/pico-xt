@@ -520,16 +520,15 @@ void logMsg(char * msg) {
 }
 
 void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    int text_buffer_height = 30; // TODO: ??
-    int text_buffer_width = 80;
     if ((y < 0) | (y >= text_buffer_height)) return;
     int len = strlen(string);
     if (x < 0) {
         if ((len + x) > 0) {
             string += -x;
             x = 0;
-
-        } else return;
+        } else {
+           return;
+        }
     }
     if (x >= text_buffer_width) return;
 
@@ -541,10 +540,7 @@ void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {
         *t_buf++ = (bgcolor << 4) | (color & 0xF);
 
     }
-
-
 };
-
 
 void graphics_set_bgcolor(uint32_t color888) {
     uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
