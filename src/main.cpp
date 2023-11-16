@@ -41,20 +41,6 @@ bool runing = true;
 
 #include <hardware/flash.h>
 // TODO: own C file
-void flash_range_erase2(uint32_t addr, size_t sz) {
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-    uint32_t interrupts = save_and_disable_interrupts();
-    flash_range_erase(addr - XIP_BASE, sz);
-    restore_interrupts(interrupts);
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-}
-void flash_range_program2(uint32_t addr, const u_int8_t * buff, size_t sz) {
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-    uint32_t interrupts = save_and_disable_interrupts();
-    flash_range_program(addr - XIP_BASE, buff, sz);
-    restore_interrupts(interrupts);
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-}
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     uint32_t interrupts = save_and_disable_interrupts();
@@ -62,7 +48,7 @@ void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
     flash_range_program(addr - XIP_BASE, buff, sz);
     restore_interrupts(interrupts);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
-    char tmp[40]; sprintf(tmp, "Flash 0x%X", addr); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "Flash 0x%X", addr); logMsg(tmp); sleep_ms(500);
 }
 
 struct semaphore vga_start_semaphore;

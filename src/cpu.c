@@ -144,6 +144,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         }
         uint32_t ram_page_offset = ram_page << 12;
         uint32_t flash_page_offset = flash_page << 12;
+        char tmp[40]; sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp); sleep_ms(500);
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
         return ram_page;
     }
@@ -164,6 +165,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         CURRENT_RAM_PAGE_OLDNESS = 0;
     }
     flash_page_offset = flash_page << 12;
+    char tmp[40]; sprintf(tmp, "2 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp); sleep_ms(500);
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
     return ram_page;
 }
@@ -204,12 +206,7 @@ void write86(uint32_t addr32, uint8_t value) {
 
 static inline void writew86(uint32_t addr32, uint16_t value) {
 #if PICO_ON_DEVICE
-#if PSEUDO_RAM_BASE
-    { // TODO: optimize
-        write86(addr32, (uint8_t) value);
-        write86(addr32 + 1, (uint8_t) (value >> 8));
-    }
-#else
+#ifndef PSEUDO_RAM_BASE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
     }
@@ -236,24 +233,24 @@ uint8_t read86(uint32_t addr32) {
             case 0x409:
                 return (0x3);
             case 0x410:
-                return (0b01100111); //video type CGA 80x25
-            /* 		  76543210  40:10 (value in INT 11 register AL)
-                      |||||||`- IPL diskette installed
-                      ||||||`-- math coprocessor
-                      |||||+--- old PC system board RAM < 256K
-                      |||||`--- pointing device installed (PS/2)
-                      ||||`---- not used on PS/2
-                      ||`------ initial video mode
-                      `-------- number of diskette drives, less 1
+                return 0b01100111; // video type CGA 80x25
+            /*           76543210  40:10 (value in INT 11 register AL)
+                         |||||||`- IPL diskette installed
+                         ||||||`-- math coprocessor
+                         |||||+--- old PC system board RAM < 256K
+                         |||||`--- pointing device installed (PS/2)
+                         ||||`---- not used on PS/2
+                         ||`------ initial video mode
+                         `-------- number of diskette drives, less 1
             */
             case 0x411:
-                return (0b01000000);
-            /*  	                  76543210  40:11  (value in INT 11 register AH)
-                                      |||||||`- 0 if DMA installed
-                                      ||||`---- number of serial ports
-                                      |||`----- game adapter
-                                      ||`------ not used, internal modem (PS/2)
-                                      `-------- number of printer ports
+                return 0b01000000;
+            /*           76543210  40:11  (value in INT 11 register AH)
+                         |||||||`- 0 if DMA installed
+                         ||||`---- number of serial ports
+                         |||`----- game adapter
+                         ||`------ not used, internal modem (PS/2)
+                         `-------- number of printer ports
             */
             /*
             case 0x413:
@@ -310,7 +307,7 @@ uint8_t read86(uint32_t addr32) {
         addr32 -= 0xB8000UL;
         return VRAM[addr32]; //
     }
-    else if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) {
+    else if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) { // NE2000
         addr32 -= 0xCC000UL;
     }
     else if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) {
@@ -330,12 +327,14 @@ uint8_t read86(uint32_t addr32) {
     if (PSRAM_AVAILABLE) {
         return psram_read8(&psram_spi, addr32);
     }
-    else {
-        //return 0x00;
-    }
 #endif
-    //psram_write16(&psram_spi, 0xBEEF, 0xFEED);
-    //uint16_t rr = psram_read16(&psram_spi, 0xBEEF);
+
+#ifdef PSEUDO_RAM_BASE
+//   uint32_t ram_page = get_ram_page_for(addr32);
+//   uint32_t addr_in_page = addr32 - (addr32 & 0xFFFFF000);
+//   return RAM[(ram_page << 12) + addr_in_page];
+#endif
+    return 0;
 }
 
 
@@ -1855,8 +1854,6 @@ void __inline exec86(uint32_t execloops) {
     tickssource();
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
         //if ((totalexec & 256) == 0)
-
-
         if (trap_toggle) {
             intcall86(1);
         }
