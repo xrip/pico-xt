@@ -57,6 +57,7 @@ uint8_t VRAM[VRAM_SIZE << 10];
 #if PSEUDO_RAM_BASE
 uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS] = { 0 }; // 4KB blocks
 uint16_t CURRENT_RAM_PAGE_OLDNESS = 0;
+uint16_t LAST_RAM_PAGE_USED = 0;
 uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
 #endif
 
@@ -113,8 +114,8 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     block_irq = 1;
     // char tmp[40]; sprintf(tmp, "0 FLASH page: 0x%X DESC: 0x%X", flash_page, flash_page_desc); logMsg(tmp);
     // lookup for oldest page to unload
-    uint16_t oldest_rw_flash_page = 1; int16_t min_rw_oldenes = MAX_OLDENESS + 1; uint16_t oldest_rw_ram_page = 1;
-    uint16_t oldest_ro_flash_page = 1; int16_t min_ro_oldenes = MAX_OLDENESS + 1; uint16_t oldest_ro_ram_page = 1;
+    uint16_t oldest_rw_flash_page = 1; int16_t min_rw_oldenes = 2*MAX_OLDENESS + 1; uint16_t oldest_rw_ram_page = 1;
+    uint16_t oldest_ro_flash_page = 1; int16_t min_ro_oldenes = 2*MAX_OLDENESS + 1; uint16_t oldest_ro_ram_page = 1;
     bool ro_page_was_found = false;
     for (uint16_t ram_page = 1 /*from 4k+*/; ram_page < RAM_BLOCKS; ++ram_page) {
         uint16_t ram_page_desc = RAM_PAGES[ram_page];
@@ -196,7 +197,7 @@ void write86(uint32_t addr32, uint8_t value) {
         RAM[addr32] = value;
     } else if (addr32 < (PSEUDO_RAM_SIZE << 10)) {
         uint32_t ram_page = get_ram_page_for(addr32);
-        uint32_t addr_in_page = addr32 & 0xFFFFF000;
+        uint32_t addr_in_page = addr32 & 0x00000FFF;
         RAM[(ram_page << 12) + addr_in_page] = value;
         uint16_t ram_page_desc = RAM_PAGES[ram_page];
         if (!(ram_page_desc & 0x8000)) { // if higest (15) bit is set, it means - the page has changes
@@ -312,7 +313,7 @@ uint8_t read86(uint32_t addr32) {
                 return RAM[addr32];
             } else {
                 uint32_t ram_page = get_ram_page_for(addr32);
-                uint32_t addr_in_page = addr32 & 0xFFFFF000;
+                uint32_t addr_in_page = addr32 & 0x00000FFF;
                 return RAM[(ram_page << 12) + addr_in_page];
             }
 #else

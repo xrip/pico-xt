@@ -43,12 +43,12 @@ bool runing = true;
 // TODO: own C file
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
+    // char tmp[40]; sprintf(tmp, "Flash 0x%X", addr); logMsg(tmp);
     uint32_t interrupts = save_and_disable_interrupts();
     flash_range_erase(addr - XIP_BASE, sz);
     flash_range_program(addr - XIP_BASE, buff, sz);
     restore_interrupts(interrupts);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
-    // char tmp[40]; sprintf(tmp, "Flash 0x%X", addr); logMsg(tmp);
 }
 
 struct semaphore vga_start_semaphore;

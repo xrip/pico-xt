@@ -511,7 +511,7 @@ void clrScr(uint8_t color) {
     memset(text_buf_color, (color << 4), text_buffer_height * text_buffer_width);
     current_line = 0;
 };
-/*
+
 extern volatile bool block_irq;
 void logMsg(char * msg) {
     bool was_blocked = block_irq;
@@ -534,8 +534,10 @@ void logMsg(char * msg) {
     sleep_ms(1500);
     block_irq = was_blocked;
 }
-*/
+
 void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {
+    int text_buffer_height = 30; // TODO: ??
+    int text_buffer_width = 80;
     if ((y < 0) | (y >= text_buffer_height)) return;
     int len = strlen(string);
     if (x < 0) {
