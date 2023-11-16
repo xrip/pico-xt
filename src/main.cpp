@@ -191,7 +191,7 @@ int main() {
         return -1;
     }
 #endif
-    graphics_set_mode(TEXTMODE_80x30); // TODO:  rem it out
+    // graphics_set_mode(TEXTMODE_80x30);
     reset86();
     while (runing) {
 #if !PICO_ON_DEVICE
@@ -341,7 +341,6 @@ int main() {
         }
         SDL_UpdateWindowSurface(window);
 #else
-        sleep_ms(33);
         exec86(340);
 #endif
     }

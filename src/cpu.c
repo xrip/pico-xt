@@ -55,7 +55,7 @@ uint8_t RAM[RAM_SIZE << 10];
 uint8_t VRAM[VRAM_SIZE << 10];
 #if PSEUDO_RAM_BASE
 uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_SIZE << 2] = { 0 }; // 4KB blocks
-uint8_t CURRENT_RAM_PAGE_OLDNESS = 0;
+uint16_t CURRENT_RAM_PAGE_OLDNESS = 0;
 uint16_t RAM_PAGES[RAM_SIZE << 2] = { 0 };
 #endif
 
@@ -150,9 +150,9 @@ void write86(uint32_t addr32, uint8_t value) {
                 CURRENT_RAM_PAGE_OLDNESS += 1; if(CURRENT_RAM_PAGE_OLDNESS >= 0x8000) CURRENT_RAM_PAGE_OLDNESS = 0;
                 uint32_t ram_page_offset = (ram_page << 12);
                 
-                char tmp[40];
-                sprintf(tmp, "W1 ramP %X; romP %X->%X", oldest_ro_ram_page, oldest_ro_flash_page, flash_page);
-                logMsg(tmp); sleep_ms(100);
+                //char tmp[40];
+                //sprintf(tmp, "W1 ramP %X; romP %X->%X", oldest_ro_ram_page, oldest_ro_flash_page, flash_page);
+                //logMsg(tmp); sleep_ms(100);
 
                 uint32_t flash_page_offset = flash_page << 12;
                 memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
@@ -173,9 +173,9 @@ void write86(uint32_t addr32, uint8_t value) {
                 RAM_PAGES[ram_page] = 0x8000 | (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
                 CURRENT_RAM_PAGE_OLDNESS += 1; if(CURRENT_RAM_PAGE_OLDNESS >= 0x8000) CURRENT_RAM_PAGE_OLDNESS = 0;
                 
-                char tmp[40];
-                sprintf(tmp, "W2 ram %X rom %X->%X", oldest_rw_ram_page, oldest_rw_flash_page, flash_page);
-                logMsg(tmp); sleep_ms(100);
+                //char tmp[40];
+                //sprintf(tmp, "W2 ram %X rom %X->%X", oldest_rw_ram_page, oldest_rw_flash_page, flash_page);
+                //logMsg(tmp); sleep_ms(100);
 
                 flash_page_offset = flash_page << 12;
                 memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
@@ -336,9 +336,9 @@ uint8_t read86(uint32_t addr32) {
                         uint32_t ram_page_offset = ram_page << 12;
                         uint32_t flash_page_offset = flash_page << 12;
                
-                char tmp[40];
-                sprintf(tmp, "R1 ramP %X; romP %X->%X", ram_page, oldest_ro_flash_page, flash_page);
-                logMsg(tmp);
+                //char tmp[40];
+                //sprintf(tmp, "R1 ramP %X; romP %X->%X", ram_page, oldest_ro_flash_page, flash_page);
+                //logMsg(tmp); sleep_ms(100);
 
                         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
                         return RAM[ram_page_offset + addr_in_page];
@@ -358,9 +358,9 @@ uint8_t read86(uint32_t addr32) {
                         RAM_PAGES[oldest_rw_ram_page] = (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
                         CURRENT_RAM_PAGE_OLDNESS += 1; if(CURRENT_RAM_PAGE_OLDNESS >= 0x8000) CURRENT_RAM_PAGE_OLDNESS = 0;
                 
-                char tmp[40];
-                sprintf(tmp, "R2 ramP %X romP %X->%X", ram_page, oldest_rw_flash_page, flash_page);
-                logMsg(tmp);
+                //char tmp[40];
+                //sprintf(tmp, "R2 ramP %X romP %X->%X", ram_page, oldest_rw_flash_page, flash_page);
+                //logMsg(tmp); sleep_ms(100);
                         
                         flash_page_offset = flash_page << 12;
                         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
@@ -943,10 +943,10 @@ void intcall86(uint8_t intnum) {
                     }
 
                 // FIXME!!
-                    RAM[0x449] = videomode;
-                    RAM[0x44A] = (uint8_t)videomode <= 2 ? 40 : 80;
-                    RAM[0x44B] = 0;
-                    RAM[0x484] = (uint8_t)(25 - 1);
+                    write86(0x449, videomode);
+                    write86(0x44A, (uint8_t)videomode <= 2 ? 40 : 80);
+                    write86(0x44B, 0);
+                    write86(0x484, (uint8_t)(25 - 1));
 #ifdef EGA
                     if ((CPU_AL & 0x80) == 0x00) {
                         memset(VRAM, 0x0, sizeof VRAM);

@@ -32,11 +32,10 @@
 #if PSEUDO_RAM_BASE
 #define PSEUDO_RAM_SIZE (640)
 extern uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_SIZE << 2]; // 4KB blocks
-extern uint8_t CURRENT_RAM_PAGE_OLDNESS;
 extern uint16_t RAM_PAGES[RAM_SIZE << 2]; // PSEUDO_RAM_PAGES idx (7-0); 15 - written, 14-8 oldness
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz);
 #endif
-
+// TODO: no direct access support (for PC mode)
 extern uint8_t RAM[RAM_SIZE << 10];
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern bool PSRAM_AVAILABLE;
@@ -139,8 +138,16 @@ static inline void decodeflagsword(uint16_t x) {
 #define putsegreg(regid, writeval)  segregs[regid] = writeval
 #define segbase(x)  ((uint32_t) x << 4)
 
-#define pokeb(a, b) RAM[a]=(b)
-#define peekb(a)   RAM[a]
+uint8_t read86(uint32_t addr32);
+void write86(uint32_t addr32, uint8_t v);
+
+static __inline void pokeb(uint32_t a, uint32_t b) {
+    uint8_t av = read86(a);
+    uint8_t bv = read86(b);
+    write86(b, av);
+    write86(a, bv);
+}
+#define peekb(a)   read86(a)
 
 static __inline void pokew(int a, uint16_t w) {
     pokeb(a, w & 0xFF);
