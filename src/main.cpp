@@ -58,59 +58,45 @@ void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
 }
 
 struct semaphore vga_start_semaphore;
-/* Renderer loop on Pico's second core */
-void __time_critical_func(render_core)() {
-    graphics_init();
 
+inline void init_all() {
+    graphics_init();
     graphics_set_buffer(VRAM, 320, 200);
     graphics_set_textbuffer(VRAM);
-
     graphics_set_bgcolor(0);
     graphics_set_offset(0, 0);
     graphics_set_flashmode(true, true);
-
     // graphics_set_mode(TEXTMODE_80x30);
-
     for (int i = 0; i < 16; ++i) {
         graphics_set_palette(i, cga_palette[i]);
     }
     sem_acquire_blocking(&vga_start_semaphore);
+}
 
-    uint8_t tick50ms = 0;
+inline void lock_block() {
+    bool unblock = false;
     uint32_t interrupts;
-    while (true) {
-        bool unblock = false;
-        while (block_irq) {
-            interrupts = save_and_disable_interrupts();
-            unblock = true;
-        }
-        if (unblock) {
-            restore_interrupts(interrupts);
-        }
+    while (block_irq) {
+        interrupts = save_and_disable_interrupts();
+        unblock = true;
+    }
+    if (unblock) {
+        restore_interrupts(interrupts);
+    }
+}
 
+/* Renderer loop on Pico's second core */
+void __time_critical_func(render_core)() {
+    init_all();
+    uint8_t tick50ms = 0;
+    while (true) {
+        lock_block();
         doirq(0);
 
-        unblock = false;
-        while (block_irq) {
-            interrupts = save_and_disable_interrupts();
-            unblock = true;
-        }
-        if (unblock) {
-            restore_interrupts(interrupts);
-        }
-
+        lock_block();
         blocked_by_wait = true;
         busy_wait_us(timer_period);
         blocked_by_wait = false;
-
-        unblock = false;
-        while (block_irq) {
-            interrupts = save_and_disable_interrupts();
-            unblock = true;
-        }
-        if (unblock) {
-            restore_interrupts(interrupts);
-        }
 
         if (tick50ms == 0 || tick50ms == 10) {
             cursor_blink_state ^= 1;
