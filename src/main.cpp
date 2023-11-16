@@ -42,13 +42,15 @@ bool runing = true;
 #include <hardware/flash.h>
 // TODO: own C file
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
+    block_irq = 1;
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     uint32_t interrupts = save_and_disable_interrupts();
     flash_range_erase(addr - XIP_BASE, sz);
     flash_range_program(addr - XIP_BASE, buff, sz);
     restore_interrupts(interrupts);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
-    // char tmp[40]; sprintf(tmp, "Flash 0x%X", addr); logMsg(tmp); sleep_ms(500);
+    // char tmp[40]; sprintf(tmp, "Flash 0x%X", addr); logMsg(tmp);
+    block_irq = 0;
 }
 
 struct semaphore vga_start_semaphore;
@@ -73,12 +75,14 @@ void __time_critical_func(render_core)() {
 
     uint8_t tick50ms = 0;
     while (true) {
+        while (block_irq) {
+            tick50ms = tick50ms; // TODO: ?
+        }
         doirq(0);
         busy_wait_us(timer_period);
         if (tick50ms == 0 || tick50ms == 10) {
             cursor_blink_state ^= 1;
         }
-
         if (tick50ms < 20) {
             tick50ms++;
         } else {
@@ -86,7 +90,6 @@ void __time_critical_func(render_core)() {
         }
 //        tickssource();
     }
-
 }
 
 #else
@@ -177,7 +180,7 @@ int main() {
         return -1;
     }
 #endif
-    // graphics_set_mode(TEXTMODE_80x30);
+    graphics_set_mode(TEXTMODE_80x30);
     reset86();
     while (runing) {
 #if !PICO_ON_DEVICE

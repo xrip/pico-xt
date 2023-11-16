@@ -38,6 +38,7 @@ uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 uint8_t videomode = 3;
 int timer_period = 55000;
+volatile bool block_irq = 0;
 
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
@@ -54,9 +55,9 @@ static const uint8_t parity[0x100] = {
 uint8_t RAM[RAM_SIZE << 10];
 uint8_t VRAM[VRAM_SIZE << 10];
 #if PSEUDO_RAM_BASE
-uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_SIZE << 2] = { 0 }; // 4KB blocks
+uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS] = { 0 }; // 4KB blocks
 uint16_t CURRENT_RAM_PAGE_OLDNESS = 0;
-uint16_t RAM_PAGES[RAM_SIZE << 2] = { 0 };
+uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
 #endif
 
 uint8_t oper1b, oper2b, res8, nestlev, addrbyte;
@@ -106,37 +107,49 @@ void modregrm() {
 uint32_t get_ram_page_for(const uint32_t addr32) {
     uint32_t flash_page = addr32 >> 12; // 4KB page idx
     uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
-    //uint32_t addr_in_page = addr32 - (flash_page << 12);
     if (flash_page_desc & 0x8000) { // higest (15) bit is set, it means - the page already in RAM
          return flash_page_desc & 0x7FFF; // actually max 256 4k pages (1MB), but may be more;)
     }
+    block_irq = 1;
+char tmp[40]; // sprintf(tmp, "0 FLASH page: 0x%X DESC: 0x%X", flash_page, flash_page_desc); logMsg(tmp);
     // lookup for oldest page to unload
-    uint16_t oldest_rw_flash_page = 0; int16_t max_rw_oldenes = -1; uint16_t oldest_rw_ram_page = 0;
-    uint16_t oldest_ro_flash_page = 0; int16_t max_ro_oldenes = -1; uint16_t oldest_ro_ram_page = 0;
-    for (uint16_t ram_page = 1 /*from 4k+*/; ram_page < (RAM_SIZE << 2); ++ram_page) {
+    uint16_t oldest_rw_flash_page = 1; int16_t min_rw_oldenes = MAX_OLDENESS + 1; uint16_t oldest_rw_ram_page = 1;
+    uint16_t oldest_ro_flash_page = 1; int16_t min_ro_oldenes = MAX_OLDENESS + 1; uint16_t oldest_ro_ram_page = 1;
+    bool ro_page_was_found = false;
+    for (uint16_t ram_page = 1 /*from 4k+*/; ram_page < RAM_BLOCKS; ++ram_page) {
         uint16_t ram_page_desc = RAM_PAGES[ram_page];
+        if (ram_page_desc == 0x0000) { // just not yet used (clear) block
+            oldest_ro_ram_page = ram_page;
+            oldest_ro_flash_page = 0;
+            ro_page_was_found = true;
+            break;
+        }
         uint16_t oldeness = (ram_page_desc & (MAX_OLDENESS << 8)) >> 8; // 14-8 -> 6-0
         uint16_t flash_page = ram_page_desc & 0x00FF; // 7-0 - 256 keys for PSEUDO_RAM_PAGES array
         if (oldeness < CURRENT_RAM_PAGE_OLDNESS) {
             oldeness += MAX_OLDENESS; // 0x7F = 127 - max oldeness
         }
         if (ram_page_desc & 0x8000) { // higest (15) bit is set, it means - the page has changes (RW page)
-            if (oldeness > max_rw_oldenes) {
-                max_rw_oldenes = oldeness;
+            if (oldeness < min_rw_oldenes) {
+                min_rw_oldenes = oldeness;
                 oldest_rw_flash_page = flash_page;
                 oldest_rw_ram_page = ram_page;
             }
         } else { // the page was used for read only (RO page)
-            if (oldeness > max_ro_oldenes) {
-                max_ro_oldenes = oldeness;
+            if (oldeness < min_ro_oldenes) {
+                min_ro_oldenes = oldeness;
                 oldest_ro_flash_page = flash_page;
                 oldest_ro_ram_page = ram_page;
+                ro_page_was_found = true;
             }
         }
     }
-    if (max_ro_oldenes >= 0) { // just replace RO page (faster than RW flush to flash)
+    if (ro_page_was_found) { // just replace RO page (faster than RW flush to flash)
         uint32_t ram_page = oldest_ro_ram_page;
-        PSEUDO_RAM_PAGES[oldest_ro_flash_page] = 0x0000; // not more mapped
+sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
+        if (oldest_ro_flash_page > 0) {
+            PSEUDO_RAM_PAGES[oldest_ro_flash_page] = 0x0000; // not more mapped
+        }
         PSEUDO_RAM_PAGES[flash_page] = 0x8000 | ram_page; // in ram + ram_page
         RAM_PAGES[ram_page] = (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
         if (++CURRENT_RAM_PAGE_OLDNESS >= MAX_OLDENESS) {
@@ -144,12 +157,14 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         }
         uint32_t ram_page_offset = ram_page << 12;
         uint32_t flash_page_offset = flash_page << 12;
-        // char tmp[40]; sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp); sleep_ms(500);
+sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
+        block_irq = 0;
         return ram_page;
     }
     // No RO page, lets flush found RW page to flash
     uint32_t ram_page = oldest_rw_ram_page;
+sprintf(tmp, "2 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
     uint32_t ram_page_offset = ram_page << 12;
     uint32_t flash_page_offset = oldest_rw_flash_page << 12;
     flash_range_program3(
@@ -165,8 +180,9 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         CURRENT_RAM_PAGE_OLDNESS = 0;
     }
     flash_page_offset = flash_page << 12;
-    // char tmp[40]; sprintf(tmp, "2 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp); sleep_ms(500);
+sprintf(tmp, "2 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
+    block_irq = 0;
     return ram_page;
 }
 #endif
@@ -235,15 +251,15 @@ uint8_t read86(uint32_t addr32) {
             case 0x409:
                 return (0x3);
             case 0x410:
-                return 0b01100111; // video type CGA 80x25
-            /*           76543210  40:10 (value in INT 11 register AL)
-                         |||||||`- IPL diskette installed
-                         ||||||`-- math coprocessor
-                         |||||+--- old PC system board RAM < 256K
-                         |||||`--- pointing device installed (PS/2)
-                         ||||`---- not used on PS/2
-                         ||`------ initial video mode
-                         `-------- number of diskette drives, less 1
+                return (0b01100001); // video type CGA 80x25
+            /*            76543210  40:10 (value in INT 11 register AL)
+                          |||||||`- IPL diskette installed
+                          ||||||`-- math coprocessor
+                          |||||+--- old PC system board RAM < 256K
+                          |||||`--- pointing device installed (PS/2)
+                          ||||`---- not used on PS/2
+                          ||`------ initial video mode
+                          `-------- number of diskette drives, less 1
             */
             case 0x411:
                 return 0b01000000;
@@ -790,6 +806,10 @@ uint32_t BlinkTimer(uint32_t interval, void *name) {
 }
 #endif
 
+#if PSEUDO_RAM_BASE
+#include <hardware/flash.h>
+#endif
+
 void reset86() {
 #if !PICO_ON_DEVICE
     SDL_AddTimer(timer_period / 1000, ClockTick, "timer");
@@ -800,9 +820,25 @@ void reset86() {
     memset(RAM, 0x0, RAM_SIZE << 10);
     memset(VRAM, 0x0, VRAM_SIZE << 10);
 #if PSEUDO_RAM_BASE
-    memset(PSEUDO_RAM_PAGES, 0x0, PSEUDO_RAM_SIZE << 1);
-    memset(RAM_PAGES, 0x0, RAM_SIZE << 1);
+    block_irq = 1;
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
     CURRENT_RAM_PAGE_OLDNESS = 0;
+    for (size_t page = 0; page < PSEUDO_RAM_BLOCKS; ++page) {
+        if (page < RAM_BLOCKS) {
+            PSEUDO_RAM_PAGES[page] = 0x8000 | page;
+            RAM_PAGES[page] = (CURRENT_RAM_PAGE_OLDNESS << 8) | page;
+            if (++CURRENT_RAM_PAGE_OLDNESS >= MAX_OLDENESS) {
+                CURRENT_RAM_PAGE_OLDNESS = 0;
+            }
+        } else {
+            PSEUDO_RAM_PAGES[page] = 0;
+        }
+    }
+    uint32_t interrupts = save_and_disable_interrupts();
+    flash_range_erase(PSEUDO_RAM_BASE - XIP_BASE, PSEUDO_RAM_BLOCKS << 12);
+    restore_interrupts(interrupts);
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+    block_irq = 0;
 #endif
 
     CPU_CS = 0xFFFF;
@@ -883,7 +919,8 @@ void intcall86(uint8_t intnum) {
                     }
 #endif
                 // http://www.techhelpmanual.com/114-video_modes.html
-                //    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
+                // http://www.techhelpmanual.com/89-video_memory_layouts.html
+                    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
 #if PICO_ON_DEVICE
                     switch (videomode) {
                         case 0:
