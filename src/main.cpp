@@ -42,9 +42,6 @@ bool runing = true;
 #include <hardware/flash.h>
 // TODO: own C file
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
-    while(blocked_by_wait) {
-        // TODO: semaphor?
-    }
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     // char tmp[40]; sprintf(tmp, "Flash erase 0x%X (%d)", addr, sz); logMsg(tmp);
     uint32_t interrupts = save_and_disable_interrupts();
@@ -58,8 +55,8 @@ void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
 }
 
 struct semaphore vga_start_semaphore;
-
-inline void init_all() {
+/* Renderer loop on Pico's second core */
+void __time_critical_func(render_core)() {
     graphics_init();
     graphics_set_buffer(VRAM, 320, 200);
     graphics_set_textbuffer(VRAM);
@@ -71,42 +68,7 @@ inline void init_all() {
         graphics_set_palette(i, cga_palette[i]);
     }
     sem_acquire_blocking(&vga_start_semaphore);
-}
-
-inline void lock_block() {
-    bool unblock = false;
-    uint32_t interrupts;
-    while (block_irq) {
-        interrupts = save_and_disable_interrupts();
-        unblock = true;
-    }
-    if (unblock) {
-        restore_interrupts(interrupts);
-    }
-}
-
-/* Renderer loop on Pico's second core */
-void __time_critical_func(render_core)() {
-    init_all();
-    uint8_t tick50ms = 0;
     while (true) {
-        lock_block();
-        doirq(0);
-
-        lock_block();
-        blocked_by_wait = true;
-        busy_wait_us(timer_period);
-        blocked_by_wait = false;
-
-        if (tick50ms == 0 || tick50ms == 10) {
-            cursor_blink_state ^= 1;
-        }
-        if (tick50ms < 20) {
-            tick50ms++;
-        } else {
-            tick50ms = 0;
-        }
-//        tickssource();
     }
 }
 

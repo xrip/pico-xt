@@ -38,8 +38,6 @@ uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 uint8_t videomode = 3;
 int timer_period = 55000;
-volatile bool block_irq = 0;
-volatile bool blocked_by_wait = 0;
 
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
@@ -106,16 +104,12 @@ void modregrm() {
 
 #if PSEUDO_RAM_BASE
 #define MAX_OLDENESS 0x7F
-#include <pico/multicore.h>
-static critical_section_t cs;
 uint32_t get_ram_page_for(const uint32_t addr32) {
     uint32_t flash_page = addr32 >> 12; // 4KB page idx
     uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
     if (flash_page_desc & 0x8000) { // higest (15) bit is set, it means - the page already in RAM
          return flash_page_desc & 0x7FFF; // actually max 256 4k pages (1MB), but may be more;)
     }
-    block_irq = 1;
-    critical_section_enter_blocking(&cs);
     // char tmp[40]; sprintf(tmp, "0 FLASH page: 0x%X DESC: 0x%X", flash_page, flash_page_desc); logMsg(tmp);
     // lookup for oldest page to unload
     uint16_t oldest_rw_flash_page = 1; int16_t min_rw_oldenes = 2*MAX_OLDENESS + 1; uint16_t oldest_rw_ram_page = 1;
@@ -166,8 +160,6 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         uint32_t flash_page_offset = flash_page << 12;
         // sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
-        block_irq = 0;
-        critical_section_exit(&cs);
         return ram_page;
     }
     // No RO page, lets flush found RW page to flash
@@ -191,8 +183,6 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     flash_page_offset = flash_page << 12;
     // sprintf(tmp, "3 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
-    block_irq = 0;
-    critical_section_exit(&cs);
     return ram_page;
 }
 #endif
@@ -820,8 +810,27 @@ uint32_t BlinkTimer(uint32_t interval, void *name) {
 #include <hardware/flash.h>
 #endif
 
+#if PICO_ON_DEVICE
+static repeating_timer_t timer;
+static uint8_t tick50ms = 0;
+bool timer_callback(repeating_timer_t *rt) {
+    doirq(0);
+    if (tick50ms == 0 || tick50ms == 10) {
+        cursor_blink_state ^= 1;
+    }
+    if (tick50ms < 20) {
+        tick50ms++;
+    } else {
+        tick50ms = 0;
+    }
+    return true; // keep repeating
+}
+#endif
+
 void reset86() {
-#if !PICO_ON_DEVICE
+#if PICO_ON_DEVICE
+    add_repeating_timer_us(timer_period, timer_callback, NULL, &timer);
+#else
     SDL_AddTimer(timer_period / 1000, ClockTick, "timer");
     SDL_AddTimer(500, BlinkTimer, "blink");
 #endif
@@ -830,8 +839,6 @@ void reset86() {
     memset(RAM, 0x0, RAM_SIZE << 10);
     memset(VRAM, 0x0, VRAM_SIZE << 10);
 #if PSEUDO_RAM_BASE
-    critical_section_init(&cs);
-    block_irq = 1;
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     CURRENT_RAM_PAGE_OLDNESS = 0;
     for (size_t page = 0; page < PSEUDO_RAM_BLOCKS; ++page) {
@@ -849,7 +856,6 @@ void reset86() {
     flash_range_erase(PSEUDO_RAM_BASE - XIP_BASE, PSEUDO_RAM_BLOCKS << 12);
     restore_interrupts(interrupts);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
-    block_irq = 0;
 #endif
 
     CPU_CS = 0xFFFF;
