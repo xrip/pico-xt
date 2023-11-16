@@ -113,7 +113,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     // lookup for oldest page to unload
     uint16_t oldest_rw_flash_page = 0; int16_t max_rw_oldenes = -1; uint16_t oldest_rw_ram_page = 0;
     uint16_t oldest_ro_flash_page = 0; int16_t max_ro_oldenes = -1; uint16_t oldest_ro_ram_page = 0;
-    for (uint16_t ram_page = 0; ram_page < (RAM_SIZE << 2); ++ram_page) {
+    for (uint16_t ram_page = 1 /*from 4k+*/; ram_page < (RAM_SIZE << 2); ++ram_page) {
         uint16_t ram_page_desc = RAM_PAGES[ram_page];
         uint16_t oldeness = (ram_page_desc & (MAX_OLDENESS << 8)) >> 8; // 14-8 -> 6-0
         uint16_t flash_page = ram_page_desc & 0x00FF; // 7-0 - 256 keys for PSEUDO_RAM_PAGES array
@@ -144,7 +144,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         }
         uint32_t ram_page_offset = ram_page << 12;
         uint32_t flash_page_offset = flash_page << 12;
-        char tmp[40]; sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp); sleep_ms(500);
+        // char tmp[40]; sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp); sleep_ms(500);
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
         return ram_page;
     }
@@ -165,7 +165,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         CURRENT_RAM_PAGE_OLDNESS = 0;
     }
     flash_page_offset = flash_page << 12;
-    char tmp[40]; sprintf(tmp, "2 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp); sleep_ms(500);
+    // char tmp[40]; sprintf(tmp, "2 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp); sleep_ms(500);
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
     return ram_page;
 }
@@ -173,7 +173,9 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 
 void write86(uint32_t addr32, uint8_t value) {
 #if PSEUDO_RAM_BASE
-    if ((addr32) < (PSEUDO_RAM_SIZE << 10)) {
+    if (addr32 < 4096) { // do not touch first 4k
+        RAM[addr32] = value;
+    } else if (addr32 < (PSEUDO_RAM_SIZE << 10)) {
         uint32_t ram_page = get_ram_page_for(addr32);
         uint32_t addr_in_page = addr32 - (addr32 & 0xFFFFF000);
         RAM[(ram_page << 12) + addr_in_page] = value;
@@ -287,7 +289,9 @@ uint8_t read86(uint32_t addr32) {
                 return (hdcount);
             default:
 #ifdef PSEUDO_RAM_BASE
-            {
+            if (addr32 < 4096) { // do not touch first 4kb
+                return RAM[addr32];
+            } else {
                 uint32_t ram_page = get_ram_page_for(addr32);
                 uint32_t addr_in_page = addr32 - (addr32 & 0xFFFFF000);
                 return RAM[(ram_page << 12) + addr_in_page];
@@ -869,10 +873,10 @@ void intcall86(uint8_t intnum) {
                     }
 
                 // FIXME!!
-                    write86(0x449, videomode);
-                    write86(0x44A, (uint8_t)videomode <= 2 ? 40 : 80);
-                    write86(0x44B, 0);
-                    write86(0x484, (uint8_t)(25 - 1));
+                    RAM[0x449] = videomode;
+                    RAM[0x44A] = (uint8_t)videomode <= 2 ? 40 : 80;
+                    RAM[0x44B] = 0;
+                    RAM[0x484] = (uint8_t)(25 - 1);
 #ifdef EGA
                     if ((CPU_AL & 0x80) == 0x00) {
                         memset(VRAM, 0x0, sizeof VRAM);

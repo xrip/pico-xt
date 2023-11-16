@@ -471,6 +471,5 @@ void diskhandler(void) {
     lastdiskah[CPU_DL] = CPU_AH;
     lastdiskcf[CPU_DL] = CPU_FL_CF;
     if (CPU_DL & 0x80)
-        write86(0x474, CPU_AH);
+        RAM[0x474] = CPU_AH;
 }
-

@@ -133,9 +133,9 @@ else ()
 
             # supports only for pico with 4 or more MB flashes
             PICO_FLASH_SIZE_BYTES=4194304
-            #PSEUDO_RAM_BASE=0x10200000
+            PSEUDO_RAM_BASE=0x10200000
             
-            OVERCLOCKING=366
+            #OVERCLOCKING=366
     )
 
 #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
