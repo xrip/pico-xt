@@ -41,9 +41,7 @@ bool runing = true;
 
 #include <hardware/flash.h>
 // TODO: own C file
-static critical_section_t flash_cs;
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
-    critical_section_enter_blocking(&flash_cs);
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     char tmp[40]; sprintf(tmp, "Flash 0x%X", addr); logMsg(tmp);
     uint32_t interrupts = save_and_disable_interrupts();
@@ -53,7 +51,6 @@ void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
     restore_interrupts(interrupts);
     // multicore_lockout_end_blocking();
     gpio_put(PICO_DEFAULT_LED_PIN, false);
-    critical_section_exit(&flash_cs);
 }
 
 struct semaphore vga_start_semaphore;
