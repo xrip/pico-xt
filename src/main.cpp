@@ -44,11 +44,11 @@ bool runing = true;
 // TODO: own C file
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-    // char tmp[40]; sprintf(tmp, "Flash erase 0x%X (%d)", addr, sz); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "Flash erase 0x%X (%d)", addr, sz); logMsg(tmp);
     uint32_t interrupts = save_and_disable_interrupts();
     // multicore_lockout_start_blocking();
     flash_range_erase(addr - XIP_BASE, sz);
-    // sprintf(tmp, "Flash write 0x%X<-0x%X", addr, buff); logMsg(tmp);
+    sprintf(tmp, "Flash write 0x%X<-0x%X", addr, buff); logMsg(tmp);
     flash_range_program(addr - XIP_BASE, buff, sz);
     // multicore_lockout_end_blocking();
     restore_interrupts(interrupts);
@@ -56,7 +56,7 @@ void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
 }
 #endif
 
-//struct semaphore vga_start_semaphore;
+struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
     graphics_init();
@@ -69,9 +69,7 @@ void __time_critical_func(render_core)() {
     for (int i = 0; i < 16; ++i) {
         graphics_set_palette(i, cga_palette[i]);
     }
-    //sem_acquire_blocking(&vga_start_semaphore);
-    while (true) {
-    }
+    sem_acquire_blocking(&vga_start_semaphore);
 }
 
 #else
@@ -131,9 +129,9 @@ int main() {
     //nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     keyboard_init();
 
-    //sem_init(&vga_start_semaphore, 0, 1);
+    sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);
-    //sem_release(&vga_start_semaphore);
+    sem_release(&vga_start_semaphore);
 
     sleep_ms(50);
 #if PSRAM
@@ -162,7 +160,7 @@ int main() {
         return -1;
     }
 #endif
-    // graphics_set_mode(TEXTMODE_80x30);
+    graphics_set_mode(TEXTMODE_80x30);
     reset86();
     while (runing) {
 #if !PICO_ON_DEVICE

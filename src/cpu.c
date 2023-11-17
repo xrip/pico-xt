@@ -111,7 +111,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
          return flash_page_desc & 0x7FFF; // actually max 256 4k pages (1MB), but may be more;)
     }
     lock_irq = true;
-    // char tmp[40]; sprintf(tmp, "0 FLASH page: 0x%X DESC: 0x%X", flash_page, flash_page_desc); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "0 FLASH page: 0x%X DESC: 0x%X", flash_page, flash_page_desc); logMsg(tmp);
     // lookup for oldest page to unload
     uint16_t oldest_rw_flash_page = 1; int16_t min_rw_oldenes = 2*MAX_OLDENESS + 1; uint16_t oldest_rw_ram_page = 1;
     uint16_t oldest_ro_flash_page = 1; int16_t min_ro_oldenes = 2*MAX_OLDENESS + 1; uint16_t oldest_ro_ram_page = 1;
@@ -159,7 +159,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         }
         uint32_t ram_page_offset = ram_page << 12;
         uint32_t flash_page_offset = flash_page << 12;
-        // sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
+        sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
         lock_irq = false;
         return ram_page;
@@ -169,7 +169,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     // sprintf(tmp, "2 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
     uint32_t ram_page_offset = ram_page << 12;
     uint32_t flash_page_offset = oldest_rw_flash_page << 12;
-    // sprintf(tmp, "2 RAM offs 0x%X / FLASH offs: 0x%X", ram_page_offset, flash_page_offset); logMsg(tmp);
+    sprintf(tmp, "2 RAM offs 0x%X / FLASH offs: 0x%X", ram_page_offset, flash_page_offset); logMsg(tmp);
     flash_range_program3(
         PSEUDO_RAM_BASE + flash_page_offset,
         (const u_int8_t*)RAM + ram_page_offset,
@@ -183,7 +183,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         CURRENT_RAM_PAGE_OLDNESS = 0;
     }
     flash_page_offset = flash_page << 12;
-    // sprintf(tmp, "3 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
+    sprintf(tmp, "3 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
     lock_irq = false;
     return ram_page;

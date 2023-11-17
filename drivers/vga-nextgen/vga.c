@@ -321,6 +321,9 @@ void __not_in_flash_func(dma_handler_VGA)() {
 }
 
 void graphics_set_mode(enum graphics_mode_t mode) {
+    if (mode != TEXTMODE_80x30) { // TODO: remove it!
+        return;
+    }
     switch (mode) {
         case TEXTMODE_40x30:
             text_buffer_width = 40;
