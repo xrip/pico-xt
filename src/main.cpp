@@ -18,7 +18,6 @@ extern "C" {
 #include "ff.h"
 #include "psram_spi.h"
 
-static FATFS fs;
 extern "C" {
 #include "vga.h"
 #include "ps2.h"
@@ -41,6 +40,7 @@ bool runing = true;
 
 #if CD_CARD_SWAP
 static const char* path = "\\XT\\vram.pages";
+static FATFS fs;
 static FIL file;
 bool init_vram() {
     FRESULT result = f_mount(&fs, "", 1);
@@ -77,12 +77,7 @@ bool init_vram() {
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     char tmp[40]; sprintf(tmp, "Read vram 0x%X<-0x%X", dst, file_offset); logMsg(tmp);
-    FRESULT result = f_mount(&fs, "", 1);
-    if (result != FR_OK) {
-        sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
-        return;
-    }
-    result = f_open(&file, path, FA_READ);
+    FRESULT result = f_open(&file, path, FA_READ);
     if (result != FR_OK) {
         sprintf(tmp, "Unable to open vram.pages: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
         return;
@@ -103,12 +98,7 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     char tmp[40]; sprintf(tmp, "Flush vram 0x%X->0x%X", src, file_offset); logMsg(tmp);
-    FRESULT result = f_mount(&fs, "", 1);
-    if (result != FR_OK) {
-        sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
-        return;
-    }
-    result = f_open(&file, path, FA_WRITE);
+    FRESULT result = f_open(&file, path, FA_WRITE);
     if (result != FR_OK) {
         sprintf(tmp, "Unable to open vram.pages: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
         return;

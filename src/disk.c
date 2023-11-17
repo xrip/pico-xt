@@ -7,7 +7,9 @@
 #include "f_util.h"
 #include "ff.h"
 
+#if !CD_CARD_SWAP
 static FATFS fs;
+#endif
 #define _FILE FIL
 _FILE file;
 #else
@@ -47,10 +49,12 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
     if (drivenum & 0x80) drivenum -= 126;
     if (pathname != NULL) {
 #if PICO_ON_DEVICE
-        FRESULT result = f_mount(&fs, "", 1);
+#if !CD_CARD_SWAP
+        f_mount(&fs, "", 1);
+#endif
 //        printf("drivenum %i :: f_mount result: %s (%d)\r\n", drivenum, FRESULT_str(result), result);
 
-        result = f_open(&file, pathname, FA_READ | FA_WRITE);
+        FRESULT result = f_open(&file, pathname, FA_READ | FA_WRITE);
 //        printf("drivenum %i :: f_open result: %s (%d)\r\n", drivenum, FRESULT_str(result), result);
         if (FR_OK != result) {
             return 1;
