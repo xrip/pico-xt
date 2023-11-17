@@ -853,10 +853,12 @@ void reset86() {
             PSEUDO_RAM_PAGES[page] = 0;
         }
     }
+    /* Ctrl+Alt+Del issue TODO: detect why
     uint32_t interrupts = save_and_disable_interrupts();
     flash_range_erase(PSEUDO_RAM_BASE - XIP_BASE, PSEUDO_RAM_SIZE);
     restore_interrupts(interrupts);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
+    */
 #endif
 
     CPU_CS = 0xFFFF;

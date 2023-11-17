@@ -67,18 +67,15 @@ static uint8_t *text_buf_color;
 static uint text_buffer_width = 0;
 static uint text_buffer_height = 0;
 
-
 static uint16_t txt_palette[16];
 
 //буфер 2К текстовой палитры для быстрой работы 
 static uint16_t *txt_palette_fast = NULL;
 //static uint16_t txt_palette_fast[256*4];
 
-
 enum graphics_mode_t graphics_mode;
 
 void __not_in_flash_func(dma_handler_VGA)() {
-
     dma_hw->ints0 = 1u << dma_chan_ctrl;
     static uint32_t frame_number = 0;
     static uint32_t screen_line = 0;
@@ -182,21 +179,21 @@ void __not_in_flash_func(dma_handler_VGA)() {
                     if (text_buffer_width == 40) *output_buffer_16bit++ = color[glyph_pixels & 3];
                 }
             }
-
             dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
             return;
         }
-        default:
+        default: {
+            dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[0], false); // TODO: ensue it is required
             return;
+        }
     }
 
-
-    dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
-
-    if (line < 0) return;
+    if (line < 0) {
+        dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[0], false); // TODO: ensue it is required
+        return;
+    }
     if (line >= graphics_buffer_height) {
         // заполнение линии цветом фона
-
         if ((line == graphics_buffer_height) | (line == (graphics_buffer_height + 1)) |
             (line == (graphics_buffer_height + 2))) {
 
@@ -209,8 +206,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
                 *output_buffer_32bit++ = color32;
             }
         }
-
-
+        dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
         return;
     };
 
@@ -224,10 +220,8 @@ void __not_in_flash_func(dma_handler_VGA)() {
 
     //output_buffer = &lines_pattern[2 + ((line_number) & 1)];
 
-
     uint16_t *output_buffer_16bit = (uint16_t *) (*output_buffer);
     output_buffer_16bit += shift_picture / 2; //смещение началы вывода на размер синхросигнала
-
 
 //    g_buf_shx&=0xfffffffe;//4bit buf
     if (graphics_mode == CGA_640x200x2) {
@@ -252,11 +246,10 @@ void __not_in_flash_func(dma_handler_VGA)() {
 
 
     int width = MIN((visible_line_size - ((graphics_buffer_shift_x > 0) ? (graphics_buffer_shift_x) : 0)), max_width);
-    if (width < 0) return;
+    if (width < 0) return; // TODO: detect a case
 
     // Индекс палитры в зависимости от настроек чередования строк и кадров
     uint16_t *current_palette = palette[((line & is_flash_line) + (frame_number & is_flash_frame)) & 1];
-
 
     uint8_t *output_buffer_8bit;
     switch (graphics_mode) {
@@ -295,7 +288,6 @@ void __not_in_flash_func(dma_handler_VGA)() {
                 input_buffer_8bit++;
             }
             break;
-
         case TGA_320x200x16:
             //4bit buf
                 input_buffer_8bit = input_buffer + ((line & 3) * 8192) + ((line / 4) * 160) ;
@@ -313,7 +305,6 @@ void __not_in_flash_func(dma_handler_VGA)() {
                 *output_buffer_8bit++ = current_palette[*input_buffer_8bit++];
             }
             break;
-
         default:
             break;
     }

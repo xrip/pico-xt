@@ -63,7 +63,8 @@ uint8_t nextintr() {
     return(0); //can't get here, but the compiler bitches
 }
 
+extern bool lock_irq;
 void doirq(uint8_t irqnum) {
+    if (lock_irq) return;
     i8259.irr |= (1 << irqnum);
 }
-
