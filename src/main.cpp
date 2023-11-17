@@ -147,6 +147,19 @@ void __time_critical_func(render_core)() {
         graphics_set_palette(i, cga_palette[i]);
     }
     sem_acquire_blocking(&vga_start_semaphore);
+    uint8_t tick50ms = 0;
+    while (true) {
+        doirq(0);
+        busy_wait_us(timer_period);
+        if (tick50ms == 0 || tick50ms == 10) {
+            cursor_blink_state ^= 1;
+        }
+        if (tick50ms < 20) {
+            tick50ms++;
+        } else {
+            tick50ms = 0;
+        }
+    }
 }
 
 #else

@@ -101,7 +101,6 @@ void modregrm() {
 }
 
 #if PSEUDO_RAM_BASE || CD_CARD_SWAP
-extern bool lock_irq;
 static uint16_t last_ram_page = 1;
 uint32_t get_ram_page_for(const uint32_t addr32) {
     uint32_t flash_page = addr32 / RAM_PAGE_SIZE; // 4KB page idx
@@ -109,7 +108,6 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     if (flash_page_desc & 0x8000) { // higest (15) bit is set, it means - the page already in RAM
          return flash_page_desc & 0x7FFF; // actually max 256 4k pages (1MB), but may be more;)
     }
-    lock_irq = true;
     // char tmp[40]; sprintf(tmp, "VRAM page: 0x%X", flash_page); logMsg(tmp);
     // rolling page usage
     uint16_t ram_page = last_ram_page++;
@@ -131,7 +129,6 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 #else
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
 #endif
-        lock_irq = false;
         return ram_page;
     }
     // Lets flush found RW page to flash
@@ -155,7 +152,6 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 #else
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
 #endif
-    lock_irq = false;
     return ram_page;
 }
 #endif
@@ -777,31 +773,8 @@ uint32_t BlinkTimer(uint32_t interval, void *name) {
 #include <hardware/flash.h>
 #endif
 
-#if PICO_ON_DEVICE
-static repeating_timer_t timer;
-static uint8_t tick50ms = 0;
-bool lock_irq = false;
-bool timer_callback(repeating_timer_t *rt) {
-    if (lock_irq) { // skip IRQ in case some long process is in progress
-        return true;
-    }
-    doirq(0);
-    if (tick50ms == 0 || tick50ms == 10) {
-        cursor_blink_state ^= 1;
-    }
-    if (tick50ms < 20) {
-        tick50ms++;
-    } else {
-        tick50ms = 0;
-    }
-    return true; // keep repeating
-}
-#endif
-
 void reset86() {
-#if PICO_ON_DEVICE
-    add_repeating_timer_us(timer_period, timer_callback, NULL, &timer);
-#else
+#if !PICO_ON_DEVICE
     SDL_AddTimer(timer_period / 1000, ClockTick, "timer");
     SDL_AddTimer(500, BlinkTimer, "blink");
 #endif
