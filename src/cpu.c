@@ -55,7 +55,6 @@ __aligned(4096) uint8_t RAM[RAM_SIZE << 10];
 uint8_t VRAM[VRAM_SIZE << 10];
 #if PSEUDO_RAM_BASE || CD_CARD_SWAP
 uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS] = { 0 }; // 4KB blocks
-uint16_t CURRENT_RAM_PAGE_OLDNESS = 0;
 uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
 #endif
 
@@ -102,9 +101,8 @@ void modregrm() {
 }
 
 #if PSEUDO_RAM_BASE || CD_CARD_SWAP
-#define MAX_OLDENESS 0x7F
 extern bool lock_irq;
-static uint16_t last_ram_page = 0;
+static uint16_t last_ram_page = 1;
 uint32_t get_ram_page_for(const uint32_t addr32) {
     uint32_t flash_page = addr32 / RAM_PAGE_SIZE; // 4KB page idx
     uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
@@ -112,71 +110,35 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
          return flash_page_desc & 0x7FFF; // actually max 256 4k pages (1MB), but may be more;)
     }
     lock_irq = true;
-    char tmp[40]; // sprintf(tmp, "0 VRAM page: 0x%X", flash_page); logMsg(tmp);
-    // lookup for oldest page to unload
-    uint16_t oldest_rw_flash_page = 1; int16_t min_rw_oldenes = 2*MAX_OLDENESS + 1; uint16_t oldest_rw_ram_page = 1;
-    uint16_t oldest_ro_flash_page = 1; int16_t min_ro_oldenes = 2*MAX_OLDENESS + 1; uint16_t oldest_ro_ram_page = 1;
-    bool ro_page_was_found = false;
-    for (uint16_t ram_page = 1 /*from 4k+*/; ram_page < RAM_BLOCKS; ++ram_page) {
-        uint16_t ram_page_desc = RAM_PAGES[ram_page];
-        if (last_ram_page == ram_page) continue; // do not use the same page twice
-        if (ram_page_desc == 0x0000) { // just not yet used (clear) block
-            oldest_ro_ram_page = ram_page;
-            oldest_ro_flash_page = 0;
-            ro_page_was_found = true;
-            break;
-        }
-        uint16_t oldeness = (ram_page_desc & (MAX_OLDENESS << 8)) >> 8; // 14-8 -> 6-0
-        uint16_t flash_page = ram_page_desc & 0x00FF; // 7-0 - 256 keys for PSEUDO_RAM_PAGES array
-        if (oldeness < CURRENT_RAM_PAGE_OLDNESS) {
-            oldeness += MAX_OLDENESS; // 0x7F = 127 - max oldeness
-        }
-        if (ram_page_desc & 0x8000) { // higest (15) bit is set, it means - the page has changes (RW page)
-            if (oldeness < min_rw_oldenes) {
-                min_rw_oldenes = oldeness;
-                oldest_rw_flash_page = flash_page;
-                oldest_rw_ram_page = ram_page;
-                sprintf(tmp, "RW olns: %d page 0x%X / VRAM page: 0x%X", oldeness, ram_page, flash_page); logMsg(tmp);
-            }
-        } else { // the page was used for read only (RO page)
-            if (oldeness < min_ro_oldenes) {
-                min_ro_oldenes = oldeness;
-                oldest_ro_flash_page = flash_page;
-                oldest_ro_ram_page = ram_page;
-                ro_page_was_found = true;
-                sprintf(tmp, "RO olns: %d page 0x%X / VRAM page: 0x%X", oldeness, ram_page, flash_page); logMsg(tmp);
-            }
-        }
+    // char tmp[40]; sprintf(tmp, "VRAM page: 0x%X", flash_page); logMsg(tmp);
+    // rolling page usage
+    uint16_t ram_page = last_ram_page++;
+    if (last_ram_page >= RAM_BLOCKS - 1) last_ram_page = 1; // do not use first page
+    uint16_t ram_page_desc = RAM_PAGES[ram_page];
+    bool ro_page_was_found = !(ram_page_desc & 0x8000); // higest (15) bit is set, it means - the page has changes (RW page)
+    uint16_t old_flash_page = ram_page_desc & 0x7FFF; // 14-0 - max 32k keys for PSEUDO_RAM_PAGES array
+    if (old_flash_page > 0) {
+        PSEUDO_RAM_PAGES[old_flash_page] = 0x0000; // not more mapped
     }
+    PSEUDO_RAM_PAGES[flash_page] = 0x8000 | ram_page; // in ram + ram_page
+    RAM_PAGES[ram_page] = flash_page;
     if (ro_page_was_found) { // just replace RO page (faster than RW flush to flash)
-        uint32_t ram_page = oldest_ro_ram_page;
-        sprintf(tmp, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, flash_page); logMsg(tmp);
-        if (oldest_ro_flash_page > 0) {
-            PSEUDO_RAM_PAGES[oldest_ro_flash_page] = 0x0000; // not more mapped
-        }
-        PSEUDO_RAM_PAGES[flash_page] = 0x8000 | ram_page; // in ram + ram_page
-        RAM_PAGES[ram_page] = (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
-        if (++CURRENT_RAM_PAGE_OLDNESS >= MAX_OLDENESS) {
-            CURRENT_RAM_PAGE_OLDNESS = 0;
-        }
+        // sprintf(tmp, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, flash_page); logMsg(tmp);
         uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
         uint32_t flash_page_offset = flash_page * RAM_PAGE_SIZE;
-        sprintf(tmp, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, flash_page); logMsg(tmp);
 #if CD_CARD_SWAP
         read_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
 #else
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
 #endif
         lock_irq = false;
-        last_ram_page = ram_page;
         return ram_page;
     }
-    // No RO page, lets flush found RW page to flash
-    uint32_t ram_page = oldest_rw_ram_page;
-    sprintf(tmp, "2 RAM page 0x%X / VRAM page: 0x%X", ram_page, flash_page); logMsg(tmp);
+    // Lets flush found RW page to flash
+    // sprintf(tmp, "2 RAM page 0x%X / VRAM page: 0x%X", ram_page, flash_page); logMsg(tmp);
     uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
-    uint32_t flash_page_offset = oldest_rw_flash_page * RAM_PAGE_SIZE;
-    sprintf(tmp, "2 RAM offs 0x%X / VRAM offs: 0x%X", ram_page_offset, flash_page_offset); logMsg(tmp);
+    uint32_t flash_page_offset = old_flash_page * RAM_PAGE_SIZE;
+    // sprintf(tmp, "2 RAM offs 0x%X / VRAM offs: 0x%X", ram_page_offset, flash_page_offset); logMsg(tmp);
 #if CD_CARD_SWAP
     flush_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
 #else
@@ -186,22 +148,14 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         RAM_PAGE_SIZE
     );
 #endif
-    PSEUDO_RAM_PAGES[oldest_rw_flash_page] = 0x0000; // not more mapped
     // use new page:
-    PSEUDO_RAM_PAGES[flash_page] = 0x8000 | ram_page; // in ram + ram_page
-    RAM_PAGES[ram_page] = (CURRENT_RAM_PAGE_OLDNESS << 8) | flash_page;
-    if (++CURRENT_RAM_PAGE_OLDNESS >= MAX_OLDENESS) {
-        CURRENT_RAM_PAGE_OLDNESS = 0;
-    }
     flash_page_offset = flash_page * RAM_PAGE_SIZE;
-    sprintf(tmp, "3 RAM page 0x%X / VRAM page: 0x%X", ram_page, flash_page); logMsg(tmp);
 #if CD_CARD_SWAP
     read_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
 #else
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
 #endif
     lock_irq = false;
-    last_ram_page = ram_page;
     return ram_page;
 }
 #endif
@@ -857,14 +811,10 @@ void reset86() {
     memset(VRAM, 0x0, VRAM_SIZE << 10);
 #if PSEUDO_RAM_BASE || CD_CARD_SWAP
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-    CURRENT_RAM_PAGE_OLDNESS = 0;
     for (size_t page = 0; page < PSEUDO_RAM_BLOCKS; ++page) {
         if (page < RAM_BLOCKS) {
             PSEUDO_RAM_PAGES[page] = 0x8000 | page;
-            RAM_PAGES[page] = (CURRENT_RAM_PAGE_OLDNESS << 8) | page;
-            if (++CURRENT_RAM_PAGE_OLDNESS >= MAX_OLDENESS) {
-                CURRENT_RAM_PAGE_OLDNESS = 0;
-            }
+            RAM_PAGES[page] = page;
         } else {
             PSEUDO_RAM_PAGES[page] = 0;
         }

@@ -88,7 +88,7 @@ FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
 }
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char tmp[40]; sprintf(tmp, "Read vram 0x%X<-0x%X", dst, file_offset); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "Read  vram 0x%X<-0x%X", dst, file_offset); logMsg(tmp);
     FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
         return;

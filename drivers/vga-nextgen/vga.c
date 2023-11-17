@@ -537,7 +537,11 @@ void logMsg(char * msg) {
             uint8_t *t_buf2 = text_buffer + sz * (i + 1);
             memcpy(t_buf1, t_buf2, sz);
         }
-        memset(text_buffer + sz * current_line, ' ', sz);
+        uint8_t *t_buf = text_buffer + sz * current_line;
+        for (int i = 0; i < sz; ++i) {
+            *(t_buf++) = ' ';
+            *(t_buf++) = 1 << 4;
+        }
     }
     draw_text2(msg, 0, current_line++, 7, 1);
 }
