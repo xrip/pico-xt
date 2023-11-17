@@ -104,6 +104,7 @@ void modregrm() {
 #if PSEUDO_RAM_BASE || CD_CARD_SWAP
 #define MAX_OLDENESS 0x7F
 extern bool lock_irq;
+static uint16_t last_ram_page = 0;
 uint32_t get_ram_page_for(const uint32_t addr32) {
     uint32_t flash_page = addr32 / RAM_PAGE_SIZE; // 4KB page idx
     uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
@@ -111,13 +112,14 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
          return flash_page_desc & 0x7FFF; // actually max 256 4k pages (1MB), but may be more;)
     }
     lock_irq = true;
-    // char tmp[40]; sprintf(tmp, "0 FLASH page: 0x%X DESC: 0x%X", flash_page, flash_page_desc); logMsg(tmp);
+    char tmp[40]; // sprintf(tmp, "0 VRAM page: 0x%X", flash_page); logMsg(tmp);
     // lookup for oldest page to unload
     uint16_t oldest_rw_flash_page = 1; int16_t min_rw_oldenes = 2*MAX_OLDENESS + 1; uint16_t oldest_rw_ram_page = 1;
     uint16_t oldest_ro_flash_page = 1; int16_t min_ro_oldenes = 2*MAX_OLDENESS + 1; uint16_t oldest_ro_ram_page = 1;
     bool ro_page_was_found = false;
     for (uint16_t ram_page = 1 /*from 4k+*/; ram_page < RAM_BLOCKS; ++ram_page) {
         uint16_t ram_page_desc = RAM_PAGES[ram_page];
+        if (last_ram_page == ram_page) continue; // do not use the same page twice
         if (ram_page_desc == 0x0000) { // just not yet used (clear) block
             oldest_ro_ram_page = ram_page;
             oldest_ro_flash_page = 0;
@@ -134,7 +136,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
                 min_rw_oldenes = oldeness;
                 oldest_rw_flash_page = flash_page;
                 oldest_rw_ram_page = ram_page;
-                // sprintf(tmp, "RW olns: %d page 0x%X / FLASH page: 0x%X", oldeness, ram_page, flash_page); logMsg(tmp);
+                sprintf(tmp, "RW olns: %d page 0x%X / VRAM page: 0x%X", oldeness, ram_page, flash_page); logMsg(tmp);
             }
         } else { // the page was used for read only (RO page)
             if (oldeness < min_ro_oldenes) {
@@ -142,13 +144,13 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
                 oldest_ro_flash_page = flash_page;
                 oldest_ro_ram_page = ram_page;
                 ro_page_was_found = true;
-                // sprintf(tmp, "RO olns: %d page 0x%X / FLASH page: 0x%X", oldeness, ram_page, flash_page); logMsg(tmp);
+                sprintf(tmp, "RO olns: %d page 0x%X / VRAM page: 0x%X", oldeness, ram_page, flash_page); logMsg(tmp);
             }
         }
     }
     if (ro_page_was_found) { // just replace RO page (faster than RW flush to flash)
         uint32_t ram_page = oldest_ro_ram_page;
-        // sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
+        sprintf(tmp, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, flash_page); logMsg(tmp);
         if (oldest_ro_flash_page > 0) {
             PSEUDO_RAM_PAGES[oldest_ro_flash_page] = 0x0000; // not more mapped
         }
@@ -159,21 +161,22 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         }
         uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
         uint32_t flash_page_offset = flash_page * RAM_PAGE_SIZE;
-        // sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
+        sprintf(tmp, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, flash_page); logMsg(tmp);
 #if CD_CARD_SWAP
         read_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
 #else
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
 #endif
         lock_irq = false;
+        last_ram_page = ram_page;
         return ram_page;
     }
     // No RO page, lets flush found RW page to flash
     uint32_t ram_page = oldest_rw_ram_page;
-    // sprintf(tmp, "2 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
+    sprintf(tmp, "2 RAM page 0x%X / VRAM page: 0x%X", ram_page, flash_page); logMsg(tmp);
     uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
     uint32_t flash_page_offset = oldest_rw_flash_page * RAM_PAGE_SIZE;
-    // sprintf(tmp, "2 RAM offs 0x%X / FLASH offs: 0x%X", ram_page_offset, flash_page_offset); logMsg(tmp);
+    sprintf(tmp, "2 RAM offs 0x%X / VRAM offs: 0x%X", ram_page_offset, flash_page_offset); logMsg(tmp);
 #if CD_CARD_SWAP
     flush_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
 #else
@@ -191,13 +194,14 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         CURRENT_RAM_PAGE_OLDNESS = 0;
     }
     flash_page_offset = flash_page * RAM_PAGE_SIZE;
-    // sprintf(tmp, "3 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
+    sprintf(tmp, "3 RAM page 0x%X / VRAM page: 0x%X", ram_page, flash_page); logMsg(tmp);
 #if CD_CARD_SWAP
     read_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
 #else
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
 #endif
     lock_irq = false;
+    last_ram_page = ram_page;
     return ram_page;
 }
 #endif

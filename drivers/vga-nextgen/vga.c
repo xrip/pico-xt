@@ -503,6 +503,26 @@ void clrScr(uint8_t color) {
     current_line = 25;
 };
 
+void draw_text2(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {
+    if ((y < 0) | (y >= text_buffer_height)) return;
+    if (x >= text_buffer_width) return;
+    int len = strlen(string);
+    if (x < 0) {
+        if ((len + x) > 0) {
+            string += -x;
+            x = 0;
+        } else {
+           return;
+        }
+    }
+    uint8_t *t_buf = text_buffer + text_buffer_width * 2 * y + x;
+    for (int xi = x; xi < text_buffer_width * 2; xi++) {
+        if (!(*string)) break;
+        *t_buf++ = *string++;
+        *t_buf++ = (bgcolor << 4) | (color & 0xF);
+    }
+};
+
 void logMsg(char * msg) {
     printf("%s\r\n", msg);
     if (graphics_mode != TEXTMODE_80x30) { // TODO: remove it!
@@ -510,9 +530,16 @@ void logMsg(char * msg) {
         return;
     }
     if (current_line >= 30 - 1) {
-        current_line = 25;
+        current_line = 29;
+        size_t sz = text_buffer_width * 2;
+        for (int i = 25; i < current_line; ++i) {
+            uint8_t *t_buf1 = text_buffer + sz * i;
+            uint8_t *t_buf2 = text_buffer + sz * (i + 1);
+            memcpy(t_buf1, t_buf2, sz);
+        }
+        memset(text_buffer + sz * current_line, ' ', sz);
     }
-    draw_text(msg, 0, current_line++, 7, 1);
+    draw_text2(msg, 0, current_line++, 7, 1);
 }
 
 void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {
@@ -533,7 +560,6 @@ void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {
         if (!(*string)) break;
         *t_buf++ = *string++;
         *t_buf++ = (bgcolor << 4) | (color & 0xF);
-
     }
 };
 
