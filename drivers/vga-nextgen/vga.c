@@ -321,9 +321,6 @@ void __not_in_flash_func(dma_handler_VGA)() {
 }
 
 void graphics_set_mode(enum graphics_mode_t mode) {
-    if (mode != TEXTMODE_80x30) { // TODO: remove it!
-        return;
-    }
     switch (mode) {
         case TEXTMODE_40x30:
             text_buffer_width = 40;
@@ -516,6 +513,9 @@ void clrScr(uint8_t color) {
 };
 
 void logMsg(char * msg) {
+    if (graphics_mode != TEXTMODE_80x30) { // TODO: remove it!
+        graphics_set_mode(TEXTMODE_80x30);
+    }
     if (current_line >= 30 - 1) {
         current_line = 0;
     }
