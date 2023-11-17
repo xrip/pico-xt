@@ -105,7 +105,7 @@ void modregrm() {
 #define MAX_OLDENESS 0x7F
 extern bool lock_irq;
 uint32_t get_ram_page_for(const uint32_t addr32) {
-    uint32_t flash_page = addr32 >> 12; // 4KB page idx
+    uint32_t flash_page = addr32 / RAM_PAGE_SIZE; // 4KB page idx
     uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
     if (flash_page_desc & 0x8000) { // higest (15) bit is set, it means - the page already in RAM
          return flash_page_desc & 0x7FFF; // actually max 256 4k pages (1MB), but may be more;)
@@ -157,23 +157,23 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         if (++CURRENT_RAM_PAGE_OLDNESS >= MAX_OLDENESS) {
             CURRENT_RAM_PAGE_OLDNESS = 0;
         }
-        uint32_t ram_page_offset = ram_page << 12;
-        uint32_t flash_page_offset = flash_page << 12;
+        uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
+        uint32_t flash_page_offset = flash_page * RAM_PAGE_SIZE;
         // sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
-        memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
+        memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
         lock_irq = false;
         return ram_page;
     }
     // No RO page, lets flush found RW page to flash
     uint32_t ram_page = oldest_rw_ram_page;
     // sprintf(tmp, "2 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
-    uint32_t ram_page_offset = ram_page << 12;
-    uint32_t flash_page_offset = oldest_rw_flash_page << 12;
+    uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
+    uint32_t flash_page_offset = oldest_rw_flash_page * RAM_PAGE_SIZE;
     // sprintf(tmp, "2 RAM offs 0x%X / FLASH offs: 0x%X", ram_page_offset, flash_page_offset); logMsg(tmp);
     flash_range_program3(
         PSEUDO_RAM_BASE + flash_page_offset,
         (const u_int8_t*)RAM + ram_page_offset,
-        4096
+        RAM_PAGE_SIZE
     );
     PSEUDO_RAM_PAGES[oldest_rw_flash_page] = 0x0000; // not more mapped
     // use new page:
@@ -182,9 +182,9 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     if (++CURRENT_RAM_PAGE_OLDNESS >= MAX_OLDENESS) {
         CURRENT_RAM_PAGE_OLDNESS = 0;
     }
-    flash_page_offset = flash_page << 12;
+    flash_page_offset = flash_page * RAM_PAGE_SIZE;
     // sprintf(tmp, "3 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
-    memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
+    memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
     lock_irq = false;
     return ram_page;
 }
@@ -192,12 +192,12 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 
 void write86(uint32_t addr32, uint8_t value) {
 #if PSEUDO_RAM_BASE
-    if (addr32 < 4096) { // do not touch first 4k
+    if (addr32 < RAM_PAGE_SIZE) { // do not touch first page
         RAM[addr32] = value;
     } else if (addr32 < (PSEUDO_RAM_SIZE << 10)) {
         uint32_t ram_page = get_ram_page_for(addr32);
-        uint32_t addr_in_page = addr32 & 0x00000FFF;
-        RAM[(ram_page << 12) + addr_in_page] = value;
+        uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+        RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page] = value;
         uint16_t ram_page_desc = RAM_PAGES[ram_page];
         if (!(ram_page_desc & 0x8000)) { // if higest (15) bit is set, it means - the page has changes
             RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
@@ -312,8 +312,8 @@ uint8_t read86(uint32_t addr32) {
                 return RAM[addr32];
             } else {
                 uint32_t ram_page = get_ram_page_for(addr32);
-                uint32_t addr_in_page = addr32 & 0x00000FFF;
-                return RAM[(ram_page << 12) + addr_in_page];
+                uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+                return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
             }
 #else
                 return RAM[addr32];
@@ -854,7 +854,7 @@ void reset86() {
         }
     }
     uint32_t interrupts = save_and_disable_interrupts();
-    flash_range_erase(PSEUDO_RAM_BASE - XIP_BASE, PSEUDO_RAM_BLOCKS << 12);
+    flash_range_erase(PSEUDO_RAM_BASE - XIP_BASE, PSEUDO_RAM_SIZE);
     restore_interrupts(interrupts);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 #endif
