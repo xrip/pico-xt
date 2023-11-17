@@ -53,7 +53,7 @@ static const uint8_t parity[0x100] = {
 };
 __aligned(4096) uint8_t RAM[RAM_SIZE << 10];
 uint8_t VRAM[VRAM_SIZE << 10];
-#if PSEUDO_RAM_BASE
+#if PSEUDO_RAM_BASE || CD_CARD_SWAP
 uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS] = { 0 }; // 4KB blocks
 uint16_t CURRENT_RAM_PAGE_OLDNESS = 0;
 uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
@@ -101,7 +101,7 @@ void modregrm() {
     }
 }
 
-#if PSEUDO_RAM_BASE
+#if PSEUDO_RAM_BASE || CD_CARD_SWAP
 #define MAX_OLDENESS 0x7F
 extern bool lock_irq;
 uint32_t get_ram_page_for(const uint32_t addr32) {
@@ -160,7 +160,11 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
         uint32_t flash_page_offset = flash_page * RAM_PAGE_SIZE;
         // sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
+#if CD_CARD_SWAP
+        read_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
+#else
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
+#endif
         lock_irq = false;
         return ram_page;
     }
@@ -170,11 +174,15 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
     uint32_t flash_page_offset = oldest_rw_flash_page * RAM_PAGE_SIZE;
     // sprintf(tmp, "2 RAM offs 0x%X / FLASH offs: 0x%X", ram_page_offset, flash_page_offset); logMsg(tmp);
+#if CD_CARD_SWAP
+    flush_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
+#else
     flash_range_program3(
         PSEUDO_RAM_BASE + flash_page_offset,
         (const u_int8_t*)RAM + ram_page_offset,
         RAM_PAGE_SIZE
     );
+#endif
     PSEUDO_RAM_PAGES[oldest_rw_flash_page] = 0x0000; // not more mapped
     // use new page:
     PSEUDO_RAM_PAGES[flash_page] = 0x8000 | ram_page; // in ram + ram_page
@@ -184,14 +192,18 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     }
     flash_page_offset = flash_page * RAM_PAGE_SIZE;
     // sprintf(tmp, "3 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
+#if CD_CARD_SWAP
+    read_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
+#else
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
+#endif
     lock_irq = false;
     return ram_page;
 }
 #endif
 
 void write86(uint32_t addr32, uint8_t value) {
-#if PSEUDO_RAM_BASE
+#if PSEUDO_RAM_BASE || CD_CARD_SWAP
     if (addr32 < RAM_PAGE_SIZE) { // do not touch first page
         RAM[addr32] = value;
     } else if (addr32 < (PSEUDO_RAM_SIZE << 10)) {
@@ -227,7 +239,7 @@ void write86(uint32_t addr32, uint8_t value) {
 
 static inline void writew86(uint32_t addr32, uint16_t value) {
 #if PICO_ON_DEVICE
-#ifndef PSEUDO_RAM_BASE
+#if !PSEUDO_RAM_BASE && !CD_CARD_SWAP
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
     }
@@ -242,7 +254,7 @@ static inline void writew86(uint32_t addr32, uint16_t value) {
 
 uint8_t read86(uint32_t addr32) {
     //printf("read86 %lx\r\n", addr32);
-#ifdef PSEUDO_RAM_BASE
+#if PSEUDO_RAM_BASE || CD_CARD_SWAP
     if (addr32 < (PSEUDO_RAM_SIZE << 10)) {
 #else
     if (addr32 < (RAM_SIZE << 10)) {
@@ -307,7 +319,7 @@ uint8_t read86(uint32_t addr32) {
             case 0x475: //hard drive count
                 return (hdcount);
             default:
-#ifdef PSEUDO_RAM_BASE
+#if PSEUDO_RAM_BASE || CD_CARD_SWAP
             if (addr32 < 4096) { // do not touch first 4kb
                 return RAM[addr32];
             } else {
@@ -357,7 +369,7 @@ uint8_t read86(uint32_t addr32) {
 
 __inline uint16_t readw86(uint32_t addr32) {
 #if PICO_ON_DEVICE
-#ifndef PSEUDO_RAM_BASE // TODO:
+#if !PSEUDO_RAM_BASE && !CD_CARD_SWAP // TODO:
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         return psram_read16(&psram_spi, addr32);
     }
@@ -839,7 +851,7 @@ void reset86() {
     init8259();
     memset(RAM, 0x0, RAM_SIZE << 10);
     memset(VRAM, 0x0, VRAM_SIZE << 10);
-#if PSEUDO_RAM_BASE
+#if PSEUDO_RAM_BASE || CD_CARD_SWAP
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     CURRENT_RAM_PAGE_OLDNESS = 0;
     for (size_t page = 0; page < PSEUDO_RAM_BLOCKS; ++page) {

@@ -39,6 +39,95 @@ bool runing = true;
 
 #if PICO_ON_DEVICE
 
+#if CD_CARD_SWAP
+static const char* path = "\\XT\\vram.pages";
+static FIL file;
+bool init_vram() {
+    FRESULT result = f_mount(&fs, "", 1);
+    if (result != FR_OK) {
+        char tmp[80]; sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+        return false;
+    }
+    result = f_open(&file, path, FA_READ | FA_WRITE);
+    if (result != FR_OK) {
+        logMsg((char*)"Create <SD-card>\\XT\\vram.pages");
+        result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_NEW | FA_OPEN_APPEND);
+        if (result != FR_OK) {
+            logMsg((char*)"Unable to create <SD-card>\\XT\\vram.pages");
+            return false;
+        }
+        for (int i = 0; i < PSEUDO_RAM_BLOCKS; ++i) {
+            UINT bw;
+            result = f_write(&file, RAM, RAM_PAGE_SIZE, &bw);
+            if (result != FR_OK) {
+                logMsg((char*)"Unable to initialize <SD-card>\\XT\\vram.pages");
+                return false;
+            }
+        }
+        f_close(&file);
+        result = f_open(&file, path, FA_READ | FA_WRITE);
+        if (result != FR_OK) {
+            logMsg((char*)"<SD-card>\\XT\\vram.pages creation passed");
+        }
+        f_close(&file);
+    }
+    logMsg((char*)"vram.pages is initialized");
+    return true;
+}
+void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    char tmp[40]; sprintf(tmp, "Read vram 0x%X<-0x%X", dst, file_offset); logMsg(tmp);
+    FRESULT result = f_mount(&fs, "", 1);
+    if (result != FR_OK) {
+        sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+        return;
+    }
+    result = f_open(&file, path, FA_READ);
+    if (result != FR_OK) {
+        sprintf(tmp, "Unable to open vram.pages: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+        return;
+    }
+    result = f_lseek(&file, file_offset);
+    if (result != FR_OK) {
+        sprintf(tmp, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+        return;
+    }
+    UINT br;
+    result = f_read(&file, dst, sz, &br);
+    if (result != FR_OK) {
+        sprintf(tmp, "Failed to f_read: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+    }
+    f_close(&file);
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+}
+void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    char tmp[40]; sprintf(tmp, "Flush vram 0x%X->0x%X", src, file_offset); logMsg(tmp);
+    FRESULT result = f_mount(&fs, "", 1);
+    if (result != FR_OK) {
+        sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+        return;
+    }
+    result = f_open(&file, path, FA_WRITE);
+    if (result != FR_OK) {
+        sprintf(tmp, "Unable to open vram.pages: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+        return;
+    }
+    result = f_lseek(&file, file_offset);
+    if (result != FR_OK) {
+        sprintf(tmp, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+        return;
+    }
+    UINT bw;
+    result = f_write(&file, src, sz, &bw);
+    if (result != FR_OK) {
+        sprintf(tmp, "Failed to f_write: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+    }
+    f_close(&file);
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+}
+#endif
+
 #if PSEUDO_RAM_BASE
 #include <hardware/flash.h>
 // TODO: own C file
@@ -161,6 +250,12 @@ int main() {
     }
 #endif
     graphics_set_mode(TEXTMODE_80x30);
+#if CD_CARD_SWAP
+    if (!init_vram()) {
+        logMsg((char*)"init_vram failed");
+        while (runing) { sleep_ms(100); }
+    }
+#endif
     reset86();
     while (runing) {
 #if !PICO_ON_DEVICE
