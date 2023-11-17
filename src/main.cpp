@@ -69,22 +69,28 @@ bool init_vram() {
         if (result != FR_OK) {
             logMsg((char*)"<SD-card>\\XT\\vram.pages creation passed");
         }
-        f_close(&file);
+        // f_close(&file);
     }
     logMsg((char*)"vram.pages is initialized");
     return true;
 }
+FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
+    FRESULT result = f_lseek(&file, file_offset);
+    if (result != FR_OK) {
+        result = f_open(&file, path, FA_READ | FA_WRITE);
+        if (result != FR_OK) {
+            char tmp[40]; sprintf(tmp, "Unable to open vram.pages: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+            return result;
+        }
+        char tmp[40]; sprintf(tmp, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+    }
+    return result;
+}
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     char tmp[40]; sprintf(tmp, "Read vram 0x%X<-0x%X", dst, file_offset); logMsg(tmp);
-    FRESULT result = f_open(&file, path, FA_READ);
+    FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
-        sprintf(tmp, "Unable to open vram.pages: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
-        return;
-    }
-    result = f_lseek(&file, file_offset);
-    if (result != FR_OK) {
-        sprintf(tmp, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
         return;
     }
     UINT br;
@@ -92,20 +98,13 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     if (result != FR_OK) {
         sprintf(tmp, "Failed to f_read: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
     }
-    f_close(&file);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     char tmp[40]; sprintf(tmp, "Flush vram 0x%X->0x%X", src, file_offset); logMsg(tmp);
-    FRESULT result = f_open(&file, path, FA_WRITE);
+    FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
-        sprintf(tmp, "Unable to open vram.pages: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
-        return;
-    }
-    result = f_lseek(&file, file_offset);
-    if (result != FR_OK) {
-        sprintf(tmp, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
         return;
     }
     UINT bw;
@@ -113,7 +112,6 @@ void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     if (result != FR_OK) {
         sprintf(tmp, "Failed to f_write: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
     }
-    f_close(&file);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 #endif
