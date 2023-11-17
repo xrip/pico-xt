@@ -324,13 +324,13 @@ void graphics_set_mode(enum graphics_mode_t mode) {
     switch (mode) {
         case TEXTMODE_40x30:
             text_buffer_width = 40;
-            text_buffer_height = 25;
+            text_buffer_height = 30;
             break;
         case TEXTMODE_80x30:
         case TEXTMODE_160x100:
         default:
             text_buffer_width = 80;
-            text_buffer_height = 25;
+            text_buffer_height = 30;
     }
     if (_SM_VGA < 0) return;//если  VGA не инициализирована -
     //pio_sm_set_enabled(PIO_VGA, _SM_VGA, false);
@@ -505,19 +505,21 @@ void graphics_set_flashmode(bool flash_line, bool flash_frame) {
 void graphics_set_textbuffer(uint8_t *buffer) {
     text_buffer = buffer;
 };
-static int current_line = 0;
+static int current_line = 25;
 void clrScr(uint8_t color) {
     memset(text_buffer, 0, text_buffer_height * text_buffer_width);
     memset(text_buf_color, (color << 4), text_buffer_height * text_buffer_width);
-    current_line = 0;
+    current_line = 25;
 };
 
 void logMsg(char * msg) {
+    printf("%s\r\n", msg);
     if (graphics_mode != TEXTMODE_80x30) { // TODO: remove it!
-        graphics_set_mode(TEXTMODE_80x30);
+        //graphics_set_mode(TEXTMODE_80x30);
+        return;
     }
     if (current_line >= 30 - 1) {
-        current_line = 0;
+        current_line = 25;
     }
     draw_text(msg, 0, current_line++, 7, 1);
 }
@@ -534,9 +536,9 @@ void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {
         }
     }
     if (x >= text_buffer_width) return;
-    uint8_t *t_buf = text_buffer + (text_buffer_width * y) + x;
+    uint8_t *t_buf = text_buffer + ((text_buffer_width*2) * y) + x;
     //uint8_t* t_buf_c=text_buf+(text_buf_width*y)+x+1;
-    for (int xi = x; xi < text_buffer_width; xi++) {
+    for (int xi = x; xi < text_buffer_width*2; xi++) {
         if (!(*string)) break;
         *t_buf++ = *string++;
         *t_buf++ = (bgcolor << 4) | (color & 0xF);
