@@ -55,6 +55,7 @@ pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip")
 pico_set_program_version(pico-xt "development version")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
+set(OVERCLOCKING 366)
 
 if (PICO_PLATFORM STREQUAL "host")
     target_link_libraries(${PROJECT_NAME} SDL2)
@@ -135,7 +136,7 @@ else ()
             PICO_FLASH_SIZE_BYTES=4194304
             PSEUDO_RAM_BASE=0x10300000
             
-            #OVERCLOCKING=366
+            OVERCLOCKING=366
     )
 
 #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

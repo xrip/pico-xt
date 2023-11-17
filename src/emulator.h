@@ -24,9 +24,9 @@
 #define VRAM_SIZE 32
 
 #if PICO_ON_DEVICE
-#define RAM_PAGE_SIZE_KB 16
+#define RAM_PAGE_SIZE_KB 4
 #define RAM_PAGE_SIZE (RAM_PAGE_SIZE_KB * 1024)
-#define RAM_IN_PAGE_ADDR_MASK (0x00003FFF)
+#define RAM_IN_PAGE_ADDR_MASK (0x00000FFF)
 #define RAM_SIZE (64 * 3)
 #else
 #define RAM_SIZE (640) // (64*3+26)
