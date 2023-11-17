@@ -30,7 +30,7 @@
 #endif
 
 #if PSEUDO_RAM_BASE
-#define PSEUDO_RAM_SIZE (640)
+#define PSEUDO_RAM_SIZE (64*3 + 4)
 #define PSEUDO_RAM_BLOCKS (PSEUDO_RAM_SIZE >> 2)
 extern uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS]; // 4KB blocks
 #define RAM_BLOCKS (RAM_SIZE >> 2)

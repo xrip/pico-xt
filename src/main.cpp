@@ -39,6 +39,7 @@ bool runing = true;
 
 #if PICO_ON_DEVICE
 
+#if PSEUDO_RAM_BASE
 #include <hardware/flash.h>
 // TODO: own C file
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
@@ -53,8 +54,9 @@ void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
     restore_interrupts(interrupts);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
+#endif
 
-struct semaphore vga_start_semaphore;
+//struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
     graphics_init();
@@ -67,7 +69,7 @@ void __time_critical_func(render_core)() {
     for (int i = 0; i < 16; ++i) {
         graphics_set_palette(i, cga_palette[i]);
     }
-    sem_acquire_blocking(&vga_start_semaphore);
+    //sem_acquire_blocking(&vga_start_semaphore);
     while (true) {
     }
 }
@@ -129,9 +131,9 @@ int main() {
     //nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     keyboard_init();
 
-    sem_init(&vga_start_semaphore, 0, 1);
+    //sem_init(&vga_start_semaphore, 0, 1);
     multicore_launch_core1(render_core);
-    sem_release(&vga_start_semaphore);
+    //sem_release(&vga_start_semaphore);
 
     sleep_ms(50);
 #if PSRAM

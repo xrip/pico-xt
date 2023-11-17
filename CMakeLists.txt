@@ -133,7 +133,7 @@ else ()
 
             # supports only for pico with 4 or more MB flashes
             PICO_FLASH_SIZE_BYTES=4194304
-            #PSEUDO_RAM_BASE=0x10300000
+            PSEUDO_RAM_BASE=0x10300000
             
             #OVERCLOCKING=366
     )

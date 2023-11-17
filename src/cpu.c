@@ -56,7 +56,6 @@ uint8_t VRAM[VRAM_SIZE << 10];
 #if PSEUDO_RAM_BASE
 uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS] = { 0 }; // 4KB blocks
 uint16_t CURRENT_RAM_PAGE_OLDNESS = 0;
-uint16_t LAST_RAM_PAGE_USED = 0;
 uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
 #endif
 
@@ -104,12 +103,14 @@ void modregrm() {
 
 #if PSEUDO_RAM_BASE
 #define MAX_OLDENESS 0x7F
+extern bool lock_irq;
 uint32_t get_ram_page_for(const uint32_t addr32) {
     uint32_t flash_page = addr32 >> 12; // 4KB page idx
     uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
     if (flash_page_desc & 0x8000) { // higest (15) bit is set, it means - the page already in RAM
          return flash_page_desc & 0x7FFF; // actually max 256 4k pages (1MB), but may be more;)
     }
+    lock_irq = true;
     // char tmp[40]; sprintf(tmp, "0 FLASH page: 0x%X DESC: 0x%X", flash_page, flash_page_desc); logMsg(tmp);
     // lookup for oldest page to unload
     uint16_t oldest_rw_flash_page = 1; int16_t min_rw_oldenes = 2*MAX_OLDENESS + 1; uint16_t oldest_rw_ram_page = 1;
@@ -160,6 +161,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         uint32_t flash_page_offset = flash_page << 12;
         // sprintf(tmp, "1 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
+        lock_irq = false;
         return ram_page;
     }
     // No RO page, lets flush found RW page to flash
@@ -183,6 +185,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     flash_page_offset = flash_page << 12;
     // sprintf(tmp, "3 RAM page 0x%X / FLASH page: 0x%X", ram_page, flash_page); logMsg(tmp);
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, 4096);
+    lock_irq = false;
     return ram_page;
 }
 #endif
@@ -347,12 +350,6 @@ uint8_t read86(uint32_t addr32) {
     if (PSRAM_AVAILABLE) {
         return psram_read8(&psram_spi, addr32);
     }
-#endif
-
-#ifdef PSEUDO_RAM_BASE
-//   uint32_t ram_page = get_ram_page_for(addr32);
-//   uint32_t addr_in_page = addr32 - (addr32 & 0xFFFFF000);
-//   return RAM[(ram_page << 12) + addr_in_page];
 #endif
     return 0;
 }
@@ -813,7 +810,11 @@ uint32_t BlinkTimer(uint32_t interval, void *name) {
 #if PICO_ON_DEVICE
 static repeating_timer_t timer;
 static uint8_t tick50ms = 0;
+bool lock_irq = false;
 bool timer_callback(repeating_timer_t *rt) {
+    if (lock_irq) { // skip IRQ in case some long process is in progress
+        return true;
+    }
     doirq(0);
     if (tick50ms == 0 || tick50ms == 10) {
         cursor_blink_state ^= 1;
