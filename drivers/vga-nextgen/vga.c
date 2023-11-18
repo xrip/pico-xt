@@ -498,6 +498,7 @@ void graphics_set_textbuffer(uint8_t *buffer) {
 };
 static int current_line = 25;
 void clrScr(uint8_t color) {
+    // TODO:
     memset(text_buffer, 0, text_buffer_height * text_buffer_width);
     memset(text_buf_color, (color << 4), text_buffer_height * text_buffer_width);
     current_line = 25;
@@ -523,16 +524,24 @@ void draw_text2(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {
     }
 };
 
+char* get_free_vram_ptr() {
+    return text_buffer + text_buffer_width * 2 * text_buffer_height;
+}
+
+static int start_debug_line = 25;
+void set_start_debug_line(int _start_debug_line) {
+    start_debug_line = _start_debug_line;
+}
+
 void logMsg(char * msg) {
     printf("%s\r\n", msg);
-    if (graphics_mode != TEXTMODE_80x30) { // TODO: remove it!
-        //graphics_set_mode(TEXTMODE_80x30);
+    if (graphics_mode != TEXTMODE_80x30) { // log in text mode only
         return;
     }
     if (current_line >= 30 - 1) {
         current_line = 29;
         size_t sz = text_buffer_width * 2;
-        for (int i = 25; i < current_line; ++i) {
+        for (int i = start_debug_line; i < current_line; ++i) {
             uint8_t *t_buf1 = text_buffer + sz * i;
             uint8_t *t_buf2 = text_buffer + sz * (i + 1);
             memcpy(t_buf1, t_buf2, sz);

@@ -19,7 +19,6 @@ if (PICO_PLATFORM STREQUAL "host")
     set(SDL2_INCLUDE_DIR C:/SDL/include)
     set(SDL2_LIBRARY C:/SDL/bin)
 
-
     include_directories(
             ${SDL2_INCLUDE_DIR}
     )
@@ -29,6 +28,8 @@ if (PICO_PLATFORM STREQUAL "host")
     )
 else ()
     #add_compile_definitions(${PROJECT_NAME} NO_GRAPHICS)
+    set(FAMILY rp2040)
+    set(BOARD pico_sdk)
 
     add_subdirectory(drivers/vga-nextgen)
     add_subdirectory(drivers/ps2)
@@ -103,6 +104,35 @@ else ()
     )
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:--script=${CMAKE_CURRENT_LIST_DIR}/memmap.ld")
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/memmap.ld)
+
+    family_configure_device_example(${PROJECT_NAME} noos)
+    
+    target_sources(${PROJECT_NAME} PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/usb.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/msc_disk.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/usb_descriptors.c
+    )
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets
+    )
+    if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(${PROJECT_NAME} PUBLIC
+            -Wno-error=suggest-attribute=format
+            -Wno-error=cast-qual
+            -Wno-error=unused-parameter
+            -Wno-error=conversion
+            -Wno-error=format=
+            -Wno-error=sign-compare
+            -Wno-error=missing-field-initializers
+            -Wno-error=switch
+            -Wno-error=implicit-fallthrough=
+            -Wno-error=stringop-truncation
+            -Wno-error=restrict
+            -w
+    )
+    endif ()
 
     target_compile_definitions(${PROJECT_NAME} PRIVATE
             PICO_HEAP_SIZE=0

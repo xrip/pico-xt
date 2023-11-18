@@ -1051,8 +1051,8 @@ void intcall86(uint8_t intnum) {
              return;*/
 
         case 0x19:
-            insertdisk(0, sizeof FD0, (char *)FD0, NULL);
-            insertdisk(1, sizeof FD1, (char *)FD1, NULL);
+            insertdisk(0, sizeof FDD0, (char *)FDD0, NULL);
+            insertdisk(1, sizeof FDD1, (char *)FDD1, NULL);
 #if PICO_ON_DEVICE
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             keyboard_send(0xFF);

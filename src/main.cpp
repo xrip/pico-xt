@@ -21,6 +21,7 @@ extern "C" {
 extern "C" {
 #include "vga.h"
 #include "ps2.h"
+#include "usb.h"
 }
 #else
 #define SDL_MAIN_HANDLED
@@ -39,7 +40,7 @@ bool runing = true;
 #if PICO_ON_DEVICE
 
 #if CD_CARD_SWAP
-static const char* path = "\\XT\\vram.pages";
+static const char* path = "\\XT\\pagefile.sys";
 static FATFS fs;
 static FIL file;
 bool init_vram() {
@@ -50,28 +51,28 @@ bool init_vram() {
     }
     result = f_open(&file, path, FA_READ | FA_WRITE);
     if (result != FR_OK) {
-        logMsg((char*)"Create <SD-card>\\XT\\vram.pages");
+        logMsg((char*)"Create <SD-card>\\XT\\pagefile.sys");
         result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_NEW | FA_OPEN_APPEND);
         if (result != FR_OK) {
-            logMsg((char*)"Unable to create <SD-card>\\XT\\vram.pages");
+            logMsg((char*)"Unable to create <SD-card>\\XT\\pagefile.sys");
             return false;
         }
         for (int i = 0; i < PSEUDO_RAM_BLOCKS; ++i) {
             UINT bw;
             result = f_write(&file, RAM, RAM_PAGE_SIZE, &bw);
             if (result != FR_OK) {
-                logMsg((char*)"Unable to initialize <SD-card>\\XT\\vram.pages");
+                logMsg((char*)"Unable to initialize <SD-card>\\XT\\pagefile.sys");
                 return false;
             }
         }
         f_close(&file);
         result = f_open(&file, path, FA_READ | FA_WRITE);
         if (result != FR_OK) {
-            logMsg((char*)"<SD-card>\\XT\\vram.pages creation passed");
+            logMsg((char*)"<SD-card>\\XT\\pagefile.sys creation passed");
         }
         // f_close(&file);
     }
-    logMsg((char*)"vram.pages is initialized");
+    logMsg((char*)"pagefile.sys is initialized");
     return true;
 }
 FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
@@ -79,7 +80,7 @@ FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
     if (result != FR_OK) {
         result = f_open(&file, path, FA_READ | FA_WRITE);
         if (result != FR_OK) {
-            char tmp[40]; sprintf(tmp, "Unable to open vram.pages: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+            char tmp[40]; sprintf(tmp, "Unable to open pagefile.sys: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
             return result;
         }
         char tmp[40]; sprintf(tmp, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
@@ -88,7 +89,7 @@ FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
 }
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char tmp[40]; sprintf(tmp, "Read  vram 0x%X<-0x%X", dst, file_offset); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset); logMsg(tmp);
     FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
         return;
@@ -102,7 +103,7 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
 }
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char tmp[40]; sprintf(tmp, "Flush vram 0x%X->0x%X", src, file_offset); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "Flush pagefile 0x%X->0x%X", src, file_offset); logMsg(tmp);
     FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
         return;
@@ -258,6 +259,11 @@ int main() {
     }
 #endif
     reset86();
+    
+    set_start_debug_line(0);
+    in_flash_drive();
+    set_start_debug_line(25);
+
     while (runing) {
 #if !PICO_ON_DEVICE
         handleinput();
