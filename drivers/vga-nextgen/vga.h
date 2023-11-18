@@ -29,7 +29,7 @@ void graphics_set_textbuffer(uint8_t *buffer);
 
 void graphics_set_offset(int x, int y);
 
-void graphics_set_mode(enum graphics_mode_t mode);
+enum graphics_mode_t graphics_set_mode(enum graphics_mode_t mode);
 
 void graphics_set_flashmode(bool flash_line, bool flash_frame);
 

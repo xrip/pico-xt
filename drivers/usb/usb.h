@@ -4,18 +4,17 @@
 #include "ff.h"
 #include "diskio.h"
 
-void in_flash_drive();
+void if_usb();
 
 char* fdd0_rom();
 char* fdd1_rom();
 size_t fdd0_sz();
 size_t fdd1_sz();
 
-// from vga.h
-void logMsg(char * msg);
-
 // msc_disk.c
-_Bool tud_msc_test_ejected();
+bool tud_msc_ejected();
+void set_tud_msc_ejected(bool v);
+
 enum {
   DISK_BLOCK_SIZE = 512,
   FAT_OFFSET = 0x1000

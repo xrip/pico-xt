@@ -12,6 +12,7 @@ static FATFS fs;
 #endif
 #define _FILE FIL
 _FILE file;
+_FILE * getFileC() { return &file; }
 #else
 #include <SDL2/SDL.h>
 #define _FILE SDL_RWops
@@ -152,6 +153,27 @@ static size_t chs2ofs(int drivenum, int cyl, int head, int sect) {
             (size_t) sect - 1) * 512UL;
 }
 
+bool disk_C_read_sec(BYTE * buffer, LBA_t lba) {
+    if(FR_OK != f_lseek(&file, lba * 512)) {
+        return false;
+    }
+    UINT br;
+    if(FR_OK != f_read(&file, buffer, 512, &br)) {
+        return false;
+    }
+    return true;
+}
+
+bool disk_C_write_sec(BYTE * buffer, LBA_t lba) {
+    if(FR_OK != f_lseek(&file, lba * 512)) {
+        return false;
+    }
+    UINT bw;
+    if(FR_OK != f_write(&file, buffer, 512, &bw)) {
+        return false;
+    }
+    return true;
+}
 
 static void
 bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, uint16_t sect, uint16_t head,

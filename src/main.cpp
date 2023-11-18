@@ -259,11 +259,6 @@ int main() {
     }
 #endif
     reset86();
-    
-    set_start_debug_line(0);
-    in_flash_drive();
-    set_start_debug_line(25);
-
     while (runing) {
 #if !PICO_ON_DEVICE
         handleinput();
@@ -413,6 +408,7 @@ int main() {
         SDL_UpdateWindowSurface(window);
 #else
         exec86(340);
+        if_usb();
 #endif
     }
     return 0;

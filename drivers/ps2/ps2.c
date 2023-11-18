@@ -287,7 +287,6 @@ void KeyboardHandler(void) {
             ps2buffer[ps2bufsize++] = incoming;
             ps2poll();
         }
-
         bitcount = 0;
         incoming = 0;
     }
@@ -336,6 +335,7 @@ void keyboard_init(void) {
 extern uint16_t portram[256];
 
 extern void doirq(uint8_t irqnum);
+extern void handleScancode(uint32_t ps2scancode);
 
 void ps2poll() {
     uint32_t ps2scancode;
@@ -344,7 +344,8 @@ void ps2poll() {
         return;
     }
     portram[0x60] = ps2scancode;
+    // char tmp[20]; sprintf(tmp, "sc: 0x%X", ps2scancode); logMsg(tmp);
     portram[0x64] |= 2;
     doirq(1);
+    handleScancode(ps2scancode);
 }
-

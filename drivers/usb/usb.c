@@ -53,6 +53,7 @@ void cdc_task(void);
 
 /*------------- MAIN -------------*/
 void init_pico_usb_drive() {
+    set_tud_msc_ejected(false);
     board_init();
     // init device stack on configured roothub port
     tud_init(BOARD_TUD_RHPORT);
@@ -69,7 +70,7 @@ void pico_usb_drive_heartbeat() {
 
 void in_flash_drive() {
   init_pico_usb_drive();
-  while(!tud_msc_test_ejected()) {
+  while(!tud_msc_ejected()) {
     pico_usb_drive_heartbeat();
   }  
 }
@@ -102,7 +103,7 @@ void tud_resume_cb(void) {
 
 // Invoked to determine max LUN
 uint8_t tud_msc_get_maxlun_cb(void) {
-  return 4;
+  return 2;
 }
 
 //--------------------------------------------------------------------+
@@ -168,4 +169,42 @@ void led_blinking_task(void)
 
   board_led_write(led_state);
   led_state = 1 - led_state; // toggle
+}
+
+static volatile bool backspacePressed = false;
+static volatile bool enterPressed = false;
+static volatile bool usbStarted = false;
+void handleScancode(uint32_t ps2scancode) {
+    switch (ps2scancode) {
+      case 0x0E:
+        backspacePressed = true;
+        break;
+      case 0x8E:
+        backspacePressed = false;
+        break;
+      case 0x1C:
+        enterPressed = true;
+        break;
+      case 0x9C:
+        enterPressed = false;
+        break;
+    }
+}
+#include "vga.h"
+void if_usb() {
+    if (usbStarted) {
+        return;
+    }
+    if (backspacePressed && enterPressed) {
+        usbStarted = true;
+        auto ret = graphics_set_mode(TEXTMODE_80x30);
+        set_start_debug_line(0);
+        clrScr(1);
+        logMsg("You are in USB mode now. To return back to PC/XT emulation, just eject an USB-drive from your PC...");
+        in_flash_drive();
+        clrScr(1);
+        set_start_debug_line(25);
+        usbStarted = false;
+        graphics_set_mode(ret);
+    }
 }
