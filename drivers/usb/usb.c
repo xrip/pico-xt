@@ -173,7 +173,11 @@ void led_blinking_task(void)
 
 static volatile bool backspacePressed = false;
 static volatile bool enterPressed = false;
-static volatile bool usbStarted = false;
+static volatile bool plusPressed = false;
+static volatile bool minusPressed = false;
+static volatile bool ctrlPressed = false;
+static volatile bool tabPressed = false;
+
 void handleScancode(uint32_t ps2scancode) {
     switch (ps2scancode) {
       case 0x0E:
@@ -188,11 +192,35 @@ void handleScancode(uint32_t ps2scancode) {
       case 0x9C:
         enterPressed = false;
         break;
+      case 0x4A:
+        minusPressed = true;
+        break;
+      case 0xCA:
+        minusPressed = false;
+        break;
+      case 0x4E:
+        plusPressed = true;
+        break;
+      case 0xCE:
+        plusPressed = false;
+        break;
+      case 0x1D:
+        ctrlPressed = true;
+        break;
+      case 0x9D:
+        ctrlPressed = false;
+        break;
+      case 0x0F:
+        tabPressed = true;
+        break;
+      case 0x8F:
+        tabPressed = false;
+        break;
     }
 }
 
 #include "emulator.h"
-
+static volatile bool usbStarted = false;
 static const char* path = "\\XT\\video.ram";
 static FATFS fs;
 static FIL file;
@@ -230,6 +258,14 @@ static bool restore_video_ram() {
 }
 
 #include "vga.h"
+
+int overclock() {
+  if (tabPressed && ctrlPressed) {
+    if (plusPressed) return 1;
+    if (minusPressed) return -1;
+  }
+  return 0;
+}
 
 void if_usb() {
     if (usbStarted) {

@@ -5,6 +5,7 @@
 #include "diskio.h"
 
 void if_usb();
+int overclock();
 
 char* fdd0_rom();
 char* fdd1_rom();

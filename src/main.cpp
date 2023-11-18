@@ -182,6 +182,7 @@ static int RendererThread(void *ptr) {
 #define  PWM_PIN0 26
 pwm_config config = pwm_get_default_config();
 psram_spi_inst_t psram_spi;
+uint32_t overcloking_khz = OVERCLOCKING * 1000;
 #endif
 
 int main() {
@@ -189,7 +190,7 @@ int main() {
 #if (OVERCLOCKING > 270)
     hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
     sleep_ms(33);
-    set_sys_clock_khz(OVERCLOCKING * 1000, true);
+    set_sys_clock_khz(overcloking_khz, true);
 #else
     vreg_set_voltage(VREG_VOLTAGE_1_15);
     sleep_ms(33);
@@ -409,6 +410,19 @@ int main() {
 #else
         exec86(340);
         if_usb();
+        int oc = overclock();
+        if (oc > 0) overcloking_khz += 1000;
+        if (oc < 0) overcloking_khz -= 1000;
+        if (oc != 0) {
+            uint vco, postdiv1, postdiv2;
+            if (check_sys_clock_khz(overcloking_khz, &vco, &postdiv1, &postdiv2)) {
+               set_sys_clock_pll(vco, postdiv1, postdiv2);
+               char tmp[80]; sprintf(tmp, "overcloking_khz: %u kHz", overcloking_khz); logMsg(tmp);
+               sleep_ms(33);
+            } else {
+               char tmp[80]; sprintf(tmp, "System clock of %u kHz cannot be achieved", overcloking_khz); logMsg(tmp);
+            }
+        }
 #endif
     }
     return 0;
