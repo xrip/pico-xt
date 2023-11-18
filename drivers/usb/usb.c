@@ -190,20 +190,64 @@ void handleScancode(uint32_t ps2scancode) {
         break;
     }
 }
+
+#include "emulator.h"
+
+static const char* path = "\\XT\\video.ram";
+static FATFS fs;
+static FIL file;
+static bool save_video_ram() {
+    FRESULT result = f_open(&file, path, FA_READ | FA_WRITE);
+    if (result != FR_OK) {
+        result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_NEW | FA_OPEN_APPEND);
+        if (result != FR_OK) {
+            return false;
+        }
+        for (size_t i = 0; i < (sizeof(VRAM) << 10); i += 512) {
+            UINT bw;
+            result = f_write(&file, VRAM + i, 512, &bw);
+            if (result != FR_OK) {
+                return false;
+            }
+        }
+        f_close(&file);
+    }
+    return true;
+}
+static bool restore_video_ram() {
+    FRESULT result = f_open(&file, path, FA_READ);
+    if (result == FR_OK) {
+        for (size_t i = 0; i < (sizeof(VRAM) << 10); i += 512) {
+            UINT bw;
+            result = f_read(&file, VRAM + i, 512, &bw);
+            if (result != FR_OK) {
+                return false;
+            }
+        }
+        f_close(&file);
+    }
+    return true;
+}
+
 #include "vga.h"
+
 void if_usb() {
     if (usbStarted) {
         return;
     }
     if (backspacePressed && enterPressed) {
         usbStarted = true;
+        save_video_ram();
         auto ret = graphics_set_mode(TEXTMODE_80x30);
         set_start_debug_line(0);
         clrScr(1);
-        logMsg("You are in USB mode now. To return back to PC/XT emulation, just eject an USB-drive from your PC...");
+        logMsg("");
+        logMsg("                   You are in USB mode now.");
+        logMsg("To return back to PC/XT emulation, just eject an USB-drive from your PC...");
+        logMsg("");
         in_flash_drive();
-        clrScr(1);
         set_start_debug_line(25);
+        restore_video_ram();
         usbStarted = false;
         graphics_set_mode(ret);
     }

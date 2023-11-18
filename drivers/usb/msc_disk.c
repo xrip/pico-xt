@@ -47,7 +47,7 @@ size_t fdd1_sz() {
 #if CFG_TUD_MSC
 
 // whether host does safe-eject
-static _Bool ejected = false;
+static bool ejectedDrv[2] = { false, false };
 
 const uint32_t min_rom_block = 4096;
 const uint32_t sec_per_block = min_rom_block / DISK_BLOCK_SIZE;
@@ -90,7 +90,7 @@ void tud_msc_inquiry_cb(uint8_t lun, uint8_t vendor_id[8], uint8_t product_id[16
 bool tud_msc_test_unit_ready_cb(uint8_t lun) {
   // char tmp[80]; sprintf(tmp, "tud_msc_test_unit_ready_cb(%d)", lun); logMsg(tmp);
   // RAM disk is ready until ejected
-  if (ejected) {
+  if (ejectedDrv[lun]) {
     // Additional Sense 3A-00 is NOT_FOUND
     tud_msc_set_sense(lun, SCSI_SENSE_NOT_READY, 0x3a, 0x00);
     return false;
@@ -98,10 +98,11 @@ bool tud_msc_test_unit_ready_cb(uint8_t lun) {
   return true;
 }
 bool tud_msc_ejected() {
-  return ejected;
+  return ejectedDrv[0] && ejectedDrv[1];
 }
 void set_tud_msc_ejected(bool v) {
-  ejected = v;
+    ejectedDrv[0] = v;
+    ejectedDrv[1] = v;
 }
 
 extern FIL * getFileC();
@@ -155,7 +156,7 @@ bool tud_msc_start_stop_cb(uint8_t lun, uint8_t power_condition, bool start, boo
       // load disk storage
     } else {
       // unload disk storage
-      ejected = true;
+      ejectedDrv[lun] = true;
     }
   }
   return true;
@@ -195,8 +196,8 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
   }
   char* rom_lba = rom + lba * DISK_BLOCK_SIZE + offset;
   memcpy(buffer, rom_lba, bufsize);
-  if (ejected) { // read action means - it is mount back
-    ejected = false;
+  if (ejectedDrv[lun]) { // read action means - it is mount back
+    ejectedDrv[lun] = false;
   }
   return (int32_t) bufsize;
 }
