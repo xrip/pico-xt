@@ -77,8 +77,9 @@ static _FILE* tryFlushROM(uint8_t drivenum, size_t size, char *ROM, char *path) 
     return pFile;
 }
 
+#include "disk_c.h"
+
 static _FILE* tryDefaultDrive(uint8_t drivenum, size_t size, char *path) {
-    return NULL; // TODO: remove W/A
     char* tmp[40];
     sprintf(tmp, "Drive 0x%02X not found. Will try to init by size: %f MB. Pls. wait...", drivenum, (size / 1024 / 1024.0f));
     logMsg(tmp);
@@ -96,6 +97,12 @@ static _FILE* tryDefaultDrive(uint8_t drivenum, size_t size, char *path) {
     result = f_open(pFile, path, FA_READ | FA_WRITE);
     if (FR_OK != result) {
         return NULL;
+    }
+    if (drivenum > 1) {
+        UINT bw;
+        f_write(pFile, drive_c_0000000, sizeof(drive_c_0000000), &bw);
+        f_lseek(pFile, 0x0007E00);
+        f_write(pFile, drive_c_0007E00, sizeof(drive_c_0007E00), &bw);
     }
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
