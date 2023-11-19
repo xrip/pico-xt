@@ -36,7 +36,7 @@ uint8_t opcode, segoverride, reptype, hdcount = 0, fdcount = 0, hltstate = 0;
 uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 uint8_t videomode = 3;
-int timer_period = 55000;
+int timer_period = 54925;
 
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
@@ -95,7 +95,7 @@ void modregrm() {
     }
 }
 
-void write86(uint32_t addr32, uint8_t value) {
+__inline void write86(uint32_t addr32, uint8_t value) {
     if ((addr32) < (RAM_SIZE << 10)) {
         RAM[addr32] = value;
         return;
@@ -117,7 +117,7 @@ void write86(uint32_t addr32, uint8_t value) {
 }
 
 
-static inline void writew86(uint32_t addr32, uint16_t value) {
+static __inline void writew86(uint32_t addr32, uint16_t value) {
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
@@ -131,7 +131,7 @@ static inline void writew86(uint32_t addr32, uint16_t value) {
 #endif
 }
 
-uint8_t read86(uint32_t addr32) {
+__inline uint8_t read86(uint32_t addr32) {
     //printf("read86 %lx\r\n", addr32);
     if (addr32 < (RAM_SIZE << 10)) {
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
@@ -172,7 +172,7 @@ uint8_t read86(uint32_t addr32) {
                 return (0xd4);
             case 0x464:
                 return (0x3);
-
+/*
             case 0x465:
                 switch (videomode) {
                     case 0:
@@ -192,7 +192,7 @@ uint8_t read86(uint32_t addr32) {
                     default:
                         return (0x29);
                 }
-
+*/
             case 0x466:
                 return port3D9;
 
@@ -232,7 +232,7 @@ uint8_t read86(uint32_t addr32) {
 }
 
 
-__inline uint16_t readw86(uint32_t addr32) {
+static __inline uint16_t readw86(uint32_t addr32) {
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         return psram_read16(&psram_spi, addr32);

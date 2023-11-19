@@ -8,7 +8,7 @@
 
 #endif
 uint16_t portram[256];
-uint8_t crt_controller_idx, crt_controller[256];
+uint8_t crt_controller_idx, crt_controller[18];
 uint16_t port378, port379, port37A, port3D8, port3D9, port3DA, port201;
 
 void portout(uint16_t portnum, uint16_t value) {
