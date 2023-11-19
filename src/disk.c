@@ -50,6 +50,56 @@ void ejectdisk(uint8_t drivenum) {
     }
 }
 
+inline _FILE* actualDrive(uint8_t drivenum) {
+    return (drivenum > 1) ? &fileC : &fileB;
+}
+
+static _FILE* tryFlushROM(uint8_t drivenum, size_t size, char *ROM, char *path) {
+    return NULL; // TODO: remove W/A
+    _FILE *pFile = actualDrive(drivenum);
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    FRESULT result = f_open(pFile, path, FA_WRITE | FA_CREATE_ALWAYS);
+    if (result != FR_OK) {
+        return NULL;
+    }
+    UINT bw;
+    result = f_write(pFile, ROM, size, &bw);
+    if (result != FR_OK) {
+        return NULL;
+    }
+    f_close(pFile);
+    sleep_ms(33); // TODO: ensure
+    result = f_open(pFile, path, FA_READ | FA_WRITE);
+    if (FR_OK != result) {
+        return NULL;
+    }
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+    return pFile;
+}
+
+static _FILE* tryDefaultDrive(uint8_t drivenum, size_t size, char *path) {
+    return NULL; // TODO: remove W/A
+    char* tmp[40];
+    sprintf(tmp, "Drive 0x%02X not found. Will try to init by size: %f MB. Pls. wait...", drivenum, (size / 1024 / 1024.0f));
+    logMsg(tmp);
+    _FILE *pFile = actualDrive(drivenum);
+     FRESULT result = f_open(pFile, path, FA_WRITE | FA_CREATE_ALWAYS);
+    if (result != FR_OK) {
+        return NULL;
+    }
+    result = f_lseek(pFile, size);
+    if (result != FR_OK) {
+        return NULL;
+    }
+    f_close(pFile);
+    sleep_ms(33); // TODO: ensure
+    result = f_open(pFile, path, FA_READ | FA_WRITE);
+    if (FR_OK != result) {
+        return NULL;
+    }
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+}
+
 uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
     if (drivenum & 0x80) drivenum -= 126;
     _FILE *pFile = NULL;
@@ -58,14 +108,17 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
 #if !CD_CARD_SWAP
         f_mount(&fs, "", 1);
 #endif
-        pFile = (drivenum > 1) ? &fileC : &fileB;
+        pFile = actualDrive(drivenum);
         FRESULT result = f_open(pFile, pathname, FA_READ | FA_WRITE);
         if (FR_OK != result) {
             if (size != 0 && ROM != NULL) {
-                pathname = NULL;
-                pFile = NULL;
+                pFile = tryFlushROM(drivenum, size, ROM, pathname);
+                if (!pFile)
+                    pathname = NULL;
             } else {
-                return 1;
+                pFile = tryDefaultDrive(drivenum, drivenum > 1 ? 0xFFF0000 : 1228800, pathname);
+                if (!pFile)
+                    return 1;
             }
         } else {
             size = f_size(pFile);
@@ -97,19 +150,19 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
         sects = 63;
         heads = 16;
         cyls = size / (sects * heads * 512);
-    } else {   //it's a floppy image
+    } else {   // it's a floppy image (1.44 МВ)
         cyls = 80;
         sects = 18;
         heads = 2;
-        if (size <= 1228800)
+        if (size <= 1228800) // 1.2 MB
             sects = 15;
-        if (size <= 737280)
+        if (size <= 737280) // 720 KB
             sects = 9;
-        if (size <= 368640) {
+        if (size <= 368640) { // 360 KB
             cyls = 40;
             sects = 9;
         }
-        if (size <= 163840) {
+        if (size <= 163840) { // 160 KB
             cyls = 40;
             sects = 8;
             heads = 1;
@@ -157,8 +210,9 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
 
 // Call this ONLY if all parameters are valid! There is no check here!
 static size_t chs2ofs(int drivenum, int cyl, int head, int sect) {
-    return (((size_t) cyl * (size_t) disk[drivenum].heads + (size_t) head) * (size_t) disk[drivenum].sects +
-            (size_t) sect - 1) * 512UL;
+    return (
+        ((size_t)cyl * (size_t)disk[drivenum].heads + (size_t)head) * (size_t)disk[drivenum].sects + (size_t) sect - 1
+    ) * 512UL;
 }
 
 bool img_disk_read_sec(int drv, BYTE * buffer, LBA_t lba) {
@@ -186,8 +240,11 @@ bool img_disk_write_sec(int drv, BYTE * buffer, LBA_t lba) {
 }
 
 static void
-bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, uint16_t sect, uint16_t head,
-              uint16_t sectcount, int is_verify) {
+bios_readdisk(uint8_t drivenum,
+              uint16_t dstseg, uint16_t dstoff,
+              uint16_t cyl, uint16_t sect, uint16_t head,
+              uint16_t sectcount, int is_verify
+) {
     uint32_t cursect, memdest, lba;
     size_t fileoffset;
 #if PICO_ON_DEVICE
