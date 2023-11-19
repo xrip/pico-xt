@@ -37,12 +37,10 @@ void portout(uint16_t portnum, uint16_t value) {
             portram[portnum] = value;
 #if PICO_ON_DEVICE
             if ((value & 3) == 3) {
-                pwm_set_gpio_level(26, 127);
-                pwm_set_gpio_level(27, 127);
+                pwm_set_gpio_level(BEEPER_PIN, 127);
             }
             else {
-                pwm_set_gpio_level(26, 0);
-                pwm_set_gpio_level(27, 0);
+                pwm_set_gpio_level(BEEPER_PIN, 0);
             }
 #endif
             break;

@@ -94,7 +94,7 @@ static int RendererThread(void *ptr) {
 #endif
 
 #if PICO_ON_DEVICE
-#define  PWM_PIN0 26
+
 pwm_config config = pwm_get_default_config();
 psram_spi_inst_t psram_spi;
 #endif
@@ -118,11 +118,10 @@ int main() {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
-    gpio_set_function(PWM_PIN0, GPIO_FUNC_PWM);
-    gpio_set_function(PWM_PIN0+1, GPIO_FUNC_PWM);
-    uint slice_num = pwm_gpio_to_slice_num(PWM_PIN0+1);
-    pwm_set_chan_level(slice_num, PWM_CHAN_A, 1);
-    pwm_set_chan_level(slice_num, PWM_CHAN_B, 3);
+    gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
+    uint slice_num = pwm_gpio_to_slice_num(BEEPER_PIN+1);
+    //pwm_set_chan_level(slice_num, PWM_CHAN_A, 1);
+    //pwm_set_chan_level(slice_num, PWM_CHAN_B, 3);
     pwm_config_set_wrap(&config, 261);
     pwm_config_set_clkdiv(&config, 127);
     pwm_init(slice_num, &config, true);

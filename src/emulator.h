@@ -21,6 +21,7 @@
 #include <pico/stdlib.h>
 #endif
 
+#define BEEPER_PIN 28
 #define VRAM_SIZE 32
 #if PICO_ON_DEVICE
 #define RAM_SIZE (64*3)
