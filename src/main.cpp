@@ -17,6 +17,7 @@ extern "C" {
 #include "f_util.h"
 #include "ff.h"
 #include "psram_spi.h"
+#include "nespad.h"
 
 static FATFS fs;
 extern "C" {
@@ -133,7 +134,7 @@ int main() {
         gpio_put(PICO_DEFAULT_LED_PIN, false);
     }
 
-    //nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
+    nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     keyboard_init();
 
 
@@ -325,6 +326,11 @@ int main() {
         SDL_UpdateWindowSurface(window);
 #else
         exec86(340);
+        nespad_read();
+        if (nespad_state & DPAD_START) {
+            printf("TEST\r\n");
+        }
+        sermouseevent(nespad_state & DPAD_A, (nespad_state & DPAD_LEFT) ? -1 : ((nespad_state & DPAD_RIGHT) ? 1 : 0), (nespad_state & DPAD_DOWN) ? -1 : (nespad_state & DPAD_UP) ? 1 : 0);
 #endif
     }
     return 0;

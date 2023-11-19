@@ -35,6 +35,7 @@ else ()
     add_subdirectory(drivers/fatfs)
     add_subdirectory(drivers/sdcard)
     add_subdirectory(drivers/psram)
+    add_subdirectory(drivers/nespad)
 endif ()
 
 # INCLUDE FILES THAT SHOULD BE COMPILED:
@@ -86,6 +87,7 @@ else ()
             psram
             sdcard
             fatfs
+            nespad
 
             pico_runtime
             pico_stdlib
@@ -123,10 +125,10 @@ else ()
             # PSRAM_MUTEX=1
             PSRAM_SPINLOCK=1
             PSRAM_ASYNC=1
-            PSRAM_PIN_CS=18
-            PSRAM_PIN_SCK=19
-            PSRAM_PIN_MOSI=20
-            PSRAM_PIN_MISO=17
+            PSRAM_PIN_CS=17
+            PSRAM_PIN_SCK=18
+            PSRAM_PIN_MOSI=19
+            PSRAM_PIN_MISO=20
 
     )
 
