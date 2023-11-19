@@ -158,9 +158,9 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 
 void write86(uint32_t addr32, uint8_t value) {
 #if PSEUDO_RAM_BASE || CD_CARD_SWAP
-    if (addr32 < RAM_PAGE_SIZE) { // do not touch first page
+    if (!PSRAM_AVAILABLE && addr32 < RAM_PAGE_SIZE) { // do not touch first page
         RAM[addr32] = value;
-    } else if (addr32 < (PSEUDO_RAM_SIZE << 10)) {
+    } else if (!PSRAM_AVAILABLE && addr32 < (PSEUDO_RAM_SIZE << 10)) {
         uint32_t ram_page = get_ram_page_for(addr32);
         uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
         RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page] = value;
@@ -193,12 +193,10 @@ void write86(uint32_t addr32, uint8_t value) {
 
 static inline void writew86(uint32_t addr32, uint16_t value) {
 #if PICO_ON_DEVICE
-#if !PSEUDO_RAM_BASE && !CD_CARD_SWAP
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
     }
     else
-#endif
 #endif
     {
         write86(addr32, (uint8_t) value);
@@ -209,7 +207,7 @@ static inline void writew86(uint32_t addr32, uint16_t value) {
 uint8_t read86(uint32_t addr32) {
     //printf("read86 %lx\r\n", addr32);
 #if PSEUDO_RAM_BASE || CD_CARD_SWAP
-    if (addr32 < (PSEUDO_RAM_SIZE << 10)) {
+    if ((!PSRAM_AVAILABLE && addr32 < (PSEUDO_RAM_SIZE << 10)) || PSRAM_AVAILABLE && addr32 < (RAM_SIZE << 10)) {
 #else
     if (addr32 < (RAM_SIZE << 10)) {
 #endif
@@ -274,7 +272,7 @@ uint8_t read86(uint32_t addr32) {
                 return (hdcount);
             default:
 #if PSEUDO_RAM_BASE || CD_CARD_SWAP
-            if (addr32 < 4096) { // do not touch first 4kb
+            if (PSRAM_AVAILABLE || addr32 < 4096) { // do not touch first 4kb
                 return RAM[addr32];
             } else {
                 uint32_t ram_page = get_ram_page_for(addr32);
@@ -320,14 +318,12 @@ uint8_t read86(uint32_t addr32) {
     return 0;
 }
 
-
 __inline uint16_t readw86(uint32_t addr32) {
 #if PICO_ON_DEVICE
-#if !PSEUDO_RAM_BASE && !CD_CARD_SWAP // TODO:
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
+        // TODO: 16-bit read from vram page
         return psram_read16(&psram_spi, addr32);
     }
-#endif
 #endif
     return ((uint16_t)read86(addr32) | (uint16_t)(read86(addr32 + 1) << 8));
 }

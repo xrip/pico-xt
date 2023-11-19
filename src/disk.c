@@ -204,26 +204,20 @@ bios_readdisk(uint8_t drivenum, uint16_t dstseg, uint16_t dstoff, uint16_t cyl, 
         CPU_AH = 0x04;    // sector not found
         goto error;
     }
-    //lba = ((uint32_t) cyl * (uint32_t) disk[drivenum].heads + (uint32_t) head) * (uint32_t) disk[drivenum].sects + (uint32_t) sect - 1;
-    //fileoffset = lba * 512;
     fileoffset = chs2ofs(drivenum, cyl, head, sect);
 
     if (disk[drivenum].data == NULL && fileoffset > 0) {
 #if PICO_ON_DEVICE
         result = f_lseek(disk[drivenum].diskfile, fileoffset);
-//        printf("drivenum %i :: f_lseek offs %i result: %s (%d)\r\n", drivenum, fileoffset, FRESULT_str(result), result);
 #else
         SDL_RWseek(disk[drivenum].diskfile, fileoffset, RW_SEEK_SET);
 #endif
     }
-    //SDL_RWseek(disk[drivenum].diskfile, fileoffset, RW_SEEK_SET);
-
     if (fileoffset > disk[drivenum].filesize) {
         printf("sector no found\r\n");
         CPU_AH = 0x04;    // sector not found
         goto error;
     }
-
     memdest = ((uint32_t) dstseg << 4) + (uint32_t) dstoff;
     // for the readdisk function, we need to use write86 instead of directly fread'ing into
     // the RAM array, so that read-only flags are honored. otherwise, a program could load

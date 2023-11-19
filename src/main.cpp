@@ -253,7 +253,7 @@ int main() {
 #endif
     graphics_set_mode(TEXTMODE_80x30);
 #if CD_CARD_SWAP
-    if (!init_vram()) {
+    if (!PSRAM_AVAILABLE && !init_vram()) {
         logMsg((char*)"init_vram failed");
         while (runing) { sleep_ms(100); }
     }

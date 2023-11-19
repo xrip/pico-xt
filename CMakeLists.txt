@@ -153,14 +153,14 @@ else ()
             NES_GPIO_DATA=16
             NES_GPIO_LAT=15
 
-            # PSRAM
+            PSRAM
             # PSRAM_MUTEX=1
             PSRAM_SPINLOCK=1
             PSRAM_ASYNC=1
-            PSRAM_PIN_CS=17
-            PSRAM_PIN_SCK=18
-            PSRAM_PIN_MOSI=19
-            PSRAM_PIN_MISO=16
+            PSRAM_PIN_MISO=17
+            PSRAM_PIN_CS=18
+            PSRAM_PIN_SCK=19
+            PSRAM_PIN_MOSI=20
 
             # supports only for pico with 4 or more MB flashes
             PICO_FLASH_SIZE_BYTES=4194304
