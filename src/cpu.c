@@ -1052,7 +1052,7 @@ void intcall86(uint8_t intnum) {
 
         case 0x19:
             insertdisk(0, fdd0_sz(), fdd0_rom(), NULL);
-            insertdisk(1, fdd1_sz(), fdd1_rom(), NULL);
+            insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
 #if PICO_ON_DEVICE
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             keyboard_send(0xFF);

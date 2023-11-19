@@ -72,7 +72,11 @@ void in_flash_drive() {
   init_pico_usb_drive();
   while(!tud_msc_ejected()) {
     pico_usb_drive_heartbeat();
-  }  
+  }
+  for (int i = 0; i < 10; ++i) { // sevaral hb till end of cycle
+    pico_usb_drive_heartbeat();
+    sleep_ms(50);
+  }
 }
 
 //--------------------------------------------------------------------+
@@ -225,35 +229,32 @@ static const char* path = "\\XT\\video.ram";
 static FATFS fs;
 static FIL file;
 static bool save_video_ram() {
-    FRESULT result = f_open(&file, path, FA_READ | FA_WRITE);
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    FRESULT result = f_open(&file, path, FA_WRITE | FA_CREATE_ALWAYS);
     if (result != FR_OK) {
-        result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_NEW | FA_OPEN_APPEND);
-        if (result != FR_OK) {
-            return false;
-        }
-        for (size_t i = 0; i < (sizeof(VRAM) << 10); i += 512) {
-            UINT bw;
-            result = f_write(&file, VRAM + i, 512, &bw);
-            if (result != FR_OK) {
-                return false;
-            }
-        }
-        f_close(&file);
+        return false;
     }
+    UINT bw;
+    result = f_write(&file, VRAM, sizeof(VRAM), &bw);
+    if (result != FR_OK) {
+        return false;
+    }
+    f_close(&file);
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
     return true;
 }
 static bool restore_video_ram() {
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
     FRESULT result = f_open(&file, path, FA_READ);
     if (result == FR_OK) {
-        for (size_t i = 0; i < (sizeof(VRAM) << 10); i += 512) {
-            UINT bw;
-            result = f_read(&file, VRAM + i, 512, &bw);
-            if (result != FR_OK) {
-                return false;
-            }
-        }
-        f_close(&file);
+      UINT bw;
+      result = f_read(&file, VRAM, sizeof(VRAM), &bw);
+      if (result != FR_OK) {
+        return false;
+      }
     }
+    f_close(&file);
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
     return true;
 }
 
@@ -278,8 +279,8 @@ void if_usb() {
         set_start_debug_line(0);
         clrScr(1);
         logMsg("");
-        logMsg("                   You are in USB mode now.");
-        logMsg("To return back to PC/XT emulation, just eject an USB-drive from your PC...");
+        logMsg("                      You are in USB mode now.");
+        logMsg("  To return back to PC/XT emulation, just eject an USB-drive from your PC...");
         logMsg("");
         in_flash_drive();
         set_start_debug_line(25);

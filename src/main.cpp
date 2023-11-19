@@ -143,7 +143,6 @@ void __time_critical_func(render_core)() {
     graphics_set_bgcolor(0);
     graphics_set_offset(0, 0);
     graphics_set_flashmode(true, true);
-    // graphics_set_mode(TEXTMODE_80x30);
     for (int i = 0; i < 16; ++i) {
         graphics_set_palette(i, cga_palette[i]);
     }

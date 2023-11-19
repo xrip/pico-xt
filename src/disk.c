@@ -11,8 +11,10 @@
 static FATFS fs;
 #endif
 #define _FILE FIL
-_FILE file;
-_FILE * getFileC() { return &file; }
+_FILE fileB;
+_FILE fileC;
+_FILE * getFileB() { return &fileB; }
+_FILE * getFileC() { return &fileC; }
 #else
 #include <SDL2/SDL.h>
 #define _FILE SDL_RWops
@@ -48,19 +50,24 @@ void ejectdisk(uint8_t drivenum) {
 
 uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
     if (drivenum & 0x80) drivenum -= 126;
+    _FILE *pFile = NULL;
     if (pathname != NULL) {
 #if PICO_ON_DEVICE
 #if !CD_CARD_SWAP
         f_mount(&fs, "", 1);
 #endif
-//        printf("drivenum %i :: f_mount result: %s (%d)\r\n", drivenum, FRESULT_str(result), result);
-
-        FRESULT result = f_open(&file, pathname, FA_READ | FA_WRITE);
-//        printf("drivenum %i :: f_open result: %s (%d)\r\n", drivenum, FRESULT_str(result), result);
+        pFile = (drivenum > 1) ? &fileC : &fileB;
+        FRESULT result = f_open(pFile, pathname, FA_READ | FA_WRITE);
         if (FR_OK != result) {
-            return 1;
+            if (size != 0 && ROM != NULL) {
+                pathname = NULL;
+                pFile = NULL;
+            } else {
+                return 1;
+            }
+        } else {
+            size = f_size(pFile);
         }
-        size = f_size(&file);
 #else
         file = SDL_RWFromFile(pathname, "r+w");
 
@@ -114,18 +121,17 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
     // Seems to be OK. Let's validate (store params) and print message.
     ejectdisk(drivenum);    // close previous disk image for this drive if there is any
 #if PICO_ON_DEVICE
-    disk[drivenum].diskfile = &file;
+    disk[drivenum].diskfile = pFile;
 #else
     disk[drivenum].diskfile = file;
 #endif
-    disk[drivenum].data = ROM;
+    disk[drivenum].data = pFile == NULL ? ROM : NULL;
     disk[drivenum].filesize = size;
     disk[drivenum].inserted = true;
     disk[drivenum].readonly = disk[drivenum].data ? true : false;
     disk[drivenum].cyls = cyls;
     disk[drivenum].heads = heads;
     disk[drivenum].sects = sects;
-    disk[drivenum].data = ROM;
 
     if (drivenum >= 2)
         hdcount++;
@@ -154,22 +160,22 @@ static size_t chs2ofs(int drivenum, int cyl, int head, int sect) {
 }
 
 bool disk_C_read_sec(BYTE * buffer, LBA_t lba) {
-    if(FR_OK != f_lseek(&file, lba * 512)) {
+    if(FR_OK != f_lseek(&fileC, lba * 512)) {
         return false;
     }
     UINT br;
-    if(FR_OK != f_read(&file, buffer, 512, &br)) {
+    if(FR_OK != f_read(&fileC, buffer, 512, &br)) {
         return false;
     }
     return true;
 }
 
 bool disk_C_write_sec(BYTE * buffer, LBA_t lba) {
-    if(FR_OK != f_lseek(&file, lba * 512)) {
+    if(FR_OK != f_lseek(&fileC, lba * 512)) {
         return false;
     }
     UINT bw;
-    if(FR_OK != f_write(&file, buffer, 512, &bw)) {
+    if(FR_OK != f_write(&fileC, buffer, 512, &bw)) {
         return false;
     }
     return true;
