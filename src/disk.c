@@ -15,6 +15,8 @@ _FILE fileB;
 _FILE fileC;
 _FILE * getFileB() { return &fileB; }
 _FILE * getFileC() { return &fileC; }
+size_t getFileB_sz() { return fileB.obj.fs ? f_size(&fileB) : 0; }
+size_t getFileC_sz() { return fileC.obj.fs ? f_size(&fileC) : 0; }
 #else
 #include <SDL2/SDL.h>
 #define _FILE SDL_RWops
@@ -159,23 +161,25 @@ static size_t chs2ofs(int drivenum, int cyl, int head, int sect) {
             (size_t) sect - 1) * 512UL;
 }
 
-bool disk_C_read_sec(BYTE * buffer, LBA_t lba) {
-    if(FR_OK != f_lseek(&fileC, lba * 512)) {
+bool img_disk_read_sec(int drv, BYTE * buffer, LBA_t lba) {
+    _FILE * pFile = drv > 1 ? &fileC : &fileB;
+    if(FR_OK != f_lseek(pFile, lba * 512)) {
         return false;
     }
     UINT br;
-    if(FR_OK != f_read(&fileC, buffer, 512, &br)) {
+    if(FR_OK != f_read(pFile, buffer, 512, &br)) {
         return false;
     }
     return true;
 }
 
-bool disk_C_write_sec(BYTE * buffer, LBA_t lba) {
-    if(FR_OK != f_lseek(&fileC, lba * 512)) {
+bool img_disk_write_sec(int drv, BYTE * buffer, LBA_t lba) {
+    _FILE * pFile = drv > 1 ? &fileC : &fileB;
+    if(FR_OK != f_lseek(pFile, lba * 512)) {
         return false;
     }
     UINT bw;
-    if(FR_OK != f_write(&fileC, buffer, 512, &bw)) {
+    if(FR_OK != f_write(pFile, buffer, 512, &bw)) {
         return false;
     }
     return true;

@@ -47,7 +47,7 @@ size_t fdd1_sz() {
 #if CFG_TUD_MSC
 
 // whether host does safe-eject
-static bool ejectedDrv[2] = { false, false };
+static bool ejectedDrv[3] = { false, false, false };
 
 const uint32_t min_rom_block = 4096;
 const uint32_t sec_per_block = min_rom_block / DISK_BLOCK_SIZE;
@@ -62,18 +62,18 @@ void tud_msc_inquiry_cb(uint8_t lun, uint8_t vendor_id[8], uint8_t product_id[16
         const char vid[] = "Pico-XT A:";
         memcpy(vendor_id, vid, strlen(vid));
 	}
-	break;
-	case 1: {
+	break;*/
+	case 0: {
         const char vid[] = "Pico-XT B:";
         memcpy(vendor_id, vid, strlen(vid));
 	}
-	break;*/
-	case 0: {
+	break;
+	case 1: {
         const char vid[] = "Pico-XT C:";
         memcpy(vendor_id, vid, strlen(vid));
 	}
 	break;
-	case 1: {
+	case 2: {
         const char vid[] = "Pico-XT SD-Card";
         memcpy(vendor_id, vid, strlen(vid));
 	}
@@ -98,11 +98,16 @@ bool tud_msc_test_unit_ready_cb(uint8_t lun) {
   return true;
 }
 bool tud_msc_ejected() {
-  return ejectedDrv[0] && ejectedDrv[1];
+  int ejected_cnt = 0;
+  for (int i = 0; i < sizeof(ejectedDrv); ++i) {
+    if (ejectedDrv[i])
+      ejected_cnt++;
+  }
+  return ejected_cnt == 3;
 }
 void set_tud_msc_ejected(bool v) {
-    ejectedDrv[0] = v;
-    ejectedDrv[1] = v;
+  for (int i = 0; i < sizeof(ejectedDrv); ++i)
+    ejectedDrv[i] = v;
 }
 
 extern FIL * getFileC();
@@ -117,18 +122,19 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_siz
       *block_count = sizeof(FDD0) / DISK_BLOCK_SIZE;
       *block_size  = DISK_BLOCK_SIZE;
 	}
-	break;
-	case 1: {
-      *block_count = sizeof(FDD1) / DISK_BLOCK_SIZE;
-      *block_size  = DISK_BLOCK_SIZE;
-	}
 	break;*/
 	case 0: {
-      *block_count = f_size(getFileC()) / DISK_BLOCK_SIZE;
+      auto r = getFileB_sz();
+      *block_count = (r ? r : sizeof(FDD1)) / DISK_BLOCK_SIZE;
       *block_size  = DISK_BLOCK_SIZE;
 	}
 	break;
 	case 1: {
+      *block_count = getFileC_sz() / DISK_BLOCK_SIZE;
+      *block_size  = DISK_BLOCK_SIZE;
+	}
+	break;
+	case 2: {
       DWORD dw;
       auto dio = disk_ioctl(0, GET_SECTOR_COUNT, &dw);
       if (dio == RES_OK) {
@@ -162,7 +168,7 @@ bool tud_msc_start_stop_cb(uint8_t lun, uint8_t power_condition, bool start, boo
   return true;
 }
 
-extern bool disk_C_read_sec(BYTE * buffer, LBA_t lba);
+extern bool img_disk_read_sec(int drv, BYTE * buffer, LBA_t lba);
 // Callback invoked when received READ10 command.
 // Copy disk's data to buffer (up to bufsize) and return number of copied bytes.
 int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buffer, uint32_t bufsize) {
@@ -175,20 +181,21 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
 		rom = FDD0;
 		rom_sz = sizeof(FDD0);
 	}
-	break;
-	case 1: {
+	break; */
+	case 0: {
+    if (getFileB_sz()) {
+		  return img_disk_read_sec(1, buffer, lba) ? bufsize : -1;
+    }
 		rom = FDD1;
 		rom_sz = sizeof(FDD1);
 	}
-	break;*/
-	case 0: { // TODO:
-		  return disk_C_read_sec(buffer, lba) ? bufsize : -1;
-  	}
 	break;
 	case 1: {
-      auto res = disk_read(0, buffer, lba, 1);
-      // sprintf(tmp, "disk_read(0) lba: %d offset: %d r: %d", lba, offset, res); logMsg(tmp);
-      return res == RES_OK ? bufsize : -1;
+		  return img_disk_read_sec(2, buffer, lba) ? bufsize : -1;
+  	}
+	break;
+	case 2: {
+      return disk_read(0, buffer, lba, 1) == RES_OK ? bufsize : -1;
 	  }
   }
   if ( lba >= rom_sz / DISK_BLOCK_SIZE || !rom) {
@@ -202,34 +209,35 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
   return (int32_t) bufsize;
 }
 
-bool tud_msc_is_writable_cb (uint8_t lun) {
-  /*switch(lun) {
-	case 0:
-	case 1:
-	case 2:
-	  return false;
-  }*/
-//  if (lun == 3) {
+bool sd_card_writable() {
     auto ds = disk_status(0);
     auto rs = ds & 0x04/*STA_PROTECT*/;
     // char tmp[80]; sprintf(tmp, "tud_msc_is_writable_cb(1) ds: %d rs: %d r: %d", ds, rs, !rs); logMsg(tmp);
     return !rs; // TODO: sd-card write protected ioctl?
-//  }
-  return true;
 }
 
-extern bool disk_C_write_sec(BYTE * buffer, LBA_t lba);
+bool tud_msc_is_writable_cb (uint8_t lun) {
+  switch(lun) {
+	case 0:
+	  return getFileB_sz() ? sd_card_writable() : false;
+	case 1:
+	  return getFileC_sz() ? sd_card_writable() : false;    
+  }
+  return sd_card_writable();
+}
+
+extern bool img_disk_write_sec(int drv, BYTE * buffer, LBA_t lba);
 
 // Callback invoked when received WRITE10 command.
 // Process data in buffer to disk's storage and return number of written bytes
 int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t bufsize) {
   // char tmp[80]; sprintf(tmp, "tud_msc_write10_cb(%d, %d, %d, %d)", lun, lba, offset, bufsize); logMsg(tmp);
   switch(lun) {
-	/*case 0:
-	case 1:*/
 	case 0:
-	    return disk_C_write_sec(buffer, lba) ? bufsize : -1;
-	case 1: {
+	    return img_disk_write_sec(1, buffer, lba) ? bufsize : -1;
+	case 1:
+	    return img_disk_write_sec(2, buffer, lba) ? bufsize : -1;
+	case 2: {
       return disk_write(0, buffer, lba, 1) == 0 ? bufsize : -1;
 	}
   }
