@@ -53,7 +53,7 @@ static const uint8_t parity[0x100] = {
 };
 __aligned(4096) uint8_t RAM[RAM_SIZE << 10];
 uint8_t VRAM[VRAM_SIZE << 10];
-#if PSEUDO_RAM_BASE || CD_CARD_SWAP
+#if PSEUDO_RAM_BASE || SD_CARD_SWAP
 uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS] = { 0 }; // 4KB blocks
 uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
 #endif
@@ -100,31 +100,35 @@ void modregrm() {
     }
 }
 
-#if PSEUDO_RAM_BASE || CD_CARD_SWAP
+#if PSEUDO_RAM_BASE || SD_CARD_SWAP
 static uint16_t last_ram_page = 1;
+
 uint32_t get_ram_page_for(const uint32_t addr32) {
-    uint32_t flash_page = addr32 / RAM_PAGE_SIZE; // 4KB page idx
-    uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
-    if (flash_page_desc & 0x8000) { // higest (15) bit is set, it means - the page already in RAM
-         return flash_page_desc & 0x7FFF; // actually max 256 4k pages (1MB), but may be more;)
+    const uint32_t flash_page = addr32 / RAM_PAGE_SIZE; // 4KB page idx
+    const uint16_t flash_page_desc = PSEUDO_RAM_PAGES[flash_page];
+    if (flash_page_desc & 0x8000) {
+        // higest (15) bit is set, it means - the page already in RAM
+        return flash_page_desc & 0x7FFF; // actually max 256 4k pages (1MB), but may be more;)
     }
     // char tmp[40]; sprintf(tmp, "VRAM page: 0x%X", flash_page); logMsg(tmp);
     // rolling page usage
     uint16_t ram_page = last_ram_page++;
     if (last_ram_page >= RAM_BLOCKS - 1) last_ram_page = 1; // do not use first page
     uint16_t ram_page_desc = RAM_PAGES[ram_page];
-    bool ro_page_was_found = !(ram_page_desc & 0x8000); // higest (15) bit is set, it means - the page has changes (RW page)
+    bool ro_page_was_found = !(ram_page_desc & 0x8000);
+    // higest (15) bit is set, it means - the page has changes (RW page)
     uint16_t old_flash_page = ram_page_desc & 0x7FFF; // 14-0 - max 32k keys for PSEUDO_RAM_PAGES array
     if (old_flash_page > 0) {
         PSEUDO_RAM_PAGES[old_flash_page] = 0x0000; // not more mapped
     }
     PSEUDO_RAM_PAGES[flash_page] = 0x8000 | ram_page; // in ram + ram_page
     RAM_PAGES[ram_page] = flash_page;
-    if (ro_page_was_found) { // just replace RO page (faster than RW flush to flash)
+    if (ro_page_was_found) {
+        // just replace RO page (faster than RW flush to flash)
         // sprintf(tmp, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, flash_page); logMsg(tmp);
         uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
         uint32_t flash_page_offset = flash_page * RAM_PAGE_SIZE;
-#if CD_CARD_SWAP
+#if SD_CARD_SWAP
         read_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
 #else
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
@@ -136,7 +140,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
     uint32_t flash_page_offset = old_flash_page * RAM_PAGE_SIZE;
     // sprintf(tmp, "2 RAM offs 0x%X / VRAM offs: 0x%X", ram_page_offset, flash_page_offset); logMsg(tmp);
-#if CD_CARD_SWAP
+#if SD_CARD_SWAP
     flush_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
 #else
     flash_range_program3(
@@ -147,7 +151,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 #endif
     // use new page:
     flash_page_offset = flash_page * RAM_PAGE_SIZE;
-#if CD_CARD_SWAP
+#if SD_CARD_SWAP
     read_vram_block(RAM + ram_page_offset, flash_page_offset, RAM_PAGE_SIZE);
 #else
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + flash_page_offset, RAM_PAGE_SIZE);
@@ -157,25 +161,30 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 #endif
 
 __inline void write86(uint32_t addr32, uint8_t value) {
-#if PSEUDO_RAM_BASE || CD_CARD_SWAP
-    if (!PSRAM_AVAILABLE && addr32 < RAM_PAGE_SIZE) { // do not touch first page
+#if PSEUDO_RAM_BASE || SD_CARD_SWAP
+    if (!PSRAM_AVAILABLE && addr32 < RAM_PAGE_SIZE) {
+        // do not touch first page
         RAM[addr32] = value;
-    } else if (!PSRAM_AVAILABLE && addr32 < (PSEUDO_RAM_SIZE << 10)) {
+    }
+    else if (!PSRAM_AVAILABLE && addr32 < (PSEUDO_RAM_SIZE << 10)) {
         uint32_t ram_page = get_ram_page_for(addr32);
         uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
         RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page] = value;
         uint16_t ram_page_desc = RAM_PAGES[ram_page];
-        if (!(ram_page_desc & 0x8000)) { // if higest (15) bit is set, it means - the page has changes
+        if (!(ram_page_desc & 0x8000)) {
+            // if higest (15) bit is set, it means - the page has changes
             RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
         }
 #endif
         return;
-    } else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
+    }
+    else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
         // video RAM range
         addr32 -= 0xB8000UL;
         VRAM[addr32] = value; // 16k for graphic mode!!!
         return;
-    } else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
+    }
+    else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
         addr32 -= 0xCC000UL;
     }
     else if ((addr32) > 0xFFFFFUL) {
@@ -196,20 +205,21 @@ static __inline void writew86(uint32_t addr32, uint16_t value) {
     else
 #endif
     {
-        write86(addr32, (uint8_t) value);
-        write86(addr32 + 1, (uint8_t) (value >> 8));
+        write86(addr32, (uint8_t)value);
+        write86(addr32 + 1, (uint8_t)(value >> 8));
     }
 }
 
 __inline uint8_t read86(uint32_t addr32) {
     //printf("read86 %lx\r\n", addr32);
-#if PSEUDO_RAM_BASE || CD_CARD_SWAP
+#if PSEUDO_RAM_BASE || SD_CARD_SWAP
     if ((!PSRAM_AVAILABLE && addr32 < (PSEUDO_RAM_SIZE << 10)) || PSRAM_AVAILABLE && addr32 < (RAM_SIZE << 10)) {
 #else
     if (addr32 < (RAM_SIZE << 10)) {
 #endif
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
-        switch (addr32) { //some hardcoded values for the BIOS data area
+        switch (addr32) {
+            //some hardcoded values for the BIOS data area
             /*case 0x400:     // serial COM1: address at 0x03F8
                 return (0xF8);
             case 0x401:
@@ -232,58 +242,60 @@ __inline uint8_t read86(uint32_t addr32) {
             */
             case 0x411:
                 return (0b01000010);
-/*  	                  76543210  40:11  (value in INT 11 register AH)
-		                  |||||||`- 0 if DMA installed
-		                  ||||  `-- number of serial ports
-		                  |||`----- game adapter
-		                  ||`------ not used, internal modem (PS/2)
-		                  `-------- number of printer ports
- */
+            /*  	      76543210  40:11  (value in INT 11 register AH)
+                          |||||||`- 0 if DMA installed
+                          ||||```-- number of serial ports
+                          |||`----- game adapter
+                          ||`------ not used, internal modem (PS/2)
+                          ``-------- number of printer ports
+             */
 
-                /*
-            case 0x413:
-                return (RAM_SIZE & 0xFF);
-            case 0x414:
-                return ((RAM_SIZE >> 8) & 0xFF);
-            */
+            /*
+        case 0x413:
+            return (RAM_SIZE & 0xFF);
+        case 0x414:
+            return ((RAM_SIZE >> 8) & 0xFF);
+        */
             case 0x463:
                 return (0xd4);
             case 0x464:
                 return (0x3);
-/*
-            case 0x465:
-                switch (videomode) {
-                    case 0:
-                        return (0x2C);
-                    case 1:
-                        return (0x28);
-                    case 2:
-                        return (0x2D);
-                    case 3:
-                        return (0x29);
-                    case 4:
-                        return (0x0E);
-                    case 5:
-                        return (0x0A);
-                    case 6:
-                        return (0x1E);
-                    default:
-                        return (0x29);
-                }
-*/
+            /*
+                        case 0x465:
+                            switch (videomode) {
+                                case 0:
+                                    return (0x2C);
+                                case 1:
+                                    return (0x28);
+                                case 2:
+                                    return (0x2D);
+                                case 3:
+                                    return (0x29);
+                                case 4:
+                                    return (0x0E);
+                                case 5:
+                                    return (0x0A);
+                                case 6:
+                                    return (0x1E);
+                                default:
+                                    return (0x29);
+                            }
+            */
             case 0x466:
                 return port3D9;
             case 0x475: //hard drive count
                 return (hdcount);
             default:
-#if PSEUDO_RAM_BASE || CD_CARD_SWAP
-            if (PSRAM_AVAILABLE || addr32 < 4096) { // do not touch first 4kb
-                return RAM[addr32];
-            } else {
-                uint32_t ram_page = get_ram_page_for(addr32);
-                uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-                return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
-            }
+#if PSEUDO_RAM_BASE || SD_CARD_SWAP
+                if (PSRAM_AVAILABLE || addr32 < 4096) {
+                    // do not touch first 4kb
+                    return RAM[addr32];
+                }
+                else {
+                    const uint32_t ram_page = get_ram_page_for(addr32);
+                    const uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+                    return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
+                }
 #else
                 return RAM[addr32];
 #endif
@@ -299,7 +311,8 @@ __inline uint8_t read86(uint32_t addr32) {
         addr32 -= 0xB8000UL;
         return VRAM[addr32]; //
     }
-    else if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) { // NE2000
+    else if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) {
+        // NE2000
         addr32 -= 0xCC000UL;
     }
     else if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) {
@@ -783,13 +796,14 @@ void reset86() {
     init8259();
     memset(RAM, 0x0, RAM_SIZE << 10);
     memset(VRAM, 0x0, VRAM_SIZE << 10);
-#if PSEUDO_RAM_BASE || CD_CARD_SWAP
+#if PSEUDO_RAM_BASE || SD_CARD_SWAP
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     for (size_t page = 0; page < PSEUDO_RAM_BLOCKS; ++page) {
         if (page < RAM_BLOCKS) {
             PSEUDO_RAM_PAGES[page] = 0x8000 | page;
             RAM_PAGES[page] = page;
-        } else {
+        }
+        else {
             PSEUDO_RAM_PAGES[page] = 0;
         }
     }

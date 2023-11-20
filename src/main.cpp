@@ -40,7 +40,7 @@ bool runing = true;
 
 #if PICO_ON_DEVICE
 
-#if CD_CARD_SWAP
+#if SD_CARD_SWAP
 static const char* path = "\\XT\\pagefile.sys";
 static FATFS fs;
 static FIL file;
@@ -218,8 +218,7 @@ int main() {
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
     gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
-    uint slice_num = pwm_gpio_to_slice_num(BEEPER_PIN);
-    pwm_init(slice_num, &config, true);
+    pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
 
     for (int i = 0; i < 6; i++) {
         sleep_ms(23);
@@ -228,7 +227,7 @@ int main() {
         gpio_put(PICO_DEFAULT_LED_PIN, false);
     }
 
-    nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
+    //nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     keyboard_init();
 
     sem_init(&vga_start_semaphore, 0, 1);
@@ -236,12 +235,7 @@ int main() {
     sem_release(&vga_start_semaphore);
 
     sleep_ms(50);
-#if PSRAM
-    // TODO: сделать нормально
-    psram_spi = psram_spi_init(pio0, -1);
-    psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
-    PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
-#endif
+
 
 #else
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
@@ -263,7 +257,14 @@ int main() {
     }
 #endif
     graphics_set_mode(TEXTMODE_80x30);
-#if CD_CARD_SWAP
+#if PSRAM
+    // TODO: сделать нормально
+    psram_spi = psram_spi_init(pio0, -1);
+    psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
+    PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
+
+#endif
+#if SD_CARD_SWAP
     if (!PSRAM_AVAILABLE && !init_vram()) {
         logMsg((char*)"init_vram failed");
         while (runing) { sleep_ms(100); }
@@ -422,11 +423,13 @@ int main() {
         if_usb();
         if_swap_drives();
         if_overclock();
+        /*
         nespad_read();
         if (nespad_state & DPAD_START) {
             printf("TEST\r\n");
         }
         sermouseevent(nespad_state & DPAD_A, (nespad_state & DPAD_LEFT) ? -1 : ((nespad_state & DPAD_RIGHT) ? 1 : 0), (nespad_state & DPAD_DOWN) ? -1 : (nespad_state & DPAD_UP) ? 1 : 0);
+        */
 
 #endif
     }

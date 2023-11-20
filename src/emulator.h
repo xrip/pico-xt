@@ -33,7 +33,7 @@
 #define RAM_SIZE (640) // (64*3+26)
 #endif
 
-#if PSEUDO_RAM_BASE || CD_CARD_SWAP
+#if PSEUDO_RAM_BASE || SD_CARD_SWAP
 #define PSEUDO_RAM_SIZE (640)
 #define PSEUDO_RAM_BLOCKS (PSEUDO_RAM_SIZE / RAM_PAGE_SIZE_KB)
 extern uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS]; // 4KB blocks
@@ -42,7 +42,7 @@ extern uint16_t RAM_PAGES[RAM_BLOCKS]; // PSEUDO_RAM_PAGES idx (7-0); 15 - writt
 #if PSEUDO_RAM_BASE
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz);
 #endif
-#if CD_CARD_SWAP
+#if SD_CARD_SWAP
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz);
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz);
 #endif
