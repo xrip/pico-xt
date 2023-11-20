@@ -285,6 +285,9 @@ void if_usb() {
         in_flash_drive();
         set_start_debug_line(25);
         restore_video_ram();
+        if (ret == TEXTMODE_80x30) {
+          clrScr(1);
+        }
         usbStarted = false;
         graphics_set_mode(ret);
     }

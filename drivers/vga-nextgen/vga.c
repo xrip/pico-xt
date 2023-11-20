@@ -465,7 +465,7 @@ static int current_line = 25;
 static int start_debug_line = 25;
 void clrScr(uint8_t color) {
     uint8_t *t_buf = text_buffer;
-    for (int yi = 0; yi < text_buffer_height; yi++)
+    for (int yi = start_debug_line; yi < text_buffer_height; yi++)
     for (int xi = 0; xi < text_buffer_width * 2; xi++) {
         *t_buf++ = ' ';
         *t_buf++ = (color << 4) | (color & 0xF);
