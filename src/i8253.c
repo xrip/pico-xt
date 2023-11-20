@@ -37,7 +37,7 @@ void out8253(uint16_t portnum, uint8_t value) {
                 i8253.effectivedata[portnum] = i8253.chandata[portnum];
 #if PICO_ON_DEVICE
                 pwm_config_set_wrap(&config, i8253.effectivedata[portnum]);
-                pwm_config_set_clkdiv(&config, 127);
+                pwm_config_set_clkdiv(&config, 119);
                 uint slice_num = pwm_gpio_to_slice_num(BEEPER_PIN);
                 pwm_init(slice_num, &config, true);
 

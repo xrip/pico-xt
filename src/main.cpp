@@ -119,11 +119,7 @@ int main() {
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
     gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
-    uint slice_num = pwm_gpio_to_slice_num(BEEPER_PIN+1);
-    //pwm_set_chan_level(slice_num, PWM_CHAN_A, 1);
-    //pwm_set_chan_level(slice_num, PWM_CHAN_B, 3);
-    pwm_config_set_wrap(&config, 261);
-    pwm_config_set_clkdiv(&config, 127);
+    uint slice_num = pwm_gpio_to_slice_num(BEEPER_PIN);
     pwm_init(slice_num, &config, true);
 
     for (int i = 0; i < 6; i++) {
