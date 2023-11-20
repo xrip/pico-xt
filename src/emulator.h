@@ -19,8 +19,13 @@
 #include <hardware/gpio.h>
 #include <pico/time.h>
 #include <pico/stdlib.h>
+
+#include "f_util.h"
+#include "ff.h"
+static FATFS fs;
 #endif
 
+#define BEEPER_PIN 28
 #define VRAM_SIZE 32
 
 #if PICO_ON_DEVICE
@@ -32,7 +37,7 @@
 #define RAM_SIZE (640) // (64*3+26)
 #endif
 
-#if PSEUDO_RAM_BASE || CD_CARD_SWAP
+#if PSEUDO_RAM_BASE || SD_CARD_SWAP
 #define PSEUDO_RAM_SIZE (640)
 #define PSEUDO_RAM_BLOCKS (PSEUDO_RAM_SIZE / RAM_PAGE_SIZE_KB)
 extern uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS]; // 4KB blocks
@@ -41,7 +46,7 @@ extern uint16_t RAM_PAGES[RAM_BLOCKS]; // PSEUDO_RAM_PAGES idx (7-0); 15 - writt
 #if PSEUDO_RAM_BASE
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz);
 #endif
-#if CD_CARD_SWAP
+#if SD_CARD_SWAP
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz);
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz);
 #endif
@@ -204,6 +209,11 @@ void doirq(uint8_t irqnum);
 void init8253();
 void out8253(uint16_t portnum, uint8_t value);
 uint8_t in8253(uint16_t portnum);
+
+uint8_t insermouse ( uint16_t portnum );
+void outsermouse ( uint16_t portnum, uint8_t value );
+void sermouseevent ( uint8_t buttons, int8_t xrel, int8_t yrel );
+
 
 void outsoundsource ( uint16_t portnum, uint8_t value );
 uint8_t insoundsource ( uint16_t portnum );

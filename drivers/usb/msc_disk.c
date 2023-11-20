@@ -102,9 +102,15 @@ bool tud_msc_ejected() {
     if (ejectedDrv[i])
       ejected_cnt++;
   }
-  return ejected_cnt < 3; // fdd may not be proper unmount
+  // char tmp[80]; sprintf(tmp, "tud_msc_ejected: %d", ejected_cnt); logMsg(tmp);
+  if(ejected_cnt >= 3) { // fdd may not be proper unmount
+    set_tud_msc_ejected(true); // force eject remaining drive
+    return true;
+  }
+  return false;
 }
 void set_tud_msc_ejected(bool v) {
+  // char tmp[80]; sprintf(tmp, "set_tud_msc_ejected: %s", v ? "true" : "false"); logMsg(tmp);
   for (int i = 0; i < sizeof(ejectedDrv); ++i)
     ejectedDrv[i] = v;
 }
@@ -153,7 +159,7 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_siz
 // - Start = 0 : stopped power mode, if load_eject = 1 : unload disk storage
 // - Start = 1 : active mode, if load_eject = 1 : load disk storage
 bool tud_msc_start_stop_cb(uint8_t lun, uint8_t power_condition, bool start, bool load_eject) {
-  // char tmp[81]; sprintf(tmp, "power_condition: 0x%X start: %d load_eject: %d", power_condition, start, load_eject); logMsg(tmp);
+  char tmp[81]; sprintf(tmp, "power_condition: 0x%X start: %d load_eject: %d", power_condition, start, load_eject); logMsg(tmp);
   (void) lun;
   (void) power_condition;
   if ( load_eject ) {
