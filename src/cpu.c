@@ -37,7 +37,7 @@ uint8_t opcode, segoverride, reptype, hdcount = 0, fdcount = 0, hltstate = 0;
 uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 uint8_t videomode = 3;
-int timer_period = 55000;
+int timer_period = 54925;
 
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
@@ -156,7 +156,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 }
 #endif
 
-void write86(uint32_t addr32, uint8_t value) {
+static __inline void write86(uint32_t addr32, uint8_t value) {
 #if PSEUDO_RAM_BASE || CD_CARD_SWAP
     if (!PSRAM_AVAILABLE && addr32 < RAM_PAGE_SIZE) { // do not touch first page
         RAM[addr32] = value;
@@ -168,9 +168,6 @@ void write86(uint32_t addr32, uint8_t value) {
         if (!(ram_page_desc & 0x8000)) { // if higest (15) bit is set, it means - the page has changes
             RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
         }
-#else
-    if ((addr32) < (RAM_SIZE << 10)) {
-        RAM[addr32] = value;
 #endif
         return;
     } else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
@@ -191,7 +188,7 @@ void write86(uint32_t addr32, uint8_t value) {
 #endif
 }
 
-static inline void writew86(uint32_t addr32, uint16_t value) {
+static __inline void writew86(uint32_t addr32, uint16_t value) {
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
@@ -204,7 +201,7 @@ static inline void writew86(uint32_t addr32, uint16_t value) {
     }
 }
 
-uint8_t read86(uint32_t addr32) {
+__inline uint8_t read86(uint32_t addr32) {
     //printf("read86 %lx\r\n", addr32);
 #if PSEUDO_RAM_BASE || CD_CARD_SWAP
     if ((!PSRAM_AVAILABLE && addr32 < (PSEUDO_RAM_SIZE << 10)) || PSRAM_AVAILABLE && addr32 < (RAM_SIZE << 10)) {
@@ -247,6 +244,7 @@ uint8_t read86(uint32_t addr32) {
                 return (0xd4);
             case 0x464:
                 return (0x3);
+/*
             case 0x465:
                 switch (videomode) {
                     case 0:
@@ -266,6 +264,7 @@ uint8_t read86(uint32_t addr32) {
                     default:
                         return (0x29);
                 }
+*/
             case 0x466:
                 return port3D9;
             case 0x475: //hard drive count
@@ -318,7 +317,7 @@ uint8_t read86(uint32_t addr32) {
     return 0;
 }
 
-__inline uint16_t readw86(uint32_t addr32) {
+static __inline uint16_t readw86(uint32_t addr32) {
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         // TODO: 16-bit read from vram page
