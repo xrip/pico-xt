@@ -66,4 +66,3 @@ uint8_t nextintr() {
 void doirq(uint8_t irqnum) {
     i8259.irr |= (1 << irqnum);
 }
-

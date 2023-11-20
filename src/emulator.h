@@ -22,11 +22,31 @@
 #endif
 
 #define VRAM_SIZE 32
+
 #if PICO_ON_DEVICE
-#define RAM_SIZE (64*3)
+#define RAM_PAGE_SIZE_KB 4
+#define RAM_PAGE_SIZE (RAM_PAGE_SIZE_KB * 1024)
+#define RAM_IN_PAGE_ADDR_MASK (0x00000FFF)
+#define RAM_SIZE (64 * 3)
 #else
 #define RAM_SIZE (640) // (64*3+26)
 #endif
+
+#if PSEUDO_RAM_BASE || CD_CARD_SWAP
+#define PSEUDO_RAM_SIZE (640)
+#define PSEUDO_RAM_BLOCKS (PSEUDO_RAM_SIZE / RAM_PAGE_SIZE_KB)
+extern uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS]; // 4KB blocks
+#define RAM_BLOCKS (RAM_SIZE / RAM_PAGE_SIZE_KB)
+extern uint16_t RAM_PAGES[RAM_BLOCKS]; // PSEUDO_RAM_PAGES idx (7-0); 15 - written, 14-8 oldness
+#if PSEUDO_RAM_BASE
+void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz);
+#endif
+#if CD_CARD_SWAP
+void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz);
+void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz);
+#endif
+#endif
+// TODO: no direct access support (for PC mode)
 extern uint8_t RAM[RAM_SIZE << 10];
 extern uint8_t VRAM[VRAM_SIZE << 10];
 extern bool PSRAM_AVAILABLE;
@@ -58,6 +78,7 @@ extern uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm
 extern uint8_t videomode;
 extern uint8_t speakerenabled;
 extern int timer_period;
+
 #if PICO_ON_DEVICE
 extern pwm_config config;
 #endif
@@ -129,8 +150,16 @@ static inline void decodeflagsword(uint16_t x) {
 #define putsegreg(regid, writeval)  segregs[regid] = writeval
 #define segbase(x)  ((uint32_t) x << 4)
 
-#define pokeb(a, b) RAM[a]=(b)
-#define peekb(a)   RAM[a]
+uint8_t read86(uint32_t addr32);
+void write86(uint32_t addr32, uint8_t v);
+
+static __inline void pokeb(uint32_t a, uint32_t b) {
+    uint8_t av = read86(a);
+    uint8_t bv = read86(b);
+    write86(b, av);
+    write86(a, bv);
+}
+#define peekb(a)   read86(a)
 
 static __inline void pokew(int a, uint16_t w) {
     pokeb(a, w & 0xFF);

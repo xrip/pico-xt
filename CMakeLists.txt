@@ -19,7 +19,6 @@ if (PICO_PLATFORM STREQUAL "host")
     set(SDL2_INCLUDE_DIR C:/SDL/include)
     set(SDL2_LIBRARY C:/SDL/bin)
 
-
     include_directories(
             ${SDL2_INCLUDE_DIR}
     )
@@ -29,6 +28,8 @@ if (PICO_PLATFORM STREQUAL "host")
     )
 else ()
     #add_compile_definitions(${PROJECT_NAME} NO_GRAPHICS)
+    set(FAMILY rp2040)
+    set(BOARD pico_sdk)
 
     add_subdirectory(drivers/vga-nextgen)
     add_subdirectory(drivers/ps2)
@@ -55,6 +56,7 @@ pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip")
 pico_set_program_version(pico-xt "development version")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
+set(OVERCLOCKING 366)
 
 if (PICO_PLATFORM STREQUAL "host")
     target_link_libraries(${PROJECT_NAME} SDL2)
@@ -100,6 +102,38 @@ else ()
             hardware_pwm
             hardware_flash
     )
+    target_link_options(${PROJECT_NAME} PRIVATE "LINKER:--script=${CMAKE_CURRENT_LIST_DIR}/memmap.ld")
+    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/memmap.ld)
+
+    family_configure_device_example(${PROJECT_NAME} noos)
+    
+    target_sources(${PROJECT_NAME} PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/usb.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/msc_disk.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/usb_descriptors.c
+    )
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets
+    )
+    if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(${PROJECT_NAME} PUBLIC
+            -Wno-error=suggest-attribute=format
+            -Wno-error=cast-qual
+            -Wno-error=unused-parameter
+            -Wno-error=conversion
+            -Wno-error=format=
+            -Wno-error=sign-compare
+            -Wno-error=missing-field-initializers
+            -Wno-error=switch
+            -Wno-error=implicit-fallthrough=
+            -Wno-error=stringop-truncation
+            -Wno-error=restrict
+            -w
+    )
+    endif ()
+
     target_compile_definitions(${PROJECT_NAME} PRIVATE
             PICO_HEAP_SIZE=0
             USE_ZONE_FOR_MALLOC=1
@@ -119,15 +153,21 @@ else ()
             NES_GPIO_DATA=16
             NES_GPIO_LAT=15
 
-            # PSRAM
+            PSRAM
             # PSRAM_MUTEX=1
             PSRAM_SPINLOCK=1
             PSRAM_ASYNC=1
-            PSRAM_PIN_CS=18
-            PSRAM_PIN_SCK=19
-            PSRAM_PIN_MOSI=20
-            PSRAM_PIN_MISO=17
+            PSRAM_PIN_CS=17
+            PSRAM_PIN_SCK=18
+            PSRAM_PIN_MOSI=19
+            PSRAM_PIN_MISO=20
 
+            # supports only for pico with 4 or more MB flashes
+            PICO_FLASH_SIZE_BYTES=4194304
+            #PSEUDO_RAM_BASE=0x10300000
+            CD_CARD_SWAP=1
+            
+            OVERCLOCKING=366
     )
 
 #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
