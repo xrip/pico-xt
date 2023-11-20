@@ -159,6 +159,14 @@ void __time_critical_func(render_core)() {
     while (true) {
         doirq(0);
         busy_wait_us(timer_period);
+        if (nespad_available) {
+            nespad_read();
+            if (nespad_state) {
+                //logMsg("TEST");
+                // TODO: Speedup in time
+                sermouseevent(nespad_state & DPAD_B ? 1 : nespad_state & DPAD_A ? 2 : 0, nespad_state & DPAD_LEFT ? -3 : nespad_state & DPAD_RIGHT ? 3 : 0, nespad_state & DPAD_UP ? -3 : nespad_state & DPAD_DOWN ? 3 : 0);
+            }
+        }
         if (tick50ms == 0 || tick50ms == 10) {
             cursor_blink_state ^= 1;
         }
@@ -240,7 +248,7 @@ int main() {
         gpio_put(PICO_DEFAULT_LED_PIN, false);
     }
 
-    //nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
+    nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     keyboard_init();
 
     sem_init(&vga_start_semaphore, 0, 1);
@@ -439,17 +447,10 @@ int main() {
         }
         SDL_UpdateWindowSurface(window);
 #else
-        exec86(340);
+        exec86(200);
         if_usb();
         if_swap_drives();
         if_overclock();
-        /*
-        nespad_read();
-        if (nespad_state & DPAD_START) {
-            printf("TEST\r\n");
-        }
-        sermouseevent(nespad_state & DPAD_A, (nespad_state & DPAD_LEFT) ? -1 : ((nespad_state & DPAD_RIGHT) ? 1 : 0), (nespad_state & DPAD_DOWN) ? -1 : (nespad_state & DPAD_UP) ? 1 : 0);
-        */
 
 #endif
     }

@@ -176,7 +176,6 @@ uint16_t portin(uint16_t portnum) {
         case 0x3FE:
         case 0x3FF:
             return insermouse(portnum);
-            break;
         default:
             return 0xFF;
     }

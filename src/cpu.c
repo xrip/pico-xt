@@ -239,8 +239,10 @@ __inline uint8_t read86(uint32_t addr32) {
                           ||`------ initial video mode
                           `-------- number of diskette drives, less 1
             */
+            /*
             case 0x411:
                 return (0b01000010);
+                */
             /*  	      76543210  40:11  (value in INT 11 register AH)
                           |||||||`- 0 if DMA installed
                           ||||```-- number of serial ports
@@ -793,6 +795,8 @@ void reset86() {
 #endif
     init8253();
     init8259();
+    initsermouse(0x378, 4);
+
     memset(RAM, 0x0, RAM_SIZE << 10);
     memset(VRAM, 0x0, VRAM_SIZE << 10);
 #if PSEUDO_RAM_BASE || SD_CARD_SWAP
@@ -1867,6 +1871,8 @@ void __inline exec86(uint32_t execloops) {
     //counterticks = (uint64_t) ( (double) timerfreq / (double) 65536.0);
     tickssource();
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
+
+
         //if ((totalexec & 256) == 0)
         if (trap_toggle) {
             intcall86(1);
