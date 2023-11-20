@@ -156,7 +156,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 }
 #endif
 
-static __inline void write86(uint32_t addr32, uint8_t value) {
+__inline void write86(uint32_t addr32, uint8_t value) {
 #if PSEUDO_RAM_BASE || CD_CARD_SWAP
     if (!PSRAM_AVAILABLE && addr32 < RAM_PAGE_SIZE) { // do not touch first page
         RAM[addr32] = value;
