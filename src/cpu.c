@@ -789,6 +789,8 @@ uint32_t BlinkTimer(uint32_t interval, void *name) {
 #include <hardware/flash.h>
 #endif
 
+int e820_count;
+
 void reset86() {
 #if !PICO_ON_DEVICE
     SDL_AddTimer(timer_period / 1000, ClockTick, "timer");
@@ -896,9 +898,84 @@ void intcall86(uint8_t intnum) {
                             CPU_AH = 0x86;
                             cf = 1;
                     }
-                    return;
+                    break;
+                case 0x4F:
+                    CPU_AH = 0x86;
+                    cf = 1;
+                    break;
+                case 0x52: // removable media eject
+                    // TODO:
+                    CPU_AH = 0;
+                    break;
+                case 0x53: // APM
+                    // TODO:
+                    break;
+                case 0x5F: // VGA hooks
+                case 0x7F:
+                    // TODO:
+                    break;
+                case 0x83: // real-time clock
+                case 0x86:
+                    // TODO:
+                    break;
+                case 0x87: // 386 protected mode mem management (GPT...)
+                    // TODO:
+                    break;
+                case 0x88:
+                    CPU_AX = EXPANDED_MEMORY_SIZE / 1024;
+                    break;
+                case 0x89: // switch to protected mode 286+
+                    break;
+                case 0x90: // Device busy interrupt.  Called by Int 16h when no key available
+                    break;
+                case 0x91: // Interrupt complete.  Called by Int 16h when key becomes available
+                    break;
+                case 0xC0:
+                    CPU_AH = 0;
+                    CPU_ES = 0xF000; // BIOS segment
+                    CPU_BX = 0xE6f5; // BIOS config table
+                    break;
+                case 0xE8:
+                    switch(CPU_AL) {
+                        case 0x01:
+                            if (EXPANDED_MEMORY_SIZE > 16*1024*1024) {
+                                CPU_CX = 1024*16; // 16MB
+                                CPU_DX = (EXPANDED_MEMORY_SIZE - 16*1024*1024) / (64*1024);
+                            } else {
+                                CPU_CX = EXPANDED_MEMORY_SIZE / 1024;
+                                CPU_DX = 0;
+                            }
+                            CPU_AX = CPU_CX;
+                            CPU_BX = CPU_DX;
+                            break;
+                        case 0x20: {
+                                int count = e820_count;
+                                if (CPU_BX >= count || CPU_CX < sizeof(e820_list[0])) {
+                                    CPU_AH = 0x86;
+                                    cf = 1;
+                                    return;
+                               }
+/* TODO:
+    memcpy_far(regs->es, (void*)(regs->di+0)
+               , get_global_seg(), &e820_list[regs->bx]
+               , sizeof(e820_list[0]));*/
+                                if (CPU_BX == count - 1)
+                                    CPU_BX = 0;
+                                else
+                                    CPU_BX++;
+                                CPU_AX = 0x534D4150;
+                                CPU_CX = sizeof(e820_list[0]);
+                            }
+                            break;
+                        default:
+                            CPU_AH = 0x86;
+                            cf = 1;
+                    }
+                    break;
+                default: {
+                    char tmp[80]; sprintf(tmp, "INT 15h CPU_AH: 0x%X; CPU_AL: 0x%X", CPU_AH, CPU_AL); logMsg(tmp);
+                }
             }
-            //char tmp[80]; sprintf(tmp, "INT 15h CPU_AH: 0x%X; CPU_AL: 0x%X", CPU_AH, CPU_AL); logMsg(tmp);
             break;
         case 0x10:
             //printf("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);

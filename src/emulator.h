@@ -37,6 +37,9 @@ static FATFS fs;
 #define RAM_SIZE (640) // (64*3+26)
 #endif
 
+// 32GB EMM
+#define EXPANDED_MEMORY_SIZE (32ul * 1024ul * 1024ul * 1024ul)
+
 #if PSEUDO_RAM_BASE || SD_CARD_SWAP
 #define PSEUDO_RAM_SIZE (640)
 #define PSEUDO_RAM_BLOCKS (PSEUDO_RAM_SIZE / RAM_PAGE_SIZE_KB)
@@ -246,5 +249,28 @@ extern struct i8253_s {
     uint8_t active[3];
     uint16_t counter[3];
 } i8253;
+
+#define E820_RAM          1
+#define E820_RESERVED     2
+#define E820_ACPI         3
+#define E820_NVS          4
+#define E820_UNUSABLE     5
+
+struct e820entry {
+    uint64_t start;
+    uint64_t size;
+    uint32_t type;
+};
+
+void e820_add(uint64_t start, uint64_t size, uint32_t type);
+void e820_remove(uint64_t start, uint64_t size);
+void e820_prepboot(void);
+
+// Maximum number of map entries in the e820 map
+#define BUILD_MAX_E820 32
+
+// e820 map storage
+extern struct e820entry e820_list[];
+extern int e820_count;
 
 #endif //TINY8086_CPU8086_H
