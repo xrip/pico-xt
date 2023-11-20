@@ -314,8 +314,15 @@ __inline uint8_t read86(uint32_t addr32) {
         return VRAM[addr32]; //
     }
     else if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) {
-        // NE2000
+        // NE2000 ??? or EMM
+#if SD_CARD_SWAP
+// TODO: PSRAM_AVAILABLE ...
+        const uint32_t ram_page = get_ram_page_for(addr32);
+        const uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+        return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
+#else
         addr32 -= 0xCC000UL;
+#endif
     }
     else if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) {
         // IBM BASIC ROM LOW
@@ -328,7 +335,12 @@ __inline uint8_t read86(uint32_t addr32) {
         return BASICH[addr32];
     }
     else if ((addr32) > 0xFFFFFUL) {
-        //SRAM_read(addr32);
+#if SD_CARD_SWAP
+// TODO: PSRAM_AVAILABLE ...
+        const uint32_t ram_page = get_ram_page_for(addr32);
+        const uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+        return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
+#endif
     }
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
@@ -922,7 +934,7 @@ void intcall86(uint8_t intnum) {
                     // TODO:
                     break;
                 case 0x88:
-                    CPU_AX = EXPANDED_MEMORY_SIZE / 1024;
+                    CPU_AX = EXPANDED_MEMORY_KBS - 1;
                     break;
                 case 0x89: // switch to protected mode 286+
                     break;
@@ -938,11 +950,11 @@ void intcall86(uint8_t intnum) {
                 case 0xE8:
                     switch(CPU_AL) {
                         case 0x01:
-                            if (EXPANDED_MEMORY_SIZE > 16*1024*1024) {
-                                CPU_CX = 1024*16; // 16MB
-                                CPU_DX = (EXPANDED_MEMORY_SIZE - 16*1024*1024) / (64*1024);
+                            if (EXPANDED_MEMORY_KBS > 16*1024) {
+                                CPU_CX = 1024*15; // 16MB
+                                CPU_DX = (EXPANDED_MEMORY_KBS - 16*1024) / 64;
                             } else {
-                                CPU_CX = EXPANDED_MEMORY_SIZE / 1024;
+                                CPU_CX = EXPANDED_MEMORY_KBS - 1;
                                 CPU_DX = 0;
                             }
                             CPU_AX = CPU_CX;

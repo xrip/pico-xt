@@ -37,8 +37,8 @@ static FATFS fs;
 #define RAM_SIZE (640) // (64*3+26)
 #endif
 
-// 32GB EMM
-#define EXPANDED_MEMORY_SIZE (32ul * 1024ul * 1024ul * 1024ul)
+// 16GB EMM
+#define EXPANDED_MEMORY_KBS (16 * 1024 * 1024)
 
 #if PSEUDO_RAM_BASE || SD_CARD_SWAP
 #define PSEUDO_RAM_SIZE (640)
