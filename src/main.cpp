@@ -281,13 +281,12 @@ int main() {
         char tmp[80];
         sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
-        logMsg(tmp);
         while (runing) { sleep_ms(100); }
     }
 #endif
 #if SD_CARD_SWAP
     if (!PSRAM_AVAILABLE && !init_vram()) {
-        logMsg((char *)"init_vram failed");
+        logMsg((char *)"psram unavailable and init_vram failed");
         while (runing) { sleep_ms(100); }
     }
 #endif
