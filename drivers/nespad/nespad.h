@@ -8,8 +8,11 @@
 #define DPAD_SELECT 0x04
 #define DPAD_B 0x02
 #define DPAD_A 0x01
+#include <stdint.h>
 
-extern uint8_t nespad_state, nespad_state2;    // NES Joystick1
+extern uint8_t nespad_state;    // NES Joystick1
+extern uint8_t nespad_state2;    // NES Joystick1
+extern bool nespad_available;
 
 extern bool nespad_begin(uint32_t cpu_khz, uint8_t clkPin, uint8_t dataPin,
                          uint8_t latPin);

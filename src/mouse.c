@@ -23,6 +23,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <vga.h>
+
 #include "emulator.h"
 
 struct sermouse_s {
@@ -36,8 +38,9 @@ __inline static void bufsermousedata ( uint8_t value )
 {
 	if (sermouse.bufptr == 16)
 		return;
-	if (sermouse.bufptr == 0)
+	if (sermouse.bufptr == 0) {
 		doirq(4);
+	}
 	sermouse.buf[sermouse.bufptr++] = value;
 }
 
@@ -45,8 +48,11 @@ __inline static void bufsermousedata ( uint8_t value )
 __inline  void outsermouse ( uint16_t portnum, uint8_t value )
 {
 	uint8_t oldreg;
-	//printf("[DEBUG] Serial mouse, port %X out: %02X\n", portnum, value);
+
 	portnum &= 7;
+	/*char tmp[80];
+	sprintf(tmp, "[DEBUG] Serial mouse, port %X out: %02X\n", portnum, value);
+	logMsg(tmp);*/
 	oldreg = sermouse.reg[portnum];
 	sermouse.reg[portnum] = value;
 	switch (portnum) {
@@ -68,8 +74,10 @@ __inline  void outsermouse ( uint16_t portnum, uint8_t value )
 __inline uint8_t insermouse ( uint16_t portnum )
 {
 	uint8_t temp;
-	//printf("[DEBUG] Serial mouse, port %X in\n", portnum);
 	portnum &= 7;
+	/*char tmp[80];
+	sprintf(tmp, "[DEBUG] Serial mouse, port %X in\n", portnum);
+	logMsg(tmp);*/
 	switch (portnum) {
 		case 0:	//data receive
 			temp = sermouse.buf[0];

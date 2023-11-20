@@ -1,3 +1,5 @@
+#include "nespad.h"
+
 #include "hardware/pio.h"
 
 #define nespad_wrap_target 0
@@ -32,6 +34,7 @@ static PIO pio = pio1;
 static uint8_t sm = -1;
 uint8_t nespad_state  = 0;  // Joystick 1
 uint8_t nespad_state2 = 0;  // Joystick 2
+bool nespad_available = false;
 
 bool nespad_begin(uint32_t cpu_khz, uint8_t clkPin, uint8_t dataPin,
                   uint8_t latPin) {
@@ -66,8 +69,10 @@ bool nespad_begin(uint32_t cpu_khz, uint8_t clkPin, uint8_t dataPin,
     pio_sm_init(pio, sm, offset, &c);
     pio_sm_set_enabled(pio, sm, true);
     pio->txf[sm]=0;
+    nespad_available = true;
     return true; // Success
   }
+  nespad_available = false;
   return false;
 }
 

@@ -177,7 +177,6 @@ static __inline void pokew(int a, uint16_t w) {
 static __inline uint16_t peekw(int a) {
     return peekb(a) + (peekb(a + 1) << 8);
 }
-
 extern uint16_t portram[256];
 extern uint16_t  port378, port379, port37A, port3D8, port3D9, port201;
 
@@ -213,10 +212,11 @@ void init8253();
 void out8253(uint16_t portnum, uint8_t value);
 uint8_t in8253(uint16_t portnum);
 
+
 uint8_t insermouse ( uint16_t portnum );
 void outsermouse ( uint16_t portnum, uint8_t value );
 void sermouseevent ( uint8_t buttons, int8_t xrel, int8_t yrel );
-
+void initsermouse ( uint16_t baseport, uint8_t irq );
 
 void outsoundsource ( uint16_t portnum, uint8_t value );
 uint8_t insoundsource ( uint16_t portnum );
