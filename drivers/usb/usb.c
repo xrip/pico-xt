@@ -289,3 +289,20 @@ void if_usb() {
         graphics_set_mode(ret);
     }
 }
+static bool already_swapped_fdds = false;
+void if_swap_drives() {
+    if (usbStarted) {
+        return;
+    }
+    if (backspacePressed && tabPressed && ctrlPressed) {
+        if (already_swapped_fdds) {
+            insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
+            insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+            already_swapped_fdds = false;
+            return;
+        }
+        insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
+        insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+        already_swapped_fdds = true;
+    }
+}

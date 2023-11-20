@@ -102,7 +102,7 @@ bool tud_msc_ejected() {
     if (ejectedDrv[i])
       ejected_cnt++;
   }
-  return ejected_cnt == 3;
+  return ejected_cnt < 3; // fdd may not be proper unmount
 }
 void set_tud_msc_ejected(bool v) {
   for (int i = 0; i < sizeof(ejectedDrv); ++i)

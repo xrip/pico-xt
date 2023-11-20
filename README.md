@@ -13,3 +13,5 @@ Extra PSRAM support on pi pico pins:
             PSRAM_PIN_SCK=18
             PSRAM_PIN_MOSI=19
             PSRAM_PIN_MISO=20
+
+To swap floppy drives A <-> B use: Left Ctrl + Tab + Backspace

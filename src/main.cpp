@@ -182,6 +182,21 @@ static int RendererThread(void *ptr) {
 pwm_config config = pwm_get_default_config();
 psram_spi_inst_t psram_spi;
 uint32_t overcloking_khz = OVERCLOCKING * 1000;
+__inline static void if_overclock() {
+    int oc = overclock();
+    if (oc > 0) overcloking_khz += 1000;
+    if (oc < 0) overcloking_khz -= 1000;
+    if (oc != 0) {
+        uint vco, postdiv1, postdiv2;
+        if (check_sys_clock_khz(overcloking_khz, &vco, &postdiv1, &postdiv2)) {
+            set_sys_clock_pll(vco, postdiv1, postdiv2);
+            char tmp[80]; sprintf(tmp, "overcloking_khz: %u kHz", overcloking_khz); logMsg(tmp);
+            sleep_ms(33);
+        } else {
+            char tmp[80]; sprintf(tmp, "System clock of %u kHz cannot be achieved", overcloking_khz); logMsg(tmp);
+        }
+    }
+}
 #endif
 
 int main() {
@@ -409,19 +424,8 @@ int main() {
 #else
         exec86(340);
         if_usb();
-        int oc = overclock();
-        if (oc > 0) overcloking_khz += 1000;
-        if (oc < 0) overcloking_khz -= 1000;
-        if (oc != 0) {
-            uint vco, postdiv1, postdiv2;
-            if (check_sys_clock_khz(overcloking_khz, &vco, &postdiv1, &postdiv2)) {
-               set_sys_clock_pll(vco, postdiv1, postdiv2);
-               char tmp[80]; sprintf(tmp, "overcloking_khz: %u kHz", overcloking_khz); logMsg(tmp);
-               sleep_ms(33);
-            } else {
-               char tmp[80]; sprintf(tmp, "System clock of %u kHz cannot be achieved", overcloking_khz); logMsg(tmp);
-            }
-        }
+        if_swap_drives();
+        if_overclock();
 #endif
     }
     return 0;
