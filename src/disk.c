@@ -11,10 +11,13 @@
 static FATFS fs;
 #endif
 #define _FILE FIL
+_FILE fileA;
 _FILE fileB;
 _FILE fileC;
+_FILE * getFileA() { return &fileA; }
 _FILE * getFileB() { return &fileB; }
 _FILE * getFileC() { return &fileC; }
+size_t getFileA_sz() { return fileA.obj.fs ? f_size(&fileA) : 0; }
 size_t getFileB_sz() { return fileB.obj.fs ? f_size(&fileB) : 0; }
 size_t getFileC_sz() { return fileC.obj.fs ? f_size(&fileC) : 0; }
 #else
@@ -50,12 +53,11 @@ void ejectdisk(uint8_t drivenum) {
     }
 }
 
-inline _FILE* actualDrive(uint8_t drivenum) {
-    return (drivenum > 1) ? &fileC : &fileB;
+static _FILE* actualDrive(uint8_t drivenum) {
+    return (drivenum > 1) ? &fileC : ( drivenum == 0 ? &fileA : &fileB );
 }
 
 static _FILE* tryFlushROM(uint8_t drivenum, size_t size, char *ROM, char *path) {
-    return NULL; // TODO: remove W/A
     _FILE *pFile = actualDrive(drivenum);
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     FRESULT result = f_open(pFile, path, FA_WRITE | FA_CREATE_ALWAYS);
@@ -78,10 +80,11 @@ static _FILE* tryFlushROM(uint8_t drivenum, size_t size, char *ROM, char *path) 
 }
 
 #include "disk_c.h"
+#include "fat12.h"
 
 static _FILE* tryDefaultDrive(uint8_t drivenum, size_t size, char *path) {
     char* tmp[40];
-    sprintf(tmp, "Drive 0x%02X not found. Will try to init by size: %f MB. Pls. wait...", drivenum, (size / 1024 / 1024.0f));
+    sprintf(tmp, "Drive 0x%02X not found. Will try to init %s by size: %f MB. Pls. wait...", drivenum, path, (size / 1024 / 1024.0f));
     logMsg(tmp);
     _FILE *pFile = actualDrive(drivenum);
      FRESULT result = f_open(pFile, path, FA_WRITE | FA_CREATE_ALWAYS);
@@ -103,6 +106,9 @@ static _FILE* tryDefaultDrive(uint8_t drivenum, size_t size, char *path) {
         f_write(pFile, drive_c_0000000, sizeof(drive_c_0000000), &bw);
         f_lseek(pFile, 0x0007E00);
         f_write(pFile, drive_c_0007E00, sizeof(drive_c_0007E00), &bw);
+    } else {
+        UINT bw;
+        f_write(pFile, drive_b_0000000, sizeof(drive_b_0000000), &bw);     
     }
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }

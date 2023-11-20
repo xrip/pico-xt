@@ -1047,7 +1047,7 @@ void intcall86(uint8_t intnum) {
              return;*/
 
         case 0x19:
-            insertdisk(0, fdd0_sz(), fdd0_rom(), NULL);
+            insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
             insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
 #if PICO_ON_DEVICE
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
