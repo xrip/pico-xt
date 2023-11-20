@@ -48,6 +48,9 @@ void portout(uint16_t portnum, uint16_t value) {
         /*        case 0x201:
                     port201 = value;
                     break;*/
+        case 0x92: // 0x02 - A20_ENABLE_BIT
+            portram[portnum] = value;
+            break;
         case 0x378:
         case 0x37A:
             outsoundsource(portnum, value);
@@ -149,6 +152,8 @@ uint16_t portin(uint16_t portnum) {
         case 0x60:
         case 0x61:
         case 0x64:
+            return portram[portnum];
+        case 0x92: // 0x02 - A20_ENABLE_BIT
             return portram[portnum];
         /*        case 0x201:
                     return port201;*/

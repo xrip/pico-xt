@@ -39,6 +39,9 @@ uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 uint8_t videomode = 3;
 int timer_period = 54925;
 
+#define PORT_A20 0x0092
+#define A20_ENABLE_BIT 0x02
+
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
 static const uint8_t parity[0x100] = {
@@ -869,9 +872,33 @@ uint8_t tandy_hack = 0;
 
 void intcall86(uint8_t intnum) {
     switch (intnum) {
-        case 0x15: {
-                char tmp[80]; sprintf(tmp, "INT 15h CPU_AH: 0x%X; CPU_AL: 0x%X", CPU_AH, CPU_AL); logMsg(tmp);
+        case 0x15:
+            switch(CPU_AH) {
+                case 0x24: 
+                    switch(CPU_AL) {
+                        case 0x00:
+                            CPU_AH = 0;
+                            portout16(PORT_A20, portin(PORT_A20) | A20_ENABLE_BIT);
+                            break;
+                        case 0x01:
+                            portout16(PORT_A20, portin(PORT_A20) & ~A20_ENABLE_BIT);
+                            CPU_AH = 0;
+                            break;
+                        case 0x02:
+                            CPU_AL = (portin(PORT_A20) & A20_ENABLE_BIT) != 0;
+                            CPU_AH = 0;
+                            break;
+                        case 0x03:
+                            CPU_BX = 3;
+                            CPU_AH = 0;
+                            break;
+                        default:
+                            CPU_AH = 0x86;
+                            cf = 1;
+                    }
+                    return;
             }
+            //char tmp[80]; sprintf(tmp, "INT 15h CPU_AH: 0x%X; CPU_AL: 0x%X", CPU_AH, CPU_AL); logMsg(tmp);
             break;
         case 0x10:
             //printf("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
