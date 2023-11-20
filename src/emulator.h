@@ -29,7 +29,7 @@ static FATFS fs;
 #define VRAM_SIZE 32
 
 #if PICO_ON_DEVICE
-#define RAM_PAGE_SIZE_KB 4
+#define RAM_PAGE_SIZE_KB 4ul
 #define RAM_PAGE_SIZE (RAM_PAGE_SIZE_KB * 1024)
 #define RAM_IN_PAGE_ADDR_MASK (0x00000FFF)
 #define RAM_SIZE (64 * 3)
@@ -37,15 +37,12 @@ static FATFS fs;
 #define RAM_SIZE (640) // (64*3+26)
 #endif
 
-// 16GB EMM
-#define EXPANDED_MEMORY_KBS (16 * 1024 * 1024)
-
 #if PSEUDO_RAM_BASE || SD_CARD_SWAP
-#define PSEUDO_RAM_SIZE (640)
+#define PSEUDO_RAM_SIZE (32 << 20)
+#define EXPANDED_MEMORY_KBS (PSEUDO_RAM_SIZE << 10)
 #define PSEUDO_RAM_BLOCKS (PSEUDO_RAM_SIZE / RAM_PAGE_SIZE_KB)
-extern uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS]; // 4KB blocks
 #define RAM_BLOCKS (RAM_SIZE / RAM_PAGE_SIZE_KB)
-extern uint16_t RAM_PAGES[RAM_BLOCKS]; // PSEUDO_RAM_PAGES idx (7-0); 15 - written, 14-8 oldness
+extern uint16_t RAM_PAGES[RAM_BLOCKS]; // lba (14-0); 15 - written
 #if PSEUDO_RAM_BASE
 void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz);
 #endif

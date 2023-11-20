@@ -44,28 +44,22 @@ static const char* path = "\\XT\\pagefile.sys";
 static FIL file;
 
 bool init_vram() {
-    FRESULT result = f_open(&file, path, FA_READ | FA_WRITE);
-    if (result != FR_OK) {
-        logMsg((char *)"Create <SD-card>\\XT\\pagefile.sys");
-        result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_NEW | FA_OPEN_APPEND);
+    logMsg((char *)"Create <SD-card>\\XT\\pagefile.sys");
+    FRESULT result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_ALWAYS);
+    if (result == FR_OK) {
+        result = f_lseek(&file, PSEUDO_RAM_SIZE);
         if (result != FR_OK) {
-            logMsg((char *)"Unable to create <SD-card>\\XT\\pagefile.sys");
+            logMsg((char *)"Unable to init <SD-card>\\XT\\pagefile.sys");
             return false;
         }
-        for (int i = 0; i < PSEUDO_RAM_BLOCKS; ++i) {
-            UINT bw;
-            result = f_write(&file, RAM, RAM_PAGE_SIZE, &bw);
-            if (result != FR_OK) {
-                logMsg((char *)"Unable to initialize <SD-card>\\XT\\pagefile.sys");
-                return false;
-            }
-        }
-        f_close(&file);
-        result = f_open(&file, path, FA_READ | FA_WRITE);
-        if (result != FR_OK) {
-            logMsg((char *)"<SD-card>\\XT\\pagefile.sys creation passed");
-        }
-        // f_close(&file);
+    } else {
+        logMsg((char *)"Unable to create <SD-card>\\XT\\pagefile.sys");
+        return false;
+    }
+    f_close(&file);
+    result = f_open(&file, path, FA_READ | FA_WRITE);
+    if (result != FR_OK) {
+        logMsg((char *)"Unable to open <SD-card>\\XT\\pagefile.sys");
     }
     logMsg((char *)"pagefile.sys is initialized");
     return true;
@@ -290,12 +284,13 @@ int main() {
         sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
         logMsg(tmp);
-        while (runing) { sleep_ms(100); }
+        while (runing) { sleep_ms(100); } // TODO: test no sd-card startup
     }
 #endif
 #if SD_CARD_SWAP
+set_start_debug_line(0);
     if (!PSRAM_AVAILABLE && !init_vram()) {
-        logMsg((char *)"init_vram failed");
+        logMsg((char *)"init_vram failed"); // TODO: test small type startup
         while (runing) { sleep_ms(100); }
     }
 #endif
