@@ -850,6 +850,10 @@ uint8_t tandy_hack = 0;
 
 void intcall86(uint8_t intnum) {
     switch (intnum) {
+        case 0x15: {
+                char tmp[80]; sprintf(tmp, "INT 15h CPU_AH: 0x%X; CPU_AL: 0x%X", CPU_AH, CPU_AL); logMsg(tmp);
+            }
+            break;
         case 0x10:
             //printf("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
             switch (CPU_AH) {
