@@ -17,6 +17,7 @@ extern "C" {
 #include "f_util.h"
 #include "ff.h"
 #include "psram_spi.h"
+#include "nespad.h"
 
 extern "C" {
 #include "vga.h"
@@ -178,7 +179,7 @@ static int RendererThread(void *ptr) {
 #endif
 
 #if PICO_ON_DEVICE
-#define  PWM_PIN0 26
+
 pwm_config config = pwm_get_default_config();
 psram_spi_inst_t psram_spi;
 uint32_t overcloking_khz = OVERCLOCKING * 1000;
@@ -216,13 +217,8 @@ int main() {
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
-    gpio_set_function(PWM_PIN0, GPIO_FUNC_PWM);
-    gpio_set_function(PWM_PIN0+1, GPIO_FUNC_PWM);
-    uint slice_num = pwm_gpio_to_slice_num(PWM_PIN0+1);
-    pwm_set_chan_level(slice_num, PWM_CHAN_A, 1);
-    pwm_set_chan_level(slice_num, PWM_CHAN_B, 3);
-    pwm_config_set_wrap(&config, 261);
-    pwm_config_set_clkdiv(&config, 127);
+    gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
+    uint slice_num = pwm_gpio_to_slice_num(BEEPER_PIN);
     pwm_init(slice_num, &config, true);
 
     for (int i = 0; i < 6; i++) {
@@ -232,7 +228,7 @@ int main() {
         gpio_put(PICO_DEFAULT_LED_PIN, false);
     }
 
-    //nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
+    nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     keyboard_init();
 
     sem_init(&vga_start_semaphore, 0, 1);
@@ -426,6 +422,12 @@ int main() {
         if_usb();
         if_swap_drives();
         if_overclock();
+        nespad_read();
+        if (nespad_state & DPAD_START) {
+            printf("TEST\r\n");
+        }
+        sermouseevent(nespad_state & DPAD_A, (nespad_state & DPAD_LEFT) ? -1 : ((nespad_state & DPAD_RIGHT) ? 1 : 0), (nespad_state & DPAD_DOWN) ? -1 : (nespad_state & DPAD_UP) ? 1 : 0);
+
 #endif
     }
     return 0;

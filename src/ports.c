@@ -5,6 +5,7 @@
 
 #include "ps2.h"
 #include "vga.h"
+#include "nespad.h"
 
 #endif
 uint16_t portram[256];
@@ -36,12 +37,10 @@ void portout(uint16_t portnum, uint16_t value) {
             portram[portnum] = value;
 #if PICO_ON_DEVICE
             if ((value & 3) == 3) {
-                pwm_set_gpio_level(26, 127);
-                pwm_set_gpio_level(27, 127);
+                pwm_set_gpio_level(BEEPER_PIN, 127);
             }
             else {
-                pwm_set_gpio_level(26, 0);
-                pwm_set_gpio_level(27, 0);
+                pwm_set_gpio_level(BEEPER_PIN, 0);
             }
 #endif
             break;
@@ -122,6 +121,16 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
         case 0x3DA:
             break;
+        case 0x3F8:
+        case 0x3F9:
+        case 0x3FA:
+        case 0x3FB:
+        case 0x3FC:
+        case 0x3FD:
+        case 0x3FE:
+        case 0x3FF:
+            outsermouse(portnum, value);
+            break;
         default:
             if (portnum < 256) portram[portnum] = value;
     }
@@ -158,6 +167,16 @@ uint16_t portin(uint16_t portnum) {
             if (!(port3DA & 1)) port3DA ^= 8;
         //port3da = random(256);
             return port3DA;
+        case 0x3F8:
+        case 0x3F9:
+        case 0x3FA:
+        case 0x3FB:
+        case 0x3FC:
+        case 0x3FD:
+        case 0x3FE:
+        case 0x3FF:
+            return insermouse(portnum);
+            break;
         default:
             return 0xFF;
     }

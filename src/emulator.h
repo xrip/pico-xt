@@ -21,6 +21,7 @@
 #include <pico/stdlib.h>
 #endif
 
+#define BEEPER_PIN 28
 #define VRAM_SIZE 32
 
 #if PICO_ON_DEVICE
@@ -204,6 +205,11 @@ void doirq(uint8_t irqnum);
 void init8253();
 void out8253(uint16_t portnum, uint8_t value);
 uint8_t in8253(uint16_t portnum);
+
+uint8_t insermouse ( uint16_t portnum );
+void outsermouse ( uint16_t portnum, uint8_t value );
+void sermouseevent ( uint8_t buttons, int8_t xrel, int8_t yrel );
+
 
 void outsoundsource ( uint16_t portnum, uint8_t value );
 uint8_t insoundsource ( uint16_t portnum );

@@ -210,7 +210,12 @@ __inline uint8_t read86(uint32_t addr32) {
 #endif
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
         switch (addr32) { //some hardcoded values for the BIOS data area
-            case 0x408:
+            /*case 0x400:     // serial COM1: address at 0x03F8
+                return (0xF8);
+            case 0x401:
+                return (0x03);*/
+
+            case 0x408: /// LPT1
                 return (0x78);
             case 0x409:
                 return (0x3);
@@ -226,15 +231,16 @@ __inline uint8_t read86(uint32_t addr32) {
                           `-------- number of diskette drives, less 1
             */
             case 0x411:
-                return 0b01000000;
-            /*           76543210  40:11  (value in INT 11 register AH)
-                         |||||||`- 0 if DMA installed
-                         ||||`---- number of serial ports
-                         |||`----- game adapter
-                         ||`------ not used, internal modem (PS/2)
-                         `-------- number of printer ports
-            */
-            /*
+                return (0b01000010);
+/*  	                  76543210  40:11  (value in INT 11 register AH)
+		                  |||||||`- 0 if DMA installed
+		                  ||||  `-- number of serial ports
+		                  |||`----- game adapter
+		                  ||`------ not used, internal modem (PS/2)
+		                  `-------- number of printer ports
+ */
+
+                /*
             case 0x413:
                 return (RAM_SIZE & 0xFF);
             case 0x414:
