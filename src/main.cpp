@@ -14,8 +14,7 @@ extern "C" {
 #include <pico/stdlib.h>
 #include <hardware/vreg.h>
 #include <pico/stdio.h>
-#include "f_util.h"
-#include "ff.h"
+
 #include "psram_spi.h"
 #include "nespad.h"
 
@@ -42,55 +41,58 @@ bool runing = true;
 
 #if SD_CARD_SWAP
 static const char* path = "\\XT\\pagefile.sys";
-static FATFS fs;
 static FIL file;
+
 bool init_vram() {
-    FRESULT result = f_mount(&fs, "", 1);
+    FRESULT result = f_open(&file, path, FA_READ | FA_WRITE);
     if (result != FR_OK) {
-        char tmp[80]; sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
-        return false;
-    }
-    result = f_open(&file, path, FA_READ | FA_WRITE);
-    if (result != FR_OK) {
-        logMsg((char*)"Create <SD-card>\\XT\\pagefile.sys");
+        logMsg((char *)"Create <SD-card>\\XT\\pagefile.sys");
         result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_NEW | FA_OPEN_APPEND);
         if (result != FR_OK) {
-            logMsg((char*)"Unable to create <SD-card>\\XT\\pagefile.sys");
+            logMsg((char *)"Unable to create <SD-card>\\XT\\pagefile.sys");
             return false;
         }
         for (int i = 0; i < PSEUDO_RAM_BLOCKS; ++i) {
             UINT bw;
             result = f_write(&file, RAM, RAM_PAGE_SIZE, &bw);
             if (result != FR_OK) {
-                logMsg((char*)"Unable to initialize <SD-card>\\XT\\pagefile.sys");
+                logMsg((char *)"Unable to initialize <SD-card>\\XT\\pagefile.sys");
                 return false;
             }
         }
         f_close(&file);
         result = f_open(&file, path, FA_READ | FA_WRITE);
         if (result != FR_OK) {
-            logMsg((char*)"<SD-card>\\XT\\pagefile.sys creation passed");
+            logMsg((char *)"<SD-card>\\XT\\pagefile.sys creation passed");
         }
         // f_close(&file);
     }
-    logMsg((char*)"pagefile.sys is initialized");
+    logMsg((char *)"pagefile.sys is initialized");
     return true;
 }
+
 FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
     FRESULT result = f_lseek(&file, file_offset);
     if (result != FR_OK) {
         result = f_open(&file, path, FA_READ | FA_WRITE);
         if (result != FR_OK) {
-            char tmp[40]; sprintf(tmp, "Unable to open pagefile.sys: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+            char tmp[40];
+            sprintf(tmp, "Unable to open pagefile.sys: %s (%d)", FRESULT_str(result), result);
+            logMsg(tmp);
             return result;
         }
-        char tmp[40]; sprintf(tmp, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+        char tmp[40];
+        sprintf(tmp, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result);
+        logMsg(tmp);
     }
     return result;
 }
+
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char tmp[40]; sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset); logMsg(tmp);
+    char tmp[40];
+    sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset);
+    logMsg(tmp);
     FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
         return;
@@ -98,13 +100,17 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     UINT br;
     result = f_read(&file, dst, sz, &br);
     if (result != FR_OK) {
-        sprintf(tmp, "Failed to f_read: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+        sprintf(tmp, "Failed to f_read: %s (%d)", FRESULT_str(result), result);
+        logMsg(tmp);
     }
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
+
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char tmp[40]; sprintf(tmp, "Flush pagefile 0x%X->0x%X", src, file_offset); logMsg(tmp);
+    char tmp[40];
+    sprintf(tmp, "Flush pagefile 0x%X->0x%X", src, file_offset);
+    logMsg(tmp);
     FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
         return;
@@ -112,7 +118,8 @@ void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     UINT bw;
     result = f_write(&file, src, sz, &bw);
     if (result != FR_OK) {
-        sprintf(tmp, "Failed to f_write: %s (%d)", FRESULT_str(result), result); logMsg(tmp);
+        sprintf(tmp, "Failed to f_write: %s (%d)", FRESULT_str(result), result);
+        logMsg(tmp);
     }
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
@@ -157,7 +164,8 @@ void __time_critical_func(render_core)() {
         }
         if (tick50ms < 20) {
             tick50ms++;
-        } else {
+        }
+        else {
             tick50ms = 0;
         }
     }
@@ -191,10 +199,15 @@ __inline static void if_overclock() {
         uint vco, postdiv1, postdiv2;
         if (check_sys_clock_khz(overcloking_khz, &vco, &postdiv1, &postdiv2)) {
             set_sys_clock_pll(vco, postdiv1, postdiv2);
-            char tmp[80]; sprintf(tmp, "overcloking_khz: %u kHz", overcloking_khz); logMsg(tmp);
+            char tmp[80];
+            sprintf(tmp, "overcloking_khz: %u kHz", overcloking_khz);
+            logMsg(tmp);
             sleep_ms(33);
-        } else {
-            char tmp[80]; sprintf(tmp, "System clock of %u kHz cannot be achieved", overcloking_khz); logMsg(tmp);
+        }
+        else {
+            char tmp[80];
+            sprintf(tmp, "System clock of %u kHz cannot be achieved", overcloking_khz);
+            logMsg(tmp);
         }
     }
 }
@@ -263,10 +276,18 @@ int main() {
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
     PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
 
+    FRESULT result = f_mount(&fs, "", 1);
+    if (result != FR_OK) {
+        char tmp[80];
+        sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result);
+        logMsg(tmp);
+        logMsg(tmp);
+        while (runing) { sleep_ms(100); }
+    }
 #endif
 #if SD_CARD_SWAP
     if (!PSRAM_AVAILABLE && !init_vram()) {
-        logMsg((char*)"init_vram failed");
+        logMsg((char *)"init_vram failed");
         while (runing) { sleep_ms(100); }
     }
 #endif

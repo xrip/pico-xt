@@ -161,22 +161,9 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 #endif
 
 __inline void write86(uint32_t addr32, uint8_t value) {
-#if PSEUDO_RAM_BASE || SD_CARD_SWAP
-    if (!PSRAM_AVAILABLE && addr32 < RAM_PAGE_SIZE) {
+    if ((PSRAM_AVAILABLE && (addr32) < (RAM_SIZE << 10)) || addr32 < RAM_PAGE_SIZE) {
         // do not touch first page
         RAM[addr32] = value;
-    }
-    else if (!PSRAM_AVAILABLE && addr32 < (PSEUDO_RAM_SIZE << 10)) {
-        uint32_t ram_page = get_ram_page_for(addr32);
-        uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-        RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page] = value;
-        uint16_t ram_page_desc = RAM_PAGES[ram_page];
-        if (!(ram_page_desc & 0x8000)) {
-            // if higest (15) bit is set, it means - the page has changes
-            RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
-        }
-#endif
-        return;
     }
     else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
         // video RAM range
@@ -191,9 +178,21 @@ __inline void write86(uint32_t addr32, uint8_t value) {
         //SRAM_write(addr32, value);
     }
 #if PICO_ON_DEVICE
-    if (PSRAM_AVAILABLE) {
+    else if (PSRAM_AVAILABLE) {
         psram_write8(&psram_spi, addr32, value);
     }
+#if PSEUDO_RAM_BASE || SD_CARD_SWAP
+    else {
+        uint32_t ram_page = get_ram_page_for(addr32);
+        uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+        RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page] = value;
+        uint16_t ram_page_desc = RAM_PAGES[ram_page];
+        if (!(ram_page_desc & 0x8000)) {
+            // if higest (15) bit is set, it means - the page has changes
+            RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
+        }
+    }
+#endif
 #endif
 }
 

@@ -19,6 +19,10 @@
 #include <hardware/gpio.h>
 #include <pico/time.h>
 #include <pico/stdlib.h>
+
+#include "f_util.h"
+#include "ff.h"
+static FATFS fs;
 #endif
 
 #define BEEPER_PIN 28
