@@ -168,8 +168,6 @@ else ()
             PICO_FLASH_SIZE_BYTES=4194304
             #PSEUDO_RAM_BASE=0x10300000
             SD_CARD_SWAP=1
-            
-            OVERCLOCKING=366
     )
 
 #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
