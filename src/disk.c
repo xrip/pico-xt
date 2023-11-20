@@ -232,7 +232,7 @@ static size_t chs2ofs(int drivenum, int cyl, int head, int sect) {
 }
 
 bool img_disk_read_sec(int drv, BYTE * buffer, LBA_t lba) {
-    _FILE * pFile = drv > 1 ? &fileC : &fileB;
+    _FILE * pFile = actualDrive(drv);
     if(FR_OK != f_lseek(pFile, lba * 512)) {
         return false;
     }
@@ -244,7 +244,7 @@ bool img_disk_read_sec(int drv, BYTE * buffer, LBA_t lba) {
 }
 
 bool img_disk_write_sec(int drv, BYTE * buffer, LBA_t lba) {
-    _FILE * pFile = drv > 1 ? &fileC : &fileB;
+    _FILE * pFile = actualDrive(drv);
     if(FR_OK != f_lseek(pFile, lba * 512)) {
         return false;
     }

@@ -47,7 +47,7 @@ size_t fdd1_sz() {
 #if CFG_TUD_MSC
 
 // whether host does safe-eject
-static bool ejectedDrv[3] = { false, false, false };
+static bool ejectedDrv[4] = { false, false, false, false };
 
 const uint32_t min_rom_block = 4096;
 const uint32_t sec_per_block = min_rom_block / DISK_BLOCK_SIZE;
@@ -57,23 +57,22 @@ const uint32_t sec_per_block = min_rom_block / DISK_BLOCK_SIZE;
 void tud_msc_inquiry_cb(uint8_t lun, uint8_t vendor_id[8], uint8_t product_id[16], uint8_t product_rev[4]) {
   // char tmp[81]; sprintf(tmp, "tud_msc_inquiry_cb: %d", lun); logMsg(tmp);
   switch(lun) {
-    /*
 	case 0: {
         const char vid[] = "Pico-XT A:";
         memcpy(vendor_id, vid, strlen(vid));
 	}
-	break;*/
-	case 0: {
+	break;
+	case 1: {
         const char vid[] = "Pico-XT B:";
         memcpy(vendor_id, vid, strlen(vid));
 	}
 	break;
-	case 1: {
+	case 2: {
         const char vid[] = "Pico-XT C:";
         memcpy(vendor_id, vid, strlen(vid));
 	}
 	break;
-	case 2: {
+	case 3: {
         const char vid[] = "Pico-XT SD-Card";
         memcpy(vendor_id, vid, strlen(vid));
 	}
@@ -117,24 +116,24 @@ extern FIL * getFileC();
 void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_size) {
   // char tmp[80]; sprintf(tmp, "tud_msc_capacity_cb(%d) block_count: %d block_size: %d r: %d", lun, block_count, block_size); logMsg(tmp);
   switch(lun) {
-    /*
 	case 0: {
-      *block_count = sizeof(FDD0) / DISK_BLOCK_SIZE;
+      auto r = getFileA_sz();
+      *block_count = (r ? r : sizeof(FDD0)) / DISK_BLOCK_SIZE;
       *block_size  = DISK_BLOCK_SIZE;
 	}
-	break;*/
-	case 0: {
+	break;
+	case 1: {
       auto r = getFileB_sz();
       *block_count = (r ? r : sizeof(FDD1)) / DISK_BLOCK_SIZE;
       *block_size  = DISK_BLOCK_SIZE;
 	}
 	break;
-	case 1: {
+	case 2: {
       *block_count = getFileC_sz() / DISK_BLOCK_SIZE;
       *block_size  = DISK_BLOCK_SIZE;
 	}
 	break;
-	case 2: {
+	case 3: {
       DWORD dw;
       auto dio = disk_ioctl(0, GET_SECTOR_COUNT, &dw);
       if (dio == RES_OK) {
@@ -176,13 +175,15 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
   uint8_t* rom = 0;
   size_t rom_sz;
   switch(lun) {
-    /*
 	case 0: {
+    if (getFileA_sz()) {
+		  return img_disk_read_sec(0, buffer, lba) ? bufsize : -1;
+    }
 		rom = FDD0;
 		rom_sz = sizeof(FDD0);
 	}
-	break; */
-	case 0: {
+	break;
+	case 1: {
     if (getFileB_sz()) {
 		  return img_disk_read_sec(1, buffer, lba) ? bufsize : -1;
     }
@@ -190,11 +191,11 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
 		rom_sz = sizeof(FDD1);
 	}
 	break;
-	case 1: {
+	case 2: {
 		  return img_disk_read_sec(2, buffer, lba) ? bufsize : -1;
   	}
 	break;
-	case 2: {
+	case 3: {
       return disk_read(0, buffer, lba, 1) == RES_OK ? bufsize : -1;
 	  }
   }
@@ -219,8 +220,10 @@ bool sd_card_writable() {
 bool tud_msc_is_writable_cb (uint8_t lun) {
   switch(lun) {
 	case 0:
-	  return getFileB_sz() ? sd_card_writable() : false;
+	  return getFileA_sz() ? sd_card_writable() : false;
 	case 1:
+	  return getFileB_sz() ? sd_card_writable() : false;
+	case 2:
 	  return getFileC_sz() ? sd_card_writable() : false;    
   }
   return sd_card_writable();
@@ -234,10 +237,12 @@ int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t* 
   // char tmp[80]; sprintf(tmp, "tud_msc_write10_cb(%d, %d, %d, %d)", lun, lba, offset, bufsize); logMsg(tmp);
   switch(lun) {
 	case 0:
-	    return img_disk_write_sec(1, buffer, lba) ? bufsize : -1;
+	    return img_disk_write_sec(0, buffer, lba) ? bufsize : -1;
 	case 1:
+	    return img_disk_write_sec(1, buffer, lba) ? bufsize : -1;
+	case 2:
 	    return img_disk_write_sec(2, buffer, lba) ? bufsize : -1;
-	case 2: {
+	case 3: {
       return disk_write(0, buffer, lba, 1) == 0 ? bufsize : -1;
 	}
   }
