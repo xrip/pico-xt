@@ -102,21 +102,28 @@ void modregrm() {
 }
 
 #if PSEUDO_RAM_BASE || SD_CARD_SWAP
-static uint16_t last_ram_page = 1;
+static uint16_t oldest_ram_page = 1;
+static uint16_t last_ram_page = 0;
+static uint32_t last_lba_page = 0;
 
 uint32_t get_ram_page_for(const uint32_t addr32) {
-    const uint32_t lba_page = addr32 / RAM_PAGE_SIZE; // 4KB page idx
-    for (uint32_t ram_page = 1; ram_page < RAM_BLOCKS; ++ram_page) {
-        uint16_t ram_page_desc = RAM_PAGES[ram_page];
-        uint16_t lba_page_in_ram = ram_page_desc & 0x7FFF; // 14-0 - max 32k keys for 4K LBA bloks
+    const register uint32_t lba_page = addr32 / RAM_PAGE_SIZE; // 4KB page idx
+    if (last_lba_page == lba_page) {
+        return last_ram_page;
+    }
+    last_lba_page = lba_page;
+    for (register uint32_t ram_page = 1; ram_page < RAM_BLOCKS; ++ram_page) {
+        register uint16_t ram_page_desc = RAM_PAGES[ram_page];
+        register uint16_t lba_page_in_ram = ram_page_desc & 0x7FFF; // 14-0 - max 32k keys for 4K LBA bloks
         if (lba_page_in_ram == lba_page) {
+            last_ram_page = ram_page;
             return ram_page;
         }
     }
-    char tmp[40]; // sprintf(tmp, "VRAM page: 0x%X", lba_page); logMsg(tmp);
+    // char tmp[40]; sprintf(tmp, "VRAM page: 0x%X", lba_page); logMsg(tmp);
     // rolling page usage
-    uint16_t ram_page = last_ram_page++;
-    if (last_ram_page >= RAM_BLOCKS - 1) last_ram_page = 1; // do not use first page (id == 0)
+    uint16_t ram_page = oldest_ram_page++;
+    if (oldest_ram_page >= RAM_BLOCKS - 1) oldest_ram_page = 1; // do not use first page (id == 0)
     uint16_t ram_page_desc = RAM_PAGES[ram_page];
     bool ro_page_was_found = !(ram_page_desc & 0x8000);
     // higest (15) bit is set, it means - the page has changes (RW page)
@@ -132,6 +139,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 #else
         memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + lba_page_offset, RAM_PAGE_SIZE);
 #endif
+        last_ram_page = ram_page;
         return ram_page;
     }
     // Lets flush found RW page to flash
@@ -155,6 +163,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 #else
     memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + lba_page_offset, RAM_PAGE_SIZE);
 #endif
+    last_ram_page = ram_page;
     return ram_page;
 }
 #endif
