@@ -170,14 +170,26 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
 
 #if SD_CARD_SWAP
 __inline static void ram_page_write(uint32_t addr32, uint8_t value) {
-        uint32_t ram_page = get_ram_page_for(addr32);
-        uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-        RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page] = value;
-        uint16_t ram_page_desc = RAM_PAGES[ram_page];
-        if (!(ram_page_desc & 0x8000)) {
-            // if higest (15) bit is set, it means - the page has changes
-            RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
-        }
+    register uint32_t ram_page = get_ram_page_for(addr32);
+    register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+    RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page] = value;
+    register uint16_t ram_page_desc = RAM_PAGES[ram_page];
+    if (!(ram_page_desc & 0x8000)) {
+        // if higest (15) bit is set, it means - the page has changes
+        RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
+    }
+}
+__inline static void ram_page_write16(uint32_t addr32, uint16_t value) {
+    register uint32_t ram_page = get_ram_page_for(addr32);
+    register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+    register uint8_t* addr_in_ram = &RAM + ram_page * RAM_PAGE_SIZE + addr_in_page;
+    *addr_in_ram       = (uint8_t) value;
+    *(addr_in_ram + 1) = (uint8_t)(value >> 8);
+    register uint16_t ram_page_desc = RAM_PAGES[ram_page];
+    if (!(ram_page_desc & 0x8000)) {
+        // if higest (15) bit is set, it means - the page has changes
+        RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
+    }
 }
 #endif
 
@@ -231,6 +243,11 @@ static __inline void writew86(uint32_t addr32, uint16_t value) {
         psram_write16(&psram_spi, addr32, value);
     }
     else
+#if PSEUDO_RAM_BASE || SD_CARD_SWAP
+    if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && (addr32 & 0xFFFFFFFE) == 0) {
+        ram_page_write16(addr32, value);
+    } else // TODO: ROM, VRAM, himiem, ems...
+#endif
 #endif
     {
         write86(addr32, (uint8_t)value);
@@ -321,8 +338,8 @@ __inline uint8_t read86(uint32_t addr32) {
                     return RAM[addr32];
                 }
                 else {
-                    const uint32_t ram_page = get_ram_page_for(addr32);
-                    const uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+                    const register uint32_t ram_page = get_ram_page_for(addr32);
+                    const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
                     return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
                 }
 #else
@@ -389,9 +406,16 @@ __inline uint8_t read86(uint32_t addr32) {
 static __inline uint16_t readw86(uint32_t addr32) {
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
-        // TODO: 16-bit read from vram page
         return psram_read16(&psram_spi, addr32);
     }
+#if SD_CARD_SWAP
+    if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && (addr32 & 0xFFFFFFFE) == 0) {
+        const register uint32_t ram_page = get_ram_page_for(addr32);
+        const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+        const register uint32_t ram_addr = (ram_page * RAM_PAGE_SIZE) + addr_in_page;
+        return (uint16_t)(RAM[ram_addr]) | (uint16_t)(RAM[ram_addr + 1] << 8);        
+    } // TODO: ROM, VRAM, ...
+#endif
 #endif
     return ((uint16_t)read86(addr32) | (uint16_t)(read86(addr32 + 1) << 8));
 }
