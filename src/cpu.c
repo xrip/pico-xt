@@ -230,6 +230,58 @@ static __inline void writew86(uint32_t addr32, uint16_t value) {
     }
 }
 
+/****************************************************************
+ * Bios Config Table
+ ****************************************************************/
+
+struct bios_config_table_s {
+    uint16_t size;
+    uint8_t model;
+    uint8_t submodel;
+    uint8_t biosrev;
+    uint8_t feature1, feature2, feature3, feature4, feature5;
+} PACKED;
+
+// TODO: review
+#define BUILD_MODEL_ID      0xFC
+#define BUILD_SUBMODEL_ID   0x00
+#define BUILD_BIOS_REVISION 0x01
+
+// DMA channel 3 used by hard disk BIOS
+#define CBT_F1_DMA3USED (1<<7)
+// 2nd interrupt controller (8259) installed
+#define CBT_F1_2NDPIC   (1<<6)
+// Real-Time Clock installed
+#define CBT_F1_RTC      (1<<5)
+// INT 15/AH=4Fh called upon INT 09h
+#define CBT_F1_INT154F  (1<<4)
+// wait for external event (INT 15/AH=41h) supported
+#define CBT_F1_WAITEXT  (1<<3)
+// extended BIOS area allocated (usually at top of RAM)
+#define CBT_F1_EBDA     (1<<2)
+// bus is Micro Channel instead of ISA
+#define CBT_F1_MCA      (1<<1)
+// system has dual bus (Micro Channel + ISA)
+#define CBT_F1_MCAISA   (1<<0)
+// INT 16/AH=09h (keyboard functionality) supported
+#define CBT_F2_INT1609  (1<<6)
+// ??
+#define CONFIG_KBD_CALL_INT15_4F (0)
+
+static const struct bios_config_table_s __in_flash() __aligned(16) BIOS_CONFIG_TABLE = { // TODO: read86 support for the srtuct
+    .size     = sizeof(BIOS_CONFIG_TABLE) - 2,
+    .model    = BUILD_MODEL_ID,
+    .submodel = BUILD_SUBMODEL_ID,
+    .biosrev  = BUILD_BIOS_REVISION,
+    .feature1 = (
+        CBT_F1_2NDPIC | CBT_F1_RTC | CBT_F1_EBDA
+        | (CONFIG_KBD_CALL_INT15_4F ? CBT_F1_INT154F : 0)),
+    .feature2 = CBT_F2_INT1609,
+    .feature3 = 0,
+    .feature4 = 0,
+    .feature5 = 0,
+};
+
 __inline uint8_t read86(uint32_t addr32) {
 #if PSEUDO_RAM_BASE || SD_CARD_SWAP
     if ((!PSRAM_AVAILABLE && addr32 < (640 << 10)) || PSRAM_AVAILABLE && addr32 < (RAM_SIZE << 10)) {
