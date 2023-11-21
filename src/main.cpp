@@ -288,7 +288,7 @@ int main() {
     }
 #endif
 #if SD_CARD_SWAP
-set_start_debug_line(0);
+    // set_start_debug_line(0);
     if (!PSRAM_AVAILABLE && !init_vram()) {
         logMsg((char *)"init_vram failed"); // TODO: test small type startup
         while (runing) { sleep_ms(100); }

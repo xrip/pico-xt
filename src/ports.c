@@ -27,13 +27,18 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x43: //i8253
             out8253(portnum, value);
             break;
-
+        case 0x60:
+            //{ char tmp[40]; sprintf(tmp, "port 60h: set 0x%X", value); logMsg(tmp); }
+            if (portnum < 256) portram[portnum] = value;
+            break;
 #if PICO_ON_DEVICE
         case 0x64: // Passthrought all
-            portram[portnum] = value;
+            //{ char tmp[40]; sprintf(tmp, "port 64h: set 0x%X", value); logMsg(tmp); }
             keyboard_send(value);
+            portram[portnum] = value;
 #endif
         case 0x61: // 061H  PPI port B.
+            //{ char tmp[40]; sprintf(tmp, "port 61h: set 0x%X", value); logMsg(tmp); }
             portram[portnum] = value;
 #if PICO_ON_DEVICE
             if ((value & 3) == 3) {
@@ -152,6 +157,8 @@ uint16_t portin(uint16_t portnum) {
         case 0x60:
         case 0x61:
         case 0x64:
+            //if (portram[portnum] == 0xFF && portnum == 0x64) {} else
+            //{ char tmp[40]; sprintf(tmp, "port %Xh: get 0x%X", portnum, portram[portnum]); logMsg(tmp); }
             return portram[portnum];
         case 0x92: // 0x02 - A20_ENABLE_BIT
             return portram[portnum];

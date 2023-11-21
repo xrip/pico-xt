@@ -37,6 +37,8 @@ static FATFS fs;
 #define RAM_SIZE (640) // (64*3+26)
 #endif
 
+extern bool is_a20_enabled;
+
 #if PSEUDO_RAM_BASE || SD_CARD_SWAP
 #define PSEUDO_RAM_SIZE (32 << 20)
 #define EXPANDED_MEMORY_KBS (PSEUDO_RAM_SIZE << 10)

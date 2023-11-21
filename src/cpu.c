@@ -39,8 +39,39 @@ uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 uint8_t videomode = 3;
 int timer_period = 54925;
 
-#define PORT_A20 0x0092
+//#define PORT_A20_1 0x92
+//#define A20_ENABLE_BIT 0x02
+//#define PORT_A20_2 0xEE
+/*
+https://www.win.tue.nl/~aeb/linux/kbd/A20.html
+Classical A20 control, via the keyboard controller
+The output port of the keyboard controller has a number of functions.
+Bit 0 is used to reset the CPU (go to real mode) - a reset happens when bit 0 is 0.
+Bit 1 is used to control A20 - it is enabled when bit 1 is 1, disabled when bit 1 is 0.
+One sets the output port of the keyboard controller by first writing 0xd1 to port 0x64, and the the desired
+ value of the output port to port 0x60. One usually sees the values 0xdd and 0xdf used to disable/enable A20. Thus:
+        call    empty_8042
+        mov     al,#0xd1                ! command write
+        out     #0x64,al
+        call    empty_8042
+        mov     al,#0xdf                ! A20 on
+        out     #0x60,al
+        call    empty_8042
+where empty_8042 has to wait for the kbd to finish handling input, say
+empty_8042:
+        call    delay
+        in      al,#0x64
+        test    al,#2
+        jnz     empty_8042
+        ret
+*/
+#define PORT_A20 0x64
 #define A20_ENABLE_BIT 0x02
+bool is_a20_enabled = true;
+//void a20_enable() {
+ //   portout(0x64, 0xD1);
+ //   portout(0x60, 0xDF);
+//}
 
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
@@ -186,7 +217,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
     }
     else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
 #if SD_CARD_SWAP
-        if ((portin(PORT_A20) & A20_ENABLE_BIT) != 0) { // TODO: EMS enabled?
+        if (is_a20_enabled) { // TODO: EMS enabled?
             char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X", addr32); logMsg(tmp);
             ram_page_write(addr32, value);
             return;
@@ -197,8 +228,8 @@ __inline void write86(uint32_t addr32, uint8_t value) {
     else if ((addr32) > 0xFFFFFUL) {
 #if SD_CARD_SWAP
         if (addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL) { // Hihg mem (1Mb + 64Kb)
-          if ((portin(PORT_A20) & A20_ENABLE_BIT) != 0) { // A20 line is ON
-            char tmp[40]; sprintf(tmp, "HIMEM W LBA: 0x%X", addr32); logMsg(tmp);
+          if (is_a20_enabled) { // A20 line is ON
+            // char tmp[40]; sprintf(tmp, "HIMEM W LBA: 0x%X", addr32); logMsg(tmp);
             ram_page_write(addr32, value);
           }
         }
@@ -229,58 +260,6 @@ static __inline void writew86(uint32_t addr32, uint16_t value) {
         write86(addr32 + 1, (uint8_t)(value >> 8));
     }
 }
-
-/****************************************************************
- * Bios Config Table
- ****************************************************************/
-
-struct bios_config_table_s {
-    uint16_t size;
-    uint8_t model;
-    uint8_t submodel;
-    uint8_t biosrev;
-    uint8_t feature1, feature2, feature3, feature4, feature5;
-} PACKED;
-
-// TODO: review
-#define BUILD_MODEL_ID      0xFC
-#define BUILD_SUBMODEL_ID   0x00
-#define BUILD_BIOS_REVISION 0x01
-
-// DMA channel 3 used by hard disk BIOS
-#define CBT_F1_DMA3USED (1<<7)
-// 2nd interrupt controller (8259) installed
-#define CBT_F1_2NDPIC   (1<<6)
-// Real-Time Clock installed
-#define CBT_F1_RTC      (1<<5)
-// INT 15/AH=4Fh called upon INT 09h
-#define CBT_F1_INT154F  (1<<4)
-// wait for external event (INT 15/AH=41h) supported
-#define CBT_F1_WAITEXT  (1<<3)
-// extended BIOS area allocated (usually at top of RAM)
-#define CBT_F1_EBDA     (1<<2)
-// bus is Micro Channel instead of ISA
-#define CBT_F1_MCA      (1<<1)
-// system has dual bus (Micro Channel + ISA)
-#define CBT_F1_MCAISA   (1<<0)
-// INT 16/AH=09h (keyboard functionality) supported
-#define CBT_F2_INT1609  (1<<6)
-// ??
-#define CONFIG_KBD_CALL_INT15_4F (0)
-
-static const struct bios_config_table_s __in_flash() __aligned(16) BIOS_CONFIG_TABLE = { // TODO: read86 support for the srtuct
-    .size     = sizeof(BIOS_CONFIG_TABLE) - 2,
-    .model    = BUILD_MODEL_ID,
-    .submodel = BUILD_SUBMODEL_ID,
-    .biosrev  = BUILD_BIOS_REVISION,
-    .feature1 = (
-        CBT_F1_2NDPIC | CBT_F1_RTC | CBT_F1_EBDA
-        | (CONFIG_KBD_CALL_INT15_4F ? CBT_F1_INT154F : 0)),
-    .feature2 = CBT_F2_INT1609,
-    .feature3 = 0,
-    .feature4 = 0,
-    .feature5 = 0,
-};
 
 __inline uint8_t read86(uint32_t addr32) {
 #if PSEUDO_RAM_BASE || SD_CARD_SWAP
@@ -375,6 +354,9 @@ __inline uint8_t read86(uint32_t addr32) {
         }
     }
     else if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
+        //if (addr32 == 0xFFFFEUL) { // TODO: rebuild BIOS to change this byte (in other case internal BIOS test failed)
+        //    return 0xFD; // PCjr
+        //}
         // BIOS ROM range
         addr32 -= 0xFE000UL;
         return BIOS[addr32];
@@ -388,7 +370,7 @@ __inline uint8_t read86(uint32_t addr32) {
         // NE2000 ??? or EMM
 #if SD_CARD_SWAP
                              // TODO: PSRAM_AVAILABLE ...
-        if ((portin(PORT_A20) & A20_ENABLE_BIT) != 0) {
+        if (is_a20_enabled) {
             char tmp[40]; sprintf(tmp, "0xD0000 LBA: 0x%X", addr32); logMsg(tmp);
             const uint32_t ram_page = get_ram_page_for(addr32);
             const uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
@@ -410,8 +392,8 @@ __inline uint8_t read86(uint32_t addr32) {
     else if (addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL) { // Hihg mem (1Mb + 64Kb)
 #if SD_CARD_SWAP
 // TODO: PSRAM_AVAILABLE ...
-        if ((portin(PORT_A20) & A20_ENABLE_BIT) != 0) {
-            char tmp[40]; sprintf(tmp, "HIMEM LBA: 0x%X", addr32); logMsg(tmp);
+        if (is_a20_enabled) {
+            // char tmp[40]; sprintf(tmp, "HIMEM LBA: 0x%X", addr32); logMsg(tmp);
             const uint32_t ram_page = get_ram_page_for(addr32);
             const uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
             return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
@@ -1079,11 +1061,13 @@ void intcall86(uint8_t intnum) {
                 case 0x24: 
                     switch(CPU_AL) {
                         case 0x00:
+                            is_a20_enabled = true;
                             portout16(PORT_A20, portin(PORT_A20) | A20_ENABLE_BIT);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2400 |A20_ENABLE_BIT");
                             break;
                         case 0x01:
+                            is_a20_enabled = false;
                             portout16(PORT_A20, portin(PORT_A20) & ~A20_ENABLE_BIT);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2401 ~A20_ENABLE_BIT");
@@ -1091,7 +1075,7 @@ void intcall86(uint8_t intnum) {
                         case 0x02:
                             CPU_AL = (portin(PORT_A20) & A20_ENABLE_BIT) != 0;
                             cf = 0; CPU_AH = 0;{
-                                char tmp[80]; sprintf(tmp, "INT15! 2402 AL: 0x%X", CPU_AL); logMsg(tmp);
+                                char tmp[80]; sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL); logMsg(tmp);
                             }
                             break;
                         case 0x03:
@@ -1133,23 +1117,22 @@ void intcall86(uint8_t intnum) {
                         CPU_AX = 63 * 1024;
                     } else {
                         CPU_AX = EXPANDED_MEMORY_KBS - 1024;
-                    }{
-                       char tmp[80]; sprintf(tmp, "INT15! 88 AX: 0x%X", CPU_AX); logMsg(tmp);
                     }
                     cf = 0;
                     break;
-                case 0x89: // switch to protected mode 286+
+                case 0x89: {
+                       char tmp[80]; sprintf(tmp, "INT15- 89 AX: 0x%X (Switch to protected mode)", CPU_AX); logMsg(tmp);
+                    }
+                    CPU_AH = 0x86;
+                    cf = 1;// switch to protected mode 286+
                     break;
                 case 0x90: // Device busy interrupt.  Called by Int 16h when no key available
                     break;
                 case 0x91: // Interrupt complete.  Called by Int 16h when key becomes available
                     break;
-                case 0xC0: // TODO: ensure
-                    CPU_ES = 0xF000; // BIOS segment
-                    CPU_BX = 0xE6f5; // BIOS config table
-                    CPU_AH = 0; {
-                       char tmp[80]; sprintf(tmp, "INT 15h C0h ES: 0x%X; BX: 0x%X", CPU_ES, CPU_BX); logMsg(tmp);
-                    }
+                case 0xC0: // to be processed by BIOS
+                    // CPU_ES = 0xF000; // BIOS segment
+                    // CPU_BX = 0xE6f5; // BIOS config table
                     break;
                 case 0xE8:
                     switch(CPU_AL) {
@@ -1163,7 +1146,7 @@ void intcall86(uint8_t intnum) {
                             }
                             CPU_AX = CPU_CX;
                             CPU_BX = CPU_DX; {
-                                char tmp[80]; sprintf(tmp, "INT15! E8AX: 0x%X; BX: 0x%X", CPU_AX, CPU_BX); logMsg(tmp);
+                                // char tmp[80]; sprintf(tmp, "INT15! E8AX: 0x%X; BX: 0x%X", CPU_AX, CPU_BX); logMsg(tmp);
                             }
                             cf = 0;
                             break;
@@ -1188,7 +1171,7 @@ void intcall86(uint8_t intnum) {
                                     CPU_BX++;
                                 CPU_AX = 0x534D4150;
                                 CPU_CX = sizeof(e820_list[0]);
-                                char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
+                                // char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
                                 cf = 0;
                             }
                             break;
@@ -1198,7 +1181,7 @@ void intcall86(uint8_t intnum) {
                     }
                     break;
                 default: {
-                    char tmp[80]; sprintf(tmp, "INT 15h CPU_AH: 0x%X; CPU_AL: 0x%X", CPU_AH, CPU_AL); logMsg(tmp);
+                    // char tmp[80]; sprintf(tmp, "INT 15h CPU_AH: 0x%X; CPU_AL: 0x%X", CPU_AH, CPU_AL); logMsg(tmp);
                 }
             }
             break;
