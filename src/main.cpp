@@ -47,7 +47,7 @@ bool init_vram() {
     logMsg((char *)"Create <SD-card>\\XT\\pagefile.sys");
     FRESULT result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_ALWAYS);
     if (result == FR_OK) {
-        result = f_lseek(&file, PSEUDO_RAM_SIZE);
+        result = f_lseek(&file, TOTAL_VIRTUAL_MEMORY_KBS * 1024);
         if (result != FR_OK) {
             logMsg((char *)"Unable to init <SD-card>\\XT\\pagefile.sys");
             return false;

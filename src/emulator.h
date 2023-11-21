@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <memory.h>
 #include "cga.h"
+#include "a20.h"
 #include "../assets/rom.h"
 #include "../assets/startup_disk.h"
 #include "../assets/fdd.h"
@@ -37,12 +38,9 @@ static FATFS fs;
 #define RAM_SIZE (640) // (64*3+26)
 #endif
 
-extern bool is_a20_enabled;
-
 #if PSEUDO_RAM_BASE || SD_CARD_SWAP
-#define PSEUDO_RAM_SIZE (32 << 20)
-#define EXPANDED_MEMORY_KBS (PSEUDO_RAM_SIZE << 10)
-#define PSEUDO_RAM_BLOCKS (PSEUDO_RAM_SIZE / RAM_PAGE_SIZE_KB)
+#define PSEUDO_RAM_SIZE_MBS (32UL << 20)
+#define TOTAL_VIRTUAL_MEMORY_KBS (PSEUDO_RAM_SIZE_MBS << 10)
 #define RAM_BLOCKS (RAM_SIZE / RAM_PAGE_SIZE_KB)
 extern uint16_t RAM_PAGES[RAM_BLOCKS]; // lba (14-0); 15 - written
 #if PSEUDO_RAM_BASE
@@ -248,28 +246,5 @@ extern struct i8253_s {
     uint8_t active[3];
     uint16_t counter[3];
 } i8253;
-
-#define E820_RAM          1
-#define E820_RESERVED     2
-#define E820_ACPI         3
-#define E820_NVS          4
-#define E820_UNUSABLE     5
-
-struct e820entry {
-    uint64_t start;
-    uint64_t size;
-    uint32_t type;
-};
-
-void e820_add(uint64_t start, uint64_t size, uint32_t type);
-void e820_remove(uint64_t start, uint64_t size);
-void e820_prepboot(void);
-
-// Maximum number of map entries in the e820 map
-#define BUILD_MAX_E820 32
-
-// e820 map storage
-extern struct e820entry e820_list[];
-extern int e820_count;
 
 #endif //TINY8086_CPU8086_H
