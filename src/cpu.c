@@ -39,39 +39,7 @@ uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
 uint8_t videomode = 3;
 int timer_period = 54925;
 
-//#define PORT_A20_1 0x92
-//#define A20_ENABLE_BIT 0x02
-//#define PORT_A20_2 0xEE
-/*
-https://www.win.tue.nl/~aeb/linux/kbd/A20.html
-Classical A20 control, via the keyboard controller
-The output port of the keyboard controller has a number of functions.
-Bit 0 is used to reset the CPU (go to real mode) - a reset happens when bit 0 is 0.
-Bit 1 is used to control A20 - it is enabled when bit 1 is 1, disabled when bit 1 is 0.
-One sets the output port of the keyboard controller by first writing 0xd1 to port 0x64, and the the desired
- value of the output port to port 0x60. One usually sees the values 0xdd and 0xdf used to disable/enable A20. Thus:
-        call    empty_8042
-        mov     al,#0xd1                ! command write
-        out     #0x64,al
-        call    empty_8042
-        mov     al,#0xdf                ! A20 on
-        out     #0x60,al
-        call    empty_8042
-where empty_8042 has to wait for the kbd to finish handling input, say
-empty_8042:
-        call    delay
-        in      al,#0x64
-        test    al,#2
-        jnz     empty_8042
-        ret
-*/
-#define PORT_A20 0x64
-#define A20_ENABLE_BIT 0x02
-bool is_a20_enabled = true;
-//void a20_enable() {
- //   portout(0x64, 0xD1);
- //   portout(0x60, 0xDF);
-//}
+bool is_a20_enabled = false;
 
 uint8_t byteregtable[8] = { regal, regcl, regdl, regbl, regah, regch, regdh, regbh };
 
@@ -1062,42 +1030,37 @@ void intcall86(uint8_t intnum) {
                     switch(CPU_AL) {
                         case 0x00:
                             is_a20_enabled = true;
-                            portout16(PORT_A20, portin(PORT_A20) | A20_ENABLE_BIT);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2400 |A20_ENABLE_BIT");
-                            break;
+                            StepIP(2); return;
                         case 0x01:
                             is_a20_enabled = false;
-                            portout16(PORT_A20, portin(PORT_A20) & ~A20_ENABLE_BIT);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2401 ~A20_ENABLE_BIT");
-                            break;
+                            StepIP(2); return;
                         case 0x02:
-                            CPU_AL = (portin(PORT_A20) & A20_ENABLE_BIT) != 0;
+                            CPU_AL = is_a20_enabled;
                             cf = 0; CPU_AH = 0;{
                                 char tmp[80]; sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL); logMsg(tmp);
                             }
-                            break;
+                            StepIP(2); return;
                         case 0x03:
                             CPU_BX = 3;
                             CPU_AH = 0;
                             cf = 0;
                             logMsg("INT15! 2403 BX: 3");
-                            break;
-                        default:
-                            CPU_AH = 0x86;
-                            cf = 1;
+                            StepIP(2); return;
                     }
                     break;
-                case 0x4F:
+       /*/         case 0x4F:
                     CPU_AH = 0x86;
                     cf = 1;
-                    break;
+                    StepIP(2); return;
                 case 0x52: // removable media eject
                     // TODO:
                     CPU_AH = 0;
                     cf = 0;
-                    break;
+                    StepIP(2); return;
                 case 0x53: // APM
                     // TODO:
                     break;
@@ -1111,7 +1074,7 @@ void intcall86(uint8_t intnum) {
                     break;
                 case 0x87: // 386 protected mode mem management (GPT...)
                     // TODO:
-                    break;
+                    break;*/
                 case 0x88:
                     if (EXPANDED_MEMORY_KBS > 64 * 1024) {
                         CPU_AX = 63 * 1024;
@@ -1119,13 +1082,13 @@ void intcall86(uint8_t intnum) {
                         CPU_AX = EXPANDED_MEMORY_KBS - 1024;
                     }
                     cf = 0;
-                    break;
-                case 0x89: {
+                    StepIP(2); return;
+     /*           case 0x89: {
                        char tmp[80]; sprintf(tmp, "INT15- 89 AX: 0x%X (Switch to protected mode)", CPU_AX); logMsg(tmp);
                     }
                     CPU_AH = 0x86;
                     cf = 1;// switch to protected mode 286+
-                    break;
+                    StepIP(2); return;
                 case 0x90: // Device busy interrupt.  Called by Int 16h when no key available
                     break;
                 case 0x91: // Interrupt complete.  Called by Int 16h when key becomes available
@@ -1133,7 +1096,7 @@ void intcall86(uint8_t intnum) {
                 case 0xC0: // to be processed by BIOS
                     // CPU_ES = 0xF000; // BIOS segment
                     // CPU_BX = 0xE6f5; // BIOS config table
-                    break;
+                    break;*/
                 case 0xE8:
                     switch(CPU_AL) {
                         case 0x01:
@@ -1146,12 +1109,12 @@ void intcall86(uint8_t intnum) {
                             }
                             CPU_AX = CPU_CX;
                             CPU_BX = CPU_DX; {
-                                // char tmp[80]; sprintf(tmp, "INT15! E8AX: 0x%X; BX: 0x%X", CPU_AX, CPU_BX); logMsg(tmp);
+                                char tmp[80]; sprintf(tmp, "INT15! E8AX: 0x%X; BX: 0x%X", CPU_AX, CPU_BX); logMsg(tmp);
                             }
                             cf = 0;
-                            break;
+                            StepIP(2); return;
                         case 0x20: {
-                            // ES:DI - destination for the table
+                                // ES:DI - destination for the table
                                 int count = e820_count;
                                 if (CPU_DX != 0x534D4150 || CPU_BX >= count || CPU_CX < sizeof(e820_list[0])) {
                                     CPU_AH = 0x86;
@@ -1171,13 +1134,12 @@ void intcall86(uint8_t intnum) {
                                     CPU_BX++;
                                 CPU_AX = 0x534D4150;
                                 CPU_CX = sizeof(e820_list[0]);
-                                // char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
+                                char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
                                 cf = 0;
+                                StepIP(2); return;
                             }
-                            break;
                         default:
-                            CPU_AH = 0x86;
-                            cf = 1;
+                            break;
                     }
                     break;
                 default: {
