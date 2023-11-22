@@ -53,9 +53,6 @@ static const uint8_t parity[0x100] = {
 };
 __aligned(4096) uint8_t RAM[RAM_SIZE << 10];
 uint8_t VRAM[VRAM_SIZE << 10];
-#if PSEUDO_RAM_BASE || SD_CARD_SWAP
-uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
-#endif
 
 uint8_t oper1b, oper2b, res8, nestlev, addrbyte;
 uint16_t saveip, savecs, oper1, oper2, res16, disp16, temp16, dummy, stacksize, frametemp;
@@ -99,117 +96,29 @@ void modregrm() {
     }
 }
 
-#if PSEUDO_RAM_BASE || SD_CARD_SWAP
-static uint16_t oldest_ram_page = 1;
-static uint16_t last_ram_page = 0;
-static uint32_t last_lba_page = 0;
-
-uint32_t get_ram_page_for(const uint32_t addr32) {
-    const register uint32_t lba_page = addr32 / RAM_PAGE_SIZE; // 4KB page idx
-    if (last_lba_page == lba_page) {
-        return last_ram_page;
-    }
-    last_lba_page = lba_page;
-    for (register uint32_t ram_page = 1; ram_page < RAM_BLOCKS; ++ram_page) {
-        register uint16_t ram_page_desc = RAM_PAGES[ram_page];
-        register uint16_t lba_page_in_ram = ram_page_desc & 0x7FFF; // 14-0 - max 32k keys for 4K LBA bloks
-        if (lba_page_in_ram == lba_page) {
-            last_ram_page = ram_page;
-            return ram_page;
-        }
-    }
-    // char tmp[40]; sprintf(tmp, "VRAM page: 0x%X", lba_page); logMsg(tmp);
-    // rolling page usage
-    uint16_t ram_page = oldest_ram_page++;
-    if (oldest_ram_page >= RAM_BLOCKS - 1) oldest_ram_page = 1; // do not use first page (id == 0)
-    uint16_t ram_page_desc = RAM_PAGES[ram_page];
-    bool ro_page_was_found = !(ram_page_desc & 0x8000);
-    // higest (15) bit is set, it means - the page has changes (RW page)
-    uint16_t old_lba_page = ram_page_desc & 0x7FFF; // 14-0 - max 32k keys for 4K LBA bloks
-    RAM_PAGES[ram_page] = lba_page;
-    if (ro_page_was_found) {
-        // just replace RO page (faster than RW flush to flash)
-        // sprintf(tmp, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
-        uint32_t ram_page_offset = ((uint32_t)ram_page) * RAM_PAGE_SIZE;
-        uint32_t lba_page_offset = lba_page * RAM_PAGE_SIZE;
-#if SD_CARD_SWAP
-        read_vram_block(RAM + ram_page_offset, lba_page_offset, RAM_PAGE_SIZE);
-#else
-        memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + lba_page_offset, RAM_PAGE_SIZE);
-#endif
-        last_ram_page = ram_page;
-        return ram_page;
-    }
-    // Lets flush found RW page to flash
-    // sprintf(tmp, "2 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
-    uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
-    uint32_t lba_page_offset = old_lba_page * RAM_PAGE_SIZE;
-    // sprintf(tmp, "2 RAM offs 0x%X / VRAM offs: 0x%X", ram_page_offset, lba_page_offset); logMsg(tmp);
-#if SD_CARD_SWAP
-    flush_vram_block(RAM + ram_page_offset, lba_page_offset, RAM_PAGE_SIZE);
-#else
-    flash_range_program3(
-        PSEUDO_RAM_BASE + lba_page_offset,
-        (const u_int8_t*)RAM + ram_page_offset,
-        RAM_PAGE_SIZE
-    );
-#endif
-    // use new page:
-    lba_page_offset = lba_page * RAM_PAGE_SIZE;
-#if SD_CARD_SWAP
-    read_vram_block(RAM + ram_page_offset, lba_page_offset, RAM_PAGE_SIZE);
-#else
-    memcpy(RAM + ram_page_offset, (const char*)PSEUDO_RAM_BASE + lba_page_offset, RAM_PAGE_SIZE);
-#endif
-    last_ram_page = ram_page;
-    return ram_page;
-}
-#endif
-
-#if SD_CARD_SWAP
-__inline static void ram_page_write(uint32_t addr32, uint8_t value) {
-    register uint32_t ram_page = get_ram_page_for(addr32);
-    register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-    RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page] = value;
-    register uint16_t ram_page_desc = RAM_PAGES[ram_page];
-    if (!(ram_page_desc & 0x8000)) {
-        // if higest (15) bit is set, it means - the page has changes
-        RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
-    }
-}
-__inline static void ram_page_write16(uint32_t addr32, uint16_t value) {
-    register uint32_t ram_page = get_ram_page_for(addr32);
-    register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-    register uint8_t* addr_in_ram = &RAM + ram_page * RAM_PAGE_SIZE + addr_in_page;
-    *addr_in_ram       = (uint8_t) value;
-    *(addr_in_ram + 1) = (uint8_t)(value >> 8);
-    register uint16_t ram_page_desc = RAM_PAGES[ram_page];
-    if (!(ram_page_desc & 0x8000)) {
-        // if higest (15) bit is set, it means - the page has changes
-        RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
-    }
-}
-#endif
-
 __inline void write86(uint32_t addr32, uint8_t value) {
     if ((PSRAM_AVAILABLE && (addr32) < (RAM_SIZE << 10)) || addr32 < RAM_PAGE_SIZE) {
         // do not touch first page
         RAM[addr32] = value;
+        return;
     }
-    else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
+    if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
         // video RAM range
         addr32 -= 0xB8000UL;
         VRAM[addr32] = value; // 16k for graphic mode!!!
         return;
     }
-    else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
 #if SD_CARD_SWAP
-        if (get_a20_enabled()) { // TODO: EMS enabled?
-            // char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X", addr32); logMsg(tmp);
-            ram_page_write(addr32, value);
+    if ((addr32 >> 4) >= PHISICAL_EMM_SEGMENT && (addr32 << 4) < PHISICAL_EMM_SEGMENT_END) {
+        uint32_t lba = get_logical_lba_for_phisical_lba(addr32);
+        // char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
+        if (lba != 0xFFFFFFFF) {
+            ram_page_write(lba, value);
             return;
         }
+    }
 #endif
+    if (addr32 >= 0xD0000UL && addr32 < 0xD8000UL) {
         addr32 -= 0xCC000UL; // TODO: why?
     }
     else if ((addr32) > 0xFFFFFUL) {
@@ -227,7 +136,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
     } else if (PSRAM_AVAILABLE) {
         psram_write8(&psram_spi, addr32, value);
     }
-#if PSEUDO_RAM_BASE || SD_CARD_SWAP
+#if SD_CARD_SWAP
     else {
         ram_page_write(addr32, value);
     }
@@ -241,7 +150,7 @@ static __inline void writew86(uint32_t addr32, uint16_t value) {
         psram_write16(&psram_spi, addr32, value);
     }
     else
-#if PSEUDO_RAM_BASE || SD_CARD_SWAP
+#if SD_CARD_SWAP
     if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && (addr32 & 0xFFFFFFFE) == 0) {
         ram_page_write16(addr32, value);
     } else // TODO: ROM, VRAM, himiem, ems...
@@ -254,7 +163,7 @@ static __inline void writew86(uint32_t addr32, uint16_t value) {
 }
 
 __inline uint8_t read86(uint32_t addr32) {
-#if PSEUDO_RAM_BASE || SD_CARD_SWAP
+#if SD_CARD_SWAP
     if ((!PSRAM_AVAILABLE && addr32 < (640 << 10)) || PSRAM_AVAILABLE && addr32 < (RAM_SIZE << 10)) {
 #else
     if (addr32 < (RAM_SIZE << 10)) {
@@ -330,16 +239,12 @@ __inline uint8_t read86(uint32_t addr32) {
             case 0x475: //hard drive count
                 return (hdcount);
             default:
-#if PSEUDO_RAM_BASE || SD_CARD_SWAP
                 if (PSRAM_AVAILABLE || addr32 < 4096) {
                     // do not touch first 4kb
                     return RAM[addr32];
                 }
-                else {
-                    const register uint32_t ram_page = get_ram_page_for(addr32);
-                    const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-                    return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
-                }
+#if SD_CARD_SWAP
+                return ram_page_read(addr32);
 #else
                 return RAM[addr32];
 #endif
@@ -353,23 +258,23 @@ __inline uint8_t read86(uint32_t addr32) {
         addr32 -= 0xFE000UL;
         return BIOS[addr32];
     }
-    else if ((addr32 >= 0xB8000UL) && (addr32 < 0xC0000UL)) {
+#if SD_CARD_SWAP
+    if ((addr32 >> 4) >= PHISICAL_EMM_SEGMENT && (addr32 << 4) < PHISICAL_EMM_SEGMENT_END) {
+        uint32_t lba = get_logical_lba_for_phisical_lba(addr32);
+        // char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
+        if (lba != 0xFFFFFFFF) {
+            return ram_page_read(lba);
+        }
+    }
+#endif
+    if ((addr32 >= 0xB8000UL) && (addr32 < 0xC0000UL)) {
         // video RAM range
         addr32 -= 0xB8000UL;
         return VRAM[addr32]; //
     }
-    else if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) { // Expanded memory paging space D00000-E00000
-        // NE2000 ??? or EMM
-#if SD_CARD_SWAP
-                             // TODO: PSRAM_AVAILABLE ...
-        if (get_a20_enabled()) {
-            char tmp[40]; sprintf(tmp, "0xD0000 LBA: 0x%X", addr32); logMsg(tmp);
-            const uint32_t ram_page = get_ram_page_for(addr32);
-            const uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-            return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
-        }
+    if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) { // Expanded memory paging space D00000-E00000
+        // NE2000
         addr32 -= 0xCC000UL; // TODO: why?
-#endif
     }
     else if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) {
         // IBM BASIC ROM LOW
@@ -386,9 +291,7 @@ __inline uint8_t read86(uint32_t addr32) {
 // TODO: PSRAM_AVAILABLE ...
         if (get_a20_enabled()) {
             // char tmp[40]; sprintf(tmp, "HIMEM LBA: 0x%X", addr32); logMsg(tmp);
-            const uint32_t ram_page = get_ram_page_for(addr32);
-            const uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-            return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
+            ram_page_read(addr32);
         }
         return read86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 #endif
@@ -408,10 +311,7 @@ static __inline uint16_t readw86(uint32_t addr32) {
     }
 #if SD_CARD_SWAP
     if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && (addr32 & 0xFFFFFFFE) == 0) {
-        const register uint32_t ram_page = get_ram_page_for(addr32);
-        const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-        const register uint32_t ram_addr = (ram_page * RAM_PAGE_SIZE) + addr_in_page;
-        return (uint16_t)(RAM[ram_addr]) | (uint16_t)(RAM[ram_addr + 1] << 8);        
+        return ram_page_read16(addr32);
     } // TODO: ROM, VRAM, ...
 #endif
 #endif
@@ -855,10 +755,6 @@ uint32_t BlinkTimer(uint32_t interval, void *name) {
 }
 #endif
 
-#if PSEUDO_RAM_BASE
-#include <hardware/flash.h>
-#endif
-
 void reset86() {
 #if !PICO_ON_DEVICE
     SDL_AddTimer(timer_period / 1000, ClockTick, "timer");
@@ -870,17 +766,11 @@ void reset86() {
 
     memset(RAM, 0x0, RAM_SIZE << 10);
     memset(VRAM, 0x0, VRAM_SIZE << 10);
-#if PSEUDO_RAM_BASE || SD_CARD_SWAP
+#if SD_CARD_SWAP
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     for (size_t page = 0; page < RAM_BLOCKS; ++page) {
         RAM_PAGES[page] = page;
     }
-    /* Ctrl+Alt+Del issue TODO: detect why
-    uint32_t interrupts = save_and_disable_interrupts();
-    flash_range_erase(PSEUDO_RAM_BASE - XIP_BASE, PSEUDO_RAM_SIZE);
-    restore_interrupts(interrupts);
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-    */
 #endif
 
     CPU_CS = 0xFFFF;
@@ -985,6 +875,26 @@ void intcall86(uint8_t intnum) {
                 sprintf(tmp, "LIM40 FN res: phisical page %Xh was mapped to %Xh logical one for 0x%X EMM handler",
                               AL, CPU_AX, CPU_DX); logMsg(tmp);
                 if (CPU_AX) zf = 1;
+                StepIP(2); return;
+            }
+            // Deallocate Pages deallocates the logical pages currently allocated to an EMM handle.
+            case 0x45: {
+                auto emm_handle = CPU_DX;
+                CPU_AX = deallocate_emm_pages(emm_handle);
+                sprintf(tmp, "LIM40 FN res: %Xh -> 0x%X deallocate for EMM handler", CPU_AH, emm_handle); logMsg(tmp);
+                if (CPU_AX) zf = 1;
+                StepIP(2); return;
+            }
+            // The Get Version function returns the version number of the memory manager software.
+            case 0x46: {
+                /*
+                                             0100 0000
+                                               /   \
+                                              4  .  0
+                */
+                CPU_AL = 0b01000000; // 4.0
+                sprintf(tmp, "LIM40 FN res: %Xh (version)", CPU_AL); logMsg(tmp);
+                CPU_AH = 0; zf = 1;
                 StepIP(2); return;
             }
             default: {

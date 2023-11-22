@@ -56,22 +56,25 @@
 */
 #include "emm.h"
 
-#define PHISICAL_EMM_SEGMENT 0xD000
-#define PHISICAL_EMM_SEGMENT_KB 64
-// pages by 16k
-#define PHISICAL_EMM_PAGES (PHISICAL_EMM_SEGMENT_KB >> 4)
-// PHISICAL_EMM_SEGMENT * 16 / 16k
-#define FIRST_PHISICAL_EMM_PAGE (PHISICAL_EMM_SEGMENT >> 10)
-
 uint16_t emm_conventional_segment() {
     return PHISICAL_EMM_SEGMENT;
 }
 
-
-
 static uint8_t hanldle_desc[256] = { 0 }; // handlers are indexes
-static uint8_t page_desc[TOTAL_EMM_PAGES] = { 0 }; // number of handler for a page
-static uint32_t ph_2_log[PHISICAL_EMM_PAGES] = { 0 }; // handlers are indexes
+static uint8_t logical_page_desc[TOTAL_EMM_PAGES] = { 0 }; // number of handler for a page
+static uint32_t phisical_page_n_2_logical[PHISICAL_EMM_PAGES] = { 0 }; // handlers are indexes
+
+uint32_t get_logical_lba_for_phisical_lba(uint32_t physical_lba_addr) {
+    uint16_t physical_page_number = physical_lba_addr >> 14;
+    uint32_t offset_in_the_page = physical_lba_addr - (physical_page_number << 14);
+    uint32_t logical_page_number = phisical_page_n_2_logical[physical_page_number - FIRST_PHISICAL_EMM_PAGE];
+    if (logical_page_number == 0) {
+        return 0xFFFFFFFF; // reserved as error
+    }
+    auto logical_page_offset = logical_page_number + (640 >> 4);
+    auto logical_base_lba = logical_page_offset << 14;
+    return logical_base_lba - offset_in_the_page;
+}
 
 uint16_t total_emm_pages() {
     return TOTAL_EMM_PAGES;
@@ -80,7 +83,7 @@ uint16_t total_emm_pages() {
 uint16_t allocated_emm_pages() {
     uint16_t res = 0;
     for (int i = 0; i < total_emm_pages(); ++i) {
-        if (page_desc[i] != 0) res++; 
+        if (logical_page_desc[i] != 0) res++; 
     }
     return res;
 }
@@ -98,8 +101,8 @@ uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err) {
         if (hanldle_desc[handler] == 0) {
             int pn = pages; // update pages descriptions - mark 'em as handled by handler
             for (int i = 0; i < total_emm_pages(); ++i) {
-                if (page_desc[i] != 0) {
-                    page_desc[i] = handler;
+                if (logical_page_desc[i] != 0) {
+                    logical_page_desc[i] = handler;
                     pn--;
                     if (pn == 0) {
                         break;
@@ -108,8 +111,8 @@ uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err) {
             }
             if (pn > 0) {
                 for (int i = 0; i < total_emm_pages(); ++i) { // rollback changes
-                    if (page_desc[i] != handler) {
-                        page_desc[i] = 0;
+                    if (logical_page_desc[i] == handler) {
+                        logical_page_desc[i] = 0;
                     }
                 }
                 *err = 0x88; // There aren't enough unallocated pages
@@ -139,15 +142,51 @@ uint16_t map_unmap_emm_pages(
     }
     if (logical_page_number == 0xFFFF) { // if BX contains logical page number
                                          // FFFFh, the physical page will be unmapped
-        ph_2_log[physical_page_number - FIRST_PHISICAL_EMM_PAGE] = 0; 
+        phisical_page_n_2_logical[physical_page_number - FIRST_PHISICAL_EMM_PAGE] = 0; 
     }
-    if (logical_page_number >= total_emm_pages() || page_desc[logical_page_number] != emm_handle) {
+    if (logical_page_number >= total_emm_pages() || logical_page_desc[logical_page_number] != emm_handle) {
         return 0x8A; // The logical page is out of the range of logical pages which
                      // are allocated to the EMM handle. This status is also
                      // returned if a program attempts map a logical page when no
                      // logical pages are allocated to the handle.
     }
-    ph_2_log[physical_page_number - FIRST_PHISICAL_EMM_PAGE] = logical_page_number;
+    phisical_page_n_2_logical[physical_page_number - FIRST_PHISICAL_EMM_PAGE] = logical_page_number;
+    return 0;
+}
 
+uint16_t deallocate_emm_pages(uint16_t handler) {
+/* TODO: detect the case
+          AH = 86h   RECOVERABLE
+                     The memory manager detected a save or restore page mapping
+                     context error. There is a page mapping
+                     register state in the save area for the specified EMM
+                     handle. Save Page Map placed it there and a
+                     subsequent Restore Page Map has not removed
+                     it. If you have saved the mapping context, you must
+                     restore it before you deallocate the EMM handle's pages.
+*/
+    for (int logical_page_number = 0; logical_page_number < total_emm_pages(); ++logical_page_number) { // rollback changes
+        if (logical_page_desc[logical_page_number] == handler) {
+            for (uint8_t phisical_page_offset = 0; phisical_page_offset < PHISICAL_EMM_PAGES; ++phisical_page_offset) {
+                auto logical_page_number2 = phisical_page_n_2_logical[phisical_page_offset];
+                if (logical_page_number2 == 0) {
+                    return 0x86; // AH = 86h   RECOVERABLE
+                    // The memory manager detected a save or restore page mapping
+                    // context error. There is a page mapping
+                    // register state in the save area for the specified EMM
+                    // handle. Save Page Map placed it there and a
+                    // subsequent Restore Page Map has not removed
+                    // it. If you have saved the mapping context, you must
+                    // restore it before you deallocate the EMM handle's pages.
+                }
+                if (logical_page_number == logical_page_number2) {
+                    phisical_page_n_2_logical[phisical_page_offset] = 0;
+                }
+            }
+            logical_page_desc[logical_page_number] = 0;
+            break;
+        }
+    }
+    hanldle_desc[handler] = 0;
     return 0;
 }

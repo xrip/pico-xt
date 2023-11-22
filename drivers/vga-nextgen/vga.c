@@ -521,7 +521,6 @@ void logMsg(char * msg) {
         }
     }
     draw_text2(msg, 0, current_line++, 7, 1);
-    sleep_ms(33);
 }
 
 void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor) {

@@ -62,6 +62,13 @@
 #define TOTAL_EMM_XMM_PAGES ((TOTAL_VIRTUAL_MEMORY_KBS - 640) / 16)
 #define TOTAL_EMM_PAGES TOTAL_EMM_XMM_PAGES
 // TODO: XMM pages - to a20.h ?
+#define PHISICAL_EMM_SEGMENT 0xD000
+#define PHISICAL_EMM_SEGMENT_KB 64
+#define PHISICAL_EMM_SEGMENT_END 0xE000
+// pages by 16k
+#define PHISICAL_EMM_PAGES (PHISICAL_EMM_SEGMENT_KB >> 4)
+// PHISICAL_EMM_SEGMENT * 16 / 16k
+#define FIRST_PHISICAL_EMM_PAGE (PHISICAL_EMM_SEGMENT >> 10)
 
 uint16_t emm_conventional_segment();
 uint16_t total_emm_pages();
@@ -77,3 +84,5 @@ uint16_t map_unmap_emm_pages(
     uint16_t logical_page_number,
     uint16_t emm_handle
 );
+uint16_t deallocate_emm_pages(uint16_t emm_handler);
+uint32_t get_logical_lba_for_phisical_lba(uint32_t addr32);
