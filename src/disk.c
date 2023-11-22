@@ -18,7 +18,6 @@ size_t getFileC_sz() { return fileC.obj.fs ? f_size(&fileC) : 0; }
 #ifdef BOOT_DEBUG
 _FILE fileD; // for debug output
 #endif
-
 #else
 #include <SDL2/SDL.h>
 #define _FILE SDL_RWops
@@ -50,6 +49,8 @@ void ejectdisk(uint8_t drivenum) {
             fdcount--;
     }
 }
+
+#if PICO_ON_DEVICE
 
 static _FILE* actualDrive(uint8_t drivenum) {
     return (drivenum > 1) ? &fileC : ( drivenum == 0 ? &fileA : &fileB );
@@ -110,6 +111,7 @@ static _FILE* tryDefaultDrive(uint8_t drivenum, size_t size, char *path) {
     }
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
+#endif
 
 uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
     if (drivenum & 0x80) drivenum -= 126;
@@ -223,6 +225,8 @@ static size_t chs2ofs(int drivenum, int cyl, int head, int sect) {
     ) * 512UL;
 }
 
+#if PICO_ON_DEVICE
+
 bool img_disk_read_sec(int drv, BYTE * buffer, LBA_t lba) {
     _FILE * pFile = actualDrive(drv);
     if(FR_OK != f_lseek(pFile, lba * 512)) {
@@ -246,6 +250,7 @@ bool img_disk_write_sec(int drv, BYTE * buffer, LBA_t lba) {
     }
     return true;
 }
+#endif
 
 static void
 bios_readdisk(uint8_t drivenum,

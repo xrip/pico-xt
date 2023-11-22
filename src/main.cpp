@@ -257,7 +257,7 @@ int main() {
 
     sleep_ms(50);
 
-
+    graphics_set_mode(TEXTMODE_80x30);
 #else
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
 
@@ -277,7 +277,7 @@ int main() {
         return -1;
     }
 #endif
-    graphics_set_mode(TEXTMODE_80x30);
+
 #if PSRAM
     // TODO: сделать нормально
     psram_spi = psram_spi_init(pio0, -1);
