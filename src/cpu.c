@@ -837,7 +837,8 @@ void intcall86(uint8_t intnum) {
             case 0x40: {
                 CPU_AX = 0;
                 zf = 0;
-                StepIP(2); return;
+                //StepIP(2);
+                return;
             }
             // The Get Page Frame Address function returns the segment address where
             // the page frame is located.
@@ -846,7 +847,8 @@ void intcall86(uint8_t intnum) {
                 sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", CPU_AH, CPU_BX); logMsg(tmp);
                 CPU_AX = 0;
                 zf = 0;
-                StepIP(2); return;
+                //StepIP(2);
+                return;
             }
             // The Get Unallocated Page Count function returns the number of
             // unallocated pages and the total number of expanded memory pages.
@@ -856,7 +858,8 @@ void intcall86(uint8_t intnum) {
                 sprintf(tmp, "LIM40 FN %Xh -> 0x%X free of 0x%X EMM pages", CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
                 CPU_AX = 0;
                 zf = 0;
-                StepIP(2); return;
+                //StepIP(2);
+                return;
             }
             // The Allocate Pages function allocates the number of pages requested
             // and assigns a unique EMM handle to these pages. The EMM handle owns
@@ -865,7 +868,8 @@ void intcall86(uint8_t intnum) {
                 CPU_DX = allocate_emm_pages(CPU_BX, &CPU_AX);
                 sprintf(tmp, "LIM40 FN res: %Xh -> 0x%X EMM handler", CPU_AH, CPU_DX); logMsg(tmp);
                 if (CPU_AX) zf = 1; else zf = 0;
-                StepIP(2); return;
+                //StepIP(2);
+                return;
             }
             // The Map/Unmap Handle Page function maps a logical page at a specific
             // physical page anywhere in the mappable regions of system memory.
@@ -878,7 +882,8 @@ void intcall86(uint8_t intnum) {
                 sprintf(tmp, "LIM40 FN res: phisical page %Xh was mapped to %Xh logical one for 0x%X EMM handler",
                               AL, CPU_AX, CPU_DX); logMsg(tmp);
                 if (CPU_AX) zf = 1; else zf = 0;
-                StepIP(2); return;
+                //StepIP(2);
+                return;
             }
             // Deallocate Pages deallocates the logical pages currently allocated to an EMM handle.
             case 0x45: {
@@ -886,7 +891,8 @@ void intcall86(uint8_t intnum) {
                 CPU_AX = deallocate_emm_pages(emm_handle);
                 sprintf(tmp, "LIM40 FN res: %Xh -> 0x%X deallocate for EMM handler", CPU_AH, emm_handle); logMsg(tmp);
                 if (CPU_AX) zf = 1; else zf = 0;
-                StepIP(2); return;
+                //StepIP(2);
+                return;
             }
             // The Get Version function returns the version number of the memory manager software.
             case 0x46: {
@@ -898,7 +904,8 @@ void intcall86(uint8_t intnum) {
                 CPU_AL = 0b01000000; // 4.0
                 sprintf(tmp, "LIM40 FN res: %Xh (version)", CPU_AL); logMsg(tmp);
                 CPU_AH = 0; zf = 0;
-                StepIP(2); return;
+                //StepIP(2);
+                return;
             }
             // Save Page Map saves the contents of the page mapping registers on all
             // expanded memory boards in an internal save area.
@@ -906,7 +913,8 @@ void intcall86(uint8_t intnum) {
                 CPU_AX = save_emm_mapping(CPU_DX);
                 sprintf(tmp, "LIM40 FN res: %Xh (save mapping for %Xh)", CPU_AX, CPU_DX); logMsg(tmp);
                 if (CPU_AX) zf = 1; else zf = 0;
-                StepIP(2); return;
+                //StepIP(2);
+                return;
             }
             // The Restore Page Map function restores the page mapping register
             // contents on the expanded memory boards for a particular EMM handle.
@@ -917,7 +925,8 @@ void intcall86(uint8_t intnum) {
                 CPU_AX = restore_emm_mapping(CPU_DX);
                 sprintf(tmp, "LIM40 FN res: %Xh (restore mapping for %Xh)", CPU_AX, CPU_DX); logMsg(tmp);
                 if (CPU_AX) zf = 1; else zf = 0;
-                StepIP(2); return;
+                //StepIP(2);
+                return;
             }
             // The Get Handle Count function returns the number of open EMM handles
             // (including the operating system handle 0) in the system.
@@ -925,7 +934,8 @@ void intcall86(uint8_t intnum) {
                 CPU_BX = total_open_emm_handles();
                 sprintf(tmp, "LIM40 FN res: %Xh", CPU_BX); logMsg(tmp);
                 CPU_AX = 0; zf = 0;
-                StepIP(2); return;
+                //StepIP(2);
+                return;
             }
             // The Get Handle Pages function returns the number of pages allocated to
             // a specific EMM handle.
@@ -933,7 +943,8 @@ void intcall86(uint8_t intnum) {
                 CPU_BX = get_emm_handle_pages(CPU_DX, &CPU_AX);
                 sprintf(tmp, "LIM40 FN res: %Xh %Xh (pages)", CPU_AH, CPU_BX); logMsg(tmp);
                 if (CPU_AX) zf = 1; else zf = 0;
-                StepIP(2); return;
+                //StepIP(2); 
+                return;
             }
             // The Get All Handle Pages function returns an array of the open emm
             // handles and the number of pages allocated to each one.
@@ -943,7 +954,8 @@ void intcall86(uint8_t intnum) {
                 CPU_BX = get_all_emm_handle_pages(addr32);
                 sprintf(tmp, "LIM40 FN %Xh %Xh (pages)", CPU_AH, CPU_BX); logMsg(tmp);
                 CPU_AX = 0; zf = 0;
-                StepIP(2); return;
+                //StepIP(2); 
+                return;
             }
             case 0x4E: switch(CPU_AL) {
                 // The Get Page Map subfunction saves the mapping context for all
@@ -956,7 +968,8 @@ void intcall86(uint8_t intnum) {
                     get_emm_pages_map(addr32);
                     sprintf(tmp, "LIM40 FN %Xh done", CPU_AX); logMsg(tmp);
                     CPU_AX = 0; zf = 0;
-                    StepIP(2); return;
+                    //StepIP(2); 
+                    return;
                 }
                 // The Set Page Map subfunction restores the mapping context for all
                 // mappable memory regions (conventional and expanded) by copying the
@@ -968,14 +981,39 @@ void intcall86(uint8_t intnum) {
                     set_emm_pages_map(addr32);
                     sprintf(tmp, "LIM40 FN %Xh done", CPU_AX); logMsg(tmp);
                     CPU_AX = 0; zf = 0;
-                    StepIP(2); return;
+                    //StepIP(2); 
+                    return;
+                }
+                // The Get & Set subfunction simultaneously saves a current mapping
+                // context and restores a previous mapping context for all mappable
+                // memory regions (both conventional and expanded).
+                case 0x02: {
+                    // ES:DI = dest_page_map
+                    // DS:SI = source_page_map
+                    get_emm_pages_map(((uint32_t)CPU_ES << 4) + CPU_DI);
+                    set_emm_pages_map(((uint32_t)CPU_DS << 4) + CPU_SI);
+                    sprintf(tmp, "LIM40 FN %Xh done", CPU_AX); logMsg(tmp);
+                    CPU_AX = 0; zf = 0;
+                    //StepIP(2); 
+                    return;
+                }
+                // The Get Size of Page Map Save Array subfunction returns the storage
+                // requirements for the array passed by the other three subfunctions.
+                // This subfunction doesn't require an EMM handle.
+                case 0x03: {
+                    CPU_AX = get_emm_pages_map_size();
+                    sprintf(tmp, "LIM40 FN 4E03h res: %Xh", CPU_AX); logMsg(tmp);
+                    if (CPU_AX) zf = 1; else zf = 0;
+                    //StepIP(2); 
+                    return;
                 }
             }
             default: {
                 logMsg("not implemented yet");
                 CPU_AH = 0x86; // TODO:
                 if (CPU_AX) zf = 1; else zf = 0;
-                StepIP(2); return;                
+                //StepIP(2); 
+                return;                
             }
         }
         case 0x15:

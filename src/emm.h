@@ -57,7 +57,7 @@
 #pragma once
 #include <inttypes.h>
 
-#define PSEUDO_RAM_SIZE_MBS 4UL
+#define PSEUDO_RAM_SIZE_MBS 32UL
 #define TOTAL_VIRTUAL_MEMORY_KBS (PSEUDO_RAM_SIZE_MBS << 10)
 #define TOTAL_EMM_XMM_PAGES ((TOTAL_VIRTUAL_MEMORY_KBS - 640) / 16)
 #define TOTAL_EMM_PAGES TOTAL_EMM_XMM_PAGES
@@ -93,6 +93,7 @@ uint16_t restore_emm_mapping(uint16_t corr_id);
 uint16_t get_all_emm_handle_pages(uint32_t addr32);
 void get_emm_pages_map(uint32_t addr32);
 void set_emm_pages_map(uint32_t addr32);
+uint16_t get_emm_pages_map_size();
 // from cpu.c
 void writew86(uint32_t addr32, uint16_t value);
 void write86(uint32_t addr32, uint8_t value);
