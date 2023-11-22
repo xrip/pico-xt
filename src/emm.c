@@ -55,14 +55,43 @@
           Microsoft is a trademark of Microsoft Corporation
 */
 #include "emm.h"
+#include <string.h>
 
 uint16_t emm_conventional_segment() {
     return PHISICAL_EMM_SEGMENT;
 }
 
+typedef __attribute__ ((__packed__)) struct emm_record {
+    uint8_t handler;
+    uint8_t phisical_page;
+    uint16_t logical_page;
+} emm_record_t;
+
+static emm_record_t emm_desc_table[] = { 0 };
+
 static uint8_t hanldle_desc[256] = { 0 }; // handlers are indexes
 static uint8_t logical_page_desc[TOTAL_EMM_PAGES] = { 0 }; // number of handler for a page
-static uint32_t phisical_page_n_2_logical[PHISICAL_EMM_PAGES] = { 0 }; // handlers are indexes
+static uint16_t phisical_page_n_2_logical[PHISICAL_EMM_PAGES] = { 0 }; // handlers are indexes
+
+uint16_t total_open_emm_handles() {
+    uint16_t res = 0;
+    for (int i = 0; i < 256; ++i) {
+        if (hanldle_desc[i]) res++;
+    }
+    return res;
+}
+
+uint16_t get_emm_handle_pages(uint16_t emm_handle, uint16_t *err) {
+    if (emm_handle > 256 || hanldle_desc[emm_handle] == 0) {
+        *err = 0x83 << 8; // The memory manager couldn't find the EMM handle your program specified.
+        return 0;
+    }
+    uint16_t res = 0;
+    for (int i = 0; i < TOTAL_EMM_PAGES; ++i) {
+        if (logical_page_desc[i] == emm_handle) res++;
+    }
+    return res;
+}
 
 uint32_t get_logical_lba_for_phisical_lba(uint32_t physical_lba_addr) {
     uint16_t physical_page_number = physical_lba_addr >> 14;
@@ -90,14 +119,14 @@ uint16_t allocated_emm_pages() {
 
 uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err) {
     if (pages == 0) {
-        *err = 0x89; // Your program attempted to allocate zero pages.
+        *err = 0x89 << 8; // Your program attempted to allocate zero pages.
         return 0;
     }
     if (pages > unallocated_emm_pages()) {
-        *err = 0x87; // There aren't enough expanded memory pages present
+        *err = 0x87 << 8; // There aren't enough expanded memory pages present
         return 0;
     }
-    for (int handler = 1; handler < 254; ++handler) {
+    for (int handler = 0; handler < 254; ++handler) {
         if (hanldle_desc[handler] == 0) {
             int pn = pages; // update pages descriptions - mark 'em as handled by handler
             for (int i = 0; i < total_emm_pages(); ++i) {
@@ -115,7 +144,7 @@ uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err) {
                         logical_page_desc[i] = 0;
                     }
                 }
-                *err = 0x88; // There aren't enough unallocated pages
+                *err = 0x88 << 8; // There aren't enough unallocated pages
                 return 0;               
             }
             *err = 0;
@@ -123,7 +152,7 @@ uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err) {
             return handler;
         }
     }
-    *err = 0x85; // All EMM handles are being used.
+    *err = 0x85 << 8; // All EMM handles are being used.
     return 0;
 }
 
@@ -135,7 +164,7 @@ uint16_t map_unmap_emm_pages(
     uint32_t base_lba = (uint32_t)emm_conventional_segment() << 4;
     uint32_t phisical_page_lba = (uint32_t)physical_page_number << 14;
     if (base_lba + (64ul << 10) >= phisical_page_lba) {
-        return 0x88; // The physical page number is out of the range of allowable
+        return 0x88 << 8; // The physical page number is out of the range of allowable
                      // physical pages.  The program can recover by attempting to
                      // map into memory at a physical page which is within the
                      // range of allowable physical pages.
@@ -145,7 +174,7 @@ uint16_t map_unmap_emm_pages(
         phisical_page_n_2_logical[physical_page_number - FIRST_PHISICAL_EMM_PAGE] = 0; 
     }
     if (logical_page_number >= total_emm_pages() || logical_page_desc[logical_page_number] != emm_handle) {
-        return 0x8A; // The logical page is out of the range of logical pages which
+        return 0x8A << 8; // The logical page is out of the range of logical pages which
                      // are allocated to the EMM handle. This status is also
                      // returned if a program attempts map a logical page when no
                      // logical pages are allocated to the handle.
@@ -189,4 +218,105 @@ uint16_t deallocate_emm_pages(uint16_t handler) {
     }
     hanldle_desc[handler] = 0;
     return 0;
+}
+
+static uint16_t saved_corr_id = 0;
+static uint8_t hanldle_desc2[256] = { 0 }; // handlers are indexes
+static uint8_t logical_page_desc2[TOTAL_EMM_PAGES] = { 0 }; // number of handler for a page
+static uint16_t phisical_page_n_2_logical2[PHISICAL_EMM_PAGES] = { 0 }; // handlers are indexes
+
+uint16_t save_emm_mapping(uint16_t corr_id) {
+    if (saved_corr_id == corr_id) {
+        return 0x8D << 8; // The save area already contains the page mapping register
+                     // state for the EMM handle your program specified.
+
+    }
+    if (saved_corr_id != 0) {
+        return 0x8C << 8; // There is no room in the save area to store the state of the
+                     // page mapping registers.  The state of the map registers has
+                     // not been saved.
+    }
+    memcpy(hanldle_desc2, hanldle_desc, sizeof hanldle_desc2);
+    memcpy(logical_page_desc2, logical_page_desc, sizeof logical_page_desc2);
+    memcpy(phisical_page_n_2_logical2, phisical_page_n_2_logical, sizeof phisical_page_n_2_logical2);
+    return 0;
+}
+
+uint16_t restore_emm_mapping(uint16_t corr_id) {
+    if (saved_corr_id != corr_id) {
+        return 0x8E << 8; // There is no page mapping register state in the save area
+                          // for the specified EMM handle.  Your program didn't save the
+                          // contents of the page mapping hardware, so Restore Page Map
+                          // can't restore it.
+    }
+    memcpy(hanldle_desc, hanldle_desc2, sizeof hanldle_desc2);
+    memcpy(logical_page_desc, logical_page_desc2, sizeof logical_page_desc2);
+    memcpy(phisical_page_n_2_logical, phisical_page_n_2_logical2, sizeof phisical_page_n_2_logical2);
+    saved_corr_id = 0;
+}
+
+/*
+handle_page_struct         STRUC
+             emm_handle              DW ?
+             pages_alloc_to_handle   DW ?
+          handle_page_struct         ENDS
+
+          ES:DI = pointer to handle_page
+                     Contains a pointer to an array of structures where a copy
+                     of all open EMM handles and the number of pages allocated
+                     to each will be stored.  Each structure has these two
+                     members:
+
+          .emm_handle
+                     The first member is a word which contains the value of the
+                     open EMM handle.  The values of the handles this function
+                     returns will be in the range of 0 to 255 decimal (0000h to
+                     00FFh).  The uppermost byte of the handle is always zero.
+
+          .pages_alloc_to_handle
+                     The second member is a word which contains the number of
+                     pages allocated to the open EMM handle.
+*/
+uint16_t get_all_emm_handle_pages(uint32_t addr32) {
+    uint16_t res = 0;
+    for(int handler = 0; handler < 256; ++handler) {
+        if (hanldle_desc[handler] != 0) {
+            res++;
+            uint16_t pages_alloc_to_handle = 0;
+            for (int j = 0; j < TOTAL_EMM_PAGES; ++j) {
+                if (logical_page_desc[j] == handler) pages_alloc_to_handle++;
+            }
+            writew86(addr32++, handler);
+            writew86(++addr32, pages_alloc_to_handle);
+        }
+    } 
+    return res;
+}
+
+void get_emm_pages_map(uint32_t addr32) {
+    for(int i = 0; i < 256; ++i) {
+        write86(addr32++, hanldle_desc[i]);
+    }
+    for(int i = 0; i < TOTAL_EMM_PAGES; ++i) {
+        write86(addr32++, logical_page_desc[i]);
+    }
+    for(int i = 0; i < PHISICAL_EMM_PAGES; ++i, addr32 += 2) {
+        writew86(addr32, phisical_page_n_2_logical[i]);
+    }
+}
+
+void set_emm_pages_map(uint32_t addr32) {
+    for(int i = 0; i < 256; ++i) {
+        hanldle_desc[i] = read86(addr32++);
+    }
+    for(int i = 0; i < TOTAL_EMM_PAGES; ++i) {
+        logical_page_desc[i] = read86(addr32++);
+    }
+    for(int i = 0; i < PHISICAL_EMM_PAGES; ++i, addr32 += 2) {
+        phisical_page_n_2_logical[i] = readw86(addr32++);;
+    }
+}
+
+uint16_t get_emm_pages_map_size() {
+    return 256;
 }

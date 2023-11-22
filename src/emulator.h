@@ -171,7 +171,7 @@ void write86(uint32_t addr32, uint8_t value);
 void reset86(void);
 void exec86(uint32_t execloops);
 uint8_t read86(uint32_t addr32);
-static uint16_t readw86(uint32_t addr32);
+uint16_t readw86(uint32_t addr32);
 
 
 void portout(uint16_t portnum, uint16_t value);

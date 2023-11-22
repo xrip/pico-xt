@@ -144,7 +144,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
 #endif
 }
 
-static __inline void writew86(uint32_t addr32, uint16_t value) {
+void writew86(uint32_t addr32, uint16_t value) {
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
@@ -304,7 +304,7 @@ __inline uint8_t read86(uint32_t addr32) {
     return 0;
 }
 
-static __inline uint16_t readw86(uint32_t addr32) {
+uint16_t readw86(uint32_t addr32) {
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         return psram_read16(&psram_spi, addr32);
@@ -835,7 +835,7 @@ void intcall86(uint8_t intnum) {
             // The Get Status function returns a status code indicating whether the
             // memory manager is present and the hardware is working correctly.
             case 0x40: {
-                CPU_AH = 0;
+                CPU_AX = 0;
                 zf = 0;
                 StepIP(2); return;
             }
@@ -844,7 +844,7 @@ void intcall86(uint8_t intnum) {
             case 0x41: {
                 CPU_BX = emm_conventional_segment(); // page frame segment address
                 sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", CPU_AH, CPU_BX); logMsg(tmp);
-                CPU_AH = 0;
+                CPU_AX = 0;
                 zf = 0;
                 StepIP(2); return;
             }
@@ -854,7 +854,7 @@ void intcall86(uint8_t intnum) {
                 CPU_BX = unallocated_emm_pages();
                 CPU_DX = total_emm_pages();
                 sprintf(tmp, "LIM40 FN %Xh -> 0x%X free of 0x%X EMM pages", CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
-                CPU_AH = 0;
+                CPU_AX = 0;
                 zf = 0;
                 StepIP(2); return;
             }
@@ -899,6 +899,77 @@ void intcall86(uint8_t intnum) {
                 sprintf(tmp, "LIM40 FN res: %Xh (version)", CPU_AL); logMsg(tmp);
                 CPU_AH = 0; zf = 0;
                 StepIP(2); return;
+            }
+            // Save Page Map saves the contents of the page mapping registers on all
+            // expanded memory boards in an internal save area.
+            case 0x47: {
+                CPU_AX = save_emm_mapping(CPU_DX);
+                sprintf(tmp, "LIM40 FN res: %Xh (save mapping for %Xh)", CPU_AX, CPU_DX); logMsg(tmp);
+                if (CPU_AX) zf = 1; else zf = 0;
+                StepIP(2); return;
+            }
+            // The Restore Page Map function restores the page mapping register
+            // contents on the expanded memory boards for a particular EMM handle.
+            // This function lets your program restore the contents of the mapping
+            // registers its EMM handle saved.
+            case 0x48: {
+                logMsg("Restore Page Map - not implemented - nothing to do");
+                CPU_AX = restore_emm_mapping(CPU_DX);
+                sprintf(tmp, "LIM40 FN res: %Xh (restore mapping for %Xh)", CPU_AX, CPU_DX); logMsg(tmp);
+                if (CPU_AX) zf = 1; else zf = 0;
+                StepIP(2); return;
+            }
+            // The Get Handle Count function returns the number of open EMM handles
+            // (including the operating system handle 0) in the system.
+            case 0x4B: {
+                CPU_BX = total_open_emm_handles();
+                sprintf(tmp, "LIM40 FN res: %Xh", CPU_BX); logMsg(tmp);
+                CPU_AX = 0; zf = 0;
+                StepIP(2); return;
+            }
+            // The Get Handle Pages function returns the number of pages allocated to
+            // a specific EMM handle.
+            case 0x4C: {
+                CPU_BX = get_emm_handle_pages(CPU_DX, &CPU_AX);
+                sprintf(tmp, "LIM40 FN res: %Xh %Xh (pages)", CPU_AH, CPU_BX); logMsg(tmp);
+                if (CPU_AX) zf = 1; else zf = 0;
+                StepIP(2); return;
+            }
+            // The Get All Handle Pages function returns an array of the open emm
+            // handles and the number of pages allocated to each one.
+            case 0x4D: {
+                // ES:DI = pointer to handle_page
+                uint32_t addr32 = ((uint32_t)CPU_ES << 4) + CPU_DI;
+                CPU_BX = get_all_emm_handle_pages(addr32);
+                sprintf(tmp, "LIM40 FN %Xh %Xh (pages)", CPU_AH, CPU_BX); logMsg(tmp);
+                CPU_AX = 0; zf = 0;
+                StepIP(2); return;
+            }
+            case 0x4E: switch(CPU_AL) {
+                // The Get Page Map subfunction saves the mapping context for all
+                // mappable memory regions (conventional and expanded) by copying the
+                // contents of the mapping registers from each expanded memory board to a
+                // destination array.
+                case 0x00: {
+                    // ES:DI = dest_page_map
+                    uint32_t addr32 = ((uint32_t)CPU_ES << 4) + CPU_DI;
+                    get_emm_pages_map(addr32);
+                    sprintf(tmp, "LIM40 FN %Xh done", CPU_AX); logMsg(tmp);
+                    CPU_AX = 0; zf = 0;
+                    StepIP(2); return;
+                }
+                // The Set Page Map subfunction restores the mapping context for all
+                // mappable memory regions (conventional and expanded) by copying the
+                // contents of a source array into the mapping registers on each expanded
+                // memory board in the system.
+                case 0x01: {
+                    // DS:SI = source_page_map
+                    uint32_t addr32 = ((uint32_t)CPU_DS << 4) + CPU_SI;
+                    set_emm_pages_map(addr32);
+                    sprintf(tmp, "LIM40 FN %Xh done", CPU_AX); logMsg(tmp);
+                    CPU_AX = 0; zf = 0;
+                    StepIP(2); return;
+                }
             }
             default: {
                 logMsg("not implemented yet");
