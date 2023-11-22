@@ -205,7 +205,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
     else if (((addr32) >= 0xD0000UL) && ((addr32) < 0xD8000UL)) {
 #if SD_CARD_SWAP
         if (get_a20_enabled()) { // TODO: EMS enabled?
-            char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X", addr32); logMsg(tmp);
+            // char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X", addr32); logMsg(tmp);
             ram_page_write(addr32, value);
             return;
         }
@@ -936,29 +936,62 @@ void writerm8(uint8_t rmval, uint8_t value) {
 
 uint8_t tandy_hack = 0;
 
+char tmp[80];
 void intcall86(uint8_t intnum) {
     switch (intnum) {
-        case 0x67: switch(CPU_AH) { // EMM
+        case 0x67: 
+            sprintf(tmp, "LIM40 FN %Xh", CPU_AH); logMsg(tmp);
+            switch(CPU_AH) { // EMM LIM 4.0
             // The Get Status function returns a status code indicating whether the
             // memory manager is present and the hardware is working correctly.
             case 0x40: {
                 CPU_AH = 0;
-                cf = 0; StepIP(2); return;
+                StepIP(2); return;
             }
             // The Get Page Frame Address function returns the segment address where
             // the page frame is located.
             case 0x41: {
-                CPU_BX = 0xD000; // page frame segment address
+                CPU_BX = emm_conventional_segment(); // page frame segment address
+                sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", CPU_AH, CPU_BX); logMsg(tmp);
                 CPU_AH = 0;
-                cf = 0; StepIP(2); return;
+                StepIP(2); return;
             }
             // The Get Unallocated Page Count function returns the number of
             // unallocated pages and the total number of expanded memory pages.
             case 0x42: {
-                CPU_BX = (TOTAL_VIRTUAL_MEMORY_KBS - 640) / 16 - allocated_emm_pages(); // unallocated pages
-                CPU_DX = (TOTAL_VIRTUAL_MEMORY_KBS - 640) / 16; // total pages
+                CPU_BX = unallocated_emm_pages();
+                CPU_DX = total_emm_pages();
+                sprintf(tmp, "LIM40 FN %Xh -> 0x%X free of 0x%X EMM pages", CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
                 CPU_AH = 0;
-                cf = 0; StepIP(2); return;
+                StepIP(2); return;
+            }
+            // The Allocate Pages function allocates the number of pages requested
+            // and assigns a unique EMM handle to these pages. The EMM handle owns
+            // these pages until the application deallocates them.
+            case 0x43: {
+                CPU_DX = allocate_emm_pages(CPU_BX, &CPU_AX);
+                sprintf(tmp, "LIM40 FN res: %Xh -> 0x%X EMM handler", CPU_AH, CPU_DX); logMsg(tmp);
+                if (CPU_AX) zf = 1;
+                StepIP(2); return;
+            }
+            // The Map/Unmap Handle Page function maps a logical page at a specific
+            // physical page anywhere in the mappable regions of system memory.
+            case 0x44: {
+                // AL = physical_page_number
+                // BX = logical_page_number, if FFFFh, the physical page specified in AL will be unmapped
+                // DX = emm_handle
+                auto AL = CPU_AL;
+                CPU_AX = map_unmap_emm_pages(AL, CPU_BX, CPU_DX);
+                sprintf(tmp, "LIM40 FN res: phisical page %Xh was mapped to %Xh logical one for 0x%X EMM handler",
+                              AL, CPU_AX, CPU_DX); logMsg(tmp);
+                if (CPU_AX) zf = 1;
+                StepIP(2); return;
+            }
+            default: {
+                logMsg("not implemented yet");
+                CPU_AH = 0x86; // TODO:
+                if (CPU_AX) zf = 1;
+                StepIP(2); return;                
             }
         }
         case 0x15:
@@ -1136,9 +1169,7 @@ void intcall86(uint8_t intnum) {
                                 CPU_DX = 0;
                             }
                             CPU_AX = CPU_CX;
-                            CPU_BX = CPU_DX; {
-                                char tmp[80]; sprintf(tmp, "INT15! E8AX: 0x%X; BX: 0x%X", CPU_AX, CPU_BX); logMsg(tmp);
-                            }
+                            CPU_BX = CPU_DX;
                             cf = 0;
                             StepIP(2); return;
                         case 0x20: {
@@ -1162,7 +1193,7 @@ void intcall86(uint8_t intnum) {
                                     CPU_BX++;
                                 CPU_AX = 0x534D4150;
                                 CPU_CX = sizeof(e820_list[0]);
-                                char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
+                                // char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
                                 cf = 0;
                                 StepIP(2); return;
                             }

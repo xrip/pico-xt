@@ -11,6 +11,7 @@
 #include <memory.h>
 #include "cga.h"
 #include "a20.h"
+#include "emm.h"
 #include "../assets/rom.h"
 #include "../assets/startup_disk.h"
 #include "../assets/fdd.h"
@@ -39,8 +40,7 @@ static FATFS fs;
 #endif
 
 #if PSEUDO_RAM_BASE || SD_CARD_SWAP
-#define PSEUDO_RAM_SIZE_MBS (32UL << 20)
-#define TOTAL_VIRTUAL_MEMORY_KBS (PSEUDO_RAM_SIZE_MBS << 10)
+
 #define RAM_BLOCKS (RAM_SIZE / RAM_PAGE_SIZE_KB)
 extern uint16_t RAM_PAGES[RAM_BLOCKS]; // lba (14-0); 15 - written
 #if PSEUDO_RAM_BASE
