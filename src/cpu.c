@@ -836,6 +836,7 @@ void intcall86(uint8_t intnum) {
             // memory manager is present and the hardware is working correctly.
             case 0x40: {
                 CPU_AH = 0;
+                zf = 0;
                 StepIP(2); return;
             }
             // The Get Page Frame Address function returns the segment address where
@@ -844,6 +845,7 @@ void intcall86(uint8_t intnum) {
                 CPU_BX = emm_conventional_segment(); // page frame segment address
                 sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", CPU_AH, CPU_BX); logMsg(tmp);
                 CPU_AH = 0;
+                zf = 0;
                 StepIP(2); return;
             }
             // The Get Unallocated Page Count function returns the number of
@@ -853,6 +855,7 @@ void intcall86(uint8_t intnum) {
                 CPU_DX = total_emm_pages();
                 sprintf(tmp, "LIM40 FN %Xh -> 0x%X free of 0x%X EMM pages", CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
                 CPU_AH = 0;
+                zf = 0;
                 StepIP(2); return;
             }
             // The Allocate Pages function allocates the number of pages requested
@@ -861,7 +864,7 @@ void intcall86(uint8_t intnum) {
             case 0x43: {
                 CPU_DX = allocate_emm_pages(CPU_BX, &CPU_AX);
                 sprintf(tmp, "LIM40 FN res: %Xh -> 0x%X EMM handler", CPU_AH, CPU_DX); logMsg(tmp);
-                if (CPU_AX) zf = 1;
+                if (CPU_AX) zf = 1; else zf = 0;
                 StepIP(2); return;
             }
             // The Map/Unmap Handle Page function maps a logical page at a specific
@@ -874,7 +877,7 @@ void intcall86(uint8_t intnum) {
                 CPU_AX = map_unmap_emm_pages(AL, CPU_BX, CPU_DX);
                 sprintf(tmp, "LIM40 FN res: phisical page %Xh was mapped to %Xh logical one for 0x%X EMM handler",
                               AL, CPU_AX, CPU_DX); logMsg(tmp);
-                if (CPU_AX) zf = 1;
+                if (CPU_AX) zf = 1; else zf = 0;
                 StepIP(2); return;
             }
             // Deallocate Pages deallocates the logical pages currently allocated to an EMM handle.
@@ -882,7 +885,7 @@ void intcall86(uint8_t intnum) {
                 auto emm_handle = CPU_DX;
                 CPU_AX = deallocate_emm_pages(emm_handle);
                 sprintf(tmp, "LIM40 FN res: %Xh -> 0x%X deallocate for EMM handler", CPU_AH, emm_handle); logMsg(tmp);
-                if (CPU_AX) zf = 1;
+                if (CPU_AX) zf = 1; else zf = 0;
                 StepIP(2); return;
             }
             // The Get Version function returns the version number of the memory manager software.
@@ -894,13 +897,13 @@ void intcall86(uint8_t intnum) {
                 */
                 CPU_AL = 0b01000000; // 4.0
                 sprintf(tmp, "LIM40 FN res: %Xh (version)", CPU_AL); logMsg(tmp);
-                CPU_AH = 0; zf = 1;
+                CPU_AH = 0; zf = 0;
                 StepIP(2); return;
             }
             default: {
                 logMsg("not implemented yet");
                 CPU_AH = 0x86; // TODO:
-                if (CPU_AX) zf = 1;
+                if (CPU_AX) zf = 1; else zf = 0;
                 StepIP(2); return;                
             }
         }
