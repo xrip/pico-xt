@@ -12,7 +12,6 @@ uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
 static uint32_t get_ram_page_for(const uint32_t addr32);
 
 uint8_t ram_page_read(uint32_t addr32) {
-    // char tmp[40]; sprintf(tmp, "HIMEM LBA: 0x%X", addr32); logMsg(tmp);
     const register uint32_t ram_page = get_ram_page_for(addr32);
     const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
     return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
@@ -143,8 +142,8 @@ FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     char tmp[40];
-    //sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset);
-    //logMsg(tmp);
+    sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset);
+    logMsg(tmp);
     FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
         return;
@@ -161,8 +160,8 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     char tmp[40];
-    //sprintf(tmp, "Flush pagefile 0x%X->0x%X", src, file_offset);
-    //logMsg(tmp);
+    sprintf(tmp, "Flush pagefile 0x%X->0x%X", src, file_offset);
+    logMsg(tmp);
     FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
         return;
