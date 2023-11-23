@@ -70,7 +70,7 @@
 // PHISICAL_EMM_SEGMENT * 16 / 16k
 #define FIRST_PHISICAL_EMM_PAGE (PHISICAL_EMM_SEGMENT >> 10)
 
-#define MAX_SAVED_EMM_TABLES 1
+#define MAX_SAVED_EMM_TABLES 4
 #define MAX_EMM_HANDLERS 255
 
 void init_emm();
@@ -83,7 +83,7 @@ static inline uint16_t unallocated_emm_pages() {
     return total_emm_pages() - allocated_emm_pages();
 }
 
-uint16_t map_unmap_emm_pages(
+uint16_t map_unmap_emm_page(
     uint8_t physical_page_number,
     uint16_t logical_page_number,
     uint16_t emm_handle
@@ -99,8 +99,13 @@ void get_emm_pages_map(uint32_t addr32);
 void set_emm_pages_map(uint32_t addr32);
 uint16_t get_emm_pages_map_size();
 uint16_t get_partial_emm_page_map(uint32_t partial_page_map, uint32_t dest_array);
+uint16_t set_partial_emm_page_map(uint32_t dest_array);
 // from cpu.c
 void writew86(uint32_t addr32, uint16_t value);
 void write86(uint32_t addr32, uint8_t value);
 uint16_t readw86(uint32_t addr32);
 uint8_t read86(uint32_t addr32);
+uint16_t map_unmap_emm_pages(uint16_t handle, uint16_t log_to_phys_map_len, uint32_t log_to_phys_map);
+uint16_t map_unmap_emm_seg_pages(uint16_t handle, uint16_t log_to_seg_map_len, uint32_t log_to_segment_map);
+uint16_t get_mappable_physical_array(uint16_t mappable_phys_page);
+uint16_t get_mappable_phys_page();
