@@ -185,6 +185,7 @@ uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err) {
             handler = i;
             h->handler_in_use = true;
             h->pages_acclocated = pages;
+            break;
         }
     }
     if (handler == 0xFFFF) {
@@ -266,6 +267,7 @@ uint16_t deallocate_emm_pages(uint16_t emm_handle) {
         }
     }
     h->pages_acclocated = 0;
+    h->handler_in_use = false;
     return 0;
 }
 
