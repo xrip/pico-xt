@@ -1,6 +1,6 @@
 # Raspberry Pi Pico PC XT (8086/8088) Emulator for MURMULATOR devboard
 
-[![Build and create a release when tag is pushed](https://github.com/xrip/pico-xt/actions/workflows/release-on-tag.yml/badge.svg)](https://github.com/xrip/pico-xt/actions/workflows/release-on-tag.yml)
+![build master](https://github.com/xrip/pico-xt/actions/workflows/release-on-tag.yml/badge.svg?branch=master)
 
 To use HDD: save hdd.img (from hdd.img.zip) to <SD-card-drive>:\XT\hdd.img
 
