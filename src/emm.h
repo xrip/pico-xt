@@ -70,6 +70,10 @@
 // PHISICAL_EMM_SEGMENT * 16 / 16k
 #define FIRST_PHISICAL_EMM_PAGE (PHISICAL_EMM_SEGMENT >> 10)
 
+#define MAX_SAVED_EMM_TABLES 1
+#define MAX_EMM_HANDLERS 255
+
+void init_emm();
 uint16_t emm_conventional_segment();
 uint16_t total_emm_pages();
 uint16_t allocated_emm_pages();
@@ -100,4 +104,3 @@ void writew86(uint32_t addr32, uint16_t value);
 void write86(uint32_t addr32, uint8_t value);
 uint16_t readw86(uint32_t addr32);
 uint8_t read86(uint32_t addr32);
-

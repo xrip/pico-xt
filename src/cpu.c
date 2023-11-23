@@ -760,6 +760,7 @@ void reset86() {
     SDL_AddTimer(timer_period / 1000, ClockTick, "timer");
     SDL_AddTimer(500, BlinkTimer, "blink");
 #endif
+    init_emm();
     init8253();
     init8259();
     initsermouse(0x378, 4);
