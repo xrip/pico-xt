@@ -324,3 +324,39 @@ void set_emm_pages_map(uint32_t addr32) {
 uint16_t get_emm_pages_map_size() {
     return sizeof emm_desc_table;
 }
+
+/*
+          partial_page_map_struct     STRUC
+             mappable_segment_count   DW  ?
+             mappable_segment         DW  (?)  DUP  (?)
+          partial_page_map_struct     ENDS
+
+          DS:SI = partial_page_map
+                     Contains a pointer to a structure which specifies only
+                     those mappable memory regions which are to have their
+                     mapping context saved.  The structure members are described
+                     below.
+
+          .mappable_segment_count
+                     The first member is a word which specifies the number of
+                     members in the word array which immediately follows it.
+                     This number should not exceed the number of mappable
+                     segments in the system.
+
+          .mappable_segment
+                     The second member is a word array which contains the
+                     segment addresses of the mappable memory regions whose
+                     mapping contexts are to be saved.  The segment address must
+                     be a mappable segment.  Use Function 25 to determine which
+                     segments are mappable.
+
+          ES:DI = dest_array
+                     Contains a pointer to the destination array address in
+                     Segment:Offset format.  To determine the size of the
+                     required array, see the Get Size of Partial Page Map Save
+                     Array subfunction.
+*/
+uint16_t get_partial_emm_page_map(uint32_t partial_page_map, uint32_t dest_array) {
+   // TODO:
+   return 0x86 << 8;
+}

@@ -94,6 +94,7 @@ uint16_t get_all_emm_handle_pages(uint32_t addr32);
 void get_emm_pages_map(uint32_t addr32);
 void set_emm_pages_map(uint32_t addr32);
 uint16_t get_emm_pages_map_size();
+uint16_t get_partial_emm_page_map(uint32_t partial_page_map, uint32_t dest_array);
 // from cpu.c
 void writew86(uint32_t addr32, uint16_t value);
 void write86(uint32_t addr32, uint8_t value);

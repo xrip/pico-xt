@@ -990,8 +990,20 @@ static void custom_on_board_emm() {
             return;
         }
     }
+    case 0x4F: switch(CPU_AL) {
+        // The Get Partial Page Map subfunction saves a partial mapping context
+        // for specific mappable memory regions in a system.
+        case 0x00: {
+            // DS:SI = partial_page_map
+            // ES:DI = dest_array
+            CPU_AX = get_partial_emm_page_map((CPU_DS << 4) + CPU_SI, (CPU_ES << 4) + CPU_DI);
+            sprintf(tmp, "LIM40 FN 4F00h res: %Xh (not supported)", CPU_AX); logMsg(tmp);
+            if (CPU_AX) zf = 1; else zf = 0;
+            return;
+        }
+    }
     default:
-        logMsg("not implemented yet");
+        sprintf(tmp, "LIM40 FN %Xh (not yet implemented)", CPU_AH); logMsg(tmp);
         CPU_AH = 0x86; // TODO:
         if (CPU_AX) zf = 1; else zf = 0;
     }
