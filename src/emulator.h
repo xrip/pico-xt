@@ -202,7 +202,7 @@ int16_t tickssource();
 #if !PICO_ON_DEVICE
 void handleinput(void);
 inline void logMsg(char * str) {
-    //printf(str);
+    printf(str);
 }
 #endif
 

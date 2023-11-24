@@ -127,9 +127,9 @@ __inline void write86(uint32_t addr32, uint8_t value) {
         }
     }
 #endif
-    if (addr32 >= 0xD0000UL && addr32 < 0xD8000UL) {
+    /*if (addr32 >= 0xD0000UL && addr32 < 0xD8000UL) {
         addr32 -= 0xCC000UL; // TODO: why?
-    }
+    }*/
 #if SD_CARD_SWAP
     else if ((addr32) > 0xFFFFFUL) {
         if (addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL) { // Hihg mem (1Mb + 64Kb)
@@ -1511,7 +1511,10 @@ void intcall86(uint8_t intnum) {
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             keyboard_send(0xFF);
 #else
-            insertdisk(0, sizeof FDD0, FDD0, NULL);
+            //insertdisk(0, sizeof FDD0, FDD0, NULL);
+            if (1 == insertdisk(0, 0, NULL, "fdd0.img") ) {
+                insertdisk(0, sizeof FDD0, FDD0, NULL);
+            }
             insertdisk(1, sizeof FDD1, FDD1, NULL);
             insertdisk(128, 0, NULL, "hdd.img");
 #endif
