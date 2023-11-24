@@ -112,7 +112,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
     if ((addr32 >> 4) >= PHISICAL_EMM_SEGMENT && (addr32 << 4) < PHISICAL_EMM_SEGMENT_END) {
         uint32_t lba = get_logical_lba_for_phisical_lba(addr32);
         // char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
-        if (lba != 0xFFFFFFFF) {
+        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             ram_page_write(lba, value);
             return;
         }
@@ -262,7 +262,7 @@ __inline uint8_t read86(uint32_t addr32) {
     if ((addr32 >> 4) >= PHISICAL_EMM_SEGMENT && (addr32 << 4) < PHISICAL_EMM_SEGMENT_END) {
         uint32_t lba = get_logical_lba_for_phisical_lba(addr32);
         // char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
-        if (lba != 0xFFFFFFFF) {
+        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             return ram_page_read(lba);
         }
     }
@@ -843,7 +843,7 @@ static void custom_on_board_emm() {
     // the page frame is located.
     case 0x41: {
         CPU_BX = emm_conventional_segment(); // page frame segment address
-        sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", FN, CPU_BX); logMsg(tmp);
+        // sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", FN, CPU_BX); logMsg(tmp);
         CPU_AX = 0;
         zf = 0;
         return;
@@ -853,7 +853,7 @@ static void custom_on_board_emm() {
     case 0x42: {
         CPU_BX = unallocated_emm_pages();
         CPU_DX = total_emm_pages();
-        sprintf(tmp, "LIM40 FN %Xh -> %d free of %d EMM pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
+        // sprintf(tmp, "LIM40 FN %Xh -> %d free of %d EMM pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
         CPU_AX = 0;
         zf = 0;
         return;
@@ -863,7 +863,7 @@ static void custom_on_board_emm() {
     // these pages until the application deallocates them.
     case 0x43: {
         CPU_DX = allocate_emm_pages(CPU_BX, &CPU_AX);
-        sprintf(tmp, "LIM40 FN %Xh err: %Xh alloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
+        // sprintf(tmp, "LIM40 FN %Xh err: %Xh alloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -930,7 +930,7 @@ static void custom_on_board_emm() {
     // a specific EMM handle.
     case 0x4C: {
         CPU_BX = get_emm_handle_pages(CPU_DX, &CPU_AX);
-        sprintf(tmp, "LIM40 FN %Xh handler: %d; res: %Xh; pages handled: %d", FN, CPU_DX, CPU_AH, CPU_BX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh handler: %d; res: %Xh; pages handled: %d", FN, CPU_DX, CPU_AX, CPU_BX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -940,7 +940,7 @@ static void custom_on_board_emm() {
         // ES:DI = pointer to handle_page
         uint32_t addr32 = ((uint32_t)CPU_ES << 4) + CPU_DI;
         CPU_BX = get_all_emm_handle_pages(addr32);
-        sprintf(tmp, "LIM40 FN %Xh all_handlers: %Xh (pages)", FN, CPU_BX); logMsg(tmp);
+        // sprintf(tmp, "LIM40 FN %Xh all_handlers: %Xh (pages)", FN, CPU_BX); logMsg(tmp);
         CPU_AX = 0; zf = 0;
         return;
     }
@@ -1050,6 +1050,38 @@ static void custom_on_board_emm() {
             return;
         }
     }
+    // REALLOCATE PAGES
+    case 0x51: {
+        CPU_AX = reallocate_emm_pages(CPU_DX, CPU_BX);
+        // sprintf(tmp, "LIM40 FN %Xh err: %Xh realloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
+        if (CPU_AX) zf = 1; else zf = 0;
+        return;
+    }
+    // TODO:
+    case 0x53:
+        FN = CPU_AX;
+        switch(CPU_AL) {
+        // GET HANDLE NAME 
+        case 0x00: {
+            uint16_t handle = CPU_DX;
+            uint32_t handle_name = ((uint32_t)CPU_ES << 4) + CPU_DI;
+            CPU_AX = get_handle_name(handle, handle_name);
+            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%Xh)",
+                    FN, CPU_AX, handle, handle_name); logMsg(tmp);
+            if (CPU_AX) zf = 1; else zf = 0;
+            return;
+        }
+        // SET HANDLE NAME
+        case 0x01: {
+            uint16_t handle = CPU_DX;
+            uint32_t handle_name = ((uint32_t)CPU_DS << 4) + CPU_SI;
+            CPU_AX = set_handle_name(handle, handle_name);
+            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%Xh)",
+                    FN, CPU_AX, handle, handle_name); logMsg(tmp);
+            if (CPU_AX) zf = 1; else zf = 0;
+            return;
+        }
+    }
     // TODO:
     case 0x54:
         FN = CPU_AX;
@@ -1057,7 +1089,7 @@ static void custom_on_board_emm() {
         // GET TOTAL HANDLES
         case 0x02: {
             CPU_BX = MAX_EMM_HANDLERS;
-            sprintf(tmp, "LIM40 FN %Xh MAX_EMM_HANDLERS: %d", FN, CPU_BX); logMsg(tmp);
+            // sprintf(tmp, "LIM40 FN %Xh MAX_EMM_HANDLERS: %d", FN, CPU_BX); logMsg(tmp);
             CPU_AX = 0; zf = 0;
             return;
         }
@@ -1078,12 +1110,11 @@ static void custom_on_board_emm() {
         }
         // GET MAPPABLE PHYSICAL ADDRESS ARRAY ENTRIES
         case 0x01: {
-            CPU_CX = get_mappable_phys_page();
-            sprintf(tmp, "LIM40 FN %Xh get_mappable_phys_page: %d", FN, CPU_CX); logMsg(tmp);
+            CPU_CX = get_mappable_phys_pages();
+            sprintf(tmp, "LIM40 FN %Xh get_mappable_phys_pages: %d", FN, CPU_CX); logMsg(tmp);
             CPU_AX = 0; zf = 0;
             return;
         }
-        // TODO: 
     }
     // TODO:
     case 0x59:

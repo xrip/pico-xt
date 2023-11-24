@@ -81,18 +81,27 @@ static emm_desc_table_t emm_desc_table = { 0 };
 
 typedef __attribute__ ((__packed__)) struct emm_handler {
     uint8_t handler_in_use;
-    uint8_t pages_acclocated;
+    uint8_t pages_acllocated;
 } emm_handler_t;
 
 static emm_handler_t handlers[MAX_EMM_HANDLERS] = { 0 };
 
 void init_emm() {
-    for (int i = 0; i < MAX_EMM_HANDLERS; ++i) {
-        emm_handler_t * h = &handlers[i];
+    emm_handler_t * h = &handlers[0];
+    h->handler_in_use = true;
+    h->pages_acllocated = 16;
+    for (int i = 1; i < MAX_EMM_HANDLERS; ++i) {
+        h = &handlers[i];
         h->handler_in_use = false;
-        h->pages_acclocated = 0;
+        h->pages_acllocated = 0;
     }
-    for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
+    for (int i = 0; i < 1; ++i) { // TODO: ensure time OS allocates it
+        emm_record_t * di = &emm_desc_table[i];
+        di->handler = 0;
+        di->logical_page = EMM_LBA_SHIFT_KB / 16 + i;
+        di->phisical_page = (PHISICAL_EMM_SEGMENT + i * 0x400) >> 10;
+    }
+    for (int i = 1; i < PHISICAL_EMM_PAGES; ++i) {
         emm_record_t * di = &emm_desc_table[i];
         di->handler = 0xFF;
         di->logical_page = 0;
@@ -123,7 +132,8 @@ uint16_t get_emm_handle_pages(uint16_t emm_handle, uint16_t *err) {
         *err = 0x83 << 8; // The memory manager couldn't find the EMM handle your program specified.
         return 0;
     }
-    return handlers[emm_handle].pages_acclocated;
+    *err = 0;
+    return handlers[emm_handle].pages_acllocated;
 }
 
 uint32_t get_logical_lba_for_phisical_lba(uint32_t physical_lba_addr) {
@@ -134,7 +144,7 @@ uint32_t get_logical_lba_for_phisical_lba(uint32_t physical_lba_addr) {
         if (di->phisical_page == physical_page_number && di->handler != 0xFF) {
             uint32_t logical_page_number = di->logical_page;
             auto logical_base_lba = logical_page_number << 14;
-            return logical_base_lba - offset_in_the_page + (640 * 1024); // shift to 640KB
+            return logical_base_lba - offset_in_the_page + EMM_LBA_SHIFT_KB; // shift to do not intersect with conventional, rom + 64k hor himem
         }
     }
     return physical_lba_addr; // do not map not found
@@ -149,7 +159,7 @@ uint16_t allocated_emm_pages() {
     for (int i = 0; i < MAX_EMM_HANDLERS; ++i) {
         emm_handler_t * h = &handlers[i];
         if (h->handler_in_use) {
-            res += h->pages_acclocated;
+            res += h->pages_acllocated;
         }
     }
     return res;
@@ -184,7 +194,7 @@ uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err) {
         if (!h->handler_in_use) {
             handler = i;
             h->handler_in_use = true;
-            h->pages_acclocated = pages;
+            h->pages_acllocated = pages;
             break;
         }
     }
@@ -194,6 +204,25 @@ uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err) {
     }
     *err = 0;
     return handler;
+}
+
+uint16_t reallocate_emm_pages(uint16_t handler, uint16_t pages) {
+    if (handler > 255 || handlers[handler].handler_in_use == 0) {
+        return 0x83 << 8; // The memory manager couldn't find the EMM handle your program specified.
+    }
+    if (pages > TOTAL_EMM_PAGES) {
+        return 0x87 << 8; // There aren't enough expanded memory pages present
+    }
+    if (handlers[handler].pages_acllocated == pages) {
+        return 0;
+    }
+    if (handlers[handler].pages_acllocated > pages) {
+        if (handlers[handler].pages_acllocated - pages + allocated_emm_pages() > TOTAL_EMM_PAGES) {
+            return 0x88 << 8; // There aren't enough unallocated pages
+        }
+    }
+    handlers[handler].pages_acllocated = pages;
+    return 0;
 }
 
 uint16_t map_unmap_emm_page(
@@ -266,7 +295,7 @@ uint16_t deallocate_emm_pages(uint16_t emm_handle) {
             return 0x86 << 8; // The memory manager detected a save or restore page mapping context error.
         }
     }
-    h->pages_acclocated = 0;
+    h->pages_acllocated = 0;
     h->handler_in_use = false;
     return 0;
 }
@@ -539,24 +568,53 @@ uint16_t map_unmap_emm_seg_pages(uint16_t handle, uint16_t log_to_seg_map_len, u
 
  */
 uint16_t get_mappable_physical_array(uint16_t mappable_phys_page) {
-    for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
-        const emm_record_t * di = &emm_desc_table[i];
-        if (di->handler != 0xFF) {
-            auto pp = di->phisical_page; // TODO: The array entries are
-                    // sorted in ascending segment address order.
-            writew86(mappable_phys_page++, pp << 10); mappable_phys_page++;
-            writew86(mappable_phys_page++, pp); mappable_phys_page++;
+    for (int i = 0; i < 4; ++i) {
+        uint16_t cs = PHISICAL_EMM_SEGMENT + i * 0x400;
+        uint16_t phisical_page = cs >> 10;
+        /* bool skip_it = false;
+        for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
+            const emm_record_t * di = &emm_desc_table[i];
+            if (di->handler != 0xFF && di->phisical_page == phisical_page) {
+                skip_it = true;
+                break;
+            }
         }
+        if (skip_it) continue; */
+        writew86(mappable_phys_page++, cs); mappable_phys_page++;
+        writew86(mappable_phys_page++, phisical_page); mappable_phys_page++;
     }
     return 0;
 }
 
-uint16_t get_mappable_phys_page() {
+uint16_t get_mappable_phys_pages() {
+    return 4;
+/*
     uint16_t res = 0;
-    for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
-        if (emm_desc_table[i].handler != 0xFF) {
-            res += 4;
+    for (int i = 0; i < 4; ++i) {
+        uint16_t cs = PHISICAL_EMM_SEGMENT + i * 0x400;
+        uint16_t phisical_page = cs >> 10;
+        bool skip_it = false;
+        for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
+            const emm_record_t * di = &emm_desc_table[i];
+            if (di->handler != 0xFF && di->phisical_page == phisical_page) {
+                skip_it = true;
+                break;
+            }
         }
+        if (!skip_it) res++;
     }
+    return res;
+*/
+}
+
+uint16_t get_handle_name(uint16_t handle, uint32_t name) {
+    for (int i = 0; i < 10; ++i) {
+        write86(name++, 0);
+        // TODO: ^
+    }
+    return 0;
+}
+uint16_t set_handle_name(uint16_t handle, uint32_t name) {
+    // TODO:
     return 0;
 }

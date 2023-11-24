@@ -1,6 +1,6 @@
 #include "a20.h"
 
-static bool is_a20_enabled = false;
+static bool is_a20_enabled = true;
 
 bool get_a20_enabled() {
     return is_a20_enabled;

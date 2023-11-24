@@ -57,11 +57,13 @@
 #pragma once
 #include <inttypes.h>
 
-#define PSEUDO_RAM_SIZE_MBS 32UL
-#define TOTAL_VIRTUAL_MEMORY_KBS (PSEUDO_RAM_SIZE_MBS << 10)
-#define TOTAL_EMM_XMM_PAGES ((TOTAL_VIRTUAL_MEMORY_KBS - 640) / 16)
-#define TOTAL_EMM_PAGES TOTAL_EMM_XMM_PAGES
-// TODO: XMM pages - to a20.h ?
+#define BASE_X86_KB 1024ul
+#define TOTAL_XMM_KB 64ul
+#define TOTAL_EMM_KB (32ul << 10)
+#define EMM_LBA_SHIFT_KB (BASE_X86_KB + TOTAL_XMM_KB)
+#define TOTAL_EMM_PAGES (TOTAL_EMM_KB >> 4)
+#define TOTAL_VIRTUAL_MEMORY_KBS (BASE_X86_KB + TOTAL_XMM_KB + TOTAL_EMM_KB)
+
 #define PHISICAL_EMM_SEGMENT 0xD000
 #define PHISICAL_EMM_SEGMENT_KB 64
 #define PHISICAL_EMM_SEGMENT_END 0xE000
@@ -78,7 +80,7 @@ uint16_t emm_conventional_segment();
 uint16_t total_emm_pages();
 uint16_t allocated_emm_pages();
 uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err);
-
+uint16_t reallocate_emm_pages(uint16_t handler, uint16_t pages);
 static inline uint16_t unallocated_emm_pages() {
     return total_emm_pages() - allocated_emm_pages();
 }
@@ -105,7 +107,10 @@ void writew86(uint32_t addr32, uint16_t value);
 void write86(uint32_t addr32, uint8_t value);
 uint16_t readw86(uint32_t addr32);
 uint8_t read86(uint32_t addr32);
+
 uint16_t map_unmap_emm_pages(uint16_t handle, uint16_t log_to_phys_map_len, uint32_t log_to_phys_map);
 uint16_t map_unmap_emm_seg_pages(uint16_t handle, uint16_t log_to_seg_map_len, uint32_t log_to_segment_map);
 uint16_t get_mappable_physical_array(uint16_t mappable_phys_page);
-uint16_t get_mappable_phys_page();
+uint16_t get_mappable_phys_pages();
+uint16_t get_handle_name(uint16_t handle, uint32_t name);
+uint16_t set_handle_name(uint16_t handle, uint32_t name);
