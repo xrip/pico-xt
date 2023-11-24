@@ -83,7 +83,6 @@ typedef __attribute__ ((__packed__)) struct emm_handler {
     uint8_t handler_in_use;
     uint8_t pages_acllocated;
     char name[MAX_EMM_HANDLER_NAME_SZ];
-    char dir[MAX_EMM_HANDLER_DIR_SZ];
 } emm_handler_t;
 
 static emm_handler_t handlers[MAX_EMM_HANDLERS] = { 0 };
@@ -97,13 +96,7 @@ void init_emm() {
         h->handler_in_use = false;
         h->pages_acllocated = 0;
     }
-    for (int i = 0; i < h->pages_acllocated; ++i) { // TODO: ensure time OS allocates it
-        emm_record_t * di = &emm_desc_table[i];
-        di->handler = 0;
-        di->logical_page = i;
-        di->phisical_page = (PHISICAL_EMM_SEGMENT + i * 0x400) >> 10;
-    }
-    for (int i = 1; i < PHISICAL_EMM_PAGES; ++i) {
+    for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
         emm_record_t * di = &emm_desc_table[i];
         di->handler = 0xFF;
         di->logical_page = 0;
@@ -570,18 +563,8 @@ uint16_t map_unmap_emm_seg_pages(uint16_t handle, uint16_t log_to_seg_map_len, u
 
  */
 uint16_t get_mappable_physical_array(uint16_t mappable_phys_page) {
-    for (int i = 0; i < 4; ++i) {
-        uint16_t cs = PHISICAL_EMM_SEGMENT + i * 0x400;
-        uint16_t phisical_page = cs >> 10;
-        /* bool skip_it = false;
-        for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
-            const emm_record_t * di = &emm_desc_table[i];
-            if (di->handler != 0xFF && di->phisical_page == phisical_page) {
-                skip_it = true;
-                break;
-            }
-        }
-        if (skip_it) continue; */
+    const uint16_t cs = PHISICAL_EMM_SEGMENT;
+    for (uint16_t i = 0, phisical_page = (cs >> 10); i < 4; ++phisical_page, ++i) {
         writew86(mappable_phys_page++, cs); mappable_phys_page++;
         writew86(mappable_phys_page++, phisical_page); mappable_phys_page++;
     }
@@ -590,30 +573,13 @@ uint16_t get_mappable_physical_array(uint16_t mappable_phys_page) {
 
 uint16_t get_mappable_phys_pages() {
     return 4;
-/*
-    uint16_t res = 0;
-    for (int i = 0; i < 4; ++i) {
-        uint16_t cs = PHISICAL_EMM_SEGMENT + i * 0x400;
-        uint16_t phisical_page = cs >> 10;
-        bool skip_it = false;
-        for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
-            const emm_record_t * di = &emm_desc_table[i];
-            if (di->handler != 0xFF && di->phisical_page == phisical_page) {
-                skip_it = true;
-                break;
-            }
-        }
-        if (!skip_it) res++;
-    }
-    return res;
-*/
 }
 
 uint16_t get_handle_name(uint16_t handle, uint32_t name) {
     if (handle >= MAX_EMM_HANDLERS || handlers[handle].handler_in_use == 0) {
         return 0x8300; // The memory manager couldn't find the EMM handle your program specified.
     }
-    char* hn = &handlers[handle].name;
+    char* hn = handlers[handle].name;
     for (int i = 0; i < MAX_EMM_HANDLER_NAME_SZ; ++i) {
         write86(name++, hn[i]);
     }
@@ -623,18 +589,44 @@ uint16_t set_handle_name(uint16_t handle, uint32_t name) {
     if (handle >= MAX_EMM_HANDLERS || handlers[handle].handler_in_use == 0) {
         return 0x8300; // The memory manager couldn't find the EMM handle your program specified.
     }
-    char* hn = &handlers[handle].name; // TODO: unique
+    char* hn = handlers[handle].name; // TODO: unique
     for (int i = 0; i < MAX_EMM_HANDLER_NAME_SZ; ++i) {
         hn[i] = read86(name++);
     }
     return 0;
 }
 
-uint16_t get_handle_dir(uint32_t handle_dir_struct, uint8_t sz) {
-// TODO:
-    return 0;
+//  handle_dir_struct   STRUC
+//     handle_value     DW  ?
+//     handle_name      DB  8  DUP  (?)
+//  handle_dir_struct   ENDS
+uint16_t get_handle_dir(uint32_t handle_dir_struct) {
+    uint16_t res = 0;
+    for (uint16_t handler = 0; handler < MAX_EMM_HANDLERS; ++handler) {
+        emm_handler_t* h = &handlers[handler];
+        if (h->handler_in_use == 0) continue;
+        writew86(handle_dir_struct++, handler); handle_dir_struct++;
+        char* hn = h->name;
+        for (int i = 0; i < MAX_EMM_HANDLER_NAME_SZ; ++i) {
+            write86(handle_dir_struct++, hn[i]);
+        }
+        res++;
+    }
+    return res;
 }
-uint16_t set_handle_dir(uint32_t handle_dir_struct, uint8_t sz) {
-// TODO:
-    return 0;
+
+uint16_t lookup_handle_dir(uint32_t handle_name, uint16_t *AH) {
+    char hn[8];
+    for (int i = 0; i < MAX_EMM_HANDLER_NAME_SZ; ++i) {
+        hn[i] = read86(handle_name++);
+    }
+    for (uint16_t handler = 0; handler < MAX_EMM_HANDLERS; ++handler) {
+        emm_handler_t* h = &handlers[handler];
+        if (h->handler_in_use && (*((uint64_t*)h->name)) == (*((uint64_t*)hn))) {
+            *AH = 0;
+            return handler;
+        }
+    }
+    *AH = 0xA0; // No corresponding handle could be found for the handle name specified.
+    return 0xFF;
 }

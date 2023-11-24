@@ -1019,7 +1019,7 @@ static void custom_on_board_emm() {
             uint16_t handle = CPU_DX;
             uint32_t handle_name = ((uint32_t)CPU_ES << 4) + CPU_DI;
             CPU_AX = get_handle_name(handle, handle_name);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%Xh)",
+            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%d, %Xh)",
                     FN, CPU_AX, handle, handle_name); logMsg(tmp);
             if (CPU_AX) zf = 1; else zf = 0;
             return;
@@ -1029,7 +1029,7 @@ static void custom_on_board_emm() {
             uint16_t handle = CPU_DX;
             uint32_t handle_name = ((uint32_t)CPU_DS << 4) + CPU_SI;
             CPU_AX = set_handle_name(handle, handle_name);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%Xh)",
+            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%d, %Xh)",
                     FN, CPU_AX, handle, handle_name); logMsg(tmp);
             if (CPU_AX) zf = 1; else zf = 0;
             return;
@@ -1039,19 +1039,18 @@ static void custom_on_board_emm() {
         FN = CPU_AX;
         switch(CPU_AL) {
         // GET HANDLE DIRECTORY
-        //  handle_dir_struct   STRUC
-        //     handle_value     DW  ?
-        //     handle_name      DB  8  DUP  (?)
-        //  handle_dir_struct   ENDS
         case 0x00: {
             uint32_t handle_dir_struct = ((uint32_t)CPU_ES << 4) + CPU_DI;
-// TODO:
-            if (CPU_AX) zf = 1; else zf = 0;
+            CPU_AX = get_handle_dir(handle_dir_struct);
+            sprintf(tmp, "LIM40 FN %Xh res: %Xh handle_dir_struct(%Xh)", FN, CPU_AX, handle_dir_struct); logMsg(tmp);
+            if (CPU_AH) zf = 1; else zf = 0;
             return;
         }
-        // SET HANDLE DIRECTORY
+        // SEARCH FOR NAMED HANDLE
         case 0x01: {
-// TODO:
+            uint32_t handle_name = ((uint32_t)CPU_ES << 4) + CPU_DI;
+            CPU_DX = lookup_handle_dir(handle_name , &CPU_AX);
+            sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d lookup_handle_dir(%Xh)", FN, CPU_AH, CPU_DX, handle_name); logMsg(tmp);
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
