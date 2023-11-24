@@ -130,8 +130,8 @@ __inline void write86(uint32_t addr32, uint8_t value) {
     if (addr32 >= 0xD0000UL && addr32 < 0xD8000UL) {
         addr32 -= 0xCC000UL; // TODO: why?
     }
-    else if ((addr32) > 0xFFFFFUL) {
 #if SD_CARD_SWAP
+    else if ((addr32) > 0xFFFFFUL) {
         if (addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL) { // Hihg mem (1Mb + 64Kb)
           if (get_a20_enabled()) { // A20 line is ON
             // char tmp[40]; sprintf(tmp, "HIMEM W LBA: 0x%X", addr32); logMsg(tmp);
@@ -173,18 +173,17 @@ void writew86(uint32_t addr32, uint16_t value) {
 }
 
 __inline uint8_t read86(uint32_t addr32) {
-#if SD_CARD_SWAP
+#if PICO_ON_DEVICE && SD_CARD_SWAP
     if ((!PSRAM_AVAILABLE && addr32 < (640 << 10)) || PSRAM_AVAILABLE && addr32 < (RAM_SIZE << 10)) {
 #else
     if (addr32 < (RAM_SIZE << 10)) {
 #endif
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
-#if PSEUDO_RAM_BASE || SD_CARD_SWAP
+#if SD_CARD_SWAP
                 if (PSRAM_AVAILABLE || addr32 < 4096) {
                     // do not touch first 4kb
                     return RAM[addr32];
                 }
-#if SD_CARD_SWAP
                 return ram_page_read(addr32);
 #else
         return RAM[addr32];

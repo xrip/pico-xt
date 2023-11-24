@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+
 uint8_t set_a20(uint8_t cond);
 bool    get_a20_enabled();
 
