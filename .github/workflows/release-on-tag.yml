@@ -3,9 +3,9 @@ name: Build and create a release when tag is pushed
 # Only deploy when a new tag is pushed
 on:
     push:
-        tags:
-          - "v*.*-alpha"
-          - "v*.*.*"
+    #     tags:
+    #       - "v*.*-alpha"
+    #       - "v*.*.*"
     #     branches: [ master ]
     # pull_request:
     #     branches: [ master ]        
@@ -58,7 +58,9 @@ jobs:
                  cd $HOME && \
                  git clone https://github.com/raspberrypi/pico-sdk.git --branch master && \
                  cd pico-sdk/ && \
-                 git submodule update --init
+                 git submodule update --init && \
+                 cd lib/tinyusb &&
+                 git checkout 08f9ed67c92421cbd0bc09270d2f363886681866
 
           - name: Install picotool
             run: |

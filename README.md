@@ -1,5 +1,7 @@
 # Raspberry Pi Pico PC XT (8086/8088) Emulator for MURMULATOR devboard
 
+![build master](https://github.com/xrip/pico-xt/actions/workflows/release-on-tag.yml/badge.svg?branch=master)
+
 To use HDD: save hdd.img (from hdd.img.zip) to <SD-card-drive>:\XT\hdd.img
 
 To switch to USB-drives mode press: Enter + Backspace
@@ -21,4 +23,4 @@ To get it working you should have an Murmulator (development) board with VGA out
 ![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
 
 # Contributors
-![GitHub Contributors Image](https://contrib.rocks/image?repo=xrip/pico-nes)
+![GitHub Contributors Image](https://contrib.rocks/image?repo=xrip/pico-xt)
