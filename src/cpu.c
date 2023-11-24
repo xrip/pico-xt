@@ -1057,7 +1057,12 @@ static void custom_on_board_emm() {
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
-    // TODO:
+    // Optional: set handler attributes
+    case 0x52: {
+        CPU_AX = 0x9100; // not supported
+        zf = 1;
+        return;
+    }
     case 0x53:
         FN = CPU_AX;
         switch(CPU_AL) {

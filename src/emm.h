@@ -74,6 +74,7 @@
 
 #define MAX_SAVED_EMM_TABLES 4
 #define MAX_EMM_HANDLERS 255
+#define MAX_EMM_HANDLER_NAME_SZ 10
 
 void init_emm();
 uint16_t emm_conventional_segment();

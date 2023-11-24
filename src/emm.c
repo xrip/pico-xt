@@ -82,6 +82,7 @@ static emm_desc_table_t emm_desc_table = { 0 };
 typedef __attribute__ ((__packed__)) struct emm_handler {
     uint8_t handler_in_use;
     uint8_t pages_acllocated;
+    char name[MAX_EMM_HANDLER_NAME_SZ];
 } emm_handler_t;
 
 static emm_handler_t handlers[MAX_EMM_HANDLERS] = { 0 };
@@ -89,7 +90,7 @@ static emm_handler_t handlers[MAX_EMM_HANDLERS] = { 0 };
 void init_emm() {
     emm_handler_t * h = &handlers[0];
     h->handler_in_use = true;
-    h->pages_acllocated = 16;
+    h->pages_acllocated = 1;
     for (int i = 1; i < MAX_EMM_HANDLERS; ++i) {
         h = &handlers[i];
         h->handler_in_use = false;
@@ -128,7 +129,7 @@ uint16_t total_open_emm_handles() {
 }
 
 uint16_t get_emm_handle_pages(uint16_t emm_handle, uint16_t *err) {
-    if (emm_handle > 255 || handlers[emm_handle].handler_in_use == 0) {
+    if (emm_handle >= MAX_EMM_HANDLERS || handlers[emm_handle].handler_in_use == 0) {
         *err = 0x83 << 8; // The memory manager couldn't find the EMM handle your program specified.
         return 0;
     }
@@ -207,7 +208,7 @@ uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err) {
 }
 
 uint16_t reallocate_emm_pages(uint16_t handler, uint16_t pages) {
-    if (handler > 255 || handlers[handler].handler_in_use == 0) {
+    if (handler >= MAX_EMM_HANDLERS || handlers[handler].handler_in_use == 0) {
         return 0x83 << 8; // The memory manager couldn't find the EMM handle your program specified.
     }
     if (pages > TOTAL_EMM_PAGES) {
@@ -608,13 +609,22 @@ uint16_t get_mappable_phys_pages() {
 }
 
 uint16_t get_handle_name(uint16_t handle, uint32_t name) {
-    for (int i = 0; i < 10; ++i) {
-        write86(name++, 0);
-        // TODO: ^
+    if (handle >= MAX_EMM_HANDLERS || handlers[handle].handler_in_use == 0) {
+        return 0x8300; // The memory manager couldn't find the EMM handle your program specified.
+    }
+    char* hn = &handlers[handle].name;
+    for (int i = 0; i < MAX_EMM_HANDLER_NAME_SZ; ++i) {
+        write86(name++, hn[i]);
     }
     return 0;
 }
 uint16_t set_handle_name(uint16_t handle, uint32_t name) {
-    // TODO:
+    if (handle >= MAX_EMM_HANDLERS || handlers[handle].handler_in_use == 0) {
+        return 0x8300; // The memory manager couldn't find the EMM handle your program specified.
+    }
+    char* hn = &handlers[handle].name; // TODO: unique
+    for (int i = 0; i < MAX_EMM_HANDLER_NAME_SZ; ++i) {
+        hn[i] = read86(name++);
+    }
     return 0;
 }
