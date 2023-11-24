@@ -177,7 +177,7 @@ int main() {
 
 #if PSRAM
     // TODO: сделать нормально
-    psram_spi = psram_spi_init(pio0, -1);
+    psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.6, true);
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
     PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
 

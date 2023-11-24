@@ -107,7 +107,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
         return;
     }
 #else
-    if(addr32 < (RAM_SIZE << 10)) {
+    if (addr32 < (RAM_SIZE << 10)) {
         RAM[addr32] = value;
     }
 #endif
@@ -179,76 +179,7 @@ __inline uint8_t read86(uint32_t addr32) {
     if (addr32 < (RAM_SIZE << 10)) {
 #endif
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
-        switch (addr32) {
-            //some hardcoded values for the BIOS data area
-            /*case 0x400:     // serial COM1: address at 0x03F8
-                return (0xF8);
-            case 0x401:
-                return (0x03);*/
-
-            case 0x408: /// LPT1
-                return (0x78);
-            case 0x409:
-                return (0x3);
-            case 0x410:
-                return (0b01100001); // video type CGA 80x25
-            /*            76543210  40:10 (value in INT 11 register AL)
-                          |||||||`- IPL diskette installed
-                          ||||||`-- math coprocessor
-                          |||||+--- old PC system board RAM < 256K
-                          |||||`--- pointing device installed (PS/2)
-                          ||||`---- not used on PS/2
-                          ||`------ initial video mode
-                          `-------- number of diskette drives, less 1
-            */
-            /*
-            case 0x411:
-                return (0b01000010);
-                */
-            /*  	      76543210  40:11  (value in INT 11 register AH)
-                          |||||||`- 0 if DMA installed
-                          ||||```-- number of serial ports
-                          |||`----- game adapter
-                          ||`------ not used, internal modem (PS/2)
-                          ``-------- number of printer ports
-             */
-
-            /*
-        case 0x413:
-            return (RAM_SIZE & 0xFF);
-        case 0x414:
-            return ((RAM_SIZE >> 8) & 0xFF);
-        */
-            case 0x463:
-                return (0xd4);
-            case 0x464:
-                return (0x3);
-            /*
-                        case 0x465:
-                            switch (videomode) {
-                                case 0:
-                                    return (0x2C);
-                                case 1:
-                                    return (0x28);
-                                case 2:
-                                    return (0x2D);
-                                case 3:
-                                    return (0x29);
-                                case 4:
-                                    return (0x0E);
-                                case 5:
-                                    return (0x0A);
-                                case 6:
-                                    return (0x1E);
-                                default:
-                                    return (0x29);
-                            }
-            */
-            case 0x466:
-                return port3D9;
-            case 0x475: //hard drive count
-                return (hdcount);
-            default:
+#if PSEUDO_RAM_BASE || SD_CARD_SWAP
                 if (PSRAM_AVAILABLE || addr32 < 4096) {
                     // do not touch first 4kb
                     return RAM[addr32];
@@ -256,9 +187,12 @@ __inline uint8_t read86(uint32_t addr32) {
 #if SD_CARD_SWAP
                 return ram_page_read(addr32);
 #else
-                return RAM[addr32];
+        return RAM[addr32];
 #endif
-        }
+    }
+    else if (addr32 == 0xFC000) {
+        // TANDY graphics hack
+        return 0x21;
     }
     else if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
         //if (addr32 == 0xFFFFEUL) { // TODO: rebuild BIOS to change this byte (in other case internal BIOS test failed)
@@ -296,6 +230,7 @@ __inline uint8_t read86(uint32_t addr32) {
         addr32 -= 0xFA000UL;
         return BASICH[addr32];
     }
+
     else if (addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL) { // Hihg mem (1Mb + 64Kb)
 #if SD_CARD_SWAP
 // TODO: PSRAM_AVAILABLE ...
@@ -757,13 +692,13 @@ static inline uint16_t pop() {
 }
 
 #if !PICO_ON_DEVICE
-uint32_t ClockTick(uint32_t interval, void *name) {
+uint32_t ClockTick(uint32_t interval, void* name) {
     doirq(0);
     tickssource();
     return timer_period / 1000;
 }
 
-uint32_t BlinkTimer(uint32_t interval, void *name) {
+uint32_t BlinkTimer(uint32_t interval, void* name) {
     cursor_blink_state ^= 1;
     return interval;
 }
@@ -2143,10 +2078,10 @@ static int translatescancode_from_sdl(SDL_Keycode keyval) {
     //printf("translatekey for 0x%04X %s\n", keyval, SDL_GetKeyName(keyval));
     switch (keyval) {
         case SDLK_ESCAPE:
-            return 0x01;        // escape
+            return 0x01; // escape
         case 0x30:
-            return 0x0B;        // zero
-        case 0x31:                    // numeric keys 1-9
+            return 0x0B; // zero
+        case 0x31: // numeric keys 1-9
         case 0x32:
         case 0x33:
         case 0x34:
@@ -2255,29 +2190,29 @@ static int translatescancode_from_sdl(SDL_Keycode keyval) {
         case SDLK_CAPSLOCK:
             return 0x3A;
         case SDLK_F1:
-            return 0x3B;    // F1
+            return 0x3B; // F1
         case SDLK_F2:
-            return 0x3C;    // F2
+            return 0x3C; // F2
         case SDLK_F3:
-            return 0x3D;    // F3
+            return 0x3D; // F3
         case SDLK_F4:
-            return 0x3E;    // F4
+            return 0x3E; // F4
         case SDLK_F5:
-            return 0x3F;    // F5
+            return 0x3F; // F5
         case SDLK_F6:
-            return 0x40;    // F6
+            return 0x40; // F6
         case SDLK_F7:
-            return 0x41;    // F7
+            return 0x41; // F7
         case SDLK_F8:
-            return 0x42;    // F8
+            return 0x42; // F8
         case SDLK_F9:
-            return 0x43;    // F9
+            return 0x43; // F9
         case SDLK_F10:
-            return 0x44;    // F10
+            return 0x44; // F10
         case SDLK_NUMLOCKCLEAR:
-            return 0x45;    // numlock
+            return 0x45; // numlock
         case SDLK_SCROLLLOCK:
-            return 0x46;    // scroll lock
+            return 0x46; // scroll lock
         case SDLK_KP_7:
         case SDLK_HOME:
             return 0x47;
@@ -2315,7 +2250,7 @@ static int translatescancode_from_sdl(SDL_Keycode keyval) {
         case SDLK_DELETE:
             return 0x53;
         default:
-            return -1;    // *** UNSUPPORTED KEY ***
+            return -1; // *** UNSUPPORTED KEY ***
     }
 }
 
@@ -2336,7 +2271,8 @@ void handleinput(void) {
                     }
                     //printf("%02X\n", translatescancode_from_sdl(event.key.keysym.sym));
                     keydown[translated_key] = 1;
-                } else if (!hijacked_input)
+                }
+                else if (!hijacked_input)
                     printf("INPUT: Unsupported key: %s [%d]\n", SDL_GetKeyName(event.key.keysym.sym),
                            event.key.keysym.sym);
                 break;
