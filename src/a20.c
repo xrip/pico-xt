@@ -1,6 +1,6 @@
 #include "a20.h"
 
-static bool is_a20_enabled = true;
+static bool is_a20_enabled = false; // Turn it ON, for case using himem.sys with /m:3 /a20control:off mode
 
 bool get_a20_enabled() {
     return is_a20_enabled;

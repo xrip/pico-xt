@@ -125,14 +125,13 @@ bool init_vram() {
 FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
     FRESULT result = f_lseek(&file, file_offset);
     if (result != FR_OK) {
+        char tmp[40];
         result = f_open(&file, path, FA_READ | FA_WRITE);
         if (result != FR_OK) {
-            char tmp[40];
             sprintf(tmp, "Unable to open pagefile.sys: %s (%d)", FRESULT_str(result), result);
             logMsg(tmp);
             return result;
         }
-        char tmp[40];
         sprintf(tmp, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
     }

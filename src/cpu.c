@@ -136,6 +136,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
           if (get_a20_enabled()) { // A20 line is ON
             // char tmp[40]; sprintf(tmp, "HIMEM W LBA: 0x%X", addr32); logMsg(tmp);
             ram_page_write(addr32, value);
+            return;
           }
         }
         write86(addr32 - 0x100000UL, value);
@@ -300,7 +301,7 @@ __inline uint8_t read86(uint32_t addr32) {
 // TODO: PSRAM_AVAILABLE ...
         if (get_a20_enabled()) {
             // char tmp[40]; sprintf(tmp, "HIMEM LBA: 0x%X", addr32); logMsg(tmp);
-            ram_page_read(addr32);
+            return ram_page_read(addr32);
         }
         return read86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 #endif
@@ -319,9 +320,13 @@ uint16_t readw86(uint32_t addr32) {
         return psram_read16(&psram_spi, addr32);
     }
 #if SD_CARD_SWAP
-    if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && (addr32 & 0xFFFFFFFE) == 0) {
+    auto w = (addr32 & 0xFFFFFFFE) == 0;
+    if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && w) {
         return ram_page_read16(addr32);
     } // TODO: ROM, VRAM, ...
+    if (get_a20_enabled() && addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL && w) { // Hihg mem (1Mb + 64Kb)
+        return ram_page_read16(addr32);
+    }
 #endif
 #endif
     return ((uint16_t)read86(addr32) | (uint16_t)(read86(addr32 + 1) << 8));
