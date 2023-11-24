@@ -15,3 +15,10 @@ Extra PSRAM support on pi pico pins:
             PSRAM_PIN_MISO=20
 
 To swap floppy drives A <-> B use: Left Ctrl + Tab + Backspace
+
+# Hardware needed
+To get it working you should have an Murmulator (development) board with VGA output. Schematics available here at https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme
+![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
+
+# Contributors
+![GitHub Contributors Image](https://contrib.rocks/image?repo=xrip/pico-nes)

@@ -51,7 +51,10 @@ static const uint8_t parity[0x100] = {
     1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
     0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
 };
-__aligned(4096) uint8_t RAM[RAM_SIZE << 10];
+#if PICO_ON_DEVICE
+__aligned(4096)
+#endif
+uint8_t RAM[RAM_SIZE << 10];
 uint8_t VRAM[VRAM_SIZE << 10];
 
 uint8_t oper1b, oper2b, res8, nestlev, addrbyte;
@@ -97,12 +100,18 @@ void modregrm() {
 }
 
 __inline void write86(uint32_t addr32, uint8_t value) {
+#if PICO_ON_DEVICE
     if ((PSRAM_AVAILABLE && (addr32) < (RAM_SIZE << 10)) || addr32 < RAM_PAGE_SIZE) {
         // do not touch first page
         RAM[addr32] = value;
         return;
     }
-    if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
+#else
+    if(addr32 < (RAM_SIZE << 10)) {
+        RAM[addr32] = value;
+    }
+#endif
+    else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
         // video RAM range
         addr32 -= 0xB8000UL;
         VRAM[addr32] = value; // 16k for graphic mode!!!
@@ -1557,12 +1566,14 @@ void intcall86(uint8_t intnum) {
              return;*/
 
         case 0x19:
+#if PICO_ON_DEVICE
             insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
             insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
-#if PICO_ON_DEVICE
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             keyboard_send(0xFF);
 #else
+            insertdisk(0, sizeof FDD0, FDD0, NULL);
+            insertdisk(1, sizeof FDD1, FDD1, NULL);
             insertdisk(128, 0, NULL, "hdd.img");
 #endif
             break;

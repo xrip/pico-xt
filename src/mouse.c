@@ -21,9 +21,7 @@
 /* sermouse.c: functions to emulate a standard Microsoft-compatible serial mouse. */
 
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
-#include <vga.h>
 
 #include "emulator.h"
 
