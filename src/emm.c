@@ -220,14 +220,18 @@ uint16_t reallocate_emm_pages(uint16_t handler, uint16_t pages) {
     return 0;
 }
 
+static inline uint32_t phisical_page_2_lba(uint32_t physical_page_number) {
+    return (physical_page_number << 14) + (emm_conventional_segment() << 4);
+}
+
 uint16_t map_unmap_emm_page(
     uint8_t physical_page_number,
     uint16_t logical_page_number,
     uint16_t emm_handle
 ) {
-    uint32_t base_lba = (uint32_t)emm_conventional_segment() << 4;
-    uint32_t phisical_page_lba = (uint32_t)physical_page_number << 14;
-    if (base_lba + (64ul << 10) >= phisical_page_lba) { // TODO: ensure
+    const uint32_t phisical_end_lba = (uint32_t)PHISICAL_EMM_SEGMENT_END << 4;
+    uint32_t phisical_page_lba = phisical_page_2_lba(physical_page_number);
+    if (phisical_page_lba >= phisical_end_lba) { // TODO: ensure
         return 0x88 << 8; // The physical page number is out of the range of allowable
                           // physical pages.  The program can recover by attempting to
                           // map into memory at a physical page which is within the
@@ -239,8 +243,6 @@ uint16_t map_unmap_emm_page(
             emm_record_t * di = &emm_desc_table[i];
             if (di->phisical_page == physical_page_number && di->handler == emm_handle) {
                 di->handler = 0xFF;
-                di->phisical_page = 0;
-                di->logical_page = 0;
             }
         }
         return 0;
@@ -548,31 +550,26 @@ uint16_t map_unmap_emm_seg_pages(uint16_t handle, uint16_t log_to_seg_map_len, u
                      where the memory manager will copy the physical address
                      array.  Each entry in the array is a structure containing
                      two members:
-
           .phys_page_segment
                      The first member is a word which contains the segment
                      address of the mappable physical page associated with the
                      physical page number following it.  The array entries are
                      sorted in ascending segment address order.
-
           .phys_page_number
                      The second member is a word which contains the physical
                      page number which corresponds to the previous segment
                      address.  The physical page numbers are not necessarily in
                      ascending order.
 
- */
+*/
+uint16_t get_mappable_phys_pages() { return 4; }
 uint16_t get_mappable_physical_array(uint16_t mappable_phys_page) {
-    const uint16_t cs = PHISICAL_EMM_SEGMENT;
-    for (uint16_t i = 0, phisical_page = (cs >> 10); i < 4; ++phisical_page, ++i) {
+    uint16_t cs = PHISICAL_EMM_SEGMENT;
+    for (uint16_t phisical_page = 0; phisical_page < get_mappable_phys_pages(); ++phisical_page, cs += 0x400) {
         writew86(mappable_phys_page++, cs); mappable_phys_page++;
         writew86(mappable_phys_page++, phisical_page); mappable_phys_page++;
     }
     return 0;
-}
-
-uint16_t get_mappable_phys_pages() {
-    return 4;
 }
 
 uint16_t get_handle_name(uint16_t handle, uint32_t name) {
