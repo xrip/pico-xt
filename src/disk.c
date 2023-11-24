@@ -110,6 +110,7 @@ static _FILE* tryDefaultDrive(uint8_t drivenum, size_t size, char *path) {
         f_write(pFile, drive_b_0000000, sizeof(drive_b_0000000), &bw);     
     }
     gpio_put(PICO_DEFAULT_LED_PIN, false);
+    return pFile;
 }
 #endif
 

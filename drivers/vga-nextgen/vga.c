@@ -330,7 +330,7 @@ enum graphics_mode_t graphics_set_mode(enum graphics_mode_t mode) {
 
     // Если мы уже проиницилизированы - выходим
     if ((txt_palette_fast) && (lines_pattern_data)) {
-        return;
+        return res;
     };
     uint8_t TMPL_VHS8 = 0;
     uint8_t TMPL_VS8 = 0;
@@ -390,7 +390,6 @@ enum graphics_mode_t graphics_set_mode(enum graphics_mode_t mode) {
             break;
         default:
             return res;
-            break;
     }
 
     //корректировка  палитры по маске бит синхры

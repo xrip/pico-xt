@@ -10,6 +10,9 @@
 #include <stdbool.h>
 #include <memory.h>
 #include "cga.h"
+#include "a20.h"
+#include "emm.h"
+#include "ram_page.h"
 #include "../assets/rom.h"
 #include "../assets/startup_disk.h"
 #include "../assets/fdd.h"
@@ -28,29 +31,6 @@ static FATFS fs;
 #define BEEPER_PIN 28
 #define VRAM_SIZE 32
 
-#if PICO_ON_DEVICE
-#define RAM_PAGE_SIZE_KB 4
-#define RAM_PAGE_SIZE (RAM_PAGE_SIZE_KB * 1024)
-#define RAM_IN_PAGE_ADDR_MASK (0x00000FFF)
-#define RAM_SIZE (64 * 3)
-#else
-#define RAM_SIZE (640) // (64*3+26)
-#endif
-
-#if PSEUDO_RAM_BASE || SD_CARD_SWAP
-#define PSEUDO_RAM_SIZE (640)
-#define PSEUDO_RAM_BLOCKS (PSEUDO_RAM_SIZE / RAM_PAGE_SIZE_KB)
-extern uint16_t PSEUDO_RAM_PAGES[PSEUDO_RAM_BLOCKS]; // 4KB blocks
-#define RAM_BLOCKS (RAM_SIZE / RAM_PAGE_SIZE_KB)
-extern uint16_t RAM_PAGES[RAM_BLOCKS]; // PSEUDO_RAM_PAGES idx (7-0); 15 - written, 14-8 oldness
-#if PSEUDO_RAM_BASE
-void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz);
-#endif
-#if SD_CARD_SWAP
-void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz);
-void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz);
-#endif
-#endif
 // TODO: no direct access support (for PC mode)
 extern uint8_t RAM[RAM_SIZE << 10];
 extern uint8_t VRAM[VRAM_SIZE << 10];
@@ -191,7 +171,7 @@ void write86(uint32_t addr32, uint8_t value);
 void reset86(void);
 void exec86(uint32_t execloops);
 uint8_t read86(uint32_t addr32);
-static uint16_t readw86(uint32_t addr32);
+uint16_t readw86(uint32_t addr32);
 
 
 void portout(uint16_t portnum, uint16_t value);

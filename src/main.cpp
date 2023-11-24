@@ -39,109 +39,6 @@ bool runing = true;
 
 #if PICO_ON_DEVICE
 
-#if SD_CARD_SWAP
-static const char* path = "\\XT\\pagefile.sys";
-static FIL file;
-
-bool init_vram() {
-    FRESULT result = f_open(&file, path, FA_READ | FA_WRITE);
-    if (result != FR_OK) {
-        logMsg((char *)"Create <SD-card>\\XT\\pagefile.sys");
-        result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_NEW | FA_OPEN_APPEND);
-        if (result != FR_OK) {
-            logMsg((char *)"Unable to create <SD-card>\\XT\\pagefile.sys");
-            return false;
-        }
-        for (int i = 0; i < PSEUDO_RAM_BLOCKS; ++i) {
-            UINT bw;
-            result = f_write(&file, RAM, RAM_PAGE_SIZE, &bw);
-            if (result != FR_OK) {
-                logMsg((char *)"Unable to initialize <SD-card>\\XT\\pagefile.sys");
-                return false;
-            }
-        }
-        f_close(&file);
-        result = f_open(&file, path, FA_READ | FA_WRITE);
-        if (result != FR_OK) {
-            logMsg((char *)"<SD-card>\\XT\\pagefile.sys creation passed");
-        }
-        // f_close(&file);
-    }
-    logMsg((char *)"pagefile.sys is initialized");
-    return true;
-}
-
-FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
-    FRESULT result = f_lseek(&file, file_offset);
-    if (result != FR_OK) {
-        result = f_open(&file, path, FA_READ | FA_WRITE);
-        if (result != FR_OK) {
-            char tmp[40];
-            sprintf(tmp, "Unable to open pagefile.sys: %s (%d)", FRESULT_str(result), result);
-            logMsg(tmp);
-            return result;
-        }
-        char tmp[40];
-        sprintf(tmp, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result);
-        logMsg(tmp);
-    }
-    return result;
-}
-
-void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char tmp[40];
-    sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset);
-    logMsg(tmp);
-    FRESULT result = vram_seek(&file, file_offset);
-    if (result != FR_OK) {
-        return;
-    }
-    UINT br;
-    result = f_read(&file, dst, sz, &br);
-    if (result != FR_OK) {
-        sprintf(tmp, "Failed to f_read: %s (%d)", FRESULT_str(result), result);
-        logMsg(tmp);
-    }
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-}
-
-void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char tmp[40];
-    sprintf(tmp, "Flush pagefile 0x%X->0x%X", src, file_offset);
-    logMsg(tmp);
-    FRESULT result = vram_seek(&file, file_offset);
-    if (result != FR_OK) {
-        return;
-    }
-    UINT bw;
-    result = f_write(&file, src, sz, &bw);
-    if (result != FR_OK) {
-        sprintf(tmp, "Failed to f_write: %s (%d)", FRESULT_str(result), result);
-        logMsg(tmp);
-    }
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-}
-#endif
-
-#if PSEUDO_RAM_BASE
-#include <hardware/flash.h>
-// TODO: own C file
-void flash_range_program3(uint32_t addr, const u_int8_t * buff, size_t sz) {
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char tmp[40]; // sprintf(tmp, "Flash erase 0x%X (%d)", addr, sz); logMsg(tmp);
-    uint32_t interrupts = save_and_disable_interrupts();
-    // multicore_lockout_start_blocking();
-    flash_range_erase(addr - XIP_BASE, sz);
-    sprintf(tmp, "Flash write 0x%X<-0x%X", addr, buff); logMsg(tmp);
-    flash_range_program(addr - XIP_BASE, buff, sz);
-    // multicore_lockout_end_blocking();
-    restore_interrupts(interrupts);
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-}
-#endif
-
 struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
@@ -289,12 +186,14 @@ int main() {
         char tmp[80];
         sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
-        while (runing) { sleep_ms(100); }
+        logMsg(tmp);
+        while (runing) { sleep_ms(100); } // TODO: test no sd-card startup
     }
 #endif
 #if SD_CARD_SWAP
+    // set_start_debug_line(0);
     if (!PSRAM_AVAILABLE && !init_vram()) {
-        logMsg((char *)"psram unavailable and init_vram failed");
+        logMsg((char *)"init_vram failed"); // TODO: test small type startup
         while (runing) { sleep_ms(100); }
     }
 #endif

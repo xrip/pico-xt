@@ -103,7 +103,7 @@ bool tud_msc_ejected() {
       ejected_cnt++;
   }
   // char tmp[80]; sprintf(tmp, "tud_msc_ejected: %d", ejected_cnt); logMsg(tmp);
-  if(ejected_cnt >= 3) { // fdd may not be proper unmount
+  if(ejected_cnt >= 2) {       // fdd may not be proper unmount, so it is enought to eject 2 from 4 devices to eject others
     set_tud_msc_ejected(true); // force eject remaining drive
     return true;
   }
