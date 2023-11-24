@@ -83,6 +83,7 @@ typedef __attribute__ ((__packed__)) struct emm_handler {
     uint8_t handler_in_use;
     uint8_t pages_acllocated;
     char name[MAX_EMM_HANDLER_NAME_SZ];
+    char dir[MAX_EMM_HANDLER_DIR_SZ];
 } emm_handler_t;
 
 static emm_handler_t handlers[MAX_EMM_HANDLERS] = { 0 };
@@ -90,16 +91,16 @@ static emm_handler_t handlers[MAX_EMM_HANDLERS] = { 0 };
 void init_emm() {
     emm_handler_t * h = &handlers[0];
     h->handler_in_use = true;
-    h->pages_acllocated = 1;
+    h->pages_acllocated = 0;
     for (int i = 1; i < MAX_EMM_HANDLERS; ++i) {
         h = &handlers[i];
         h->handler_in_use = false;
         h->pages_acllocated = 0;
     }
-    for (int i = 0; i < 1; ++i) { // TODO: ensure time OS allocates it
+    for (int i = 0; i < h->pages_acllocated; ++i) { // TODO: ensure time OS allocates it
         emm_record_t * di = &emm_desc_table[i];
         di->handler = 0;
-        di->logical_page = EMM_LBA_SHIFT_KB / 16 + i;
+        di->logical_page = i;
         di->phisical_page = (PHISICAL_EMM_SEGMENT + i * 0x400) >> 10;
     }
     for (int i = 1; i < PHISICAL_EMM_PAGES; ++i) {
@@ -626,5 +627,14 @@ uint16_t set_handle_name(uint16_t handle, uint32_t name) {
     for (int i = 0; i < MAX_EMM_HANDLER_NAME_SZ; ++i) {
         hn[i] = read86(name++);
     }
+    return 0;
+}
+
+uint16_t get_handle_dir(uint32_t handle_dir_struct, uint8_t sz) {
+// TODO:
+    return 0;
+}
+uint16_t set_handle_dir(uint32_t handle_dir_struct, uint8_t sz) {
+// TODO:
     return 0;
 }

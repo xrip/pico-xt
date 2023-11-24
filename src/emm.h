@@ -74,7 +74,8 @@
 
 #define MAX_SAVED_EMM_TABLES 4
 #define MAX_EMM_HANDLERS 255
-#define MAX_EMM_HANDLER_NAME_SZ 10
+#define MAX_EMM_HANDLER_NAME_SZ 8
+#define MAX_EMM_HANDLER_DIR_SZ 10
 
 void init_emm();
 uint16_t emm_conventional_segment();
@@ -115,3 +116,5 @@ uint16_t get_mappable_physical_array(uint16_t mappable_phys_page);
 uint16_t get_mappable_phys_pages();
 uint16_t get_handle_name(uint16_t handle, uint32_t name);
 uint16_t set_handle_name(uint16_t handle, uint32_t name);
+uint16_t get_handle_dir(uint32_t handle_dir_struct, uint8_t sz);
+uint16_t set_handle_dir(uint32_t handle_dir_struct, uint8_t sz);

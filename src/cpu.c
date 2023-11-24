@@ -1101,10 +1101,26 @@ static void custom_on_board_emm() {
             return;
         }
     }
-    // TODO:
     case 0x54:
         FN = CPU_AX;
         switch(CPU_AL) {
+        // GET HANDLE DIRECTORY
+        //  handle_dir_struct   STRUC
+        //     handle_value     DW  ?
+        //     handle_name      DB  8  DUP  (?)
+        //  handle_dir_struct   ENDS
+        case 0x00: {
+            uint32_t handle_dir_struct = ((uint32_t)CPU_ES << 4) + CPU_DI;
+// TODO:
+            if (CPU_AX) zf = 1; else zf = 0;
+            return;
+        }
+        // SET HANDLE DIRECTORY
+        case 0x01: {
+// TODO:
+            if (CPU_AX) zf = 1; else zf = 0;
+            return;
+        }
         // GET TOTAL HANDLES
         case 0x02: {
             CPU_BX = MAX_EMM_HANDLERS;
