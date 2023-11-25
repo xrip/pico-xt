@@ -1119,7 +1119,7 @@ static void custom_on_board_emm() {
         case 0x00: {
             uint32_t hardware_info = ((uint32_t)CPU_ES << 4) + CPU_DI;
             get_hardvare_emm_info(hardware_info);
-            sprintf(tmp, "LIM40 FN %Xh %d of %d free pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
+            sprintf(tmp, "LIM40 FN %Xh GET HARDWARE CONFIGURATION ARRAY", FN); logMsg(tmp);
             CPU_AX = 0; zf = 0;
             return;
         }
