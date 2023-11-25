@@ -145,17 +145,18 @@ uint8_t read86(uint32_t addr32);
 
 void i15_87h(uint16_t words_to_move, uint32_t gdt_far) {
     uint8_t prev_a20_enable = set_a20(1); // enable A20 line if not
-    gdt_far += 0x10; // skip not used bytes
-    uint16_t source_segment_szb = readw86(gdt_far); // (2*CX-1) or grater
-    gdt_far +=2;
-    uint32_t linear_source_addr24 = read86(gdt_far++);; // 24 bit addrss of source
-    linear_source_addr24 = (linear_source_addr24 << 16) + readw86(gdt_far);
-    gdt_far +=2;
-    gdt_far += 3; // ignore access byte, and reserver word
-    uint16_t dest_segment_szb = readw86(gdt_far); // (2*CX-1) or grater
-    gdt_far += 2;
-    uint32_t linear_dest_addr24 = read86(gdt_far++); // 24 bit addrss of source
-    linear_dest_addr24 = (linear_dest_addr24 << 16) + readw86(gdt_far);
+    uint16_t source_segment_szb = readw86(gdt_far + 0x10); // (2*CX-1) or grater
+    uint32_t linear_source_addr24 = read86(gdt_far + 0x12);; // 24 bit addrss of source
+    linear_source_addr24 = (linear_source_addr24 << 8) + read86(gdt_far + 0x13);
+    linear_source_addr24 = (linear_source_addr24 << 8) + read86(gdt_far + 0x14);
+    uint16_t dest_segment_szb = readw86(gdt_far + 0x18); // (2*CX-1) or grater
+    uint32_t linear_dest_addr24 = read86(gdt_far + 0x1A); // 24 bit addrss of source
+    linear_dest_addr24 = (linear_dest_addr24 << 8) + readw86(gdt_far + 0x1B);
+    linear_dest_addr24 = (linear_dest_addr24 << 8) + readw86(gdt_far + 0x1C);
+    char tmp[80]; sprintf(tmp, "INT15h FN 87h words_to_move: %d src: %Xh (%d) dst: %Xh (%d)",
+                                words_to_move,
+                                linear_source_addr24, source_segment_szb,
+                                linear_dest_addr24, dest_segment_szb); logMsg(tmp);
     for (int offset = 0; offset < (words_to_move << 1); offset += 2) {
         // TODO: block move by memory manager
         uint16_t d = readw86(linear_source_addr24 + offset);
