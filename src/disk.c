@@ -253,6 +253,15 @@ bool img_disk_write_sec(int drv, BYTE * buffer, LBA_t lba) {
 }
 #endif
 
+#ifdef BOOT_DEBUG
+void logFile(char* msg) {
+    f_open(&fileD, "\\XT\\boot.log", FA_WRITE | FA_OPEN_APPEND);
+    UINT bw;
+    f_write(&fileD, msg, strlen(msg), &bw);
+    f_close(&fileD);
+}
+#endif
+
 static void
 bios_readdisk(uint8_t drivenum,
               uint16_t dstseg, uint16_t dstoff,
@@ -276,20 +285,20 @@ bios_readdisk(uint8_t drivenum,
         goto error;
     }
     fileoffset = chs2ofs(drivenum, cyl, head, sect);
-#ifdef BOOT_DEBUG
+#ifdef BOOT_DISK_RW
     char tmp[80]; UINT bw;
     f_open(&fileD, "\\XT\\boot.log", FA_WRITE | FA_OPEN_APPEND);
 #endif
     if (disk[drivenum].data == NULL && fileoffset >= 0) {
 #if PICO_ON_DEVICE
         result = f_lseek(disk[drivenum].diskfile, fileoffset);
-#ifdef BOOT_DEBUG
+#ifdef BOOT_DISK_RW
         sprintf(tmp, "\ndrv%i f_lseek(0x%X) result: %s\n", drivenum, fileoffset, FRESULT_str(result));
         f_write(&fileD, tmp, strlen(tmp), &bw);
 #endif
         if (result != FR_OK) {
             CPU_AH = 0x04;    // sector not found
-#ifdef BOOT_DEBUG
+#ifdef BOOT_DISK_RW
             f_close(&fileD);
 #endif
             goto error;            
@@ -310,7 +319,7 @@ bios_readdisk(uint8_t drivenum,
     for (cursect = 0; cursect < sectcount; cursect++) {
         if (disk[drivenum].data != NULL) {
             memcpy(sectorbuffer, &disk[drivenum].data[fileoffset], 512);
-#ifdef BOOT_DEBUG
+#ifdef BOOT_DISK_RW
             sprintf(tmp, "\ndrv%i f_read(0x%X) result: %s (%d)\n", drivenum, fileoffset, FRESULT_str(FR_OK), 512); // fake read
             f_write(&fileD, tmp, strlen(tmp), &bw);
             for (int i = 0; i < 512; ++i) {
@@ -326,7 +335,7 @@ bios_readdisk(uint8_t drivenum,
             gpio_put(PICO_DEFAULT_LED_PIN, true);
             UINT bytes_read;
             result = f_read(disk[drivenum].diskfile, sectorbuffer, 512, &bytes_read);
-#ifdef BOOT_DEBUG
+#ifdef BOOT_DISK_RW
             sprintf(tmp, "\ndrv%i f_read(0x%X) result: %s (%d)\n", drivenum, fileoffset, FRESULT_str(result), bytes_read);
             f_write(&fileD, tmp, strlen(tmp), &bw);
             for (int i = 0; i < bytes_read; ++i) {
@@ -350,7 +359,7 @@ bios_readdisk(uint8_t drivenum,
                 // FIXME: segment overflow condition?
                 if (read86(memdest++) != sectorbuffer[sectoffset]) {
                     // sector verify failed!
-#ifdef BOOT_DEBUG
+#ifdef BOOT_DISK_RW
                     sprintf(tmp, "drv%i sector verify failed!\n", drivenum);
                     f_write(&fileD, tmp, strlen(tmp), &bw);
                     f_close(&fileD);
@@ -369,7 +378,7 @@ bios_readdisk(uint8_t drivenum,
 
         }
     }
-#ifdef BOOT_DEBUG
+#ifdef BOOT_DISK_RW
     f_close(&fileD);
 #endif
     if (sectcount && !cursect) {
