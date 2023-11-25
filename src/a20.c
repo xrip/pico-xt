@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 
-static bool is_a20_enabled = false; // Turn it ON, for case using himem.sys with /m:3 /a20control:off mode
+static bool is_a20_enabled = false;
 
 bool get_a20_enabled() {
     return is_a20_enabled;
@@ -18,7 +18,6 @@ uint8_t set_a20(uint8_t cond) {
         portout(PORT_A20, val ^ A20_ENABLE_BIT);
     return is_a20_enabled;
 }
-
 
 // Maximum number of map entries in the e820 map
 #define BUILD_MAX_E820 32
@@ -146,13 +145,13 @@ uint8_t read86(uint32_t addr32);
 void i15_87h(uint16_t words_to_move, uint32_t gdt_far) {
     uint8_t prev_a20_enable = set_a20(1); // enable A20 line if not
     uint16_t source_segment_szb = readw86(gdt_far + 0x10); // (2*CX-1) or grater
-    uint32_t linear_source_addr24 = read86(gdt_far + 0x12);; // 24 bit addrss of source
+    uint32_t linear_source_addr24 = read86(gdt_far + 0x14);; // 24 bit addrss of source
     linear_source_addr24 = (linear_source_addr24 << 8) + read86(gdt_far + 0x13);
-    linear_source_addr24 = (linear_source_addr24 << 8) + read86(gdt_far + 0x14);
+    linear_source_addr24 = (linear_source_addr24 << 8) + read86(gdt_far + 0x12);
     uint16_t dest_segment_szb = readw86(gdt_far + 0x18); // (2*CX-1) or grater
-    uint32_t linear_dest_addr24 = read86(gdt_far + 0x1A); // 24 bit addrss of source
+    uint32_t linear_dest_addr24 = read86(gdt_far + 0x1C); // 24 bit addrss of source
     linear_dest_addr24 = (linear_dest_addr24 << 8) + readw86(gdt_far + 0x1B);
-    linear_dest_addr24 = (linear_dest_addr24 << 8) + readw86(gdt_far + 0x1C);
+    linear_dest_addr24 = (linear_dest_addr24 << 8) + readw86(gdt_far + 0x1A);
     char tmp[80]; sprintf(tmp, "INT15h FN 87h words_to_move: %d src: %Xh (%d) dst: %Xh (%d)",
                                 words_to_move,
                                 linear_source_addr24, source_segment_szb,

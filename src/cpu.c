@@ -118,7 +118,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
         return;
     }
 #if SD_CARD_SWAP
-    if ((addr32 >> 4) >= PHISICAL_EMM_SEGMENT && (addr32 << 4) < PHISICAL_EMM_SEGMENT_END) {
+    if ((addr32 >> 4) >= PHISICAL_EMM_SEGMENT && (addr32 >> 4) < PHISICAL_EMM_SEGMENT_END) {
         uint32_t lba = get_logical_lba_for_phisical_lba(addr32);
         // char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
@@ -132,7 +132,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
     }*/
 #if SD_CARD_SWAP
     else if ((addr32) > 0xFFFFFUL) {
-        if (addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL) { // Hihg mem (1Mb + 64Kb)
+        if (addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // Hihg mem
           if (get_a20_enabled()) { // A20 line is ON
             // char tmp[40]; sprintf(tmp, "HIMEM W LBA: 0x%X", addr32); logMsg(tmp);
             ram_page_write(addr32, value);
@@ -155,15 +155,19 @@ __inline void write86(uint32_t addr32, uint8_t value) {
 }
 
 void writew86(uint32_t addr32, uint16_t value) {
+    bool w = (addr32 & 0xFFFFFFFE) == 0;
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
     }
     else
 #if SD_CARD_SWAP
-    if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && (addr32 & 0xFFFFFFFE) == 0) {
+    if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && w) {
         ram_page_write16(addr32, value);
-    } else // TODO: ROM, VRAM, himiem, ems...
+    } else if (w && addr32 >= (BASE_X86_KB << 10) && addr32 < (ON_BOARD_RAM_KB << 10) && get_a20_enabled()) {
+        ram_page_write16(addr32, value);
+    } 
+    else // TODO: ROM, VRAM, himiem, ems...
 #endif
 #endif
     {
@@ -230,7 +234,7 @@ __inline uint8_t read86(uint32_t addr32) {
         return BASICH[addr32];
     }
 
-    else if (addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL) { // Hihg mem (1Mb + 64Kb)
+    else if (addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // Hihg mem
 #if SD_CARD_SWAP
 // TODO: PSRAM_AVAILABLE ...
         if (get_a20_enabled()) {
@@ -258,7 +262,7 @@ uint16_t readw86(uint32_t addr32) {
     if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && w) {
         return ram_page_read16(addr32);
     } // TODO: ROM, VRAM, ...
-    if (get_a20_enabled() && addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL && w) { // Hihg mem (1Mb + 64Kb)
+    if (get_a20_enabled() && addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10) && w) {
         return ram_page_read16(addr32);
     }
 #endif
@@ -1186,12 +1190,12 @@ void intcall86(uint8_t intnum) {
                         case 0x00:
                             set_a20(1);
                             cf = 0; CPU_AH = 0;
-                            logMsg("INT15! 2400 |A20_ENABLE_BIT");
+                            logMsg("INT15! 2400 turn on A20_ENABLE_BIT");
                             return;
                         case 0x01:
                             set_a20(0);
                             cf = 0; CPU_AH = 0;
-                            logMsg("INT15! 2401 ~A20_ENABLE_BIT");
+                            logMsg("INT15! 2401 turn off A20_ENABLE_BIT");
                             return;
                         case 0x02:
                             CPU_AL = get_a20_enabled();
@@ -1227,14 +1231,14 @@ void intcall86(uint8_t intnum) {
                 case 0x86:
                     // TODO:
                     break;*/
-                case 0x87: { // Memory block move EMS
+            /*    case 0x87: { // Memory block move EMS
                         uint16_t words_to_move = CPU_CX;
                         uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
                         i15_87h(words_to_move, gdt_far);
                     }
                     CPU_AH = 0;
                     cf = 0;
-                    return;
+                    return;*/
                 case 0x88: // EMS info
                     if (ON_BOARD_RAM_KB > 64 * 1024) {
                         CPU_AX = 63 * 1024;
@@ -1243,7 +1247,7 @@ void intcall86(uint8_t intnum) {
                     }
                     cf = 0;
                     return;
-                case 0x89: { // switch to protected mode 286+
+                /*case 0x89: { // switch to protected mode 286+
                         uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
                         char tmp[80]; sprintf(tmp, "INT15h FN 89h IDT1: %d IDT2: %d GDT: %Xh",
                                                     CPU_BH, CPU_BL, gdt_far); logMsg(tmp);
@@ -1252,7 +1256,7 @@ void intcall86(uint8_t intnum) {
                     CPU_AH = 0;
                     cf = 0;
                     return;
-                /*
+                
                 case 0x90: // Device busy interrupt.  Called by Int 16h when no key available
                     break;
                 case 0x91: // Interrupt complete.  Called by Int 16h when key becomes available
