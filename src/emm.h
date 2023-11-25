@@ -57,12 +57,13 @@
 #pragma once
 #include <inttypes.h>
 
+#define ON_BOARD_RAM_KB (16ul << 10)
 #define BASE_X86_KB 1024ul
-#define TOTAL_XMM_KB 64ul
+#define TOTAL_XMM_KB (ON_BOARD_RAM_KB - BASE_X86_KB)
 #define TOTAL_EMM_KB (32ul << 10)
-#define EMM_LBA_SHIFT_KB (BASE_X86_KB + TOTAL_XMM_KB)
+#define EMM_LBA_SHIFT_KB ON_BOARD_RAM_KB
 #define TOTAL_EMM_PAGES (TOTAL_EMM_KB >> 4)
-#define TOTAL_VIRTUAL_MEMORY_KBS (BASE_X86_KB + TOTAL_XMM_KB + TOTAL_EMM_KB)
+#define TOTAL_VIRTUAL_MEMORY_KBS (ON_BOARD_RAM_KB + TOTAL_EMM_KB)
 
 #define PHISICAL_EMM_SEGMENT 0xD000
 #define PHISICAL_EMM_SEGMENT_KB 64
@@ -74,7 +75,7 @@
 
 #define MAX_SAVED_EMM_TABLES 4
 #define MAX_EMM_HANDLERS 255
-#define MAX_EMM_HANDLER_NAME_SZ 10
+#define MAX_EMM_HANDLER_NAME_SZ 8
 
 void init_emm();
 uint16_t emm_conventional_segment();
@@ -115,3 +116,10 @@ uint16_t get_mappable_physical_array(uint16_t mappable_phys_page);
 uint16_t get_mappable_phys_pages();
 uint16_t get_handle_name(uint16_t handle, uint32_t name);
 uint16_t set_handle_name(uint16_t handle, uint32_t name);
+uint16_t get_handle_dir(uint32_t handle_dir_struct);
+uint16_t lookup_handle_dir(uint32_t handle_name, uint16_t *AH);
+uint8_t map_emm_and_jump(uint8_t page_number_segment_selector, uint16_t handle, uint32_t map_and_jump);
+uint8_t map_emm_and_call(uint8_t page_number_segment_selector, uint16_t handle, uint32_t map_and_call);
+void get_hardvare_emm_info(uint32_t hardware_info);
+uint16_t allocate_emm_pages_sys(uint16_t handler, uint16_t pages);
+uint16_t allocate_emm_raw_pages(uint16_t pages);

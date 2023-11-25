@@ -160,14 +160,16 @@ else ()
             PSRAM_SPINLOCK=1
             PSRAM_ASYNC=1
 
-            PSRAM_PIN_CS=17
-            PSRAM_PIN_SCK=18
-            PSRAM_PIN_MOSI=19
-            PSRAM_PIN_MISO=20
+            PSRAM_PIN_CS=18
+            PSRAM_PIN_SCK=19
+            PSRAM_PIN_MOSI=20
+            PSRAM_PIN_MISO=21
 
             # supports only for pico with 4 or more MB flashes
             PICO_FLASH_SIZE_BYTES=4194304
             SD_CARD_SWAP=1
+
+            #BOOT_DEBUG=1
     )
 
 #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

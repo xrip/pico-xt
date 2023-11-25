@@ -1019,7 +1019,7 @@ static void custom_on_board_emm() {
             uint16_t handle = CPU_DX;
             uint32_t handle_name = ((uint32_t)CPU_ES << 4) + CPU_DI;
             CPU_AX = get_handle_name(handle, handle_name);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%Xh)",
+            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%d, %Xh)",
                     FN, CPU_AX, handle, handle_name); logMsg(tmp);
             if (CPU_AX) zf = 1; else zf = 0;
             return;
@@ -1029,16 +1029,31 @@ static void custom_on_board_emm() {
             uint16_t handle = CPU_DX;
             uint32_t handle_name = ((uint32_t)CPU_DS << 4) + CPU_SI;
             CPU_AX = set_handle_name(handle, handle_name);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%Xh)",
+            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%d, %Xh)",
                     FN, CPU_AX, handle, handle_name); logMsg(tmp);
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
     }
-    // TODO:
     case 0x54:
         FN = CPU_AX;
         switch(CPU_AL) {
+        // GET HANDLE DIRECTORY
+        case 0x00: {
+            uint32_t handle_dir_struct = ((uint32_t)CPU_ES << 4) + CPU_DI;
+            CPU_AX = get_handle_dir(handle_dir_struct);
+            sprintf(tmp, "LIM40 FN %Xh res: %Xh handle_dir_struct(%Xh)", FN, CPU_AX, handle_dir_struct); logMsg(tmp);
+            if (CPU_AH) zf = 1; else zf = 0;
+            return;
+        }
+        // SEARCH FOR NAMED HANDLE
+        case 0x01: {
+            uint32_t handle_name = ((uint32_t)CPU_ES << 4) + CPU_DI;
+            CPU_DX = lookup_handle_dir(handle_name , &CPU_AX);
+            sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d lookup_handle_dir(%Xh)", FN, CPU_AH, CPU_DX, handle_name); logMsg(tmp);
+            if (CPU_AX) zf = 1; else zf = 0;
+            return;
+        }
         // GET TOTAL HANDLES
         case 0x02: {
             CPU_BX = MAX_EMM_HANDLERS;
@@ -1048,7 +1063,35 @@ static void custom_on_board_emm() {
         }
         // TODO: 
     }
-    // TODO:
+    // ALTER PAGE MAP & JUMP
+    case 0x55: {
+        uint8_t page_number_segment_selector = CPU_AL;
+        uint16_t handle = CPU_DX;
+        uint32_t map_and_jump = ((uint32_t)CPU_DS << 4) + CPU_SI;
+        CPU_AH = map_emm_and_jump(page_number_segment_selector, handle, map_and_jump);
+        sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d page_number_segment_selector: %d (not implemented)",
+                      FN, CPU_AH, CPU_DX, page_number_segment_selector); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
+    // ALTER PAGE MAP & CALL
+    case 0x56: {
+        uint8_t page_number_segment_selector = CPU_AL;
+        uint16_t handle = CPU_DX;
+        uint32_t map_and_call = ((uint32_t)CPU_DS << 4) + CPU_SI;
+        CPU_AH = map_emm_and_call(page_number_segment_selector, handle, map_and_call);
+        sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d page_number_segment_selector: %d (not implemented)",
+                      FN, CPU_AH, CPU_DX, page_number_segment_selector); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
+    // MOVE/EXCHANGE MEMORY REGION
+    case 0x57: {
+        CPU_AH = 0x86;
+        sprintf(tmp, "LIM40 FN %Xh MOVE/EXCHANGE MEMORY REGION (not implemented)", FN); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
     case 0x58:
         FN = CPU_AX;
         switch(CPU_AL) {
@@ -1069,10 +1112,17 @@ static void custom_on_board_emm() {
             return;
         }
     }
-    // TODO:
     case 0x59:
         FN = CPU_AX;
         switch(CPU_AL) {
+        // GET HARDWARE CONFIGURATION ARRAY
+        case 0x00: {
+            uint32_t hardware_info = ((uint32_t)CPU_ES << 4) + CPU_DI;
+            get_hardvare_emm_info(hardware_info);
+            sprintf(tmp, "LIM40 FN %Xh %d of %d free pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
+            CPU_AX = 0; zf = 0;
+            return;
+        }
         // GET UNALLOCATED RAW PAGE COUNT
         case 0x01: {
             CPU_BX = unallocated_emm_pages();
@@ -1081,13 +1131,45 @@ static void custom_on_board_emm() {
             CPU_AX = 0; zf = 0;
             return;
         }
-        // TODO: 
     }
-    // TODO:
+    case 0x5A:
+        FN = CPU_AX;
+        switch(CPU_AL) {
+        //  ALLOCATE STANDARD PAGES
+        case 0x00: {
+            CPU_AX = allocate_emm_pages_sys(CPU_BX, CPU_DX);
+            sprintf(tmp, "LIM40 FN %Xh (%d, %d) allocate_emm_pages_sys res: %Xh", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
+            if (CPU_AX) zf = 1; else zf = 0;
+            return;
+        }
+        //  ALLOCATE STANDARD/RAW
+        case 0x01: {
+            CPU_AX = allocate_emm_raw_pages(CPU_BX);
+            sprintf(tmp, "LIM40 FN %Xh (%d, %d) allocate_emm_raw_pages res: %Xh (not yet)", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
+            if (CPU_AX) zf = 1; else zf = 0;
+            return;
+        }
+    }
+    case 0x5B: {
+        CPU_AH = 0x86;
+        sprintf(tmp, "LIM40 FN %Xh ALTERNATE MAP REGISTER SET (not implemented)", FN); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
+    case 0x5C: {
+        CPU_AH = 0x86;
+        sprintf(tmp, "LIM40 FN %Xh PREPARE EXPANDED MEMORY HARDWARE FOR WARM BOOT (not implemented)", FN); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
+    case 0x5D: {
+        CPU_AH = 0x86;
+        sprintf(tmp, "LIM40 FN %Xh ENABLE/DISABLE OS/E FUNCTION SET (not implemented)", FN); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
     default:
-        sprintf(tmp, "LIM40 FN %Xh (not yet implemented)", CPU_AX); logMsg(tmp);
-        CPU_AH = 0x86; // TODO:
-        if (CPU_AX) zf = 1; else zf = 0;
+        sprintf(tmp, "LIM40 FN %Xh (not implemented)", CPU_AX); logMsg(tmp);
     }
 }
 
@@ -1105,35 +1187,35 @@ void intcall86(uint8_t intnum) {
                             set_a20(1);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2400 |A20_ENABLE_BIT");
-                            StepIP(2); return;
+                            return;
                         case 0x01:
                             set_a20(0);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2401 ~A20_ENABLE_BIT");
-                            StepIP(2); return;
+                            return;
                         case 0x02:
                             CPU_AL = get_a20_enabled();
                             cf = 0; CPU_AH = 0;{
                                 char tmp[80]; sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL); logMsg(tmp);
                             }
-                            StepIP(2); return;
+                            return;
                         case 0x03:
                             CPU_BX = 3;
                             CPU_AH = 0;
                             cf = 0;
                             logMsg("INT15! 2403 BX: 3");
-                            StepIP(2); return;
+                            return;
                     }
                     break;
        /*       case 0x4F:
                     CPU_AH = 0x86;
                     cf = 1;
-                    StepIP(2); return;
+                    return;
                 case 0x52: // removable media eject
                     // TODO:
                     CPU_AH = 0;
                     cf = 0;
-                    StepIP(2); return;
+                    return;
                 case 0x53: // APM
                     // TODO:
                     break;
@@ -1240,19 +1322,19 @@ void intcall86(uint8_t intnum) {
                     }
                     break;
                 case 0x88:
-                    if (TOTAL_VIRTUAL_MEMORY_KBS > 64 * 1024) {
+                    if (ON_BOARD_RAM_KB > 64 * 1024) {
                         CPU_AX = 63 * 1024;
                     } else {
-                        CPU_AX = TOTAL_VIRTUAL_MEMORY_KBS - 1024;
+                        CPU_AX = ON_BOARD_RAM_KB - 1024;
                     }
                     cf = 0;
-                    StepIP(2); return;
+                    return;
      /*           case 0x89: {
                        char tmp[80]; sprintf(tmp, "INT15- 89 AX: 0x%X (Switch to protected mode)", CPU_AX); logMsg(tmp);
                     }
                     CPU_AH = 0x86;
                     cf = 1;// switch to protected mode 286+
-                    StepIP(2); return;
+                    return;
                 case 0x90: // Device busy interrupt.  Called by Int 16h when no key available
                     break;
                 case 0x91: // Interrupt complete.  Called by Int 16h when key becomes available
@@ -1264,17 +1346,17 @@ void intcall86(uint8_t intnum) {
                 case 0xE8:
                     switch(CPU_AL) {
                         case 0x01:
-                            if (TOTAL_VIRTUAL_MEMORY_KBS > 16*1024) {
+                            if (ON_BOARD_RAM_KB > 16*1024) {
                                 CPU_CX = 1024 * 15; // 15MB
-                                CPU_DX = (TOTAL_VIRTUAL_MEMORY_KBS - 16 * 1024) / 64;
+                                CPU_DX = (ON_BOARD_RAM_KB - 16 * 1024) / 64;
                             } else {
-                                CPU_CX = TOTAL_VIRTUAL_MEMORY_KBS - 1;
+                                CPU_CX = ON_BOARD_RAM_KB - 1;
                                 CPU_DX = 0;
                             }
                             CPU_AX = CPU_CX;
                             CPU_BX = CPU_DX;
                             cf = 0;
-                            StepIP(2); return;
+                            return;
                         case 0x20: {
                                 // ES:DI - destination for the table
                                 int count = e820_count;
@@ -1298,7 +1380,7 @@ void intcall86(uint8_t intnum) {
                                 CPU_CX = sizeof(e820_list[0]);
                                 // char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
                                 cf = 0;
-                                StepIP(2); return;
+                                return;
                             }
                         default:
                             break;
