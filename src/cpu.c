@@ -1150,11 +1150,26 @@ static void custom_on_board_emm() {
             return;
         }
     }
-    // TODO:
+    case 0x5B: {
+        CPU_AH = 0x86;
+        sprintf(tmp, "LIM40 FN %Xh ALTERNATE MAP REGISTER SET (not implemented)", FN); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
+    case 0x5C: {
+        CPU_AH = 0x86;
+        sprintf(tmp, "LIM40 FN %Xh PREPARE EXPANDED MEMORY HARDWARE FOR WARM BOOT (not implemented)", FN); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
+    case 0x5D: {
+        CPU_AH = 0x86;
+        sprintf(tmp, "LIM40 FN %Xh ENABLE/DISABLE OS/E FUNCTION SET (not implemented)", FN); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
     default:
-        sprintf(tmp, "LIM40 FN %Xh (not yet implemented)", CPU_AX); logMsg(tmp);
-        CPU_AH = 0x86; // TODO:
-        if (CPU_AX) zf = 1; else zf = 0;
+        sprintf(tmp, "LIM40 FN %Xh (not implemented)", CPU_AX); logMsg(tmp);
     }
 }
 
