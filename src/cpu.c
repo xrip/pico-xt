@@ -1138,14 +1138,14 @@ static void custom_on_board_emm() {
         //  ALLOCATE STANDARD PAGES
         case 0x00: {
             CPU_AX = allocate_emm_pages_sys(CPU_BX, CPU_DX);
-            sprintf(tmp, "LIM40 FN %Xh (%d, %d) res: %Xh", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
+            sprintf(tmp, "LIM40 FN %Xh (%d, %d) allocate_emm_pages_sys res: %Xh", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
         //  ALLOCATE STANDARD/RAW
         case 0x01: {
             CPU_AX = allocate_emm_raw_pages(CPU_BX);
-            sprintf(tmp, "LIM40 FN %Xh (%d, %d) res: %Xh (not yet)", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
+            sprintf(tmp, "LIM40 FN %Xh (%d, %d) allocate_emm_raw_pages res: %Xh (not yet)", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
@@ -1187,35 +1187,35 @@ void intcall86(uint8_t intnum) {
                             set_a20(1);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2400 |A20_ENABLE_BIT");
-                            StepIP(2); return;
+                            return;
                         case 0x01:
                             set_a20(0);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2401 ~A20_ENABLE_BIT");
-                            StepIP(2); return;
+                            return;
                         case 0x02:
                             CPU_AL = get_a20_enabled();
                             cf = 0; CPU_AH = 0;{
                                 char tmp[80]; sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL); logMsg(tmp);
                             }
-                            StepIP(2); return;
+                            return;
                         case 0x03:
                             CPU_BX = 3;
                             CPU_AH = 0;
                             cf = 0;
                             logMsg("INT15! 2403 BX: 3");
-                            StepIP(2); return;
+                            return;
                     }
                     break;
        /*       case 0x4F:
                     CPU_AH = 0x86;
                     cf = 1;
-                    StepIP(2); return;
+                    return;
                 case 0x52: // removable media eject
                     // TODO:
                     CPU_AH = 0;
                     cf = 0;
-                    StepIP(2); return;
+                    return;
                 case 0x53: // APM
                     // TODO:
                     break;
@@ -1322,19 +1322,19 @@ void intcall86(uint8_t intnum) {
                     }
                     break;
                 case 0x88:
-                    if (TOTAL_VIRTUAL_MEMORY_KBS > 64 * 1024) {
+                    if (ON_BOARD_RAM_KB > 64 * 1024) {
                         CPU_AX = 63 * 1024;
                     } else {
-                        CPU_AX = TOTAL_VIRTUAL_MEMORY_KBS - 1024;
+                        CPU_AX = ON_BOARD_RAM_KB - 1024;
                     }
                     cf = 0;
-                    StepIP(2); return;
+                    return;
      /*           case 0x89: {
                        char tmp[80]; sprintf(tmp, "INT15- 89 AX: 0x%X (Switch to protected mode)", CPU_AX); logMsg(tmp);
                     }
                     CPU_AH = 0x86;
                     cf = 1;// switch to protected mode 286+
-                    StepIP(2); return;
+                    return;
                 case 0x90: // Device busy interrupt.  Called by Int 16h when no key available
                     break;
                 case 0x91: // Interrupt complete.  Called by Int 16h when key becomes available
@@ -1346,17 +1346,17 @@ void intcall86(uint8_t intnum) {
                 case 0xE8:
                     switch(CPU_AL) {
                         case 0x01:
-                            if (TOTAL_VIRTUAL_MEMORY_KBS > 16*1024) {
+                            if (ON_BOARD_RAM_KB > 16*1024) {
                                 CPU_CX = 1024 * 15; // 15MB
-                                CPU_DX = (TOTAL_VIRTUAL_MEMORY_KBS - 16 * 1024) / 64;
+                                CPU_DX = (ON_BOARD_RAM_KB - 16 * 1024) / 64;
                             } else {
-                                CPU_CX = TOTAL_VIRTUAL_MEMORY_KBS - 1;
+                                CPU_CX = ON_BOARD_RAM_KB - 1;
                                 CPU_DX = 0;
                             }
                             CPU_AX = CPU_CX;
                             CPU_BX = CPU_DX;
                             cf = 0;
-                            StepIP(2); return;
+                            return;
                         case 0x20: {
                                 // ES:DI - destination for the table
                                 int count = e820_count;
@@ -1380,7 +1380,7 @@ void intcall86(uint8_t intnum) {
                                 CPU_CX = sizeof(e820_list[0]);
                                 // char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
                                 cf = 0;
-                                StepIP(2); return;
+                                return;
                             }
                         default:
                             break;
