@@ -293,7 +293,8 @@ uint16_t deallocate_emm_pages(uint16_t emm_handle) {
         }
     }
     h->pages_acllocated = 0;
-    h->handler_in_use = false;
+    if (emm_handle) // do not mark zero handler as not in use
+        h->handler_in_use = false;
     return 0;
 }
 
@@ -626,4 +627,75 @@ uint16_t lookup_handle_dir(uint32_t handle_name, uint16_t *AH) {
     }
     *AH = 0xA0; // No corresponding handle could be found for the handle name specified.
     return 0xFF;
+}
+
+/*
+          log_phys_map_struct       STRUC
+             log_page_number        DW ?
+             phys_page_number_seg   DW ?
+          log_phys_map_struct       ENDS
+
+          map_and_call_struct       STRUC
+             target_address         DD ?
+             new_page_map_len       DB ?
+             new_page_map_ptr       DD ?
+             old_page_map_len       DB ?
+             old_page_map_ptr       DD ?
+             reserved               DW  4 DUP (?)
+          map_and_call_struct       ENDS
+*/
+uint8_t map_emm_and_jump(
+    uint8_t page_number_segment_selector,
+    uint16_t handle,
+    uint32_t map_and_jump
+) {
+// TODO:
+    return 0x86;
+}
+
+uint8_t map_emm_and_call(
+    uint8_t page_number_segment_selector,
+    uint16_t handle,
+    uint32_t map_and_call
+) {
+// TODO:
+    return 0x86;
+}
+
+/*
+          hardware_info_struct         STRUC
+             raw_page_size             DW ?
+             alternate_register_sets   DW ?
+             context_save_area_size    DW ?
+             DMA_register_sets         DW ?
+             DMA_channel_operation     DW ?
+          hardware_info_struct         ENDS
+*/
+void get_hardvare_emm_info(uint32_t hardware_info) {
+    writew86(hardware_info++, 16 << 10); hardware_info++;
+    writew86(hardware_info++, 0); hardware_info++;
+    writew86(hardware_info++, get_emm_pages_map_size()); hardware_info++;
+    writew86(hardware_info++, 0); hardware_info++;
+    writew86(hardware_info, 0);
+}
+
+uint16_t allocate_emm_pages_sys(uint16_t handler, uint16_t pages) {
+    if (handler >= MAX_EMM_HANDLERS) {
+        return 0x8500;
+    }
+    if (pages > TOTAL_EMM_PAGES) {
+        return 0x8700; // There aren't enough expanded memory pages
+    }
+    emm_handler_t * h = &handlers[handler];
+    if (allocated_emm_pages() - h->pages_acllocated + pages > TOTAL_EMM_PAGES) {
+        return 0x8800; // There aren't enough unallocated pages
+    }
+    h->handler_in_use = true;
+    h->pages_acllocated = pages;
+    return 0;
+}
+
+uint16_t allocate_emm_raw_pages(uint16_t pages) {
+    // TODO:
+    return 0x86;
 }

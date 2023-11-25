@@ -117,3 +117,8 @@ uint16_t get_handle_name(uint16_t handle, uint32_t name);
 uint16_t set_handle_name(uint16_t handle, uint32_t name);
 uint16_t get_handle_dir(uint32_t handle_dir_struct);
 uint16_t lookup_handle_dir(uint32_t handle_name, uint16_t *AH);
+uint8_t map_emm_and_jump(uint8_t page_number_segment_selector, uint16_t handle, uint32_t map_and_jump);
+uint8_t map_emm_and_call(uint8_t page_number_segment_selector, uint16_t handle, uint32_t map_and_call);
+void get_hardvare_emm_info(uint32_t hardware_info);
+uint16_t allocate_emm_pages_sys(uint16_t handler, uint16_t pages);
+uint16_t allocate_emm_raw_pages(uint16_t pages);

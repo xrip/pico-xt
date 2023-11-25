@@ -1063,7 +1063,35 @@ static void custom_on_board_emm() {
         }
         // TODO: 
     }
-    // TODO:
+    // ALTER PAGE MAP & JUMP
+    case 0x55: {
+        uint8_t page_number_segment_selector = CPU_AL;
+        uint16_t handle = CPU_DX;
+        uint32_t map_and_jump = ((uint32_t)CPU_DS << 4) + CPU_SI;
+        CPU_AH = map_emm_and_jump(page_number_segment_selector, handle, map_and_jump);
+        sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d page_number_segment_selector: %d (not implemented)",
+                      FN, CPU_AH, CPU_DX, page_number_segment_selector); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
+    // ALTER PAGE MAP & CALL
+    case 0x56: {
+        uint8_t page_number_segment_selector = CPU_AL;
+        uint16_t handle = CPU_DX;
+        uint32_t map_and_call = ((uint32_t)CPU_DS << 4) + CPU_SI;
+        CPU_AH = map_emm_and_call(page_number_segment_selector, handle, map_and_call);
+        sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d page_number_segment_selector: %d (not implemented)",
+                      FN, CPU_AH, CPU_DX, page_number_segment_selector); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
+    // MOVE/EXCHANGE MEMORY REGION
+    case 0x57: {
+        CPU_AH = 0x86;
+        sprintf(tmp, "LIM40 FN %Xh MOVE/EXCHANGE MEMORY REGION (not implemented)", FN); logMsg(tmp);
+        if (CPU_AH) zf = 1; else zf = 0;
+        return;
+    }
     case 0x58:
         FN = CPU_AX;
         switch(CPU_AL) {
@@ -1084,10 +1112,17 @@ static void custom_on_board_emm() {
             return;
         }
     }
-    // TODO:
     case 0x59:
         FN = CPU_AX;
         switch(CPU_AL) {
+        // GET HARDWARE CONFIGURATION ARRAY
+        case 0x00: {
+            uint32_t hardware_info = ((uint32_t)CPU_ES << 4) + CPU_DI;
+            get_hardvare_emm_info(hardware_info);
+            sprintf(tmp, "LIM40 FN %Xh %d of %d free pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
+            CPU_AX = 0; zf = 0;
+            return;
+        }
         // GET UNALLOCATED RAW PAGE COUNT
         case 0x01: {
             CPU_BX = unallocated_emm_pages();
@@ -1096,7 +1131,24 @@ static void custom_on_board_emm() {
             CPU_AX = 0; zf = 0;
             return;
         }
-        // TODO: 
+    }
+    case 0x5A:
+        FN = CPU_AX;
+        switch(CPU_AL) {
+        //  ALLOCATE STANDARD PAGES
+        case 0x00: {
+            CPU_AX = allocate_emm_pages_sys(CPU_BX, CPU_DX);
+            sprintf(tmp, "LIM40 FN %Xh (%d, %d) res: %Xh", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
+            if (CPU_AX) zf = 1; else zf = 0;
+            return;
+        }
+        //  ALLOCATE STANDARD/RAW
+        case 0x01: {
+            CPU_AX = allocate_emm_raw_pages(CPU_BX);
+            sprintf(tmp, "LIM40 FN %Xh (%d, %d) res: %Xh (not yet)", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
+            if (CPU_AX) zf = 1; else zf = 0;
+            return;
+        }
     }
     // TODO:
     default:
