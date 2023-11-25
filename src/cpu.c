@@ -1184,7 +1184,7 @@ void intcall86(uint8_t intnum) {
             return;
         }
         case 0x15:
-            switch(CPU_AH) {
+            switch(CPU_AH) {/*
                 case 0x24: 
                     switch(CPU_AL) {
                         case 0x00:
@@ -1199,19 +1199,20 @@ void intcall86(uint8_t intnum) {
                             return;
                         case 0x02:
                             CPU_AL = get_a20_enabled();
-                            cf = 0; CPU_AH = 0;{
+                            cf = 0; CPU_AH = 0; {
                                 char tmp[80]; sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL); logMsg(tmp);
                             }
                             return;
                         case 0x03:
-                            CPU_BX = 3;
+                            CPU_BX = 0b10;
                             CPU_AH = 0;
-                            cf = 0;
-                            logMsg("INT15! 2403 BX: 3");
+                            cf = 0; {
+                                char tmp[80]; sprintf(tmp, "INT15! 2403 BX: %xh", CPU_BX); logMsg(tmp);
+                            }
                             return;
                     }
                     break;
-       /*       case 0x4F:
+                case 0x4F:
                     CPU_AH = 0x86;
                     cf = 1;
                     return;
@@ -1230,8 +1231,8 @@ void intcall86(uint8_t intnum) {
                 case 0x83: // real-time clock
                 case 0x86:
                     // TODO:
-                    break;*/
-            /*    case 0x87: { // Memory block move EMS
+                    break;
+                case 0x87: { // Memory block move EMS
                         uint16_t words_to_move = CPU_CX;
                         uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
                         i15_87h(words_to_move, gdt_far);
@@ -1239,7 +1240,7 @@ void intcall86(uint8_t intnum) {
                     CPU_AH = 0;
                     cf = 0;
                     return;*/
-                case 0x88: // EMS info
+                case 0x88: // memory info
                     if (ON_BOARD_RAM_KB > 64 * 1024) {
                         CPU_AX = 63 * 1024;
                     } else {
@@ -1278,7 +1279,7 @@ void intcall86(uint8_t intnum) {
                             CPU_AX = CPU_CX;
                             CPU_BX = CPU_DX;
                             cf = 0;
-                            return;
+                            return; /*
                         case 0x20: {
                                 // ES:DI - destination for the table
                                 int count = e820_count;
@@ -1300,10 +1301,10 @@ void intcall86(uint8_t intnum) {
                                     CPU_BX++;
                                 CPU_AX = 0x534D4150;
                                 CPU_CX = sizeof(e820_list[0]);
-                                // char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
+                                char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
                                 cf = 0;
                                 return;
-                            }
+                            }*/
                         default:
                             break;
                     }

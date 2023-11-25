@@ -13,6 +13,13 @@ uint8_t crt_controller_idx, crt_controller[18];
 uint16_t port378, port379, port37A, port3D8, port3D9, port3DA, port201;
 
 void portout(uint16_t portnum, uint16_t value) {
+   /*switch (portnum)
+    {
+    case 0x64:
+        { char tmp[90]; sprintf(tmp, "PORT %Xh set %Xh", portnum, value); logMsg(tmp); }
+        break;
+    }
+    */
     if (portnum == 0x80) {
         printf("Diagnostic port out: %04X\r\n", value);
     }
@@ -28,17 +35,27 @@ void portout(uint16_t portnum, uint16_t value) {
             out8253(portnum, value);
             break;
         case 0x60:
-            //{ char tmp[40]; sprintf(tmp, "port 60h: set 0x%X", value); logMsg(tmp); }
             if (portnum < 256) portram[portnum] = value;
             break;
-#if PICO_ON_DEVICE
+        case 0x92:
+            portram[portnum] = value;
+            break;
         case 0x64: // Passthrought all
-            //{ char tmp[40]; sprintf(tmp, "port 64h: set 0x%X", value); logMsg(tmp); }
+            if (value == 0xD1) {
+                portram[0x60] = 0xDD;
+                set_a20_enabled(false);
+                return;
+            }
+            if (value == 0xDD) {
+                portram[0x60] = 0xDF;
+                set_a20_enabled(true);
+                return;
+            }
+#if PICO_ON_DEVICE
             keyboard_send(value);
             portram[portnum] = value;
 #endif
         case 0x61: // 061H  PPI port B.
-            //{ char tmp[40]; sprintf(tmp, "port 61h: set 0x%X", value); logMsg(tmp); }
             portram[portnum] = value;
 #if PICO_ON_DEVICE
             if ((value & 3) == 3) {
@@ -48,13 +65,6 @@ void portout(uint16_t portnum, uint16_t value) {
                 pwm_set_gpio_level(BEEPER_PIN, 0);
             }
 #endif
-            break;
-
-        /*        case 0x201:
-                    port201 = value;
-                    break;*/
-        case 0x92: // 0x02 - A20_ENABLE_BIT
-            portram[portnum] = value;
             break;
         case 0x378:
         case 0x37A:
@@ -145,6 +155,13 @@ void portout(uint16_t portnum, uint16_t value) {
 }
 
 uint16_t portin(uint16_t portnum) {
+   /*switch (portnum)
+    {
+    case 0x60:
+    case PORT_A20:
+        { char tmp[90]; sprintf(tmp, "PORT %Xh get %Xh", portnum, portram[portnum]); logMsg(tmp); }
+        break;
+    }*/
     switch (portnum) {
         case 0x20:
         case 0x21: //i8259
@@ -156,14 +173,15 @@ uint16_t portin(uint16_t portnum) {
             return in8253(portnum);
         case 0x60:
         case 0x61:
-        case 0x64:
-            //if (portram[portnum] == 0xFF && portnum == 0x64) {} else
-            //{ char tmp[40]; sprintf(tmp, "port %Xh: get 0x%X", portnum, portram[portnum]); logMsg(tmp); }
             return portram[portnum];
-        case 0x92: // 0x02 - A20_ENABLE_BIT
+        case 0x64: {
+            uint16_t c = portram[portnum];
+            //  portram[portnum] = 0;
+            return c;
+        }
+        case 0x92:
             return portram[portnum];
-        /*        case 0x201:
-                    return port201;*/
+            break;
         case 0x379:
             return insoundsource(portnum);
         case 0x3D4:
