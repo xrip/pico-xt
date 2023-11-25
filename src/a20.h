@@ -25,6 +25,8 @@ struct e820entry {
 void e820_add(uint64_t start, uint64_t size, uint32_t type);
 void e820_remove(uint64_t start, uint64_t size);
 void e820_prepboot(void);
+void i15_87h(uint16_t words_to_move, uint32_t gdt_far);
+void i15_89h(uint8_t IDT1, uint8_t IDT2, uint32_t gdt_far);
 
 // Maximum number of map entries in the e820 map
 #define BUILD_MAX_E820 32

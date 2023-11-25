@@ -136,3 +136,35 @@ void e820_remove(uint64_t start, uint64_t size) {
 void e820_prepboot(void) {
     dump_map();
 }
+
+// from cpu.c
+void writew86(uint32_t addr32, uint16_t value);
+void write86(uint32_t addr32, uint8_t value);
+uint16_t readw86(uint32_t addr32);
+uint8_t read86(uint32_t addr32);
+
+void i15_87h(uint16_t words_to_move, uint32_t gdt_far) {
+    uint8_t prev_a20_enable = set_a20(1); // enable A20 line if not
+    gdt_far += 0x10; // skip not used bytes
+    uint16_t source_segment_szb = readw86(gdt_far); // (2*CX-1) or grater
+    gdt_far +=2;
+    uint32_t linear_source_addr24 = read86(gdt_far++);; // 24 bit addrss of source
+    linear_source_addr24 = (linear_source_addr24 << 16) + readw86(gdt_far);
+    gdt_far +=2;
+    gdt_far += 3; // ignore access byte, and reserver word
+    uint16_t dest_segment_szb = readw86(gdt_far); // (2*CX-1) or grater
+    gdt_far += 2;
+    uint32_t linear_dest_addr24 = read86(gdt_far++); // 24 bit addrss of source
+    linear_dest_addr24 = (linear_dest_addr24 << 16) + readw86(gdt_far);
+    for (int offset = 0; offset < (words_to_move << 1); offset += 2) {
+        // TODO: block move by memory manager
+        uint16_t d = readw86(linear_source_addr24 + offset);
+        writew86(linear_dest_addr24 + offset, d);
+    }
+    set_a20(prev_a20_enable); // restore prev. A20 line state    
+}
+
+void i15_89h(uint8_t IDT1, uint8_t IDT2, uint32_t gdt_far) {
+    set_a20(1);
+    // TODO: CPU_CR0
+}

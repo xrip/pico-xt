@@ -1227,101 +1227,15 @@ void intcall86(uint8_t intnum) {
                 case 0x86:
                     // TODO:
                     break;*/
-                case 0x87: {
-                    // +++ should probably have descriptor checks
-                    // +++ should have exception handlers
-                    uint8_t prev_a20_enable = set_a20(1); // enable A20 line
-                    // 128K max of transfer on 386+ ???
-                    // source == destination ???
-
-                    // ES:SI points to descriptor table
-                    // offset   use     initially  comments
-                    // ==============================================
-                    // 00..07   Unused  zeros      Null descriptor
-                    // 08..0f   GDT     zeros      filled in by BIOS
-                    // 10..17   source  ssssssss   source of data
-                    // 18..1f   dest    dddddddd   destination of data
-                    // 20..27   CS      zeros      filled in by BIOS
-                    // 28..2f   SS      zeros      filled in by BIOS
-
-                    // check for access rights of source & dest here
-
-                    // Initialize GDT descriptor
-                    /* TODO: translate to arm
-    u64 *gdt_far = (void*)(regs->si + 0);
-    u16 gdt_seg = regs->es;
-    u32 loc = (u32)MAKE_FLATPTR(gdt_seg, gdt_far);
-    SET_FARVAR(gdt_seg, gdt_far[1], GDT_DATA | GDT_LIMIT((6*sizeof(u64))-1)
-               | GDT_BASE(loc));
-    // Initialize CS descriptor
-    u64 lim = GDT_LIMIT(0x0ffff);
-    if (in_post())
-        lim = GDT_GRANLIMIT(0xffffffff);
-    SET_FARVAR(gdt_seg, gdt_far[4], GDT_CODE | lim | GDT_BASE(BUILD_BIOS_ADDR));
-    // Initialize SS descriptor
-    loc = (u32)MAKE_FLATPTR(GET_SEG(SS), 0);
-    SET_FARVAR(gdt_seg, gdt_far[5], GDT_DATA | lim | GDT_BASE(loc));
-
-    SET_SEG(ES, gdt_seg);
-    u16 count = regs->cx, si = 0, di = 0;
-    asm volatile(
-        // Load new descriptor tables
-        "  lgdtw %%es:(1<<3)(%%eax)\n"
-        "  lidtw %%cs:pmode_IDT_info\n"
-
-        // Enable protected mode
-        "  movl %%cr0, %%eax\n"
-        "  orl $" __stringify(CR0_PE) ", %%eax\n"
-        "  movl %%eax, %%cr0\n"
-
-        // far jump to flush CPU queue after transition to protected mode
-        "  ljmpw $(4<<3), $1f\n"
-
-        // GDT points to valid descriptor table, now load DS, ES
-        "1:movw $(2<<3), %%ax\n" // 2nd descriptor in table, TI=GDT, RPL=00
-        "  movw %%ax, %%ds\n"
-        "  movw $(3<<3), %%ax\n" // 3rd descriptor in table, TI=GDT, RPL=00
-        "  movw %%ax, %%es\n"
-
-        // memcpy CX words using 32bit memcpy if applicable
-        "  testw $1, %%cx\n"
-        "  jnz 3f\n"
-        "  shrw $1, %%cx\n"
-        "  rep movsl %%ds:(%%si), %%es:(%%di)\n"
-
-        // Restore DS and ES segment limits to 0xffff
-        "2:movw $(5<<3), %%ax\n" // 5th descriptor in table (SS)
-        "  movw %%ax, %%ds\n"
-        "  movw %%ax, %%es\n"
-
-        // Disable protected mode
-        "  movl %%cr0, %%eax\n"
-        "  andl $~" __stringify(CR0_PE) ", %%eax\n"
-        "  movl %%eax, %%cr0\n"
-
-        // far jump to flush CPU queue after transition to real mode
-        "  ljmpw $" __stringify(SEG_BIOS) ", $4f\n"
-
-        // Slower 16bit copy method
-        "3:rep movsw %%ds:(%%si), %%es:(%%di)\n"
-        "  jmp 2b\n"
-
-        // restore IDT to normal real-mode defaults
-        "4:lidtw %%cs:rmode_IDT_info\n"
-
-        // Restore %ds (from %ss)
-        "  movw %%ss, %%ax\n"
-        "  movw %%ax, %%ds\n"
-        : "+a" (gdt_far), "+c"(count), "+m" (__segment_ES)
-        : "S" (si), "D" (di)
-        : "cc");
-
-    set_a20(prev_a20_enable);
-
-    set_code_success(regs);*/
+                case 0x87: { // Memory block move EMS
+                        uint16_t words_to_move = CPU_CX;
+                        uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
+                        i15_87h(words_to_move, gdt_far);
                     }
-                    break;
-                case 0x88:
+                    CPU_AH = 0;
+                    cf = 0;
+                    return;
+                case 0x88: // EMS info
                     if (ON_BOARD_RAM_KB > 64 * 1024) {
                         CPU_AX = 63 * 1024;
                     } else {
@@ -1329,12 +1243,16 @@ void intcall86(uint8_t intnum) {
                     }
                     cf = 0;
                     return;
-     /*           case 0x89: {
-                       char tmp[80]; sprintf(tmp, "INT15- 89 AX: 0x%X (Switch to protected mode)", CPU_AX); logMsg(tmp);
+                case 0x89: { // switch to protected mode 286+
+                        uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
+                        char tmp[80]; sprintf(tmp, "INT15h FN 89h IDT1: %d IDT2: %d GDT: %Xh",
+                                                    CPU_BH, CPU_BL, gdt_far); logMsg(tmp);
+                        i15_89h(CPU_BH, CPU_BL, gdt_far);
                     }
-                    CPU_AH = 0x86;
-                    cf = 1;// switch to protected mode 286+
+                    CPU_AH = 0;
+                    cf = 0;
                     return;
+                /*
                 case 0x90: // Device busy interrupt.  Called by Int 16h when no key available
                     break;
                 case 0x91: // Interrupt complete.  Called by Int 16h when key becomes available
