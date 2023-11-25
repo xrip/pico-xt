@@ -500,8 +500,16 @@ void set_start_debug_line(int _start_debug_line) {
     start_debug_line = _start_debug_line;
 }
 
-void logMsg(char * msg) {
-    printf("%s\r\n", msg);
+#if BOOT_DEBUG
+void logFile(char* msg);
+#endif
+
+void logMsg(char* msg) {
+#if BOOT_DEBUG
+    { char tmp[85]; sprintf(tmp, "%s\n", msg); logFile(tmp); }
+#else
+    printf("%s\n", msg);
+#endif
     if (graphics_mode != TEXTMODE_80x30) { // log in text mode only
         return;
     }
