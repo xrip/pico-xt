@@ -178,17 +178,17 @@ void writew86(uint32_t addr32, uint16_t value) {
 
 __inline uint8_t read86(uint32_t addr32) {
 #if PICO_ON_DEVICE && SD_CARD_SWAP
-    if ((!PSRAM_AVAILABLE && addr32 < (640 << 10)) || PSRAM_AVAILABLE && addr32 < (RAM_SIZE << 10)) {
+    if ((!PSRAM_AVAILABLE && addr32 < (640 << 10)) || (PSRAM_AVAILABLE && addr32 < (RAM_SIZE << 10))) {
 #else
     if (addr32 < (RAM_SIZE << 10)) {
 #endif
         // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 #if SD_CARD_SWAP
-                if (PSRAM_AVAILABLE || addr32 < 4096) {
-                    // do not touch first 4kb
-                    return RAM[addr32];
-                }
-                return ram_page_read(addr32);
+        if (PSRAM_AVAILABLE || addr32 < 4096) {
+            // do not touch first 4kb
+            return RAM[addr32];
+        }
+        return ram_page_read(addr32);
 #else
         return RAM[addr32];
 #endif
@@ -233,13 +233,11 @@ __inline uint8_t read86(uint32_t addr32) {
         addr32 -= 0xFA000UL;
         return BASICH[addr32];
     }
-
     else if (addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // Hihg mem
 #if SD_CARD_SWAP
-// TODO: PSRAM_AVAILABLE ...
         if (get_a20_enabled()) {
             // char tmp[40]; sprintf(tmp, "HIMEM LBA: 0x%X", addr32); logMsg(tmp);
-            return ram_page_read(addr32);
+            return PSRAM_AVAILABLE ? psram_read8(&psram_spi, addr32) : ram_page_read(addr32);
         }
         return read86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 #endif
@@ -254,15 +252,18 @@ __inline uint8_t read86(uint32_t addr32) {
 
 uint16_t readw86(uint32_t addr32) {
 #if PICO_ON_DEVICE
-    if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
+    if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) { // todo: w?
+        return psram_read16(&psram_spi, addr32);
+    }
+    uint32_t w = (addr32 & 0xFFFFFFFE) == 0;
+    if (PSRAM_AVAILABLE && w && addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10) && get_a20_enabled()) {
         return psram_read16(&psram_spi, addr32);
     }
 #if SD_CARD_SWAP
-    uint32_t w = (addr32 & 0xFFFFFFFE) == 0;
     if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && w) {
         return ram_page_read16(addr32);
     } // TODO: ROM, VRAM, ...
-    if (get_a20_enabled() && addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10) && w) {
+    if (w && addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10) && get_a20_enabled()) {
         return ram_page_read16(addr32);
     }
 #endif
