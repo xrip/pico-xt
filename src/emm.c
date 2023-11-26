@@ -90,7 +90,7 @@ static emm_handler_t handlers[MAX_EMM_HANDLERS] = { 0 };
 void init_emm() {
     emm_handler_t * h = &handlers[0];
     h->handler_in_use = true;
-    h->pages_acllocated = 1;
+    h->pages_acllocated = 4;
     for (int i = 1; i < MAX_EMM_HANDLERS; ++i) {
         h = &handlers[i];
         h->handler_in_use = false;
@@ -144,7 +144,7 @@ uint32_t get_logical_lba_for_physical_lba(uint32_t physical_lba_addr) {
         const emm_record_t * di = &emm_desc_table[i];
         if (di->physical_page + (PHYSICAL_EMM_SEGMENT >> 10) == physical_page_number && di->handler != 0xFF) {
             uint32_t logical_page_number = di->logical_page;
-            auto logical_base_lba = logical_page_number << 14;
+            uint32_t logical_base_lba = logical_page_number << 14;
             return logical_base_lba + offset_in_the_page + (EMM_LBA_SHIFT_KB << 10); // shift to do not intersect with on board RAM
         }
     }
@@ -235,9 +235,8 @@ uint16_t map_unmap_emm_page(
     uint16_t logical_page_number,
     uint16_t emm_handle
 ) {
-    const uint32_t phisical_end_lba = (uint32_t)PHYSICAL_EMM_SEGMENT_END << 4;
-    uint32_t phisical_page_lba = phisical_page_2_lba(physical_page_number);
-    if (phisical_page_lba >= phisical_end_lba) { // TODO: ensure
+    uint32_t physical_page_lba = phisical_page_2_lba(physical_page_number);
+    if (physical_page_lba >= ((uint32_t)PHYSICAL_EMM_SEGMENT_END << 4)) { // TODO: ensure
         return 0x88 << 8; // The physical page number is out of the range of allowable
                           // physical pages.  The program can recover by attempting to
                           // map into memory at a physical page which is within the

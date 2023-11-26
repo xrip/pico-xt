@@ -258,7 +258,7 @@ uint16_t readw86(uint32_t addr32) {
         return psram_read16(&psram_spi, addr32);
     }
 #if SD_CARD_SWAP
-    auto w = (addr32 & 0xFFFFFFFE) == 0;
+    uint32_t w = (addr32 & 0xFFFFFFFE) == 0;
     if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && w) {
         return ram_page_read16(addr32);
     } // TODO: ROM, VRAM, ...
@@ -826,7 +826,7 @@ static void custom_on_board_emm() {
         // AL = physical_page_number
         // BX = logical_page_number, if FFFFh, the physical page specified in AL will be unmapped
         // DX = emm_handle
-        auto AL = CPU_AL;
+        uint8_t AL = CPU_AL;
         CPU_AX = map_unmap_emm_page(CPU_AL, CPU_BX, CPU_DX);
         sprintf(tmp, "LIM40 FN %Xh res: phys page %Xh was mapped to %Xh log for %d EMM handler",
                       FN, AL, CPU_AX, CPU_DX); logMsg(tmp);
@@ -835,7 +835,7 @@ static void custom_on_board_emm() {
     }
     // Deallocate Pages deallocates the logical pages currently allocated to an EMM handle.
     case 0x45: {
-        auto emm_handle = CPU_DX;
+        uint16_t emm_handle = CPU_DX;
         CPU_AX = deallocate_emm_pages(emm_handle);
         sprintf(tmp, "LIM40 FN %Xh res: %Xh - EMM handler dealloc", FN, emm_handle); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;

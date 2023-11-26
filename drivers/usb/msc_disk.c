@@ -131,13 +131,13 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_siz
   // char tmp[80]; sprintf(tmp, "tud_msc_capacity_cb(%d) block_count: %d block_size: %d r: %d", lun, block_count, block_size); logMsg(tmp);
   switch(lun) {
 	case 0: {
-      auto r = getFileA_sz();
+      int r = getFileA_sz();
       *block_count = (r ? r : sizeof(FDD0)) / DISK_BLOCK_SIZE;
       *block_size  = DISK_BLOCK_SIZE;
 	}
 	break;
 	case 1: {
-      auto r = getFileB_sz();
+      int r = getFileB_sz();
   #if ROM_DRIVE_B
       *block_count = (r ? r : sizeof(FDD1)) / DISK_BLOCK_SIZE;
   #else
@@ -153,7 +153,7 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_siz
 	break;
 	case 3: {
       DWORD dw;
-      auto dio = disk_ioctl(0, GET_SECTOR_COUNT, &dw);
+      DRESULT dio = disk_ioctl(0, GET_SECTOR_COUNT, &dw);
       if (dio == RES_OK) {
         *block_count = dw;
       } else {
@@ -233,8 +233,8 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
 }
 
 bool sd_card_writable() {
-    auto ds = disk_status(0);
-    auto rs = ds & 0x04/*STA_PROTECT*/;
+    DSTATUS ds = disk_status(0);
+    DSTATUS rs = ds & 0x04/*STA_PROTECT*/;
     // char tmp[80]; sprintf(tmp, "tud_msc_is_writable_cb(1) ds: %d rs: %d r: %d", ds, rs, !rs); logMsg(tmp);
     return !rs; // TODO: sd-card write protected ioctl?
 }

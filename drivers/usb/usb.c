@@ -276,7 +276,7 @@ void if_usb() {
     if (backspacePressed && enterPressed) {
         usbStarted = true;
         save_video_ram();
-        auto ret = graphics_set_mode(TEXTMODE_80x30);
+        enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
         set_start_debug_line(0);
         clrScr(1);
         logMsg("");

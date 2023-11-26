@@ -325,7 +325,7 @@ enum graphics_mode_t graphics_set_mode(enum graphics_mode_t mode) {
     }
     if (_SM_VGA < 0) return graphics_mode; // если  VGA не инициализирована -
 
-    auto res = graphics_mode;
+    enum graphics_mode_t res = graphics_mode;
     graphics_mode = mode;
 
     // Если мы уже проиницилизированы - выходим
