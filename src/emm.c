@@ -90,15 +90,21 @@ static emm_handler_t handlers[MAX_EMM_HANDLERS] = { 0 };
 void init_emm() {
     emm_handler_t * h = &handlers[0];
     h->handler_in_use = true;
-    h->pages_acllocated = PHYSICAL_EMM_PAGES;
+    h->pages_acllocated = 1;
     for (int i = 1; i < MAX_EMM_HANDLERS; ++i) {
         h = &handlers[i];
         h->handler_in_use = false;
         h->pages_acllocated = 0;
     }
-    for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
+    for (int i = 0; i < h->pages_acllocated; ++i) {
         emm_record_t * di = &emm_desc_table[i];
         di->handler = 0x00;
+        di->logical_page = i;
+        di->physical_page = i;
+    }
+    for (int i = h->pages_acllocated; i < PHYSICAL_EMM_PAGES; ++i) {
+        emm_record_t * di = &emm_desc_table[i];
+        di->handler = 0xFF;
         di->logical_page = i;
         di->physical_page = i;
     }

@@ -152,9 +152,12 @@ uint16_t portin(uint16_t portnum) {
     switch (portnum)
     {
     case PORT_A20:
-        { char tmp[90]; sprintf(tmp,
-         "PORT %Xh get %Xh", portnum,
-          get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] | !A20_ENABLE_BIT));
+        { char tmp[90]; sprintf(
+            tmp,
+            "PORT %Xh get %Xh A20: %s", portnum,
+            get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT),
+            get_a20_enabled() ? "ON" : "OFF"
+          );
         logMsg(tmp); }
         break;
     }
