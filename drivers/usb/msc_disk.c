@@ -35,13 +35,21 @@ char* fdd0_rom() {
   return FDD0;
 }
 char* fdd1_rom() {
+#if ROM_DRIVE_B
   return FDD1;
+#else
+  return NULL;
+#endif
 }
 size_t fdd0_sz() {
   return sizeof FDD0;
 }
 size_t fdd1_sz() {
+#if ROM_DRIVE_B
   return sizeof FDD1;
+#else
+  return 0;
+#endif
 }
 
 #if CFG_TUD_MSC
@@ -130,7 +138,11 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_siz
 	break;
 	case 1: {
       auto r = getFileB_sz();
+  #if ROM_DRIVE_B
       *block_count = (r ? r : sizeof(FDD1)) / DISK_BLOCK_SIZE;
+  #else
+      *block_count = r / DISK_BLOCK_SIZE;
+  #endif
       *block_size  = DISK_BLOCK_SIZE;
 	}
 	break;
@@ -187,14 +199,18 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
     }
 		rom = FDD0;
 		rom_sz = sizeof(FDD0);
-	}
+ 	}
 	break;
 	case 1: {
+  #if ROM_DRIVE_B
     if (getFileB_sz()) {
 		  return img_disk_read_sec(1, buffer, lba) ? bufsize : -1;
     }
 		rom = FDD1;
 		rom_sz = sizeof(FDD1);
+   #else
+    return img_disk_read_sec(1, buffer, lba) ? bufsize : -1;
+  #endif
 	}
 	break;
 	case 2: {

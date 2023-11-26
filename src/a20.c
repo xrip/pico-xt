@@ -2,23 +2,26 @@
 #include <string.h>
 #include <stdio.h>
 
-static bool is_a20_enabled = false; // Turn it ON, for case using himem.sys with /m:3 /a20control:off mode
+static bool is_a20_enabled = false;
 
 bool get_a20_enabled() {
     return is_a20_enabled;
+}
+
+void set_a20_enabled(bool v) {
+    is_a20_enabled = v;
 }
 
 uint16_t portin(uint16_t portnum);
 void portout(uint16_t portnum, uint16_t value);
 
 uint8_t set_a20(uint8_t cond) {
-    uint8_t val = portin(PORT_A20);
-    is_a20_enabled = (val & A20_ENABLE_BIT) != 0;
-    if (is_a20_enabled != !!cond)
-        portout(PORT_A20, val ^ A20_ENABLE_BIT);
+ //   uint8_t val = portin(PORT_A20);
+ //   while(val = portin(PORT_A20)) {
+ //   }
+    portout(PORT_A20, cond ? 0xDD : 0xD1);
     return is_a20_enabled;
 }
-
 
 // Maximum number of map entries in the e820 map
 #define BUILD_MAX_E820 32
@@ -135,4 +138,37 @@ void e820_remove(uint64_t start, uint64_t size) {
 // Report on final memory locations.
 void e820_prepboot(void) {
     dump_map();
+}
+
+// from cpu.c
+void writew86(uint32_t addr32, uint16_t value);
+void write86(uint32_t addr32, uint8_t value);
+uint16_t readw86(uint32_t addr32);
+uint8_t read86(uint32_t addr32);
+
+void i15_87h(uint16_t words_to_move, uint32_t gdt_far) {
+    uint8_t prev_a20_enable = set_a20(1); // enable A20 line if not
+    uint16_t source_segment_szb = readw86(gdt_far + 0x10); // (2*CX-1) or grater
+    uint32_t linear_source_addr24 = read86(gdt_far + 0x14);; // 24 bit addrss of source
+    linear_source_addr24 = (linear_source_addr24 << 8) + read86(gdt_far + 0x13);
+    linear_source_addr24 = (linear_source_addr24 << 8) + read86(gdt_far + 0x12);
+    uint16_t dest_segment_szb = readw86(gdt_far + 0x18); // (2*CX-1) or grater
+    uint32_t linear_dest_addr24 = read86(gdt_far + 0x1C); // 24 bit addrss of source
+    linear_dest_addr24 = (linear_dest_addr24 << 8) + readw86(gdt_far + 0x1B);
+    linear_dest_addr24 = (linear_dest_addr24 << 8) + readw86(gdt_far + 0x1A);
+    char tmp[80]; sprintf(tmp, "INT15h FN 87h words_to_move: %d src: %Xh (%d) dst: %Xh (%d)",
+                                words_to_move,
+                                linear_source_addr24, source_segment_szb,
+                                linear_dest_addr24, dest_segment_szb); logMsg(tmp);
+    for (int offset = 0; offset < (words_to_move << 1); offset += 2) {
+        // TODO: block move by memory manager
+        uint16_t d = readw86(linear_source_addr24 + offset);
+        writew86(linear_dest_addr24 + offset, d);
+    }
+    set_a20(prev_a20_enable); // restore prev. A20 line state    
+}
+
+void i15_89h(uint8_t IDT1, uint8_t IDT2, uint32_t gdt_far) {
+    set_a20(1);
+    // TODO: CPU_CR0
 }

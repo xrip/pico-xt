@@ -170,6 +170,7 @@ else ()
             SD_CARD_SWAP=1
 
             #BOOT_DEBUG=1
+            #BOOT_DEBUG_ACC=0x800000
     )
 
 #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

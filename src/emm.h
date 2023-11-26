@@ -57,21 +57,21 @@
 #pragma once
 #include <inttypes.h>
 
-#define ON_BOARD_RAM_KB (16ul << 10)
+#define ON_BOARD_RAM_KB (8ul << 10)
 #define BASE_X86_KB 1024ul
 #define TOTAL_XMM_KB (ON_BOARD_RAM_KB - BASE_X86_KB)
-#define TOTAL_EMM_KB (32ul << 10)
+#define TOTAL_EMM_KB (8ul << 10)
 #define EMM_LBA_SHIFT_KB ON_BOARD_RAM_KB
 #define TOTAL_EMM_PAGES (TOTAL_EMM_KB >> 4)
 #define TOTAL_VIRTUAL_MEMORY_KBS (ON_BOARD_RAM_KB + TOTAL_EMM_KB)
 
-#define PHISICAL_EMM_SEGMENT 0xD000
-#define PHISICAL_EMM_SEGMENT_KB 64
-#define PHISICAL_EMM_SEGMENT_END 0xE000
+#define PHYSICAL_EMM_SEGMENT 0xD000
+#define PHYSICAL_EMM_SEGMENT_KB 64
+#define PHYSICAL_EMM_SEGMENT_END (PHYSICAL_EMM_SEGMENT + 0x1000)
 // pages by 16k
-#define PHISICAL_EMM_PAGES (PHISICAL_EMM_SEGMENT_KB >> 4)
-// PHISICAL_EMM_SEGMENT * 16 / 16k
-#define FIRST_PHISICAL_EMM_PAGE (PHISICAL_EMM_SEGMENT >> 10)
+#define PHYSICAL_EMM_PAGES (PHYSICAL_EMM_SEGMENT_KB >> 4)
+// PHYSICAL_EMM_SEGMENT * 16 / 16k
+#define FIRST_PHYSICAL_EMM_PAGE (PHYSICAL_EMM_SEGMENT >> 10)
 
 #define MAX_SAVED_EMM_TABLES 4
 #define MAX_EMM_HANDLERS 255
@@ -93,7 +93,7 @@ uint16_t map_unmap_emm_page(
     uint16_t emm_handle
 );
 uint16_t deallocate_emm_pages(uint16_t emm_handler);
-uint32_t get_logical_lba_for_phisical_lba(uint32_t addr32);
+uint32_t get_logical_lba_for_physical_lba(uint32_t addr32);
 uint16_t total_open_emm_handles();
 uint16_t get_emm_handle_pages(uint16_t emm_handle, uint16_t *err);
 uint16_t save_emm_mapping(uint16_t corr_id);

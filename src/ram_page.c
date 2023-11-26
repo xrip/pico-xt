@@ -11,17 +11,37 @@ uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
 
 static uint32_t get_ram_page_for(const uint32_t addr32);
 
+#if BOOT_DEBUG_ACC
+void logMsg(char* tmp);
+#endif
+
 uint8_t ram_page_read(uint32_t addr32) {
     const register uint32_t ram_page = get_ram_page_for(addr32);
     const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
+#if BOOT_DEBUG_ACC
+    auto res = RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
+    if (addr32 >= 0x800000) {
+        char tmp[40]; sprintf(tmp, "R 8 %X: %02Xh", addr32, res); logMsg(tmp);
+    }
+    return res;
+#else
     return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
+#endif
 }
 
 uint16_t ram_page_read16(uint32_t addr32) {
     const register uint32_t ram_page = get_ram_page_for(addr32);
     const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-    const register uint32_t ram_addr = (ram_page * RAM_PAGE_SIZE) + addr_in_page;
-    return (uint16_t)(RAM[ram_addr]) | (uint16_t)(RAM[ram_addr + 1] << 8);
+    const register char* pRAM = RAM + (ram_page * RAM_PAGE_SIZE) + addr_in_page;
+#if BOOT_DEBUG_ACC
+    auto res = (uint16_t)(*pRAM) | (uint16_t)((*pRAM + 1) << 8);
+    if (addr32 >= BOOT_DEBUG_ACC) {
+        char tmp[40]; sprintf(tmp, "R16 %X: %04Xh", addr32, res); logMsg(tmp);
+    }
+    return res;
+#else
+    return (uint16_t)(*pRAM) | (uint16_t)((*pRAM + 1) << 8);
+#endif
 }
 
 void ram_page_write(uint32_t addr32, uint8_t value) {
@@ -33,6 +53,11 @@ void ram_page_write(uint32_t addr32, uint8_t value) {
         // if higest (15) bit is set, it means - the page has changes
         RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
     }
+#if BOOT_DEBUG_ACC
+    if (addr32 >= BOOT_DEBUG_ACC) {
+        char tmp[40]; sprintf(tmp, "W 8 %X: %02Xh", addr32, value); logMsg(tmp);
+    }
+#endif
 }
 
 void ram_page_write16(uint32_t addr32, uint16_t value) {
@@ -46,6 +71,11 @@ void ram_page_write16(uint32_t addr32, uint16_t value) {
         // if higest (15) bit is set, it means - the page has changes
         RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
     }
+#if BOOT_DEBUG_ACC
+    if (addr32 >= BOOT_DEBUG_ACC) {
+        char tmp[40]; sprintf(tmp, "R16 %X: %04Xh", addr32, value); logMsg(tmp);
+    }
+#endif
 }
 
 static uint16_t oldest_ram_page = 1;
@@ -73,7 +103,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     uint16_t ram_page_desc = RAM_PAGES[ram_page];
     bool ro_page_was_found = !(ram_page_desc & 0x8000);
     // higest (15) bit is set, it means - the page has changes (RW page)
-    uint16_t old_lba_page = ram_page_desc & 0x7FFF; // 14-0 - max 32k keys for 4K LBA bloks
+    uint32_t old_lba_page = ram_page_desc & 0x7FFF; // 14-0 - max 32k keys for 4K LBA bloks
     RAM_PAGES[ram_page] = lba_page;
     if (ro_page_was_found) {
         // just replace RO page (faster than RW flush to flash)

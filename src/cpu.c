@@ -118,9 +118,9 @@ __inline void write86(uint32_t addr32, uint8_t value) {
         return;
     }
 #if SD_CARD_SWAP
-    if ((addr32 >> 4) >= PHISICAL_EMM_SEGMENT && (addr32 << 4) < PHISICAL_EMM_SEGMENT_END) {
-        uint32_t lba = get_logical_lba_for_phisical_lba(addr32);
-        // char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+        // char tmp[40]; sprintf(tmp, " W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             ram_page_write(lba, value);
             return;
@@ -132,7 +132,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
     }*/
 #if SD_CARD_SWAP
     else if ((addr32) > 0xFFFFFUL) {
-        if (addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL) { // Hihg mem (1Mb + 64Kb)
+        if (addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // Hihg mem
           if (get_a20_enabled()) { // A20 line is ON
             // char tmp[40]; sprintf(tmp, "HIMEM W LBA: 0x%X", addr32); logMsg(tmp);
             ram_page_write(addr32, value);
@@ -155,15 +155,19 @@ __inline void write86(uint32_t addr32, uint8_t value) {
 }
 
 void writew86(uint32_t addr32, uint16_t value) {
+    bool w = (addr32 & 0xFFFFFFFE) == 0;
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 > (RAM_SIZE << 10) && addr32 < (640 << 10))) {
         psram_write16(&psram_spi, addr32, value);
     }
     else
 #if SD_CARD_SWAP
-    if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && (addr32 & 0xFFFFFFFE) == 0) {
+    if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && w) {
         ram_page_write16(addr32, value);
-    } else // TODO: ROM, VRAM, himiem, ems...
+    } else if (w && addr32 >= (BASE_X86_KB << 10) && addr32 < (ON_BOARD_RAM_KB << 10) && get_a20_enabled()) {
+        ram_page_write16(addr32, value);
+    } 
+    else // TODO: ROM, VRAM, himiem, ems...
 #endif
 #endif
     {
@@ -202,9 +206,9 @@ __inline uint8_t read86(uint32_t addr32) {
         return BIOS[addr32];
     }
 #if SD_CARD_SWAP
-    if ((addr32 >> 4) >= PHISICAL_EMM_SEGMENT && (addr32 << 4) < PHISICAL_EMM_SEGMENT_END) {
-        uint32_t lba = get_logical_lba_for_phisical_lba(addr32);
-        // char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // Expanded memory paging space D00000-E00000
+        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+        // char tmp[40]; sprintf(tmp, " W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             return ram_page_read(lba);
         }
@@ -215,7 +219,7 @@ __inline uint8_t read86(uint32_t addr32) {
         addr32 -= 0xB8000UL;
         return VRAM[addr32]; //
     }
-    if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) { // Expanded memory paging space D00000-E00000
+    if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) {
         // NE2000
         addr32 -= 0xCC000UL; // TODO: why?
     }
@@ -230,7 +234,7 @@ __inline uint8_t read86(uint32_t addr32) {
         return BASICH[addr32];
     }
 
-    else if (addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL) { // Hihg mem (1Mb + 64Kb)
+    else if (addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // Hihg mem
 #if SD_CARD_SWAP
 // TODO: PSRAM_AVAILABLE ...
         if (get_a20_enabled()) {
@@ -258,7 +262,7 @@ uint16_t readw86(uint32_t addr32) {
     if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && w) {
         return ram_page_read16(addr32);
     } // TODO: ROM, VRAM, ...
-    if (get_a20_enabled() && addr32 >= 0x100000UL && addr32 <= 0xFFFF0UL + 0xFFFFUL && w) { // Hihg mem (1Mb + 64Kb)
+    if (get_a20_enabled() && addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10) && w) {
         return ram_page_read16(addr32);
     }
 #endif
@@ -776,7 +780,7 @@ void writerm8(uint8_t rmval, uint8_t value) {
 uint8_t tandy_hack = 0;
 
 static void custom_on_board_emm() {
-    char tmp[80];
+    char tmp[90];
     uint16_t FN = CPU_AH;
     // sprintf(tmp, "LIM40 FN %Xh", FN); logMsg(tmp);
     switch(CPU_AH) { // EMM LIM 4.0
@@ -784,6 +788,7 @@ static void custom_on_board_emm() {
     // memory manager is present and the hardware is working correctly.
     case 0x40: {
         CPU_AX = 0;
+        logMsg("LIM40 FN 40h status: 0");
         zf = 0;
         return;
     }
@@ -791,7 +796,7 @@ static void custom_on_board_emm() {
     // the page frame is located.
     case 0x41: {
         CPU_BX = emm_conventional_segment(); // page frame segment address
-        // sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", FN, CPU_BX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", FN, CPU_BX); logMsg(tmp);
         CPU_AX = 0;
         zf = 0;
         return;
@@ -801,7 +806,7 @@ static void custom_on_board_emm() {
     case 0x42: {
         CPU_BX = unallocated_emm_pages();
         CPU_DX = total_emm_pages();
-        // sprintf(tmp, "LIM40 FN %Xh -> %d free of %d EMM pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh -> %d free of %d EMM pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
         CPU_AX = 0;
         zf = 0;
         return;
@@ -811,7 +816,7 @@ static void custom_on_board_emm() {
     // these pages until the application deallocates them.
     case 0x43: {
         CPU_DX = allocate_emm_pages(CPU_BX, &CPU_AX);
-        // sprintf(tmp, "LIM40 FN %Xh err: %Xh alloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh err: %Xh alloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -823,7 +828,7 @@ static void custom_on_board_emm() {
         // DX = emm_handle
         auto AL = CPU_AL;
         CPU_AX = map_unmap_emm_page(CPU_AL, CPU_BX, CPU_DX);
-        sprintf(tmp, "LIM40 FN %Xh res: phisical page %Xh was mapped to %Xh logical one for 0x%X EMM handler",
+        sprintf(tmp, "LIM40 FN %Xh res: phys page %Xh was mapped to %Xh log for %d EMM handler",
                       FN, AL, CPU_AX, CPU_DX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
@@ -832,7 +837,7 @@ static void custom_on_board_emm() {
     case 0x45: {
         auto emm_handle = CPU_DX;
         CPU_AX = deallocate_emm_pages(emm_handle);
-        // sprintf(tmp, "LIM40 FN %Xh res: %Xh - EMM handler dealloc", FN, emm_handle); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh res: %Xh - EMM handler dealloc", FN, emm_handle); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -844,6 +849,7 @@ static void custom_on_board_emm() {
                                       4  .  0
         */
         CPU_AL = 0b01000000; // 4.0
+        logMsg("LIM40 FN 46h res: 4.0");
         CPU_AH = 0; zf = 0;
         return;
     }
@@ -888,7 +894,7 @@ static void custom_on_board_emm() {
         // ES:DI = pointer to handle_page
         uint32_t addr32 = ((uint32_t)CPU_ES << 4) + CPU_DI;
         CPU_BX = get_all_emm_handle_pages(addr32);
-        // sprintf(tmp, "LIM40 FN %Xh all_handlers: %Xh (pages)", FN, CPU_BX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh all_handlers: %Xh (pages)", FN, CPU_BX); logMsg(tmp);
         CPU_AX = 0; zf = 0;
         return;
     }
@@ -1001,12 +1007,13 @@ static void custom_on_board_emm() {
     // REALLOCATE PAGES
     case 0x51: {
         CPU_AX = reallocate_emm_pages(CPU_DX, CPU_BX);
-        // sprintf(tmp, "LIM40 FN %Xh err: %Xh realloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh err: %Xh realloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
     // Optional: set handler attributes
     case 0x52: {
+        sprintf(tmp, "LIM40 FN %Xh err: 91h Optional: set handler attributes (not implemented)", FN); logMsg(tmp);
         CPU_AX = 0x9100; // not supported
         zf = 1;
         return;
@@ -1057,7 +1064,7 @@ static void custom_on_board_emm() {
         // GET TOTAL HANDLES
         case 0x02: {
             CPU_BX = MAX_EMM_HANDLERS;
-            // sprintf(tmp, "LIM40 FN %Xh MAX_EMM_HANDLERS: %d", FN, CPU_BX); logMsg(tmp);
+            sprintf(tmp, "LIM40 FN %Xh MAX_EMM_HANDLERS: %d", FN, CPU_BX); logMsg(tmp);
             CPU_AX = 0; zf = 0;
             return;
         }
@@ -1119,7 +1126,7 @@ static void custom_on_board_emm() {
         case 0x00: {
             uint32_t hardware_info = ((uint32_t)CPU_ES << 4) + CPU_DI;
             get_hardvare_emm_info(hardware_info);
-            sprintf(tmp, "LIM40 FN %Xh %d of %d free pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
+            sprintf(tmp, "LIM40 FN %Xh GET HARDWARE CONFIGURATION ARRAY", FN); logMsg(tmp);
             CPU_AX = 0; zf = 0;
             return;
         }
@@ -1180,34 +1187,35 @@ void intcall86(uint8_t intnum) {
             return;
         }
         case 0x15:
-            switch(CPU_AH) {
+            switch(CPU_AH) {/*
                 case 0x24: 
                     switch(CPU_AL) {
                         case 0x00:
                             set_a20(1);
                             cf = 0; CPU_AH = 0;
-                            logMsg("INT15! 2400 |A20_ENABLE_BIT");
+                            logMsg("INT15! 2400 turn on A20_ENABLE_BIT");
                             return;
                         case 0x01:
                             set_a20(0);
                             cf = 0; CPU_AH = 0;
-                            logMsg("INT15! 2401 ~A20_ENABLE_BIT");
+                            logMsg("INT15! 2401 turn off A20_ENABLE_BIT");
                             return;
                         case 0x02:
                             CPU_AL = get_a20_enabled();
-                            cf = 0; CPU_AH = 0;{
+                            cf = 0; CPU_AH = 0; {
                                 char tmp[80]; sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL); logMsg(tmp);
                             }
                             return;
                         case 0x03:
-                            CPU_BX = 3;
+                            CPU_BX = 0b10;
                             CPU_AH = 0;
-                            cf = 0;
-                            logMsg("INT15! 2403 BX: 3");
+                            cf = 0; {
+                                char tmp[80]; sprintf(tmp, "INT15! 2403 BX: %xh", CPU_BX); logMsg(tmp);
+                            }
                             return;
                     }
                     break;
-       /*       case 0x4F:
+                case 0x4F:
                     CPU_AH = 0x86;
                     cf = 1;
                     return;
@@ -1226,102 +1234,16 @@ void intcall86(uint8_t intnum) {
                 case 0x83: // real-time clock
                 case 0x86:
                     // TODO:
-                    break;*/
-                case 0x87: {
-                    // +++ should probably have descriptor checks
-                    // +++ should have exception handlers
-                    uint8_t prev_a20_enable = set_a20(1); // enable A20 line
-                    // 128K max of transfer on 386+ ???
-                    // source == destination ???
-
-                    // ES:SI points to descriptor table
-                    // offset   use     initially  comments
-                    // ==============================================
-                    // 00..07   Unused  zeros      Null descriptor
-                    // 08..0f   GDT     zeros      filled in by BIOS
-                    // 10..17   source  ssssssss   source of data
-                    // 18..1f   dest    dddddddd   destination of data
-                    // 20..27   CS      zeros      filled in by BIOS
-                    // 28..2f   SS      zeros      filled in by BIOS
-
-                    // check for access rights of source & dest here
-
-                    // Initialize GDT descriptor
-                    /* TODO: translate to arm
-    u64 *gdt_far = (void*)(regs->si + 0);
-    u16 gdt_seg = regs->es;
-    u32 loc = (u32)MAKE_FLATPTR(gdt_seg, gdt_far);
-    SET_FARVAR(gdt_seg, gdt_far[1], GDT_DATA | GDT_LIMIT((6*sizeof(u64))-1)
-               | GDT_BASE(loc));
-    // Initialize CS descriptor
-    u64 lim = GDT_LIMIT(0x0ffff);
-    if (in_post())
-        lim = GDT_GRANLIMIT(0xffffffff);
-    SET_FARVAR(gdt_seg, gdt_far[4], GDT_CODE | lim | GDT_BASE(BUILD_BIOS_ADDR));
-    // Initialize SS descriptor
-    loc = (u32)MAKE_FLATPTR(GET_SEG(SS), 0);
-    SET_FARVAR(gdt_seg, gdt_far[5], GDT_DATA | lim | GDT_BASE(loc));
-
-    SET_SEG(ES, gdt_seg);
-    u16 count = regs->cx, si = 0, di = 0;
-    asm volatile(
-        // Load new descriptor tables
-        "  lgdtw %%es:(1<<3)(%%eax)\n"
-        "  lidtw %%cs:pmode_IDT_info\n"
-
-        // Enable protected mode
-        "  movl %%cr0, %%eax\n"
-        "  orl $" __stringify(CR0_PE) ", %%eax\n"
-        "  movl %%eax, %%cr0\n"
-
-        // far jump to flush CPU queue after transition to protected mode
-        "  ljmpw $(4<<3), $1f\n"
-
-        // GDT points to valid descriptor table, now load DS, ES
-        "1:movw $(2<<3), %%ax\n" // 2nd descriptor in table, TI=GDT, RPL=00
-        "  movw %%ax, %%ds\n"
-        "  movw $(3<<3), %%ax\n" // 3rd descriptor in table, TI=GDT, RPL=00
-        "  movw %%ax, %%es\n"
-
-        // memcpy CX words using 32bit memcpy if applicable
-        "  testw $1, %%cx\n"
-        "  jnz 3f\n"
-        "  shrw $1, %%cx\n"
-        "  rep movsl %%ds:(%%si), %%es:(%%di)\n"
-
-        // Restore DS and ES segment limits to 0xffff
-        "2:movw $(5<<3), %%ax\n" // 5th descriptor in table (SS)
-        "  movw %%ax, %%ds\n"
-        "  movw %%ax, %%es\n"
-
-        // Disable protected mode
-        "  movl %%cr0, %%eax\n"
-        "  andl $~" __stringify(CR0_PE) ", %%eax\n"
-        "  movl %%eax, %%cr0\n"
-
-        // far jump to flush CPU queue after transition to real mode
-        "  ljmpw $" __stringify(SEG_BIOS) ", $4f\n"
-
-        // Slower 16bit copy method
-        "3:rep movsw %%ds:(%%si), %%es:(%%di)\n"
-        "  jmp 2b\n"
-
-        // restore IDT to normal real-mode defaults
-        "4:lidtw %%cs:rmode_IDT_info\n"
-
-        // Restore %ds (from %ss)
-        "  movw %%ss, %%ax\n"
-        "  movw %%ax, %%ds\n"
-        : "+a" (gdt_far), "+c"(count), "+m" (__segment_ES)
-        : "S" (si), "D" (di)
-        : "cc");
-
-    set_a20(prev_a20_enable);
-
-    set_code_success(regs);*/
-                    }
                     break;
-                case 0x88:
+                case 0x87: { // Memory block move EMS
+                        uint16_t words_to_move = CPU_CX;
+                        uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
+                        i15_87h(words_to_move, gdt_far);
+                    }
+                    CPU_AH = 0;
+                    cf = 0;
+                    return;*/
+                case 0x88: // memory info
                     if (ON_BOARD_RAM_KB > 64 * 1024) {
                         CPU_AX = 63 * 1024;
                     } else {
@@ -1329,12 +1251,16 @@ void intcall86(uint8_t intnum) {
                     }
                     cf = 0;
                     return;
-     /*           case 0x89: {
-                       char tmp[80]; sprintf(tmp, "INT15- 89 AX: 0x%X (Switch to protected mode)", CPU_AX); logMsg(tmp);
+                /*case 0x89: { // switch to protected mode 286+
+                        uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
+                        char tmp[80]; sprintf(tmp, "INT15h FN 89h IDT1: %d IDT2: %d GDT: %Xh",
+                                                    CPU_BH, CPU_BL, gdt_far); logMsg(tmp);
+                        i15_89h(CPU_BH, CPU_BL, gdt_far);
                     }
-                    CPU_AH = 0x86;
-                    cf = 1;// switch to protected mode 286+
+                    CPU_AH = 0;
+                    cf = 0;
                     return;
+                
                 case 0x90: // Device busy interrupt.  Called by Int 16h when no key available
                     break;
                 case 0x91: // Interrupt complete.  Called by Int 16h when key becomes available
@@ -1356,7 +1282,7 @@ void intcall86(uint8_t intnum) {
                             CPU_AX = CPU_CX;
                             CPU_BX = CPU_DX;
                             cf = 0;
-                            return;
+                            return; /*
                         case 0x20: {
                                 // ES:DI - destination for the table
                                 int count = e820_count;
@@ -1378,10 +1304,10 @@ void intcall86(uint8_t intnum) {
                                     CPU_BX++;
                                 CPU_AX = 0x534D4150;
                                 CPU_CX = sizeof(e820_list[0]);
-                                // char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
+                                char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
                                 cf = 0;
                                 return;
-                            }
+                            }*/
                         default:
                             break;
                     }
@@ -1415,7 +1341,7 @@ void intcall86(uint8_t intnum) {
 #endif
                 // http://www.techhelpmanual.com/114-video_modes.html
                 // http://www.techhelpmanual.com/89-video_memory_layouts.html
-                    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
+                //    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
 #if PICO_ON_DEVICE
                     switch (videomode) {
                         case 0:
