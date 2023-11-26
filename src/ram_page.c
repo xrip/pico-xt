@@ -21,7 +21,7 @@ uint8_t ram_page_read(uint32_t addr32) {
 #if BOOT_DEBUG_ACC
     auto res = RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
     if (addr32 >= 0x800000) {
-        char tmp[40]; sprintf(tmp, "R 8 %X: %04Xh", addr32, res); logMsg(tmp);
+        char tmp[40]; sprintf(tmp, "R 8 %X: %02Xh", addr32, res); logMsg(tmp);
     }
     return res;
 #else
@@ -36,7 +36,7 @@ uint16_t ram_page_read16(uint32_t addr32) {
 #if BOOT_DEBUG_ACC
     auto res = (uint16_t)(*pRAM) | (uint16_t)((*pRAM + 1) << 8);
     if (addr32 >= BOOT_DEBUG_ACC) {
-        char tmp[40]; sprintf(tmp, "R16 %X: %08Xh", addr32, res); logMsg(tmp);
+        char tmp[40]; sprintf(tmp, "R16 %X: %04Xh", addr32, res); logMsg(tmp);
     }
     return res;
 #else
@@ -55,7 +55,7 @@ void ram_page_write(uint32_t addr32, uint8_t value) {
     }
 #if BOOT_DEBUG_ACC
     if (addr32 >= BOOT_DEBUG_ACC) {
-        char tmp[40]; sprintf(tmp, "W 8 %X: %04Xh", addr32, value); logMsg(tmp);
+        char tmp[40]; sprintf(tmp, "W 8 %X: %02Xh", addr32, value); logMsg(tmp);
     }
 #endif
 }
@@ -73,7 +73,7 @@ void ram_page_write16(uint32_t addr32, uint16_t value) {
     }
 #if BOOT_DEBUG_ACC
     if (addr32 >= BOOT_DEBUG_ACC) {
-        char tmp[40]; sprintf(tmp, "R16 %X: %08Xh", addr32, value); logMsg(tmp);
+        char tmp[40]; sprintf(tmp, "R16 %X: %04Xh", addr32, value); logMsg(tmp);
     }
 #endif
 }

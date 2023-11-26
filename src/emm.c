@@ -98,7 +98,7 @@ void init_emm() {
     }
     for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         emm_record_t * di = &emm_desc_table[i];
-        di->handler = 0;
+        di->handler = 0x00;
         di->logical_page = i;
         di->physical_page = i;
     }
@@ -139,7 +139,7 @@ uint32_t get_logical_lba_for_physical_lba(uint32_t physical_lba_addr) {
         if (di->physical_page + (PHYSICAL_EMM_SEGMENT >> 10) == physical_page_number && di->handler != 0xFF) {
             uint32_t logical_page_number = di->logical_page;
             auto logical_base_lba = logical_page_number << 14;
-            return logical_base_lba - offset_in_the_page + (EMM_LBA_SHIFT_KB << 10); // shift to do not intersect with on board RAM
+            return logical_base_lba + offset_in_the_page + (EMM_LBA_SHIFT_KB << 10); // shift to do not intersect with on board RAM
         }
     }
     return physical_lba_addr; // do not map not found
