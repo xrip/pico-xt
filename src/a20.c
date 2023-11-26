@@ -12,17 +12,6 @@ void set_a20_enabled(bool v) {
     is_a20_enabled = v;
 }
 
-uint16_t portin(uint16_t portnum);
-void portout(uint16_t portnum, uint16_t value);
-
-uint8_t set_a20(uint8_t cond) {
- //   uint8_t val = portin(PORT_A20);
- //   while(val = portin(PORT_A20)) {
- //   }
-    portout(PORT_A20, cond ? 0xDD : 0xD1);
-    return is_a20_enabled;
-}
-
 // Maximum number of map entries in the e820 map
 #define BUILD_MAX_E820 32
 int e820_count = 0;
