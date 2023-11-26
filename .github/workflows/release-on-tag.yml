@@ -29,7 +29,8 @@ jobs:
             run: |
                  sudo apt update && \
                  sudo apt install -y git python3 && \
-                 sudo apt install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential libusb-1.0-0-dev
+                 sudo apt install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential libusb-1.0-0-dev && \
+                 sudo apt install -y ninja-build
                  
           - name: Check out this repository
             uses: actions/checkout@v3
@@ -70,15 +71,23 @@ jobs:
                  cd picotool/ && \
                  mkdir build && \
                  cd build && \
-                 cmake .. && \
-                 make
+                 cmake -G Ninja .. && \
+                 cmake --build .
 
           - name: Build the project
             run: |
                  export PICO_SDK_PATH=$HOME/pico-sdk && \
                  mkdir build && cd build && \
-                 cmake -DCMAKE_BUILD_TYPE=MinSizeRel -DOVERCLOCKING=366 .. && \
-                 make
+                 cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DOVERCLOCKING=366 .. && \
+                 cmake --build .
+
+          - name: Build for linux host
+            run: |
+                 sudo apt install -y libsdl2-dev && \
+                 export PICO_SDK_PATH=$HOME/pico-sdk && \
+                 mkdir build-linux && cd build-linux && \
+                 cmake -G Ninja -DPICO_PLATFORM=host .. && \
+                 cmake --build .
 
           - name: Create release
             uses: softprops/action-gh-release@v1
