@@ -780,7 +780,7 @@ void writerm8(uint8_t rmval, uint8_t value) {
 uint8_t tandy_hack = 0;
 
 static void custom_on_board_emm() {
-    char tmp[80];
+    char tmp[90];
     uint16_t FN = CPU_AH;
     // sprintf(tmp, "LIM40 FN %Xh", FN); logMsg(tmp);
     switch(CPU_AH) { // EMM LIM 4.0
@@ -828,7 +828,7 @@ static void custom_on_board_emm() {
         // DX = emm_handle
         auto AL = CPU_AL;
         CPU_AX = map_unmap_emm_page(CPU_AL, CPU_BX, CPU_DX);
-        sprintf(tmp, "LIM40 FN %Xh res: phisical page %Xh was mapped to %Xh logical one for 0x%X EMM handler",
+        sprintf(tmp, "LIM40 FN %Xh res: phys page %Xh was mapped to %Xh log for %d EMM handler",
                       FN, AL, CPU_AX, CPU_DX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
