@@ -117,6 +117,13 @@ __inline void write86(uint32_t addr32, uint8_t value) {
         VRAM[addr32] = value; // 16k for graphic mode!!!
         return;
     }
+    if (PSRAM_AVAILABLE && (addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
+            psram_write8(&psram_spi, lba, value);
+            return;
+        }
+    }
 #if SD_CARD_SWAP
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -204,6 +211,12 @@ __inline uint8_t read86(uint32_t addr32) {
         // BIOS ROM range
         addr32 -= 0xFE000UL;
         return BIOS[addr32];
+    }
+    if (PSRAM_AVAILABLE && (addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // Expanded memory paging space D00000-E00000
+        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
+            return psram_read8(&psram_spi, lba);
+        }
     }
 #if SD_CARD_SWAP
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // Expanded memory paging space D00000-E00000
