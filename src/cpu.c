@@ -829,7 +829,7 @@ static void custom_on_board_emm() {
         uint8_t AL = CPU_AL;
         CPU_AX = map_unmap_emm_page(CPU_AL, CPU_BX, CPU_DX);
         sprintf(tmp, "LIM40 FN %Xh res: phys page %Xh was mapped to %Xh log for %d EMM handler",
-                      FN, AL, CPU_AX, CPU_DX); logMsg(tmp);
+                      FN, AL, CPU_BX, CPU_DX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -1272,13 +1272,13 @@ void intcall86(uint8_t intnum) {
                 case 0xE8:
                     switch(CPU_AL) {
                         case 0x01:
-                            if (ON_BOARD_RAM_KB > 16*1024) {
-                                CPU_CX = 1024 * 15; // 15MB
-                                CPU_DX = (ON_BOARD_RAM_KB - 16 * 1024) / 64;
-                            } else {
-                                CPU_CX = ON_BOARD_RAM_KB - 1;
-                                CPU_DX = 0;
-                            }
+#if ON_BOARD_RAM_KB > 16*1024
+                            CPU_CX = 1024 * 15; // 15MB
+                            CPU_DX = (uint16_t)(ON_BOARD_RAM_KB - 16 * 1024) / 64;
+#else
+                            CPU_CX = ON_BOARD_RAM_KB - 1;
+                            CPU_DX = 0;
+#endif
                             CPU_AX = CPU_CX;
                             CPU_BX = CPU_DX;
                             cf = 0;
