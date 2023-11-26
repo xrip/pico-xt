@@ -264,6 +264,7 @@ uint16_t map_unmap_emm_page(
             di->physical_page = physical_page_number;
             di->logical_page = logical_page_number;
             di->handler = emm_handle;
+            break;
         }
     }
     return 0;
