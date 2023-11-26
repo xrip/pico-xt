@@ -56,7 +56,7 @@
 */
 #pragma once
 #include <inttypes.h>
-
+#include "emulator.h"
 #define ON_BOARD_RAM_KB (8ul << 10)
 #define BASE_X86_KB 1024ul
 #define TOTAL_XMM_KB (ON_BOARD_RAM_KB - BASE_X86_KB)

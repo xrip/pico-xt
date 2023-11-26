@@ -826,7 +826,7 @@ static void custom_on_board_emm() {
         // AL = physical_page_number
         // BX = logical_page_number, if FFFFh, the physical page specified in AL will be unmapped
         // DX = emm_handle
-        auto AL = CPU_AL;
+        uint8_t AL = CPU_AL;
         CPU_AX = map_unmap_emm_page(CPU_AL, CPU_BX, CPU_DX);
         sprintf(tmp, "LIM40 FN %Xh res: phys page %Xh was mapped to %Xh log for %d EMM handler",
                       FN, AL, CPU_AX, CPU_DX); logMsg(tmp);
@@ -835,7 +835,7 @@ static void custom_on_board_emm() {
     }
     // Deallocate Pages deallocates the logical pages currently allocated to an EMM handle.
     case 0x45: {
-        auto emm_handle = CPU_DX;
+        uint16_t emm_handle = CPU_DX;
         CPU_AX = deallocate_emm_pages(emm_handle);
         sprintf(tmp, "LIM40 FN %Xh res: %Xh - EMM handler dealloc", FN, emm_handle); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
@@ -1320,6 +1320,13 @@ void intcall86(uint8_t intnum) {
         case 0x10:
             //printf("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
             switch (CPU_AH) {
+
+                case 0x0f:
+                        if (videomode < 8) break;
+                        CPU_AL = videomode;
+                        CPU_AH = 80;
+                        CPU_BH = 0;
+                    return;
                 case 0x00:
                     videomode = CPU_AL & 0x7F;
                     if (videomode == 4) {
@@ -1328,6 +1335,7 @@ void intcall86(uint8_t intnum) {
                     else {
                         port3D9 = 0;
                     }
+                //if (videomode >= 8) CPU_AL = 4;
 
                 // FIXME!!
                     RAM[0x449] = videomode;
@@ -1341,7 +1349,9 @@ void intcall86(uint8_t intnum) {
 #endif
                 // http://www.techhelpmanual.com/114-video_modes.html
                 // http://www.techhelpmanual.com/89-video_memory_layouts.html
-                //    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
+                char tmp[40];
+                sprintf(tmp, "VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
+                logMsg(tmp);
 #if PICO_ON_DEVICE
                     switch (videomode) {
                         case 0:
@@ -1515,7 +1525,7 @@ void intcall86(uint8_t intnum) {
         case 0x19:
 #if PICO_ON_DEVICE
             insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-            insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+            //insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             keyboard_send(0xFF);
 #else
@@ -1523,7 +1533,9 @@ void intcall86(uint8_t intnum) {
             if (1 == insertdisk(0, 0, NULL, "fdd0.img") ) {
                 insertdisk(0, sizeof FDD0, FDD0, NULL);
             }
-            insertdisk(1, sizeof FDD1, FDD1, NULL);
+#if FDD1
+        insertdisk(1, sizeof FDD1, FDD1, NULL);
+#endif
             insertdisk(128, 0, NULL, "hdd.img");
 #endif
             break;

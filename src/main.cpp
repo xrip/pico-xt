@@ -177,7 +177,7 @@ int main() {
 
 #if PSRAM
     // TODO: сделать нормально
-    psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.6, true);
+    psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.8, true);
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
     PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
 
@@ -335,9 +335,9 @@ int main() {
                     uint32_t vidptr =  ( (y / 2) &3) * 8192 + (y / 8 ) *160 + (x / 4);
                     uint32_t color;
                     if ( ( (x>>1) &1) ==0)
-                        color = cga_palette[VRAM[vidptr] >> 4];
+                        color = tandy_palette[VRAM[vidptr] >> 4];
                     else
-                        color = cga_palette[VRAM[vidptr] & 15];
+                        color = tandy_palette[VRAM[vidptr] & 15];
                     //prestretch[y][x] = color;
                     *pix++ = color;
                 }

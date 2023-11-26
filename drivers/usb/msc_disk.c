@@ -28,12 +28,16 @@
 #include "usb.h"
 #include "emulator.h"
 
+
+#if FDD1
 #include "fdd.h"
+#endif
 #include "startup_disk.h"
 
 char* fdd0_rom() {
   return FDD0;
 }
+#if FDD1
 char* fdd1_rom() {
 #if ROM_DRIVE_B
   return FDD1;
@@ -41,9 +45,12 @@ char* fdd1_rom() {
   return NULL;
 #endif
 }
+#endif
+
 size_t fdd0_sz() {
   return sizeof FDD0;
 }
+#if FDD1
 size_t fdd1_sz() {
 #if ROM_DRIVE_B
   return sizeof FDD1;
@@ -51,6 +58,7 @@ size_t fdd1_sz() {
   return 0;
 #endif
 }
+#endif
 
 #if CFG_TUD_MSC
 
@@ -70,6 +78,7 @@ void tud_msc_inquiry_cb(uint8_t lun, uint8_t vendor_id[8], uint8_t product_id[16
         memcpy(vendor_id, vid, strlen(vid));
 	}
 	break;
+#if 1
 	case 1: {
         const char vid[] = "Pico-XT B:";
         memcpy(vendor_id, vid, strlen(vid));
@@ -136,7 +145,8 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_siz
       *block_size  = DISK_BLOCK_SIZE;
 	}
 	break;
-	case 1: {
+#if FDD1
+  	case 1: {
       auto r = getFileB_sz();
   #if ROM_DRIVE_B
       *block_count = (r ? r : sizeof(FDD1)) / DISK_BLOCK_SIZE;
@@ -146,6 +156,7 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_siz
       *block_size  = DISK_BLOCK_SIZE;
 	}
 	break;
+#endif
 	case 2: {
       *block_count = getFileC_sz() / DISK_BLOCK_SIZE;
       *block_size  = DISK_BLOCK_SIZE;
@@ -213,6 +224,8 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
   #endif
 	}
 	break;
+#endif
+
 	case 2: {
 		  return img_disk_read_sec(2, buffer, lba) ? bufsize : -1;
   	}

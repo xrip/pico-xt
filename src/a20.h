@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <inttypes.h>
+#include "emulator.h"
 
 
 uint8_t set_a20(uint8_t cond);

@@ -15,7 +15,9 @@
 #include "ram_page.h"
 #include "../assets/rom.h"
 #include "../assets/startup_disk.h"
+#if FDD1
 #include "../assets/fdd.h"
+#endif
 //#define CPU_8086
 #if PICO_ON_DEVICE
 #include <hardware/pwm.h>

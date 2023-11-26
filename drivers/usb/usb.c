@@ -301,12 +301,16 @@ void if_swap_drives() {
     if (backspacePressed && tabPressed && ctrlPressed) {
         if (already_swapped_fdds) {
             insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-            insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+#if FDD1
+          insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+#endif
             already_swapped_fdds = false;
             return;
         }
         insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-        insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+#if FDD1
+      insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+#endif
         already_swapped_fdds = true;
     }
 }
