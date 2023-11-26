@@ -206,7 +206,7 @@ __inline uint8_t read86(uint32_t addr32) {
         return BIOS[addr32];
     }
 #if SD_CARD_SWAP
-    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 << 4) < PHYSICAL_EMM_SEGMENT_END) { // Expanded memory paging space D00000-E00000
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // Expanded memory paging space D00000-E00000
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         // char tmp[40]; sprintf(tmp, " W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
