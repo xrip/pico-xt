@@ -56,11 +56,11 @@
 */
 #pragma once
 #include <inttypes.h>
-#include "emulator.h"
-#define ON_BOARD_RAM_KB (8ul << 10)
+
+#define ON_BOARD_RAM_KB (1ul << 10)
 #define BASE_X86_KB 1024ul
 #define TOTAL_XMM_KB (ON_BOARD_RAM_KB - BASE_X86_KB)
-#define TOTAL_EMM_KB (8ul << 10)
+#define TOTAL_EMM_KB (1ul << 10)
 #define EMM_LBA_SHIFT_KB ON_BOARD_RAM_KB
 #define TOTAL_EMM_PAGES (TOTAL_EMM_KB >> 4)
 #define TOTAL_VIRTUAL_MEMORY_KBS (ON_BOARD_RAM_KB + TOTAL_EMM_KB)

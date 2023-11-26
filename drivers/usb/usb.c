@@ -276,7 +276,7 @@ void if_usb() {
     if (backspacePressed && enterPressed) {
         usbStarted = true;
         save_video_ram();
-        auto ret = graphics_set_mode(TEXTMODE_80x30);
+        enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
         set_start_debug_line(0);
         clrScr(1);
         logMsg("");
@@ -301,16 +301,12 @@ void if_swap_drives() {
     if (backspacePressed && tabPressed && ctrlPressed) {
         if (already_swapped_fdds) {
             insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-#if FDD1
-          insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
-#endif
+            insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
             already_swapped_fdds = false;
             return;
         }
         insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-#if FDD1
-      insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
-#endif
+        insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
         already_swapped_fdds = true;
     }
 }

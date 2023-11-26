@@ -1,13 +1,11 @@
 #pragma once
-#define PORT_A20 0x64
+#define PORT_A20 0x92
 #define A20_ENABLE_BIT 0x02
 
 #include <stdbool.h>
 #include <inttypes.h>
 #include "emulator.h"
 
-
-uint8_t set_a20(uint8_t cond);
 bool    get_a20_enabled();
 void    set_a20_enabled(bool v);
 
