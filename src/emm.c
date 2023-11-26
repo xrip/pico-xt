@@ -59,16 +59,16 @@
 #include <stdbool.h>
 
 uint16_t emm_conventional_segment() {
-    return PHISICAL_EMM_SEGMENT;
+    return PHYSICAL_EMM_SEGMENT;
 }
 
 typedef __attribute__ ((__packed__)) struct emm_record {
     uint8_t handler;
-    uint8_t phisical_page;
+    uint8_t physical_page;
     uint16_t logical_page;
 } emm_record_t;
 
-typedef emm_record_t emm_desc_table_t[PHISICAL_EMM_PAGES];
+typedef emm_record_t emm_desc_table_t[PHYSICAL_EMM_PAGES];
 
 typedef struct emm_saved_table {
     uint16_t ext_handler;
@@ -90,26 +90,26 @@ static emm_handler_t handlers[MAX_EMM_HANDLERS] = { 0 };
 void init_emm() {
     emm_handler_t * h = &handlers[0];
     h->handler_in_use = true;
-    h->pages_acllocated = 0;
+    h->pages_acllocated = PHYSICAL_EMM_PAGES;
     for (int i = 1; i < MAX_EMM_HANDLERS; ++i) {
         h = &handlers[i];
         h->handler_in_use = false;
         h->pages_acllocated = 0;
     }
-    for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
+    for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         emm_record_t * di = &emm_desc_table[i];
-        di->handler = 0xFF;
-        di->logical_page = 0;
-        di->phisical_page = 0;
+        di->handler = 0;
+        di->logical_page = i;
+        di->physical_page = i;
     }
     for (int j = 0; j < MAX_SAVED_EMM_TABLES; ++j) {
         emm_saved_table_t * st = &emm_saved_tables[j];
         st->ext_handler = 0;
-        for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
+        for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
             emm_record_t * di = &st->table[i];
             di->handler = 0xFF;
             di->logical_page = 0;
-            di->phisical_page = 0;
+            di->physical_page = 0;
         }
     }
 }
@@ -131,15 +131,15 @@ uint16_t get_emm_handle_pages(uint16_t emm_handle, uint16_t *err) {
     return handlers[emm_handle].pages_acllocated;
 }
 
-uint32_t get_logical_lba_for_phisical_lba(uint32_t physical_lba_addr) {
-    uint16_t physical_page_number = (physical_lba_addr - (PHISICAL_EMM_SEGMENT << 4)) >> 14;
+uint32_t get_logical_lba_for_physical_lba(uint32_t physical_lba_addr) {
+    uint16_t physical_page_number = (physical_lba_addr >> 14);
     uint32_t offset_in_the_page = physical_lba_addr - (physical_page_number << 14);
-    for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
+    for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         const emm_record_t * di = &emm_desc_table[i];
-        if (di->phisical_page == physical_page_number && di->handler != 0xFF) {
+        if (di->physical_page + (PHYSICAL_EMM_SEGMENT >> 10) == physical_page_number && di->handler != 0xFF) {
             uint32_t logical_page_number = di->logical_page;
             auto logical_base_lba = logical_page_number << 14;
-            return logical_base_lba - offset_in_the_page + EMM_LBA_SHIFT_KB; // shift to do not intersect with conventional, rom + 64k hor himem
+            return logical_base_lba - offset_in_the_page + (EMM_LBA_SHIFT_KB << 10); // shift to do not intersect with on board RAM
         }
     }
     return physical_lba_addr; // do not map not found
@@ -229,7 +229,7 @@ uint16_t map_unmap_emm_page(
     uint16_t logical_page_number,
     uint16_t emm_handle
 ) {
-    const uint32_t phisical_end_lba = (uint32_t)PHISICAL_EMM_SEGMENT_END << 4;
+    const uint32_t phisical_end_lba = (uint32_t)PHYSICAL_EMM_SEGMENT_END << 4;
     uint32_t phisical_page_lba = phisical_page_2_lba(physical_page_number);
     if (phisical_page_lba >= phisical_end_lba) { // TODO: ensure
         return 0x88 << 8; // The physical page number is out of the range of allowable
@@ -239,9 +239,9 @@ uint16_t map_unmap_emm_page(
     }
     if (logical_page_number == 0xFFFF) { // if BX contains logical page number
                                          // FFFFh, the physical page will be unmapped
-        for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
+        for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
             emm_record_t * di = &emm_desc_table[i];
-            if (di->phisical_page == physical_page_number && di->handler == emm_handle) {
+            if (di->physical_page == physical_page_number && di->handler == emm_handle) {
                 di->handler = 0xFF;
             }
         }
@@ -253,10 +253,10 @@ uint16_t map_unmap_emm_page(
                           // returned if a program attempts map a logical page when no
                           // logical pages are allocated to the handle.
     }
-    for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
+    for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         emm_record_t * di = &emm_desc_table[i];
         if (di->handler == 0xFF) { // empty line
-            di->phisical_page = physical_page_number;
+            di->physical_page = physical_page_number;
             di->logical_page = logical_page_number;
             di->handler = emm_handle;
         }
@@ -274,7 +274,7 @@ uint16_t deallocate_emm_pages(uint16_t emm_handle) {
     }
     for (int j = 0; j < MAX_SAVED_EMM_TABLES; ++j) {
         const emm_saved_table_t * st = &emm_saved_tables[j];
-        for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
+        for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
             const emm_record_t * di = &st->table[i];
             if (di->handler == emm_handle) {
                 return 0x86 << 8; // There is a page mapping
@@ -286,7 +286,7 @@ uint16_t deallocate_emm_pages(uint16_t emm_handle) {
             }
         }
     }
-    for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
+    for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         const emm_record_t * di = &emm_desc_table[i];
         if (di->handler == emm_handle) {
             return 0x86 << 8; // The memory manager detected a save or restore page mapping context error.
@@ -344,33 +344,24 @@ uint16_t restore_emm_mapping(uint16_t ext_handler) {
                      of all open EMM handles and the number of pages allocated
                      to each will be stored.  Each structure has these two
                      members:
-
           .emm_handle
                      The first member is a word which contains the value of the
                      open EMM handle.  The values of the handles this function
                      returns will be in the range of 0 to 255 decimal (0000h to
                      00FFh).  The uppermost byte of the handle is always zero.
-
           .pages_alloc_to_handle
                      The second member is a word which contains the number of
                      pages allocated to the open EMM handle.
 */
 uint16_t get_all_emm_handle_pages(uint32_t addr32) {
     uint16_t res = 0;
-    for (int i = 0; i < PHISICAL_EMM_PAGES; ++i) {
-        const emm_record_t * di = &emm_desc_table[i];
-        if (di->handler == 0xFF)
+    for (int handler = 0; handler < MAX_EMM_HANDLERS; ++handler) {
+        emm_handler_t * h = &handlers[handler];
+        if (!h->handler_in_use)
             continue;
         ++res;
-        uint16_t pages_alloc_to_handle = 0;
-        for (int j = 0; j < PHISICAL_EMM_PAGES; ++j) {
-            const emm_record_t * dj = &emm_desc_table[j];
-            if (di->handler == dj->handler) {
-                ++pages_alloc_to_handle;
-            }
-        }
-        writew86(addr32++, di->handler);
-        writew86(++addr32, pages_alloc_to_handle);
+        writew86(addr32++, handler); addr32++;
+        writew86(addr32++, h->pages_acllocated); addr32++;
     }
     return res;
 }
@@ -565,10 +556,12 @@ uint16_t map_unmap_emm_seg_pages(uint16_t handle, uint16_t log_to_seg_map_len, u
 */
 uint16_t get_mappable_phys_pages() { return 4; }
 uint16_t get_mappable_physical_array(uint16_t mappable_phys_page) {
-    uint16_t cs = PHISICAL_EMM_SEGMENT;
-    for (uint16_t phisical_page = 0; phisical_page < get_mappable_phys_pages(); ++phisical_page, cs += 0x400) {
+    char tmp[80];
+    uint16_t cs = PHYSICAL_EMM_SEGMENT;
+    for (uint16_t physical_page = 0; physical_page < get_mappable_phys_pages(); ++physical_page, cs += 0x400) {
         writew86(mappable_phys_page++, cs); mappable_phys_page++;
-        writew86(mappable_phys_page++, phisical_page); mappable_phys_page++;
+        writew86(mappable_phys_page++, physical_page); mappable_phys_page++;
+        sprintf(tmp, "LIM40 PAGE 0x%X : %d", cs, physical_page); logMsg(tmp);
     }
     return 0;
 }

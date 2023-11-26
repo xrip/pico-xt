@@ -20,9 +20,9 @@ void portout(uint16_t portnum, uint16_t value) {
         break;
     }
     */
-    if (portnum == 0x80) {
-        printf("Diagnostic port out: %04X\r\n", value);
-    }
+    //if (portnum == 0x80) {
+    //    printf("Diagnostic port out: %04X\r\n", value);
+    //}
     switch (portnum) {
         case 0x20:
         case 0x21: //i8259

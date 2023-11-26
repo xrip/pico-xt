@@ -118,9 +118,9 @@ __inline void write86(uint32_t addr32, uint8_t value) {
         return;
     }
 #if SD_CARD_SWAP
-    if ((addr32 >> 4) >= PHISICAL_EMM_SEGMENT && (addr32 >> 4) < PHISICAL_EMM_SEGMENT_END) {
-        uint32_t lba = get_logical_lba_for_phisical_lba(addr32);
-        // char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+        // char tmp[40]; sprintf(tmp, " W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             ram_page_write(lba, value);
             return;
@@ -206,9 +206,9 @@ __inline uint8_t read86(uint32_t addr32) {
         return BIOS[addr32];
     }
 #if SD_CARD_SWAP
-    if ((addr32 >> 4) >= PHISICAL_EMM_SEGMENT && (addr32 << 4) < PHISICAL_EMM_SEGMENT_END) {
-        uint32_t lba = get_logical_lba_for_phisical_lba(addr32);
-        // char tmp[40]; sprintf(tmp, "0xD0000 W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 << 4) < PHYSICAL_EMM_SEGMENT_END) { // Expanded memory paging space D00000-E00000
+        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+        // char tmp[40]; sprintf(tmp, " W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             return ram_page_read(lba);
         }
@@ -219,7 +219,7 @@ __inline uint8_t read86(uint32_t addr32) {
         addr32 -= 0xB8000UL;
         return VRAM[addr32]; //
     }
-    if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) { // Expanded memory paging space D00000-E00000
+    if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) {
         // NE2000
         addr32 -= 0xCC000UL; // TODO: why?
     }
@@ -788,6 +788,7 @@ static void custom_on_board_emm() {
     // memory manager is present and the hardware is working correctly.
     case 0x40: {
         CPU_AX = 0;
+        logMsg("LIM40 FN 40h status: 0");
         zf = 0;
         return;
     }
@@ -795,7 +796,7 @@ static void custom_on_board_emm() {
     // the page frame is located.
     case 0x41: {
         CPU_BX = emm_conventional_segment(); // page frame segment address
-        // sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", FN, CPU_BX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", FN, CPU_BX); logMsg(tmp);
         CPU_AX = 0;
         zf = 0;
         return;
@@ -805,7 +806,7 @@ static void custom_on_board_emm() {
     case 0x42: {
         CPU_BX = unallocated_emm_pages();
         CPU_DX = total_emm_pages();
-        // sprintf(tmp, "LIM40 FN %Xh -> %d free of %d EMM pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh -> %d free of %d EMM pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
         CPU_AX = 0;
         zf = 0;
         return;
@@ -815,7 +816,7 @@ static void custom_on_board_emm() {
     // these pages until the application deallocates them.
     case 0x43: {
         CPU_DX = allocate_emm_pages(CPU_BX, &CPU_AX);
-        // sprintf(tmp, "LIM40 FN %Xh err: %Xh alloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh err: %Xh alloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -836,7 +837,7 @@ static void custom_on_board_emm() {
     case 0x45: {
         auto emm_handle = CPU_DX;
         CPU_AX = deallocate_emm_pages(emm_handle);
-        // sprintf(tmp, "LIM40 FN %Xh res: %Xh - EMM handler dealloc", FN, emm_handle); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh res: %Xh - EMM handler dealloc", FN, emm_handle); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -848,6 +849,7 @@ static void custom_on_board_emm() {
                                       4  .  0
         */
         CPU_AL = 0b01000000; // 4.0
+        logMsg("LIM40 FN 46h res: 4.0");
         CPU_AH = 0; zf = 0;
         return;
     }
@@ -892,7 +894,7 @@ static void custom_on_board_emm() {
         // ES:DI = pointer to handle_page
         uint32_t addr32 = ((uint32_t)CPU_ES << 4) + CPU_DI;
         CPU_BX = get_all_emm_handle_pages(addr32);
-        // sprintf(tmp, "LIM40 FN %Xh all_handlers: %Xh (pages)", FN, CPU_BX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh all_handlers: %Xh (pages)", FN, CPU_BX); logMsg(tmp);
         CPU_AX = 0; zf = 0;
         return;
     }
@@ -1005,12 +1007,13 @@ static void custom_on_board_emm() {
     // REALLOCATE PAGES
     case 0x51: {
         CPU_AX = reallocate_emm_pages(CPU_DX, CPU_BX);
-        // sprintf(tmp, "LIM40 FN %Xh err: %Xh realloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh err: %Xh realloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
     // Optional: set handler attributes
     case 0x52: {
+        sprintf(tmp, "LIM40 FN %Xh err: 91h Optional: set handler attributes (not implemented)", FN); logMsg(tmp);
         CPU_AX = 0x9100; // not supported
         zf = 1;
         return;
@@ -1061,7 +1064,7 @@ static void custom_on_board_emm() {
         // GET TOTAL HANDLES
         case 0x02: {
             CPU_BX = MAX_EMM_HANDLERS;
-            // sprintf(tmp, "LIM40 FN %Xh MAX_EMM_HANDLERS: %d", FN, CPU_BX); logMsg(tmp);
+            sprintf(tmp, "LIM40 FN %Xh MAX_EMM_HANDLERS: %d", FN, CPU_BX); logMsg(tmp);
             CPU_AX = 0; zf = 0;
             return;
         }
@@ -1338,7 +1341,7 @@ void intcall86(uint8_t intnum) {
 #endif
                 // http://www.techhelpmanual.com/114-video_modes.html
                 // http://www.techhelpmanual.com/89-video_memory_layouts.html
-                    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
+                //    printf("VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
 #if PICO_ON_DEVICE
                     switch (videomode) {
                         case 0:
