@@ -10,10 +10,10 @@ int overclock();
 
 char* fdd0_rom();
 size_t fdd0_sz();
-#if FDD1
+
 char* fdd1_rom();
 size_t fdd1_sz();
-#endif
+
 
 // msc_disk.c
 bool tud_msc_ejected();

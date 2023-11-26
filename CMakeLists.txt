@@ -171,6 +171,8 @@ else ()
 
             #BOOT_DEBUG=1
             #BOOT_DEBUG_ACC=0x800000
+
+            #ROM_DRIVE_B=1
     )
 
 #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

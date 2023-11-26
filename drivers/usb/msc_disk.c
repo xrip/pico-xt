@@ -28,16 +28,13 @@
 #include "usb.h"
 #include "emulator.h"
 
-
-#if FDD1
 #include "fdd.h"
-#endif
 #include "startup_disk.h"
 
 char* fdd0_rom() {
   return FDD0;
 }
-#if FDD1
+
 char* fdd1_rom() {
 #if ROM_DRIVE_B
   return FDD1;
@@ -45,12 +42,11 @@ char* fdd1_rom() {
   return NULL;
 #endif
 }
-#endif
 
 size_t fdd0_sz() {
   return sizeof FDD0;
 }
-#if FDD1
+
 size_t fdd1_sz() {
 #if ROM_DRIVE_B
   return sizeof FDD1;
@@ -58,7 +54,6 @@ size_t fdd1_sz() {
   return 0;
 #endif
 }
-#endif
 
 #if CFG_TUD_MSC
 
@@ -140,14 +135,13 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_siz
   // char tmp[80]; sprintf(tmp, "tud_msc_capacity_cb(%d) block_count: %d block_size: %d r: %d", lun, block_count, block_size); logMsg(tmp);
   switch(lun) {
 	case 0: {
-      auto r = getFileA_sz();
+      int r = getFileA_sz();
       *block_count = (r ? r : sizeof(FDD0)) / DISK_BLOCK_SIZE;
       *block_size  = DISK_BLOCK_SIZE;
 	}
 	break;
-#if FDD1
-  	case 1: {
-      auto r = getFileB_sz();
+	case 1: {
+      int r = getFileB_sz();
   #if ROM_DRIVE_B
       *block_count = (r ? r : sizeof(FDD1)) / DISK_BLOCK_SIZE;
   #else
@@ -156,7 +150,6 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_siz
       *block_size  = DISK_BLOCK_SIZE;
 	}
 	break;
-#endif
 	case 2: {
       *block_count = getFileC_sz() / DISK_BLOCK_SIZE;
       *block_size  = DISK_BLOCK_SIZE;
@@ -164,7 +157,7 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_siz
 	break;
 	case 3: {
       DWORD dw;
-      auto dio = disk_ioctl(0, GET_SECTOR_COUNT, &dw);
+      DRESULT dio = disk_ioctl(0, GET_SECTOR_COUNT, &dw);
       if (dio == RES_OK) {
         *block_count = dw;
       } else {
@@ -219,7 +212,7 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
     }
 		rom = FDD1;
 		rom_sz = sizeof(FDD1);
-   #else
+  #else
     return img_disk_read_sec(1, buffer, lba) ? bufsize : -1;
   #endif
 	}
@@ -246,8 +239,8 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
 }
 
 bool sd_card_writable() {
-    auto ds = disk_status(0);
-    auto rs = ds & 0x04/*STA_PROTECT*/;
+    DSTATUS ds = disk_status(0);
+    DSTATUS rs = ds & 0x04/*STA_PROTECT*/;
     // char tmp[80]; sprintf(tmp, "tud_msc_is_writable_cb(1) ds: %d rs: %d r: %d", ds, rs, !rs); logMsg(tmp);
     return !rs; // TODO: sd-card write protected ioctl?
 }

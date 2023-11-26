@@ -258,7 +258,7 @@ uint16_t readw86(uint32_t addr32) {
         return psram_read16(&psram_spi, addr32);
     }
 #if SD_CARD_SWAP
-    auto w = (addr32 & 0xFFFFFFFE) == 0;
+    uint32_t w = (addr32 & 0xFFFFFFFE) == 0;
     if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10) - 1 && w) {
         return ram_page_read16(addr32);
     } // TODO: ROM, VRAM, ...
@@ -829,7 +829,7 @@ static void custom_on_board_emm() {
         uint8_t AL = CPU_AL;
         CPU_AX = map_unmap_emm_page(CPU_AL, CPU_BX, CPU_DX);
         sprintf(tmp, "LIM40 FN %Xh res: phys page %Xh was mapped to %Xh log for %d EMM handler",
-                      FN, AL, CPU_AX, CPU_DX); logMsg(tmp);
+                      FN, AL, CPU_BX, CPU_DX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -1272,13 +1272,13 @@ void intcall86(uint8_t intnum) {
                 case 0xE8:
                     switch(CPU_AL) {
                         case 0x01:
-                            if (ON_BOARD_RAM_KB > 16*1024) {
-                                CPU_CX = 1024 * 15; // 15MB
-                                CPU_DX = (ON_BOARD_RAM_KB - 16 * 1024) / 64;
-                            } else {
-                                CPU_CX = ON_BOARD_RAM_KB - 1;
-                                CPU_DX = 0;
-                            }
+#if ON_BOARD_RAM_KB > 16*1024
+                            CPU_CX = 1024 * 15; // 15MB
+                            CPU_DX = (uint16_t)(ON_BOARD_RAM_KB - 16 * 1024) / 64;
+#else
+                            CPU_CX = ON_BOARD_RAM_KB - 1;
+                            CPU_DX = 0;
+#endif
                             CPU_AX = CPU_CX;
                             CPU_BX = CPU_DX;
                             cf = 0;
@@ -1525,17 +1525,15 @@ void intcall86(uint8_t intnum) {
         case 0x19:
 #if PICO_ON_DEVICE
             insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-            //insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+            insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             keyboard_send(0xFF);
 #else
             //insertdisk(0, sizeof FDD0, FDD0, NULL);
             if (1 == insertdisk(0, 0, NULL, "fdd0.img") ) {
-                insertdisk(0, sizeof FDD0, FDD0, NULL);
+                insertdisk(0, fdd0_sz(), fdd0_rom(), NULL);
             }
-#if FDD1
-        insertdisk(1, sizeof FDD1, FDD1, NULL);
-#endif
+            insertdisk(1, fdd1_sz(), fdd1_rom(), NULL);
             insertdisk(128, 0, NULL, "hdd.img");
 #endif
             break;

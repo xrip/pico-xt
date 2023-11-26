@@ -19,7 +19,7 @@ uint8_t ram_page_read(uint32_t addr32) {
     const register uint32_t ram_page = get_ram_page_for(addr32);
     const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
 #if BOOT_DEBUG_ACC
-    auto res = RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
+    uint8_t res = RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
     if (addr32 >= 0x800000) {
         char tmp[40]; sprintf(tmp, "R 8 %X: %02Xh", addr32, res); logMsg(tmp);
     }
@@ -34,7 +34,7 @@ uint16_t ram_page_read16(uint32_t addr32) {
     const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
     const register char* pRAM = RAM + (ram_page * RAM_PAGE_SIZE) + addr_in_page;
 #if BOOT_DEBUG_ACC
-    auto res = (uint16_t)(*pRAM) | (uint16_t)((*pRAM + 1) << 8);
+    uint16_t res = (uint16_t)(*pRAM) | (uint16_t)((*pRAM + 1) << 8);
     if (addr32 >= BOOT_DEBUG_ACC) {
         char tmp[40]; sprintf(tmp, "R16 %X: %04Xh", addr32, res); logMsg(tmp);
     }
