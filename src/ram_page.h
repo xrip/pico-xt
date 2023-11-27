@@ -7,9 +7,9 @@
 #define RAM_IN_PAGE_ADDR_MASK (0x00000FFF)
 
 #if PICO_ON_DEVICE
-#define RAM_SIZE (64 * 2)
+#define RAM_SIZE (4 * 40) // 40 pages 4Kb = 160KB real pico RAM
 #else
-#define RAM_SIZE (640) // (64*3+26)
+#define RAM_SIZE (640)
 #endif
 
 extern uint8_t RAM[RAM_SIZE << 10];
