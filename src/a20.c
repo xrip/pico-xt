@@ -134,6 +134,9 @@ void writew86(uint32_t addr32, uint16_t value);
 void write86(uint32_t addr32, uint8_t value);
 uint16_t readw86(uint32_t addr32);
 uint8_t read86(uint32_t addr32);
+uint8_t set_a20(bool i) {
+
+}
 
 void i15_87h(uint16_t words_to_move, uint32_t gdt_far) {
     bool prev_a20_enable = is_a20_enabled; // enable A20 line if not

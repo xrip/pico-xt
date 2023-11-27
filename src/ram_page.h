@@ -7,7 +7,7 @@
 #define RAM_IN_PAGE_ADDR_MASK (0x00000FFF)
 
 #if PICO_ON_DEVICE
-#define RAM_SIZE (64 * 3)
+#define RAM_SIZE (64 * 2)
 #else
 #define RAM_SIZE (640) // (64*3+26)
 #endif
