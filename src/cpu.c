@@ -55,7 +55,13 @@ static const uint8_t parity[0x100] = {
 __aligned(4096)
 #endif
 uint8_t RAM[RAM_SIZE << 10];
+#if PICO_ON_DEVICE
+__aligned(4096)
+#endif
 uint8_t VRAM[VRAM_SIZE << 10];
+#if !PICO_ON_DEVICE
+uint8_t EXTRAM[EXT_RAM_SIZE << 10];
+#endif
 
 uint8_t oper1b, oper2b, res8, nestlev, addrbyte;
 uint16_t saveip, savecs, oper1, oper2, res16, disp16, temp16, dummy, stacksize, frametemp;
@@ -99,6 +105,7 @@ void modregrm() {
     }
 }
 
+
 __inline void write86(uint32_t addr32, uint8_t value) {
 #if PICO_ON_DEVICE
     if ((PSRAM_AVAILABLE && (addr32) < (RAM_SIZE << 10)) || addr32 < RAM_PAGE_SIZE) {
@@ -106,58 +113,49 @@ __inline void write86(uint32_t addr32, uint8_t value) {
         RAM[addr32] = value;
         return;
     }
-#else
-    if (addr32 < (RAM_SIZE << 10)) {
-        RAM[addr32] = value;
-    }
-#endif
-    else if (((addr32) >= 0xB8000UL) && ((addr32) < 0xC0000UL)) {
+    if (addr32 >= 0xB8000UL && addr32 < 0xC8000UL) {
         // video RAM range
-        addr32 -= 0xB8000UL;
-        VRAM[addr32] = value; // 16k for graphic mode!!!
+        VRAM[addr32-0xB8000UL] = value;
         return;
     }
-    if (PSRAM_AVAILABLE && (addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
-        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
-        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            psram_write8(&psram_spi, lba, value);
-            return;
-        }
-    }
-#if SD_CARD_SWAP
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         // char tmp[40]; sprintf(tmp, " W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            ram_page_write(lba, value);
+            PSRAM_AVAILABLE ? psram_write8(&psram_spi, lba, value) : ram_page_write(lba, value);
             return;
         }
     }
-#endif
-    /*if (addr32 >= 0xD0000UL && addr32 < 0xD8000UL) {
-        addr32 -= 0xCC000UL; // TODO: why?
-    }*/
-#if SD_CARD_SWAP
     else if ((addr32) > 0xFFFFFUL) {
         if (addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // Hihg mem
-          if (get_a20_enabled()) { // A20 line is ON
-            // char tmp[40]; sprintf(tmp, "HIMEM W LBA: 0x%X", addr32); logMsg(tmp);
-            ram_page_write(addr32, value);
-            return;
-          }
+            if (get_a20_enabled()) { // A20 line is ON
+                // char tmp[40]; sprintf(tmp, "HIMEM W LBA: 0x%X", addr32); logMsg(tmp);
+                ram_page_write(addr32, value);
+                return;
+            }
         }
+
         write86(addr32 - 0x100000UL, value);
         return;
-#endif
-#if PICO_ON_DEVICE
-    } else if (PSRAM_AVAILABLE) {
-        psram_write8(&psram_spi, addr32, value);
     }
-#if SD_CARD_SWAP
-    else {
-        ram_page_write(addr32, value);
+    PSRAM_AVAILABLE ? psram_write8(&psram_spi, addr32, value) : ram_page_write(addr32, value);
+#else
+    if (addr32 < (RAM_SIZE << 10)) {
+        RAM[addr32] = value;
+        return;
     }
-#endif
+    if (addr32 >= 0xB8000UL && addr32 < 0xB8000UL + VRAM_SIZE << 10) {
+        // video RAM range
+        VRAM[addr32-0xB8000UL] = value;
+        return;
+    }
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
+            EXTRAM[lba] = value;
+            return;
+        }
+    }
 #endif
 }
 
@@ -183,59 +181,44 @@ void writew86(uint32_t addr32, uint16_t value) {
     }
 }
 
+// https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 __inline uint8_t read86(uint32_t addr32) {
-#if PICO_ON_DEVICE && SD_CARD_SWAP
+#if PICO_ON_DEVICE
     if ((!PSRAM_AVAILABLE && addr32 < (640 << 10)) || PSRAM_AVAILABLE && addr32 < (RAM_SIZE << 10)) {
+        if (PSRAM_AVAILABLE || addr32 < 4096) {
+            // do not touch first 4kb
+            return RAM[addr32];
+        }
+        return ram_page_read(addr32);
+    }
 #else
     if (addr32 < (RAM_SIZE << 10)) {
-#endif
-        // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
-#if SD_CARD_SWAP
-                if (PSRAM_AVAILABLE || addr32 < 4096) {
-                    // do not touch first 4kb
-                    return RAM[addr32];
-                }
-                return ram_page_read(addr32);
-#else
         return RAM[addr32];
+    }
 #endif
-    }
-    else if (addr32 == 0xFC000) {
-        // TANDY graphics hack
-        return 0x21;
-    }
-    else if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
-        //if (addr32 == 0xFFFFEUL) { // TODO: rebuild BIOS to change this byte (in other case internal BIOS test failed)
-        //    return 0xFD; // PCjr
-        //}
-        // BIOS ROM range
-        addr32 -= 0xFE000UL;
-        return BIOS[addr32];
-    }
-    if (PSRAM_AVAILABLE && (addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // Expanded memory paging space D00000-E00000
-        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
-        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            return psram_read8(&psram_spi, lba);
+    if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
+        if (addr32 == 0xFC000) {
+            // TANDY graphics hack
+            return 0x21;
         }
+        // BIOS ROM range
+        return BIOS[addr32-0xFE000UL];
     }
+
 #if SD_CARD_SWAP
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // Expanded memory paging space D00000-E00000
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         // char tmp[40]; sprintf(tmp, " W LBA: 0x%X->0x%X", addr32, lba); logMsg(tmp);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            return ram_page_read(lba);
+            return PSRAM_AVAILABLE ? psram_read8(&psram_spi, lba) : ram_page_read(lba);
         }
     }
 #endif
-    if ((addr32 >= 0xB8000UL) && (addr32 < 0xC0000UL)) {
+    if (addr32 >= 0xB8000UL && addr32 < 0xC8000UL) {
         // video RAM range
-        addr32 -= 0xB8000UL;
-        return VRAM[addr32]; //
+        return VRAM[addr32-0xB8000UL]; //
     }
-    if ((addr32 >= 0xD0000UL) && (addr32 < 0xD8000UL)) {
-        // NE2000
-        addr32 -= 0xCC000UL; // TODO: why?
-    }
+
     else if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) {
         // IBM BASIC ROM LOW
         addr32 -= 0xF6000UL;
@@ -1544,9 +1527,9 @@ void intcall86(uint8_t intnum) {
 #else
             //insertdisk(0, sizeof FDD0, FDD0, NULL);
             if (1 == insertdisk(0, 0, NULL, "fdd0.img") ) {
-                insertdisk(0, fdd0_sz(), fdd0_rom(), NULL);
+                //insertdisk(0, fdd0_sz(), fdd0_rom(), NULL);
             }
-            insertdisk(1, fdd1_sz(), fdd1_rom(), NULL);
+            //insertdisk(1, fdd1_sz(), fdd1_rom(), NULL);
             insertdisk(128, 0, NULL, "hdd.img");
 #endif
             break;
