@@ -180,6 +180,13 @@ void write86(uint32_t addr32, uint8_t value) {
 void writew86(uint32_t addr32, uint16_t value) {
     //bool w = (addr32 & 0x00000001) == 0;
     // TODO:
+    if (PSRAM_AVAILABLE) {
+        write86psram16(addr32, value); return;
+    }
+    if (SD_CARD_AVAILABLE) {
+        write86sdcard16(addr32, value); return;
+    }
+    // TODO:
     write86(addr32    , (uint8_t) value      );
     write86(addr32 + 1, (uint8_t)(value >> 8));
 }

@@ -168,8 +168,8 @@ else ()
             # supports only for pico with 4 or more MB flashes
             PICO_FLASH_SIZE_BYTES=4194304
 
-            BOOT_DEBUG=1
-            BOOT_DEBUG_ACC=0x800000
+            #BOOT_DEBUG=1
+            #BOOT_DEBUG_ACC=0x800000
 
             #ROM_DRIVE_B=1
     )
