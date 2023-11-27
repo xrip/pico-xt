@@ -177,18 +177,79 @@ void write86(uint32_t addr32, uint8_t value) {
     // { char tmp[40]; sprintf(tmp, "ADDR W: 0x%X not found", addr32); logMsg(tmp); }
 }
 
+inline static void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16_t value) {
+    register uint8_t* ptr = arr - base_addr + addr32;
+    *ptr++ = (uint8_t) value;
+    *ptr   = (uint8_t)(value >> 8);
+}
+
+inline static void write86psram16(uint32_t addr32, uint16_t value) {
+    if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
+        write16arr(RAM, 0, addr32, value); return;
+    }
+    if (addr32 < (640 << 10)) { // Conventional in swap
+        psram_write16(&psram_spi, addr32, value); return;
+    }
+    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
+        write16arr(VRAM, VRAM_START32, addr32, value); return;
+    }
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
+        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
+            psram_write16(&psram_spi, lba, value); return;
+        }
+    }
+    if ((addr32) >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+        if (get_a20_enabled()) { // A20 line is ON
+            psram_write16(&psram_spi, addr32, value); return;
+        }
+        writew86(addr32 - 0x100000UL, value); // Rool back to low addressed
+        return;
+    }
+}
+
+inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
+    if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
+        write16arr(RAM, 0, addr32, value); return;
+    }
+    if (addr32 < (640 << 10)) { // Conventional in swap
+        ram_page_write16(addr32, value); return;
+    }
+    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
+        write16arr(VRAM, VRAM_START32, addr32, value); return;
+    }
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
+        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
+            ram_page_write16(lba, value); return;
+        }
+    }
+    if ((addr32) >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+        if (get_a20_enabled()) { // A20 line is ON
+            ram_page_write16(addr32, value); return;
+        }
+        writew86(addr32 - 0x100000UL, value); // Rool back to low addressed
+        return;
+    }
+}
+
 void writew86(uint32_t addr32, uint16_t value) {
-    //bool w = (addr32 & 0x00000001) == 0;
-    // TODO:
+    if (addr32 & 0x00000001) { // not 16-bit alligned
+        write86(addr32    , (uint8_t) value      );
+        write86(addr32 + 1, (uint8_t)(value >> 8));
+    }
     if (PSRAM_AVAILABLE) {
         write86psram16(addr32, value); return;
     }
     if (SD_CARD_AVAILABLE) {
         write86sdcard16(addr32, value); return;
     }
-    // TODO:
-    write86(addr32    , (uint8_t) value      );
-    write86(addr32 + 1, (uint8_t)(value >> 8));
+    if (addr32 < RAM_SIZE) {
+        write16arr(RAM, 0, addr32, value); return;
+    }
+    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
+        write16arr(VRAM, VRAM_START32, addr32, value); return;
+    }
 }
 
 __inline static uint8_t read86rom(uint32_t addr32) {
