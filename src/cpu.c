@@ -59,9 +59,6 @@ uint8_t RAM[RAM_SIZE << 10];
 __aligned(4096)
 #endif
 uint8_t VRAM[VRAM_SIZE << 10];
-#if !PICO_ON_DEVICE
-uint8_t EXTRAM[EXT_RAM_SIZE << 10];
-#endif
 
 uint8_t oper1b, oper2b, res8, nestlev, addrbyte;
 uint16_t saveip, savecs, oper1, oper2, res16, disp16, temp16, dummy, stacksize, frametemp;
@@ -124,6 +121,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
         VRAM[addr32-0xB8000UL] = value;
         return;
     }
+#if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
@@ -138,7 +136,6 @@ __inline void write86(uint32_t addr32, uint8_t value) {
         write86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
     }
-#if PICO_ON_DEVICE
 #if SD_CARD_SWAP
     if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10)) { // Conventional
         ram_page_write(addr32, value);
@@ -222,11 +219,12 @@ __inline uint8_t read86(uint32_t addr32) {
             return RAM[addr32];
         }
         return ram_page_read(addr32);
+    }
 #else
         return RAM[addr32];
     }
 #endif
-    }
+
     else if (addr32 == 0xFC000) {
         // TANDY graphics hack
         return 0x21;
@@ -236,6 +234,7 @@ __inline uint8_t read86(uint32_t addr32) {
         addr32 -= 0xFE000UL;
         return BIOS[addr32];
     }
+#if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE && (addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
@@ -244,7 +243,7 @@ __inline uint8_t read86(uint32_t addr32) {
         // BIOS ROM range
         return BIOS[addr32-0xFE000UL];
     }
-
+#endif
 #if SD_CARD_SWAP
     else if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
