@@ -91,7 +91,7 @@ static emm_handler_t handlers[MAX_EMM_HANDLERS] = { 0 };
 void init_emm() {
     emm_handler_t * h = &handlers[0];
     h->handler_in_use = true;
-    h->pages_acllocated = 4;
+    h->pages_acllocated = 0;
     for (int i = 1; i < MAX_EMM_HANDLERS; ++i) {
         h = &handlers[i];
         h->handler_in_use = false;
@@ -273,11 +273,11 @@ uint16_t map_unmap_emm_page(
 
 uint16_t deallocate_emm_pages(uint16_t emm_handle) {
     if (emm_handle >= MAX_EMM_HANDLERS) {
-        return 0x83; // The manager couldn't find the specified EMM handle.
+        return 0x8300; // The manager couldn't find the specified EMM handle.
     }
     emm_handler_t * h = &handlers[emm_handle];
     if (!h->handler_in_use) {
-        return 0x83; // The manager couldn't find the specified EMM handle.
+        return 0x8300; // The manager couldn't find the specified EMM handle.
     }
     for (int j = 0; j < MAX_SAVED_EMM_TABLES; ++j) {
         const emm_saved_table_t * st = &emm_saved_tables[j];
@@ -294,9 +294,10 @@ uint16_t deallocate_emm_pages(uint16_t emm_handle) {
         }
     }
     for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
-        const emm_record_t * di = &emm_desc_table[i];
+        emm_record_t * di = &emm_desc_table[i];
         if (di->handler == emm_handle) {
-            return 0x86 << 8; // The memory manager detected a save or restore page mapping context error.
+            // return 0x86 << 8; // The memory manager detected a save or restore page mapping context error.
+            di->handler = 0xFF;
         }
     }
     h->pages_acllocated = 0;
@@ -331,6 +332,7 @@ uint16_t restore_emm_mapping(uint16_t ext_handler) {
         emm_saved_table_t * di = &emm_saved_tables[i];
         if (di->ext_handler == ext_handler) {
             memcpy(emm_desc_table, di->table, sizeof emm_desc_table);
+            memset(di->table, 0, sizeof emm_desc_table);
             di->ext_handler = 0;
             return 0;
         }
