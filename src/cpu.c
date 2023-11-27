@@ -208,16 +208,22 @@ __inline static uint8_t read86rom(uint32_t addr32) {
 
 __inline static uint16_t read86rom16(uint32_t addr32) {
     if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) { // BIOS ROM range
-        uint8_t* ptr = BIOS + addr32 - 0xFE000UL;
-        return ((uint16_t)*ptr | ((uint16_t)*(ptr + 1) << 8));
+        register uint8_t* ptr = BIOS + addr32 - 0xFE000UL;
+        register uint16_t b1 = *ptr++;
+        register uint16_t b0 = *ptr;
+        return b1 | (b0 << 8);
     }
     if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) { // IBM BASIC ROM LOW
-        uint8_t* ptr = BASICL + addr32 - 0xF6000UL;
-        return ((uint16_t)*ptr | ((uint16_t)*(ptr + 1) << 8));
+        register uint8_t* ptr = BASICL + addr32 - 0xF6000UL;
+        register uint16_t b1 = *ptr++;
+        register uint16_t b0 = *ptr;
+        return b1 | (b0 << 8);
     }
     if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) { // IBM BASIC ROM HIGH
-        uint8_t* ptr = BASICH + addr32 - 0xFA000UL;
-        return ((uint16_t)*ptr | ((uint16_t)*(ptr + 1) << 8));
+        register uint8_t* ptr = BASICH + addr32 - 0xFA000UL;
+        register uint16_t b1 = *ptr++;
+        register uint16_t b0 = *ptr;
+        return b1 | (b0 << 8);
     }
     return 0;
 }
@@ -299,20 +305,24 @@ __inline static uint8_t read86sdcard(uint32_t addr32) {
         }
         return read86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
     }
-    return read86rom16(addr32);
+    return read86rom(addr32);
 }
 
 __inline static uint16_t read86sdcard16(uint32_t addr32) {
     if (addr32 < RAM_PAGE_SIZE) { // First page block fast access
-        uint8_t* ptr = RAM + addr32;
-        return ((uint16_t)(*ptr) | ((uint16_t)(*(ptr + 1) << 8)));
+        register uint8_t* ptr = RAM + addr32;
+        register uint16_t b1 = *ptr++;
+        register uint16_t b0 = *ptr;
+        return b1 | (b0 << 8);
     }
     if (addr32 < (640 << 10)) { // Conventional
         return ram_page_read16(addr32);
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        uint8_t* ptr = VRAM + addr32 - VRAM_START32;
-        return ((uint16_t)(*ptr) | ((uint16_t)(*(ptr + 1) << 8)));
+        register uint8_t* ptr = VRAM + addr32 - VRAM_START32;
+        register uint16_t b1 = *ptr++;
+        register uint16_t b0 = *ptr;
+        return b1 | (b0 << 8);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -357,6 +367,9 @@ uint16_t readw86(uint32_t addr32) {
     if (addr32 == 0xFC000 || addr32 == 0xFC000 - 1) { // TANDY graphics hack (TODO: BIOS)
         return ((uint16_t)read86(addr32) | (uint16_t)(read86(addr32 + 1) << 8));
     }
+    if ((addr32 & 0x00000001) != 0) { // not 16-bit address
+        return ((uint16_t)read86(addr32) | (uint16_t)(read86(addr32 + 1) << 8));
+    }
     if (PSRAM_AVAILABLE) {
         return read86psram16(addr32);
     }
@@ -364,15 +377,19 @@ uint16_t readw86(uint32_t addr32) {
         return read86sdcard16(addr32);
     }
     if (addr32 < RAM_SIZE) { // Conventional (existing)
-        uint8_t* ptr = RAM + addr32;
-        return ((uint16_t)*ptr | ((uint16_t)*(ptr + 1) << 8));
+        register uint8_t* ptr = RAM + addr32;
+        register uint16_t b1 = *ptr++;
+        register uint16_t b0 = *ptr;
+        return b1 | (b0 << 8);
     }
     if (addr32 < (640 << 10)) { // Conventional (no RAM in this space)
         return 0;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        char* ptr = VRAM + addr32 - VRAM_START32;
-        return ((uint16_t)*ptr | ((uint16_t)*(ptr + 1) << 8));;
+        register uint8_t* ptr = VRAM + addr32 - VRAM_START32;
+        register uint16_t b1 = *ptr++;
+        register uint16_t b0 = *ptr;
+        return b1 | (b0 << 8);
     }
     return read86rom16(addr32);
 }
