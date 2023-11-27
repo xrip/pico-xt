@@ -29,7 +29,7 @@ static FATFS fs;
 #endif
 
 #define BEEPER_PIN 28
-#define VRAM_SIZE 32
+#define VRAM_SIZE 64
 
 // TODO: no direct access support (for PC mode)
 extern uint8_t RAM[RAM_SIZE << 10];

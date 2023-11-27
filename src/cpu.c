@@ -124,6 +124,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
             psram_write8(&psram_spi, lba, value);
             return;
         }
+
     } else if ((addr32) >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
         if (get_a20_enabled()) { // A20 line is ON
             psram_write8(&psram_spi, addr32, value);
@@ -133,6 +134,7 @@ __inline void write86(uint32_t addr32, uint8_t value) {
         return;
     }
 #if PICO_ON_DEVICE
+
 #if SD_CARD_SWAP
     if (addr32 >= RAM_PAGE_SIZE && addr32 < (640 << 10)) { // Conventional
         ram_page_write(addr32, value);
@@ -229,6 +231,7 @@ __inline uint8_t read86(uint32_t addr32) {
         return BIOS[addr32];
     }
     if (PSRAM_AVAILABLE && (addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
+
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             return psram_read8(&psram_spi, lba);
