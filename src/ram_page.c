@@ -1,5 +1,3 @@
-#if SD_CARD_SWAP
-
 #include "ram_page.h"
 #include "f_util.h"
 #include "ff.h"
@@ -208,4 +206,3 @@ void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 
-#endif

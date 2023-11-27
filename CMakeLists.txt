@@ -57,7 +57,7 @@ pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip/DnCraptor")
 pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
-#set(OVERCLOCKING 366)
+set(OVERCLOCKING 366)
 
 if (PICO_PLATFORM STREQUAL "host")
     target_link_libraries(${PROJECT_NAME} SDL2)
@@ -167,10 +167,9 @@ else ()
 
             # supports only for pico with 4 or more MB flashes
             PICO_FLASH_SIZE_BYTES=4194304
-            SD_CARD_SWAP=1
 
-            #BOOT_DEBUG=1
-            #BOOT_DEBUG_ACC=0x800000
+            BOOT_DEBUG=1
+            BOOT_DEBUG_ACC=0x800000
 
             #ROM_DRIVE_B=1
     )
