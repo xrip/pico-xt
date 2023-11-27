@@ -27,12 +27,19 @@ uint8_t ram_page_read(uint32_t addr32) {
 #endif
 }
 
+inline static uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
+    register uint8_t* ptr = arr + addr32 - base_addr;
+    register uint16_t b1 = *ptr++;
+    register uint16_t b0 = *ptr;
+    return b1 | (b0 << 8);
+}
+
 uint16_t ram_page_read16(uint32_t addr32) {
     const register uint32_t ram_page = get_ram_page_for(addr32);
     const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-    const register char* pRAM = RAM + (ram_page * RAM_PAGE_SIZE) + addr_in_page;
+    return read16arr(RAM, 0, (ram_page * RAM_PAGE_SIZE) + addr_in_page);
 #if BOOT_DEBUG_ACC
-    uint16_t res = (uint16_t)(*pRAM) | (uint16_t)((*pRAM + 1) << 8);
+    uint16_t res = read16arr(RAM, 0, (ram_page * RAM_PAGE_SIZE) + addr_in_page);
     if (addr32 >= BOOT_DEBUG_ACC) {
         char tmp[40]; sprintf(tmp, "R16 %X: %04Xh", addr32, res); logMsg(tmp);
     }

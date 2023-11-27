@@ -20,6 +20,8 @@ extern uint16_t RAM_PAGES[RAM_BLOCKS]; // lba (14-0); 15 - written
 bool init_vram();
 
 uint8_t ram_page_read(uint32_t addr32);
+uint16_t ram_page_read16(uint32_t addr32);
+
 void ram_page_write(uint32_t addr32, uint8_t value);
 void ram_page_write16(uint32_t addr32, uint16_t value);
 
