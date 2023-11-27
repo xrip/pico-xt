@@ -107,30 +107,29 @@ void modregrm() {
 
 void write86(uint32_t addr32, uint8_t value);
 
+inline static void writeVRAM(uint32_t addr32, uint8_t value) {
+    VRAM[addr32 - VRAM_START32] = value;
+}
+
 void write86psram(uint32_t addr32, uint8_t value) {
     if (addr32 < RAM_SIZE) { // Conventional available
-        RAM[addr32] = value;
-        return;
+        RAM[addr32] = value; return;
     }
     if (addr32 < (640 << 10)) { // Conventional in PSRAM
-        psram_write8(&psram_spi, addr32, value);
-        return;
+        psram_write8(&psram_spi, addr32, value); return;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        VRAM[addr32 - VRAM_START32] = value;
-        return;
+        writeVRAM(addr32, value); return;
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            psram_write8(&psram_spi, lba, value);
-            return;
+            psram_write8(&psram_spi, lba, value); return;
         }
     }
     if ((addr32) >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
         if (get_a20_enabled()) { // A20 line is ON
-            psram_write8(&psram_spi, addr32, value);
-            return;
+            psram_write8(&psram_spi, addr32, value); return;
         }
         write86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
@@ -139,28 +138,23 @@ void write86psram(uint32_t addr32, uint8_t value) {
 
 void write86sdcard(uint32_t addr32, uint8_t value) {
     if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
-        RAM[addr32] = value;
-        return;
+        RAM[addr32] = value; return;
     }
     if (addr32 < (640 << 10)) { // Conventional in swap
-        ram_page_write(addr32, value);
-        return;
+        ram_page_write(addr32, value); return;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        VRAM[addr32 - VRAM_START32] = value;
-        return;
+        writeVRAM(addr32, value); return;
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            ram_page_write(lba, value);
-            return;
+            ram_page_write(lba, value); return;
         }
     }
     if ((addr32) >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
         if (get_a20_enabled()) { // A20 line is ON
-            ram_page_write(addr32, value);
-            return;
+            ram_page_write(addr32, value); return;
         }
         write86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
@@ -169,26 +163,23 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
 
 void write86(uint32_t addr32, uint8_t value) {
     if (PSRAM_AVAILABLE) {
-        write86psram(addr32, value);
-        return;
+        write86psram(addr32, value); return;
     }
     if (SD_CARD_AVAILABLE) {
-        write86sdcard(addr32, value);
-        return;
+        write86sdcard(addr32, value); return;
     }
     if (addr32 < RAM_SIZE) {
-        RAM[addr32] = value;
-        return;
+        RAM[addr32] = value; return;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        VRAM[addr32 - VRAM_START32] = value;
-        return;
+        writeVRAM(addr32, value); return;
     }
     // { char tmp[40]; sprintf(tmp, "ADDR W: 0x%X not found", addr32); logMsg(tmp); }
 }
 
 void writew86(uint32_t addr32, uint16_t value) {
-    //bool w = (addr32 & 0xFFFFFFFE) == 0;
+    //bool w = (addr32 & 0x00000001) == 0;
+    // TODO:
     write86(addr32    , (uint8_t) value      );
     write86(addr32 + 1, (uint8_t)(value >> 8));
 }
@@ -206,24 +197,22 @@ __inline static uint8_t read86rom(uint32_t addr32) {
     return 0;
 }
 
+inline static uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
+    register uint8_t* ptr = arr + addr32 - base_addr;
+    register uint16_t b1 = *ptr++;
+    register uint16_t b0 = *ptr;
+    return b1 | (b0 << 8);
+}
+
 __inline static uint16_t read86rom16(uint32_t addr32) {
-    if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) { // BIOS ROM range
-        register uint8_t* ptr = BIOS + addr32 - 0xFE000UL;
-        register uint16_t b1 = *ptr++;
-        register uint16_t b0 = *ptr;
-        return b1 | (b0 << 8);
+    if (addr32 >= 0xFE000UL && addr32 <= 0xFFFFFUL) { // BIOS ROM range
+        return read16arr(BIOS, 0xFE000UL, addr32);
     }
-    if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) { // IBM BASIC ROM LOW
-        register uint8_t* ptr = BASICL + addr32 - 0xF6000UL;
-        register uint16_t b1 = *ptr++;
-        register uint16_t b0 = *ptr;
-        return b1 | (b0 << 8);
+    if (addr32 >= 0xF6000UL && addr32 < 0xFA000UL) { // IBM BASIC ROM LOW
+        return read16arr(BASICL, 0xF6000U, addr32);
     }
     if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) { // IBM BASIC ROM HIGH
-        register uint8_t* ptr = BASICH + addr32 - 0xFA000UL;
-        register uint16_t b1 = *ptr++;
-        register uint16_t b0 = *ptr;
-        return b1 | (b0 << 8);
+        return read16arr(BASICH, 0xFA000UL, addr32);
     }
     return 0;
 }
@@ -231,7 +220,11 @@ __inline static uint16_t read86rom16(uint32_t addr32) {
 uint8_t read86(uint32_t addr32);
 uint16_t readw86(uint32_t addr32);
 
-__inline static uint8_t read86psram(uint32_t addr32) {
+inline static uint8_t read86vram(uint32_t addr32) {
+    return VRAM[addr32 - VRAM_START32];
+}
+
+inline static uint8_t read86psram(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
     }
@@ -239,7 +232,7 @@ __inline static uint8_t read86psram(uint32_t addr32) {
         return psram_read8(&psram_spi, addr32);
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return VRAM[addr32 - VRAM_START32];
+        return read86vram(addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -256,17 +249,15 @@ __inline static uint8_t read86psram(uint32_t addr32) {
     return read86rom(addr32);
 }
 
-__inline static uint16_t read86psram16(uint32_t addr32) {
+inline static uint16_t read86psram16(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
-        uint8_t* ptr = RAM + addr32;
-        return ((uint16_t)*ptr | ((uint16_t)*(ptr + 1) << 8));
+        return read16arr(RAM, 0, addr32);
     }
     if (addr32 < (640 << 10)) { // Conventional
         return psram_read16(&psram_spi, addr32);
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        uint8_t* ptr = VRAM + addr32 - VRAM_START32;
-        return ((uint16_t)*ptr | ((uint16_t)*(ptr + 1) << 8));
+        return read16arr(VRAM, VRAM_START32, addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -283,7 +274,7 @@ __inline static uint16_t read86psram16(uint32_t addr32) {
     return read86rom16(addr32);
 }
 
-__inline static uint8_t read86sdcard(uint32_t addr32) {
+inline static uint8_t read86sdcard(uint32_t addr32) {
     if (addr32 < RAM_PAGE_SIZE) { // First page block fast access
         return RAM[addr32];
     }
@@ -291,7 +282,7 @@ __inline static uint8_t read86sdcard(uint32_t addr32) {
         return ram_page_read(addr32);
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return VRAM[addr32 - VRAM_START32];
+        return read86vram(addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -308,21 +299,15 @@ __inline static uint8_t read86sdcard(uint32_t addr32) {
     return read86rom(addr32);
 }
 
-__inline static uint16_t read86sdcard16(uint32_t addr32) {
+inline static uint16_t read86sdcard16(uint32_t addr32) {
     if (addr32 < RAM_PAGE_SIZE) { // First page block fast access
-        register uint8_t* ptr = RAM + addr32;
-        register uint16_t b1 = *ptr++;
-        register uint16_t b0 = *ptr;
-        return b1 | (b0 << 8);
+        return read16arr(RAM, 0, addr32);
     }
     if (addr32 < (640 << 10)) { // Conventional
         return ram_page_read16(addr32);
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        register uint8_t* ptr = VRAM + addr32 - VRAM_START32;
-        register uint16_t b1 = *ptr++;
-        register uint16_t b0 = *ptr;
-        return b1 | (b0 << 8);
+        return read16arr(VRAM, VRAM_START32, addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -358,7 +343,7 @@ uint8_t read86(uint32_t addr32) {
         return 0;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return VRAM[addr32 - VRAM_START32];
+        return read86vram(addr32);
     }
     return read86rom(addr32);
 }
@@ -377,19 +362,13 @@ uint16_t readw86(uint32_t addr32) {
         return read86sdcard16(addr32);
     }
     if (addr32 < RAM_SIZE) { // Conventional (existing)
-        register uint8_t* ptr = RAM + addr32;
-        register uint16_t b1 = *ptr++;
-        register uint16_t b0 = *ptr;
-        return b1 | (b0 << 8);
+        return read16arr(RAM, 0, addr32);
     }
     if (addr32 < (640 << 10)) { // Conventional (no RAM in this space)
         return 0;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        register uint8_t* ptr = VRAM + addr32 - VRAM_START32;
-        register uint16_t b1 = *ptr++;
-        register uint16_t b0 = *ptr;
-        return b1 | (b0 << 8);
+        return read16arr(VRAM, VRAM_START32, addr32);
     }
     return read86rom16(addr32);
 }
