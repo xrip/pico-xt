@@ -35,6 +35,7 @@ SDL_Surface *screen;
 #endif
 
 bool PSRAM_AVAILABLE = false;
+bool SD_CARD_AVAILABLE = false;
 bool runing = true;
 
 #if PICO_ON_DEVICE
@@ -175,7 +176,6 @@ int main() {
     }
 #endif
 
-#if PSRAM
     // TODO: сделать нормально
     psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.8, true);
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
@@ -186,17 +186,16 @@ int main() {
         char tmp[80];
         sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
-        logMsg(tmp);
-        while (runing) { sleep_ms(100); } // TODO: test no sd-card startup
+    } else {
+        SD_CARD_AVAILABLE = true;
     }
-#endif
-#if SD_CARD_SWAP
+
     // set_start_debug_line(0);
-    if (!PSRAM_AVAILABLE && !init_vram()) {
-        logMsg((char *)"init_vram failed"); // TODO: test small type startup
-        while (runing) { sleep_ms(100); }
+    if (!PSRAM_AVAILABLE && SD_CARD_AVAILABLE && !init_vram()) {
+        logMsg((char *)"init_vram failed. Only 160Kb RAM will be available...");
+        SD_CARD_AVAILABLE = false;
     }
-#endif
+
     reset86();
     while (runing) {
 #if !PICO_ON_DEVICE
