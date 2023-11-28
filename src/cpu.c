@@ -137,27 +137,36 @@ uint8_t xms_fn() {
             sprintf(tmp, "XMS FN 0Fh: Resize Extended Memory Block #%d to %dKB", CPU_DX, CPU_BX);
             break;
         case 0x10: // XMS 10H: Request Upper Memory Block
-                   // DX    desired size of UMB▲, in paragraphs (16-byte units)
-            if (CPU_DX <= (UMB_1_SIZE >> 4) && !umb_1_in_use) {
-                CPU_BX = UMB_1_START;
-                umb_1_in_use = true;
-               // CPU_DX = UMB_1_SIZE >> 4;
-                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated #1)", CPU_AH, CPU_DX << 4);
-                CPU_AX = XMS_SUCCESS_CODE; // successful
-            } else if (CPU_DX <= (UMB_2_SIZE >> 4) && !umb_2_in_use) {
+                   // DX    desired size of UMB, in paragraphs (16-byte units)
+            if (CPU_DX <= (UMB_2_SIZE >> 4) && !umb_2_in_use) {
+                uint16_t requested = CPU_DX;
                 CPU_BX = UMB_2_START;
                 umb_2_in_use = true;
-               // CPU_DX = UMB_2_SIZE >> 4;
-                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated #2)", CPU_AH, CPU_DX << 4);
+                CPU_DX = UMB_2_SIZE >> 4;
+                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated %04Xh bytes #2)", CPU_AH, requested << 4, CPU_DX << 4);
+                CPU_AX = XMS_SUCCESS_CODE; // successful
+            } else if (CPU_DX <= (UMB_1_SIZE >> 4) && !umb_1_in_use) {
+                uint16_t requested = CPU_DX;
+                CPU_BX = UMB_1_START;
+                umb_1_in_use = true;
+                CPU_DX = UMB_1_SIZE >> 4;
+                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated %04Xh bytes #1)", CPU_AH, requested << 4, CPU_DX << 4);
                 CPU_AX = XMS_SUCCESS_CODE; // successful
             } else {
-                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (rejected)", CPU_AH, CPU_DX << 4);
-                CPU_AX = XMS_ERROR_CODE; // ERROR
-                CPU_DX =(!umb_2_in_use ?
-                         (umb_1_in_use ? UMB_2_SIZE : UMB_1_SIZE) :
-                         (umb_1_in_use ? 0 : UMB_1_SIZE)
+                uint16_t requested = CPU_DX;
+                CPU_DX =(!umb_1_in_use ?
+                         (umb_2_in_use ? UMB_1_SIZE : UMB_2_SIZE) :
+                         (umb_2_in_use ? 0 : UMB_2_SIZE)
                         ) >> 4; // actual size : no more UMB blocks
-                CPU_BL = !umb_2_in_use ? 0xB0 : 0xB1; //  Smaller : No UMBs are available;
+                CPU_BX =(!umb_1_in_use ?
+                         (umb_2_in_use ? UMB_1_START : UMB_2_START) :
+                         (umb_2_in_use ? 0 : UMB_2_START)
+                        ) >> 4;
+                // b0H  A smaller UMB is available
+                // b1H  No UMBs are available
+                CPU_BL = umb_1_in_use && umb_2_in_use ? 0xB1 : 0xB0; //  Smaller : No UMBs are available;
+                sprintf(tmp, "XMS FN 10h: requested UMB: %04Xh bytes (rejected) have max: %04Xh bytes", requested << 4, CPU_DX);
+                CPU_AX = XMS_ERROR_CODE; // ERROR
             }
             break;
         default:
