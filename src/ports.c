@@ -71,7 +71,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x388: // adlib
         case 0x389:
             outadlib(portnum, value);
-        break;
+            break;
         case 0x3D4:
             // http://www.techhelpmanual.com/901-color_graphics_adapter_i_o_ports.html
             crt_controller_idx = value;
@@ -88,7 +88,6 @@ void portout(uint16_t portnum, uint16_t value) {
             // https://www.seasip.info/VintagePC/cga.html
             port3D8 = value;
 
-        //printf("port3D8 0x%x\r\n", value);
         // third cga palette (black/red/cyan/white)
             if (videomode == 5 && (port3D8 >> 2) & 1) {
                 logMsg("the unofficial Mode 5 palette, accessed by disabling ColorBurst\n");
@@ -126,18 +125,20 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
         case 0x3D9:
             port3D9 = value;
+            uint8_t bg_color = value & 0xf;
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;
             char tmp[80];
             sprintf(tmp, "colorset %i, int %i\r\n", cga_colorset, cga_intensity);
             logMsg(tmp);
-
+            graphics_set_palette(0, cga_palette[bg_color]);
 #if PICO_ON_DEVICE
             if ((videomode == 6 && (port3D8 & 0x0f) == 0b1010) || videomode >= 8) {
                 break;
             }
 
-            for (int i = 0; i < 4; i++) {
+
+            for (int i = 1; i < 4; i++) {
                 graphics_set_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
             }
         //setVGA_color_palette(0, cga_palette[0]);
@@ -196,7 +197,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x388: // adlib
         case 0x389:
             return inadlib(portnum);
-        break;
+            break;
         case 0x3D4:
             return crt_controller_idx;
         case 0x3D5:
