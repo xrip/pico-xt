@@ -13,10 +13,12 @@ uint8_t crt_controller_idx, crt_controller[18];
 uint16_t port378, port379, port37A, port3D8, port3D9, port3DA, port201;
 
 void portout(uint16_t portnum, uint16_t value) {
-    switch (portnum)
-    {
-    case 0x92:
-        { char tmp[90]; sprintf(tmp, "PORT %Xh set %Xh", portnum, value); logMsg(tmp); }
+    switch (portnum) {
+        case 0x92: {
+            char tmp[90];
+            sprintf(tmp, "PORT %Xh set %Xh", portnum, value);
+            logMsg(tmp);
+        }
         break;
     }
     //if (portnum == 0x80) {
@@ -40,7 +42,8 @@ void portout(uint16_t portnum, uint16_t value) {
             portram[portnum] = value;
             if (value & A20_ENABLE_BIT) {
                 set_a20_enabled(true);
-            } else {
+            }
+            else {
                 set_a20_enabled(false);
             }
             break;
@@ -83,12 +86,12 @@ void portout(uint16_t portnum, uint16_t value) {
         //printf("port3D8 0x%x\r\n", value);
         // third cga palette (black/red/cyan/white)
             if (videomode == 5 && (port3D8 >> 2) & 1) {
-                logMsg("cga hacked palette\n");
+                logMsg("the unofficial Mode 5 palette, accessed by disabling ColorBurst\n");
+                cga_colorset = 2;
 #if PICO_ON_DEVICE
-                graphics_set_palette(0, cga_palette[0]);
-                graphics_set_palette(1, cga_palette[4]);
-                graphics_set_palette(2, cga_palette[3]);
-                graphics_set_palette(3, cga_palette[15]);
+                for (int i = 0; i < 4; i++) {
+                    graphics_set_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
+                }
 #endif
             }
 
@@ -120,14 +123,15 @@ void portout(uint16_t portnum, uint16_t value) {
             port3D9 = value;
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;
+            char tmp[80];
+            sprintf(tmp, "colorset %i, int %i\r\n", cga_colorset, cga_intensity);
+            logMsg(tmp);
+
 #if PICO_ON_DEVICE
             if ((videomode == 6 && (port3D8 & 0x0f) == 0b1010) || videomode >= 8) {
                 break;
             }
 
-            char tmp[80];
-            sprintf(tmp,"colorset %i, int %i\r\n", cga_colorset, cga_intensity);
-            logMsg(tmp);
             for (int i = 0; i < 4; i++) {
                 graphics_set_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
             }
@@ -152,16 +156,17 @@ void portout(uint16_t portnum, uint16_t value) {
 }
 
 uint16_t portin(uint16_t portnum) {
-    switch (portnum)
-    {
-    case PORT_A20:
-        { char tmp[90]; sprintf(
-            tmp,
-            "PORT %Xh get %Xh A20: %s", portnum,
-            get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT),
-            get_a20_enabled() ? "ON" : "OFF"
-          );
-        logMsg(tmp); }
+    switch (portnum) {
+        case PORT_A20: {
+            char tmp[90];
+            sprintf(
+                tmp,
+                "PORT %Xh get %Xh A20: %s", portnum,
+                get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT),
+                get_a20_enabled() ? "ON" : "OFF"
+            );
+            logMsg(tmp);
+        }
         break;
     }
     switch (portnum) {

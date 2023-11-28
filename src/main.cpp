@@ -253,11 +253,8 @@ int main() {
                             curpixel = (curpixel >> 6) & 3;
                             break;
                     }
-                    if (mode == 4) {
-                        curpixel = curpixel * 2 + usepal + intensity;
-                        if (curpixel == (usepal + intensity))
-                            curpixel = 0;
-                        color = cga_palette[curpixel];
+                    if (mode == 4 || mode == 5) {
+                        color = cga_palette[cga_gfxpal[cga_intensity][cga_colorset][curpixel]];
                         *pix++ = color;
                         *pix++ = color;
                     } else {
@@ -279,7 +276,7 @@ int main() {
                     *pix++ = cga_palette[curpixel * 15];
                 }
             }
-        } else if (mode == 66 || mode == 8 || mode == 64) {
+        } else if (mode == 66 || mode == 8 || mode == 64) { // composite / tandy 160x200
             uint32_t intensity = mode == 66 ? 0 : 1+cga_intensity;
             uint32_t *pix = pixels;
             for (int y = 0; y < 200; y++) {
