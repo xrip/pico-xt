@@ -195,7 +195,7 @@ int main() {
         logMsg((char *)"init_vram failed. Only 160Kb RAM will be available...");
         SD_CARD_AVAILABLE = false;
     }
-
+//set_start_debug_line(0); // TODO: remove it
     reset86();
     while (runing) {
 #if !PICO_ON_DEVICE

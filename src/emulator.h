@@ -29,9 +29,6 @@ static FATFS fs;
 #endif
 
 #define BEEPER_PIN 28
-#define VRAM_START32 0xB8000ul
-#define VRAM_END32 0xC8000ul
-#define VRAM_SIZE (VRAM_END32 - VRAM_START32)
 
 #ifdef WIN_EXT_RAM
 #define EXT_RAM_SIZE 32 << 20 // 32Mb
@@ -128,8 +125,12 @@ static inline void decodeflagsword(uint16_t x) {
 #define CPU_CH    regs.byteregs[regch]
 #define CPU_DH    regs.byteregs[regdh]
 
+// TODO: remove this trash
+void logMsg(char*);
+uint8_t logMsg0();
+
 #define StepIP(x)  ip += x
-#define getmem8(x, y) read86(segbase(x) + y)
+#define getmem8(x, y) ((x == 0xFFFF && y == 0xF) ? logMsg0() : read86(segbase(x) + y))
 #define getmem16(x, y)  readw86(segbase(x) + y)
 #define putmem8(x, y, z)  write86(segbase(x) + y, z)
 #define putmem16(x, y, z) writew86(segbase(x) + y, z)

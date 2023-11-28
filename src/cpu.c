@@ -33,6 +33,47 @@ extern psram_spi_inst_t psram_spi;
 
 #endif
 
+uint8_t read86(uint32_t addr32);
+uint16_t readw86(uint32_t addr32);
+
+static bool umb_1_not_in_use = true;
+
+#define XMS_ERROR_CODE   0x0000
+#define XMS_SUCCESS_CODE 0x0001
+
+uint8_t logMsg0() {
+    char tmp[80];
+    switch(CPU_AH) {
+        case 0x00: // XMS 00H: Get XMS Version Number
+            CPU_AX = XMS_SUCCESS_CODE; // successful
+            CPU_BX = 0x0200; // driver version
+            CPU_DX = 0x0001; // HMA installed
+            sprintf(tmp, "XMS FN %02Xh: ver 2.0 with HMA", CPU_AH);
+            break;
+        case 0x10: // XMS 10H: Request Upper Memory Block
+                   // DX    desired size of UMB▲, in paragraphs (16-byte units)
+            if (CPU_DX <= (UMB_1_SIZE >> 4) && umb_1_not_in_use) {
+                CPU_AX = XMS_SUCCESS_CODE; // successful
+                CPU_BX = UMB_1_START;
+                umb_1_not_in_use = false;
+                CPU_DX = UMB_1_SIZE >> 4;
+                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated)", CPU_AH, CPU_DX << 4);
+            } else {
+                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (rejected)", CPU_AH, CPU_DX << 4);
+                CPU_AX = XMS_ERROR_CODE; // ERROR
+                CPU_DX = umb_1_not_in_use ? UMB_1_SIZE : 0; // actual size : no more UMB blocks
+                CPU_BL = umb_1_not_in_use ? 0xB0 : 0xB1; //  Smaller : No UMBs are available;
+            }
+            break;
+        default:
+            sprintf(tmp, "XMS FN %2Xh: ERROR (not implemented)", CPU_AH);
+            CPU_AX = XMS_ERROR_CODE; // ERROR
+            CPU_BL = 0x80; // Function not implemented
+    }
+    logMsg(tmp);
+    return 0xCB /* CB RETF */;
+}
+
 uint8_t opcode, segoverride, reptype, hdcount = 0, fdcount = 0, hltstate = 0;
 uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
@@ -115,7 +156,11 @@ void write86psram(uint32_t addr32, uint8_t value) {
     if (addr32 < RAM_SIZE) { // Conventional available
         RAM[addr32] = value; return;
     }
-    if (addr32 < (640 << 10)) { // Conventional in PSRAM
+    if (addr32 < CONVENTIONAL_END) { // Conventional in PSRAM
+        psram_write8(&psram_spi, addr32, value); return;
+    }
+    if (addr32 < UMB_1_END) { // UMB
+    // TODO: allowed?
         psram_write8(&psram_spi, addr32, value); return;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
@@ -140,7 +185,11 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
     if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
         RAM[addr32] = value; return;
     }
-    if (addr32 < (640 << 10)) { // Conventional in swap
+    if (addr32 < CONVENTIONAL_END) { // Conventional in swap
+        ram_page_write(addr32, value); return;
+    }
+    if (addr32 < UMB_1_END) { // UMB
+    // TODO: allowed?
         ram_page_write(addr32, value); return;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
@@ -187,7 +236,11 @@ inline static void write86psram16(uint32_t addr32, uint16_t value) {
     if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
         write16arr(RAM, 0, addr32, value); return;
     }
-    if (addr32 < (640 << 10)) { // Conventional in swap
+    if (addr32 < CONVENTIONAL_END) { // Conventional in swap
+        psram_write16(&psram_spi, addr32, value); return;
+    }
+    if (addr32 < UMB_1_END) { // UMB
+    // TODO: allowed?
         psram_write16(&psram_spi, addr32, value); return;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
@@ -212,7 +265,11 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
     if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
         write16arr(RAM, 0, addr32, value); return;
     }
-    if (addr32 < (640 << 10)) { // Conventional in swap
+    if (addr32 < CONVENTIONAL_END) { // Conventional in swap
+        ram_page_write16(addr32, value); return;
+    }
+    if (addr32 < UMB_1_END) { // UMB
+    // TODO: allowed?
         ram_page_write16(addr32, value); return;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
@@ -285,9 +342,6 @@ __inline static uint16_t read86rom16(uint32_t addr32) {
     return 0;
 }
 
-uint8_t read86(uint32_t addr32);
-uint16_t readw86(uint32_t addr32);
-
 inline static uint8_t read86vram(uint32_t addr32) {
     return VRAM[addr32 - VRAM_START32];
 }
@@ -296,7 +350,11 @@ inline static uint8_t read86psram(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
     }
-    if (addr32 < (640 << 10)) { // Conventional
+    if (addr32 < CONVENTIONAL_END) { // Conventional
+        return psram_read8(&psram_spi, addr32);
+    }
+    if (addr32 < UMB_1_START) { // UMB #1
+    // TODO: allowed?
         return psram_read8(&psram_spi, addr32);
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
@@ -321,7 +379,11 @@ inline static uint16_t read86psram16(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return read16arr(RAM, 0, addr32);
     }
-    if (addr32 < (640 << 10)) { // Conventional
+    if (addr32 < CONVENTIONAL_END) { // Conventional
+        return psram_read16(&psram_spi, addr32);
+    }
+    if (addr32 < UMB_1_START) { // UMB #1
+    // TODO: allowed?
         return psram_read16(&psram_spi, addr32);
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
@@ -346,7 +408,11 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
     if (addr32 < RAM_PAGE_SIZE) { // First page block fast access
         return RAM[addr32];
     }
-    if (addr32 < (640 << 10)) { // Conventional
+    if (addr32 < CONVENTIONAL_END) { // Conventional
+        return ram_page_read(addr32);
+    }
+    if (addr32 < UMB_1_START) { // UMB #1
+    // TODO: allowed?
         return ram_page_read(addr32);
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
@@ -371,7 +437,11 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
     if (addr32 < RAM_PAGE_SIZE) { // First page block fast access
         return read16arr(RAM, 0, addr32);
     }
-    if (addr32 < (640 << 10)) { // Conventional
+    if (addr32 < CONVENTIONAL_END) { // Conventional
+        return ram_page_read16(addr32);
+    }
+    if (addr32 < UMB_1_START) { // UMB #1
+    // TODO: allowed?
         return ram_page_read16(addr32);
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
@@ -407,7 +477,7 @@ uint8_t read86(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
     }
-    if (addr32 < (640 << 10)) { // Conventional (no RAM in this space)
+    if (addr32 < CONVENTIONAL_END) { // Conventional (no RAM in this space)
         return 0;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
@@ -432,7 +502,7 @@ uint16_t readw86(uint32_t addr32) {
     if (addr32 < RAM_SIZE) { // Conventional (existing)
         return read16arr(RAM, 0, addr32);
     }
-    if (addr32 < (640 << 10)) { // Conventional (no RAM in this space)
+    if (addr32 < CONVENTIONAL_END) { // Conventional (no RAM in this space)
         return 0;
     }
     if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
@@ -1357,17 +1427,36 @@ void intcall86(uint8_t intnum) {
             custom_on_board_emm();
             return;
         }
+        case 0x2F: {
+            switch(CPU_AX) {
+                case 0x4300: {
+                    logMsg("HIMEM.SYS (XMM) detection passed");
+                    CPU_AL = 0x80;
+                    return;
+                }
+                case 0x4310: {
+                    logMsg("HIMEM.SYS (XMM) Entry Address: FFFFFh");
+                    CPU_ES = 0xFFFF;
+                    CPU_BX = 0x000F;
+                    return;
+                }
+            }
+            if (CPU_AX == 0x4300) {
+
+            }
+            break;
+        }
         case 0x15:
-            switch(CPU_AH) {/*
+            switch(CPU_AH) {
                 case 0x24: 
                     switch(CPU_AL) {
                         case 0x00:
-                            set_a20(1);
+                            set_a20_enabled(true);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2400 turn on A20_ENABLE_BIT");
                             return;
                         case 0x01:
-                            set_a20(0);
+                            set_a20_enabled(false);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2401 turn off A20_ENABLE_BIT");
                             return;
@@ -1378,7 +1467,7 @@ void intcall86(uint8_t intnum) {
                             }
                             return;
                         case 0x03:
-                            CPU_BX = 0b10;
+                            CPU_BX = 0b11;
                             CPU_AH = 0;
                             cf = 0; {
                                 char tmp[80]; sprintf(tmp, "INT15! 2403 BX: %xh", CPU_BX); logMsg(tmp);
@@ -1386,6 +1475,7 @@ void intcall86(uint8_t intnum) {
                             return;
                     }
                     break;
+                /*
                 case 0x4F:
                     CPU_AH = 0x86;
                     cf = 1;
@@ -1405,7 +1495,7 @@ void intcall86(uint8_t intnum) {
                 case 0x83: // real-time clock
                 case 0x86:
                     // TODO:
-                    break;
+                    break;*/
                 case 0x87: { // Memory block move EMS
                         uint16_t words_to_move = CPU_CX;
                         uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
@@ -1413,7 +1503,7 @@ void intcall86(uint8_t intnum) {
                     }
                     CPU_AH = 0;
                     cf = 0;
-                    return;*/
+                    return;
                 case 0x88: // memory info
                     if (ON_BOARD_RAM_KB > 64 * 1024) {
                         CPU_AX = 63 * 1024;
@@ -1431,14 +1521,13 @@ void intcall86(uint8_t intnum) {
                     CPU_AH = 0;
                     cf = 0;
                     return;
-                
                 case 0x90: // Device busy interrupt.  Called by Int 16h when no key available
                     break;
                 case 0x91: // Interrupt complete.  Called by Int 16h when key becomes available
-                    break;
-                case 0xC0: // to be processed by BIOS
-                    // CPU_ES = 0xF000; // BIOS segment
-                    // CPU_BX = 0xE6f5; // BIOS config table
+                    break;*/
+                /*case 0xC0: // to be processed by BIOS
+                    CPU_ES = 0xFFFF; // BIOS segment
+                    CPU_BX = 0xFFFE; // BIOS config table
                     break;*/
                 case 0xE8:
                     switch(CPU_AL) {
@@ -1453,7 +1542,7 @@ void intcall86(uint8_t intnum) {
                             CPU_AX = CPU_CX;
                             CPU_BX = CPU_DX;
                             cf = 0;
-                            return; /*
+                            return;
                         case 0x20: {
                                 // ES:DI - destination for the table
                                 int count = e820_count;
@@ -1478,7 +1567,7 @@ void intcall86(uint8_t intnum) {
                                 char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
                                 cf = 0;
                                 return;
-                            }*/
+                            }
                         default:
                             break;
                     }
