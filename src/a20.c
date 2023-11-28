@@ -5,10 +5,12 @@
 static bool is_a20_enabled = false;
 
 bool get_a20_enabled() {
+    //char tmp[40]; sprintf(tmp, "A20: GET %s", is_a20_enabled ? "ON" : "OFF"); logMsg(tmp);
     return is_a20_enabled;
 }
 
 void set_a20_enabled(bool v) {
+    //char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
     is_a20_enabled = v;
 }
 
@@ -161,11 +163,6 @@ void i15_87h(uint16_t words_to_move, uint32_t gdt_far) {
     is_a20_enabled = prev_a20_enable; // restore prev. A20 line state    
 }
 
-void i15_89h(uint8_t IDT1, uint8_t IDT2, uint32_t gdt_far) {
-    is_a20_enabled = true;
-    // TODO: CPU_CR0
-}
-
 typedef struct xmm_handler {
     uint16_t seg;
     uint16_t sz_kb;
@@ -289,28 +286,33 @@ uint8_t xms_fn() {
                 sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (allocated)", CPU_AH, CPU_DX);
                 hma_in_use = true;
                 CPU_AX = XMS_SUCCESS_CODE; // successful
+                CPU_BL = 0x00;
             }
             break;
         case 0x02: // XMS 02H: Release High Memory Area
             hma_in_use = false;
             sprintf(tmp, "XMS FN %02Xh: HMA requested to release", CPU_AH);
             CPU_AX = XMS_SUCCESS_CODE; // successful
+            CPU_BL = 0x00;
             break;
         case 0x03: // XMS 03H: Global Enable A20
         case 0x05: // XMS 05H: Local Enable A20
             set_a20_enabled(true);
             sprintf(tmp, "XMS FN %02Xh: Enable A20", CPU_AH);
             CPU_AX = XMS_SUCCESS_CODE; // successful
+            CPU_BL = 0x00;
             break;
         case 0x04: // XMS 04H: Global Disable A20
         case 0x06: // XMS 06H: Local Disable A20
             set_a20_enabled(false);
             sprintf(tmp, "XMS FN %02Xh: Disable A20", CPU_AH);
             CPU_AX = XMS_SUCCESS_CODE; // successful
+            CPU_BL = 0x00;
             break;
         case 0x07: // XMS 07H: Query A20 State
             CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
             sprintf(tmp, "XMS FN 07h: A20 status: %s", CPU_AX ? "ON" : "OFF");
+            CPU_BL = 0x00;
             break;
         case 0x08: { // XMS 08H: Query Free Extended Memory
             uint16_t used_kb = xmm_used_kb();
@@ -367,6 +369,12 @@ uint8_t xms_fn() {
             // BH    current lock count
             // BL    current number of free XMS handles
             // DX    size of the block, in K-bytes
+            if (handle > MAX_XMM_HANDLERS) {
+                CPU_AX = XMS_ERROR_CODE;
+                CPU_BL = 0xA2; // invalid handler
+                sprintf(tmp, "XMS FN 0Eh: Handle Information #%d faile (no suc id)", handle);
+                break;
+            }
             CPU_AX = XMS_SUCCESS_CODE; // TODO:
             CPU_BH = xmm_handlers[CPU_DX - 1].locks_cnt;
             CPU_BL = xmm_free_handlers();

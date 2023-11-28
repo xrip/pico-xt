@@ -289,7 +289,6 @@ __inline static uint8_t read86rom(uint32_t addr32) {
     if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) { // IBM BASIC ROM HIGH
         return BASICH[addr32 - 0xFA000UL];
     }
-
     return 0;
 }
 
@@ -312,9 +311,6 @@ __inline static uint16_t read86rom16(uint32_t addr32) {
     }
     return 0;
 }
-
-uint8_t read86(uint32_t addr32);
-uint16_t readw86(uint32_t addr32);
 
 __inline static uint8_t read86video_ram(uint32_t addr32) {
     return VIDEORAM[addr32 - VIDEORAM_START32];
