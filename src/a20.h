@@ -33,3 +33,11 @@ void i15_89h(uint8_t IDT1, uint8_t IDT2, uint32_t gdt_far);
 // e820 map storage
 extern struct e820entry e820_list[];
 extern int e820_count;
+
+uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr);
+uint8_t /*BL*/ lock_ext_mem_block(uint32_t tbl_addr);
+uint8_t /*BL*/ unlock_ext_mem_block(uint32_t tbl_addr);
+
+extern bool umb_1_in_use;
+extern bool umb_2_in_use;
+uint8_t xms_fn();

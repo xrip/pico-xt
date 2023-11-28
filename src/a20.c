@@ -165,3 +165,191 @@ void i15_89h(uint8_t IDT1, uint8_t IDT2, uint32_t gdt_far) {
     is_a20_enabled = true;
     // TODO: CPU_CR0
 }
+
+uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
+    uint32_t w0 = readw86(tbl_addr++); tbl_addr++;
+    uint32_t w1 = readw86(tbl_addr++); tbl_addr++;
+    uint32_t len = (w1 << 16) | w0; // bytes to transfer
+    uint16_t s_h = readw86(tbl_addr++); tbl_addr++; // handler of source
+    uint32_t s0 = readw86(tbl_addr++); tbl_addr++;
+    uint32_t s1 = readw86(tbl_addr++); tbl_addr++;
+    uint32_t s_o = s_h == 0 ? (s1 << 4) + s0 : (s1 << 16) | s0; // source offset
+    uint16_t d_h = readw86(tbl_addr++); tbl_addr++; // handler of destination
+    uint32_t d0 = readw86(tbl_addr++); tbl_addr++;
+    uint32_t d1 = readw86(tbl_addr);
+    uint32_t d_o = d_h == 0 ? (d1 << 4) + d0 : (d1 << 16) | d0; // destination offset
+    for (uint32_t s_i = 0; s_o < len; s_o += 2, d_o += 2) { // TODO: block move
+        // TODO: base ptr by handle
+        uint16_t d = readw86(s_o);
+        writew86(d_o, d);
+    }
+    // TODO: error handling
+    return 0;
+}
+
+uint8_t /*BL*/ lock_ext_mem_block(uint32_t tbl_addr) {
+    // TODO:
+    return 0;
+}
+
+uint8_t /*BL*/ unlock_ext_mem_block(uint32_t tbl_addr) {
+    // TODO:
+    return 0;
+}
+
+
+bool umb_1_in_use = false;
+bool umb_2_in_use = false;
+bool hma_in_use = false;
+bool xmm_in_use = false;
+
+#define XMS_ERROR_CODE   0x0000
+#define XMS_SUCCESS_CODE 0x0001
+
+uint8_t xms_fn() {
+    char tmp[80];
+    switch(CPU_AH) {
+        case 0x00: // XMS 00H: Get XMS Version Number
+            sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 2.0; Drv ver 1.0; HMA available", CPU_AH);
+            CPU_AX = 0x0200; // spec. version
+            CPU_BX = 0x0100; // driver version
+            CPU_DX = 0x0001; // HMA installed
+            break;
+        case 0x01: // XMS 01H: Request High Memory Area
+            if (hma_in_use) {
+                sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected)", CPU_AH, CPU_DX);
+                CPU_AX = XMS_ERROR_CODE; // ERROR
+                CPU_BL = 0x91; // HMA is already in use
+            } else {
+                sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (allocated)", CPU_AH, CPU_DX);
+                hma_in_use = true;
+                CPU_AX = XMS_SUCCESS_CODE; // successful
+            }
+            break;
+        case 0x02: // XMS 02H: Release High Memory Area
+            hma_in_use = false;
+            sprintf(tmp, "XMS FN %02Xh: HMA requested to release", CPU_AH);
+            CPU_AX = XMS_SUCCESS_CODE; // successful
+            break;
+        case 0x03: // XMS 03H: Global Enable A20
+        case 0x05: // XMS 05H: Local Enable A20
+            set_a20_enabled(true);
+            sprintf(tmp, "XMS FN %02Xh: Enable A20", CPU_AH);
+            CPU_AX = XMS_SUCCESS_CODE; // successful
+            break;
+        case 0x04: // XMS 04H: Global Disable A20
+        case 0x06: // XMS 06H: Local Disable A20
+            set_a20_enabled(false);
+            sprintf(tmp, "XMS FN %02Xh: Disable A20", CPU_AH);
+            CPU_AX = XMS_SUCCESS_CODE; // successful
+            break;
+        case 0x07: // XMS 07H: Query A20 State
+            CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
+            sprintf(tmp, "XMS FN 07h: A20 status: %s", CPU_AX ? "ON" : "OFF");
+            break;
+        case 0x08: // XMS 08H: Query Free Extended Memory
+            CPU_AX = xmm_in_use ? 0 : TOTAL_XMM_KB - 64; // minus HMA, TODO: minus used
+            CPU_BL = xmm_in_use ? 0xA0 : 0;
+            sprintf(tmp, "XMS FN 08h: Free Extended Memory: %dKB", CPU_AX);
+            break;
+        case 0x09: // XMS 09H: Allocate Extended Memory Block
+                   // DX    desired size of block, in K-bytes
+            if (xmm_in_use) {
+                sprintf(tmp, "XMS FN 09h: Allocate Extended Memory Block: %dKB (rejected)", CPU_DX);
+                CPU_AX = XMS_ERROR_CODE;
+                CPU_DX = 0;
+                CPU_BL = 0xA1; // All XMS handles are in use
+                break;
+            }
+            xmm_in_use = true;
+            CPU_AX = XMS_SUCCESS_CODE; // TODO:
+            CPU_BL = 0;
+            sprintf(tmp, "XMS FN 09h: Allocate Extended Memory Block: %dKB (allocated #1)", CPU_DX);
+            // DX    XMS handle
+            CPU_DX = 1; // TODO: By default, XMS supports 32 handles.
+            break;
+        case 0x0A: // XMS 0AH: Free Extended Memory Block
+            // DX    XMS handle (as obtained via XMS 09H)
+            xmm_in_use = false;
+            CPU_AX = XMS_SUCCESS_CODE; // TODO: ## handlers
+            CPU_BL = 0;
+            sprintf(tmp, "XMS FN 0Ah: Free Extended Memory Block #%d", CPU_DX);
+            break;
+        case 0x0B:
+            CPU_BL = move_ext_mem_block(((uint32_t)CPU_DS << 5) + CPU_SI);
+            sprintf(tmp, "XMS FN 0Bh: Move Extended Memory Block; BL: %0Xh", CPU_BL);
+            CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
+            break;
+        case 0x0C:
+            CPU_BL = lock_ext_mem_block(CPU_DX);
+            sprintf(tmp, "XMS FN 0Ch: Lock Extended Memory Block #%0Xh", CPU_DX);
+            CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
+            break;
+        case 0x0D:
+            CPU_BL = unlock_ext_mem_block(CPU_DX);
+            sprintf(tmp, "XMS FN 0Dh: Unlock Extended Memory Block #%0Xh", CPU_DX);
+            CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
+            break;
+        case 0x0E: { // XMS 0eH: Get Handle Information
+            // DX    XMS handle (as obtained via XMS 09H)
+            uint16_t handle = CPU_DX;
+            // out:
+            // BH    current lock count
+            // BL    current number of free XMS handles
+            // DX    size of the block, in K-bytes
+            CPU_AX = XMS_SUCCESS_CODE; // TODO:
+            CPU_BH = 0;
+            CPU_BL = 0;
+            CPU_DX = TOTAL_XMM_KB - 64;
+            sprintf(tmp, "XMS FN 0Eh: Handle Information #%d allocated %dKB", handle, CPU_DX);
+            break;
+        }
+        case 0x0f: // XMS 0fH: Resize Extended Memory Block
+            // BX    desired new size, in K-bytes
+            // DX    XMS handle (as obtained via XMS 09H) must be unlocked
+            xmm_in_use = false;
+            CPU_AX = XMS_SUCCESS_CODE; // TODO: 
+            CPU_BL = 0;
+            sprintf(tmp, "XMS FN 0Fh: Resize Extended Memory Block #%d to %dKB", CPU_DX, CPU_BX);
+            break;
+        case 0x10: // XMS 10H: Request Upper Memory Block
+                   // DX    desired size of UMB, in paragraphs (16-byte units)
+            if (CPU_DX <= (UMB_2_SIZE >> 4) && !umb_2_in_use) {
+                uint16_t requested = CPU_DX;
+                CPU_BX = UMB_2_START;
+                umb_2_in_use = true;
+                CPU_DX = UMB_2_SIZE >> 4;
+                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated %04Xh bytes #2)", CPU_AH, requested << 4, CPU_DX << 4);
+                CPU_AX = XMS_SUCCESS_CODE; // successful
+            } else if (CPU_DX <= (UMB_1_SIZE >> 4) && !umb_1_in_use) {
+                uint16_t requested = CPU_DX;
+                CPU_BX = UMB_1_START;
+                umb_1_in_use = true;
+                CPU_DX = UMB_1_SIZE >> 4;
+                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated %04Xh bytes #1)", CPU_AH, requested << 4, CPU_DX << 4);
+                CPU_AX = XMS_SUCCESS_CODE; // successful
+            } else {
+                uint16_t requested = CPU_DX;
+                CPU_DX =(!umb_1_in_use ?
+                         (umb_2_in_use ? UMB_1_SIZE : UMB_2_SIZE) :
+                         (umb_2_in_use ? 0 : UMB_2_SIZE)
+                        ) >> 4; // actual size : no more UMB blocks
+                CPU_BX =(!umb_1_in_use ?
+                         (umb_2_in_use ? UMB_1_START : UMB_2_START) :
+                         (umb_2_in_use ? 0 : UMB_2_START)
+                        ) >> 4;
+                // b0H  A smaller UMB is available
+                // b1H  No UMBs are available
+                CPU_BL = umb_1_in_use && umb_2_in_use ? 0xB1 : 0xB0; //  Smaller : No UMBs are available;
+                sprintf(tmp, "XMS FN 10h: requested UMB: %04Xh bytes (rejected) have max: %04Xh bytes", requested << 4, CPU_DX);
+                CPU_AX = XMS_ERROR_CODE; // ERROR
+            }
+            break;
+        default:
+            sprintf(tmp, "XMS FN %2Xh: ERROR (not implemented)", CPU_AH);
+            CPU_AX = XMS_ERROR_CODE; // ERROR
+            CPU_BL = 0x80; // Function not implemented
+    }
+    logMsg(tmp);
+    return 0xCB /* CB RETF */;
+}
