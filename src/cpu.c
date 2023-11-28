@@ -36,7 +36,9 @@ extern psram_spi_inst_t psram_spi;
 uint8_t read86(uint32_t addr32);
 uint16_t readw86(uint32_t addr32);
 
-static bool umb_1_not_in_use = true;
+static bool umb_1_in_use = false;
+static bool umb_2_in_use = false;
+static bool hma_in_use = false;
 
 #define XMS_ERROR_CODE   0x0000
 #define XMS_SUCCESS_CODE 0x0001
@@ -50,19 +52,61 @@ uint8_t logMsg0() {
             CPU_DX = 0x0001; // HMA installed
             sprintf(tmp, "XMS FN %02Xh: ver 2.0 with HMA", CPU_AH);
             break;
+        case 0x01: // XMS 01H: Request High Memory Area
+            if (hma_in_use) {
+                sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected)", CPU_AH, CPU_DX);
+                CPU_AX = XMS_ERROR_CODE; // ERROR
+                CPU_BL = 0x91; // HMA is already in use
+            } else {
+                hma_in_use = true;
+                CPU_AX = XMS_SUCCESS_CODE; // successful
+                sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (allocated)", CPU_AH, CPU_DX);
+            }
+            break;
+        case 0x02: // XMS 02H: Release High Memory Area
+            hma_in_use = false;
+            CPU_AX = XMS_SUCCESS_CODE; // successful
+            sprintf(tmp, "XMS FN %02Xh: HMA requested to release", CPU_AH);
+            break;
+        case 0x03: // XMS 03H: Global Enable A20
+        case 0x05: // XMS 05H: Local Enable A20
+            set_a20_enabled(true);
+            CPU_AX = XMS_SUCCESS_CODE; // successful
+            sprintf(tmp, "XMS FN %02Xh: Enable A20", CPU_AH);
+            break;
+        case 0x04: // XMS 04H: Global Disable A20
+        case 0x06: // XMS 06H: Local Disable A20
+            set_a20_enabled(false);
+            CPU_AX = XMS_SUCCESS_CODE; // successful
+            sprintf(tmp, "XMS FN %02Xh: Disable A20", CPU_AH);
+            break;
+        case 0x07: // XMS 07H: Query A20 State
+            CPU_AX = get_a20_enabled();
+            sprintf(tmp, "XMS FN %02Xh: A20 status: %s", CPU_AH, CPU_AX ? "ON" : "OFF");
+            break;
+        case 0x08: // XMS 08H: Query Free Extended Memory
+            CPU_AX = get_a20_enabled();
+            sprintf(tmp, "XMS FN %02Xh: A20 status: %s", CPU_AH, CPU_AX ? "ON" : "OFF");
+            break;
         case 0x10: // XMS 10H: Request Upper Memory Block
                    // DX    desired size of UMB▲, in paragraphs (16-byte units)
-            if (CPU_DX <= (UMB_1_SIZE >> 4) && umb_1_not_in_use) {
+            if (CPU_DX <= (UMB_1_SIZE >> 4) && !umb_1_in_use) {
                 CPU_AX = XMS_SUCCESS_CODE; // successful
                 CPU_BX = UMB_1_START;
-                umb_1_not_in_use = false;
+                umb_1_in_use = true;
                 CPU_DX = UMB_1_SIZE >> 4;
-                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated)", CPU_AH, CPU_DX << 4);
+                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated #1)", CPU_AH, CPU_DX << 4);
+            } else if (CPU_DX <= (UMB_2_SIZE >> 4) && !umb_2_in_use) {
+                CPU_AX = XMS_SUCCESS_CODE; // successful
+                CPU_BX = UMB_2_START;
+                umb_2_in_use = true;
+                CPU_DX = UMB_2_SIZE >> 4;
+                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated #2)", CPU_AH, CPU_DX << 4);
             } else {
                 sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (rejected)", CPU_AH, CPU_DX << 4);
                 CPU_AX = XMS_ERROR_CODE; // ERROR
-                CPU_DX = umb_1_not_in_use ? UMB_1_SIZE : 0; // actual size : no more UMB blocks
-                CPU_BL = umb_1_not_in_use ? 0xB0 : 0xB1; //  Smaller : No UMBs are available;
+                CPU_DX = !umb_2_in_use ? (umb_1_in_use ? UMB_2_SIZE : UMB_2_SIZE) >> 4 : 0; // actual size : no more UMB blocks
+                CPU_BL = !umb_2_in_use ? 0xB0 : 0xB1; //  Smaller : No UMBs are available;
             }
             break;
         default:
@@ -99,7 +143,7 @@ uint8_t RAM[RAM_SIZE];
 #if PICO_ON_DEVICE
 __aligned(4096)
 #endif
-uint8_t VRAM[VRAM_SIZE];
+uint8_t VIDEORAM[VIDEORAM_SIZE];
 #if !PICO_ON_DEVICE
 uint8_t EXTRAM[EXT_RAM_SIZE << 10];
 #endif
@@ -148,8 +192,8 @@ void modregrm() {
 
 void write86(uint32_t addr32, uint8_t value);
 
-inline static void writeVRAM(uint32_t addr32, uint8_t value) {
-    VRAM[addr32 - VRAM_START32] = value;
+__inline static void writeVRAM(uint32_t addr32, uint8_t value) {
+    VIDEORAM[addr32 - VIDEORAM_START32] = value;
 }
 
 void write86psram(uint32_t addr32, uint8_t value) {
@@ -163,7 +207,7 @@ void write86psram(uint32_t addr32, uint8_t value) {
     // TODO: allowed?
         psram_write8(&psram_spi, addr32, value); return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
         writeVRAM(addr32, value); return;
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
@@ -192,7 +236,7 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
     // TODO: allowed?
         ram_page_write(addr32, value); return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
         writeVRAM(addr32, value); return;
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
@@ -220,7 +264,7 @@ void write86(uint32_t addr32, uint8_t value) {
     if (addr32 < RAM_SIZE) {
         RAM[addr32] = value; return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
         writeVRAM(addr32, value); return;
     }
     // { char tmp[40]; sprintf(tmp, "ADDR W: 0x%X not found", addr32); logMsg(tmp); }
@@ -233,7 +277,7 @@ inline static void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32,
 }
 
 inline static void write86psram16(uint32_t addr32, uint16_t value) {
-    if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
+    if (addr32 < RAM_SIZE) { // First not mapable block of Conventional RAM
         write16arr(RAM, 0, addr32, value); return;
     }
     if (addr32 < CONVENTIONAL_END) { // Conventional in swap
@@ -243,8 +287,8 @@ inline static void write86psram16(uint32_t addr32, uint16_t value) {
     // TODO: allowed?
         psram_write16(&psram_spi, addr32, value); return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        write16arr(VRAM, VRAM_START32, addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value); return;
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -272,8 +316,8 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
     // TODO: allowed?
         ram_page_write16(addr32, value); return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        write16arr(VRAM, VRAM_START32, addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value); return;
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -290,7 +334,7 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
     }
 }
 
-void writew86(uint32_t addr32, uint16_t value) {
+__inline void writew86(uint32_t addr32, uint16_t value) {
     if (addr32 & 0x00000001) { // not 16-bit alligned
         write86(addr32    , (uint8_t) value      );
         write86(addr32 + 1, (uint8_t)(value >> 8));
@@ -304,8 +348,8 @@ void writew86(uint32_t addr32, uint16_t value) {
     if (addr32 < RAM_SIZE) {
         write16arr(RAM, 0, addr32, value); return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        write16arr(VRAM, VRAM_START32, addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value); return;
     }
 }
 
@@ -319,6 +363,7 @@ __inline static uint8_t read86rom(uint32_t addr32) {
     if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) { // IBM BASIC ROM HIGH
         return BASICH[addr32 - 0xFA000UL];
     }
+
     return 0;
 }
 
@@ -342,23 +387,30 @@ __inline static uint16_t read86rom16(uint32_t addr32) {
     return 0;
 }
 
-inline static uint8_t read86vram(uint32_t addr32) {
-    return VRAM[addr32 - VRAM_START32];
+uint8_t read86(uint32_t addr32);
+uint16_t readw86(uint32_t addr32);
+
+__inline static uint8_t read86video_ram(uint32_t addr32) {
+    return VIDEORAM[addr32 - VIDEORAM_START32];
 }
 
-inline static uint8_t read86psram(uint32_t addr32) {
+__inline static uint8_t read86psram(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
     }
     if (addr32 < CONVENTIONAL_END) { // Conventional
         return psram_read8(&psram_spi, addr32);
     }
-    if (addr32 < UMB_1_START) { // UMB #1
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read86video_ram(addr32);
+    }
+    if (umb_1_in_use && addr32 >= UMB_1_START && addr32 < UMB_1_END) { // UMB #1
     // TODO: allowed?
         return psram_read8(&psram_spi, addr32);
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read86vram(addr32);
+    if (umb_2_in_use && addr32 >= UMB_2_START && addr32 < UMB_2_END) { // UMB #2
+    // TODO: allowed?
+        return psram_read8(&psram_spi, addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -382,12 +434,14 @@ inline static uint16_t read86psram16(uint32_t addr32) {
     if (addr32 < CONVENTIONAL_END) { // Conventional
         return psram_read16(&psram_spi, addr32);
     }
-    if (addr32 < UMB_1_START) { // UMB #1
-    // TODO: allowed?
+    if (umb_1_in_use && addr32 >= UMB_1_START && addr32 < UMB_1_END) { // UMB #1
         return psram_read16(&psram_spi, addr32);
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read16arr(VRAM, VRAM_START32, addr32);
+    if (umb_2_in_use && addr32 >= UMB_2_START && addr32 < UMB_2_END) { // UMB #2
+        return psram_read16(&psram_spi, addr32);
+    }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -411,12 +465,14 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
     if (addr32 < CONVENTIONAL_END) { // Conventional
         return ram_page_read(addr32);
     }
-    if (addr32 < UMB_1_START) { // UMB #1
-    // TODO: allowed?
+    if (umb_1_in_use && addr32 >= UMB_1_START && addr32 < UMB_1_END) { // UMB #1
         return ram_page_read(addr32);
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read86vram(addr32);
+    if (umb_2_in_use && addr32 >= UMB_2_START && addr32 < UMB_2_END) { // UMB #2
+        return ram_page_read(addr32);
+    }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read86video_ram(addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -440,12 +496,14 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
     if (addr32 < CONVENTIONAL_END) { // Conventional
         return ram_page_read16(addr32);
     }
-    if (addr32 < UMB_1_START) { // UMB #1
-    // TODO: allowed?
+    if (umb_1_in_use && addr32 >= UMB_1_START && addr32 < UMB_1_END) { // UMB #1
         return ram_page_read16(addr32);
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read16arr(VRAM, VRAM_START32, addr32);
+    if (umb_2_in_use && addr32 >= UMB_2_START && addr32 < UMB_2_END) { // UMB #2
+        return ram_page_read16(addr32);
+    }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -480,8 +538,8 @@ uint8_t read86(uint32_t addr32) {
     if (addr32 < CONVENTIONAL_END) { // Conventional (no RAM in this space)
         return 0;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read86vram(addr32);
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read86video_ram(addr32);
     }
     return read86rom(addr32);
 }
@@ -505,8 +563,8 @@ uint16_t readw86(uint32_t addr32) {
     if (addr32 < CONVENTIONAL_END) { // Conventional (no RAM in this space)
         return 0;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read16arr(VRAM, VRAM_START32, addr32);
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
     }
     return read86rom16(addr32);
 }
@@ -959,7 +1017,8 @@ void reset86() {
     initsermouse(0x378, 4);
 
     memset(RAM, 0x0, RAM_SIZE);
-    memset(VRAM, 0x0, VRAM_SIZE);
+    memset(VIDEORAM, 0x0, VIDEORAM_SIZE);
+
     if (SD_CARD_AVAILABLE) {
         gpio_put(PICO_DEFAULT_LED_PIN, true);
         for (size_t page = 0; page < RAM_BLOCKS; ++page) {

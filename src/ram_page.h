@@ -2,9 +2,9 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
-#define VRAM_START32 0xB8000ul
-#define VRAM_END32 0xC8000ul
-#define VRAM_SIZE (VRAM_END32 - VRAM_START32)
+#define VIDEORAM_START32 0xB8000ul
+#define VIDEORAM_END32 0xC8000ul
+#define VIDEORAM_SIZE (VIDEORAM_END32 - VIDEORAM_START32)
 
 #define RAM_PAGE_SIZE_KB 4ul
 #define RAM_PAGE_SIZE (RAM_PAGE_SIZE_KB * 1024)
@@ -23,20 +23,16 @@ extern uint16_t RAM_PAGES[RAM_BLOCKS]; // lba (14-0); 15 - written
 
 #define CONVENTIONAL_END 0xA0000ul
 
-// after conventional before VRAM
-#define UMB_1_START CONVENTIONAL_END
-#define UMB_1_END VRAM_START32
+// after VRAM before EMM - 32KB
+#define UMB_1_START VIDEORAM_END32
+#define UMB_1_END 0xD0000ul
 #define UMB_1_SIZE (UMB_1_END - UMB_1_START)
 
-// after VRAM before EMM
-#define UMB_2_START VRAM_END32
-#define UMB_2_END 0xD0000ul
+// after EMM before BIOS (shadow Basic) - 120KB
+#define UMB_2_START 0xE0000ul
+#define UMB_2_END 0xFE000ul
 #define UMB_2_SIZE (UMB_2_END - UMB_2_START)
 
-// after EMM before BASIC
-#define UMB_3_START 0xE0000ul
-#define UMB_3_END 0xF6000ul
-#define UMB_3_SIZE (UMB_3_END - UMB_3_START)
 
 bool init_vram();
 

@@ -37,7 +37,7 @@ extern uint8_t EXTRAM[EXT_RAM_SIZE];
 
 // TODO: no direct access support (for PC mode)
 extern uint8_t RAM[RAM_SIZE];
-extern uint8_t VRAM[VRAM_SIZE];
+extern uint8_t VIDEORAM[VIDEORAM_SIZE];
 extern bool PSRAM_AVAILABLE;
 extern bool SD_CARD_AVAILABLE;
 

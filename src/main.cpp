@@ -44,8 +44,8 @@ struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
     graphics_init();
-    graphics_set_buffer(VRAM, 320, 200);
-    graphics_set_textbuffer(VRAM);
+    graphics_set_buffer(VIDEORAM, 320, 200);
+    graphics_set_textbuffer(VIDEORAM);
     graphics_set_bgcolor(0);
     graphics_set_offset(0, 0);
     graphics_set_flashmode(true, true);
@@ -190,12 +190,16 @@ int main() {
         SD_CARD_AVAILABLE = true;
     }
 
-    // set_start_debug_line(0);
     if (!PSRAM_AVAILABLE && SD_CARD_AVAILABLE && !init_vram()) {
-        logMsg((char *)"init_vram failed. Only 160Kb RAM will be available...");
+        logMsg((char *)"init_vram failed");
         SD_CARD_AVAILABLE = false;
     }
-//set_start_debug_line(0); // TODO: remove it
+
+    if (!PSRAM_AVAILABLE && !SD_CARD_AVAILABLE) {
+        logMsg((char *)"Mo PSRAM or SD CARD available. Only 160Kb RAM will be usable...");
+        sleep_ms(3000);
+    }
+
     reset86();
     while (runing) {
 #if !PICO_ON_DEVICE
