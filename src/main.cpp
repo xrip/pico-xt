@@ -190,7 +190,6 @@ int main() {
         SD_CARD_AVAILABLE = true;
     }
 
-    //if(!SD_CARD_AVAILABLE) logMsg("SDCARD Unavailable");
     if (!PSRAM_AVAILABLE && SD_CARD_AVAILABLE && !init_vram()) {
         logMsg((char *)"init_vram failed");
         SD_CARD_AVAILABLE = false;
