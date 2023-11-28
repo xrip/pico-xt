@@ -63,9 +63,8 @@ pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip/DnCraptor")
 pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
-if (!OVERCLOCKING)
-    set(OVERCLOCKING 366)
-endif ()
+set(OVERCLOCKING 404)
+
 
 if (PICO_PLATFORM STREQUAL "host")
     target_link_libraries(${PROJECT_NAME} SDL2)

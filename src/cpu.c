@@ -39,6 +39,7 @@ uint16_t readw86(uint32_t addr32);
 static bool umb_1_in_use = false;
 static bool umb_2_in_use = false;
 static bool hma_in_use = false;
+static bool xmm_in_use = false;
 
 #define XMS_ERROR_CODE   0x0000
 #define XMS_SUCCESS_CODE 0x0001
@@ -47,10 +48,10 @@ uint8_t logMsg0() {
     char tmp[80];
     switch(CPU_AH) {
         case 0x00: // XMS 00H: Get XMS Version Number
+            sprintf(tmp, "XMS FN %02Xh: ver 2.0 with HMA", CPU_AH);
             CPU_AX = XMS_SUCCESS_CODE; // successful
             CPU_BX = 0x0200; // driver version
             CPU_DX = 0x0001; // HMA installed
-            sprintf(tmp, "XMS FN %02Xh: ver 2.0 with HMA", CPU_AH);
             break;
         case 0x01: // XMS 01H: Request High Memory Area
             if (hma_in_use) {
@@ -58,35 +59,82 @@ uint8_t logMsg0() {
                 CPU_AX = XMS_ERROR_CODE; // ERROR
                 CPU_BL = 0x91; // HMA is already in use
             } else {
+                sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (allocated)", CPU_AH, CPU_DX);
                 hma_in_use = true;
                 CPU_AX = XMS_SUCCESS_CODE; // successful
-                sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (allocated)", CPU_AH, CPU_DX);
             }
             break;
         case 0x02: // XMS 02H: Release High Memory Area
             hma_in_use = false;
-            CPU_AX = XMS_SUCCESS_CODE; // successful
             sprintf(tmp, "XMS FN %02Xh: HMA requested to release", CPU_AH);
+            CPU_AX = XMS_SUCCESS_CODE; // successful
             break;
         case 0x03: // XMS 03H: Global Enable A20
         case 0x05: // XMS 05H: Local Enable A20
             set_a20_enabled(true);
-            CPU_AX = XMS_SUCCESS_CODE; // successful
             sprintf(tmp, "XMS FN %02Xh: Enable A20", CPU_AH);
+            CPU_AX = XMS_SUCCESS_CODE; // successful
             break;
         case 0x04: // XMS 04H: Global Disable A20
         case 0x06: // XMS 06H: Local Disable A20
             set_a20_enabled(false);
-            CPU_AX = XMS_SUCCESS_CODE; // successful
             sprintf(tmp, "XMS FN %02Xh: Disable A20", CPU_AH);
+            CPU_AX = XMS_SUCCESS_CODE; // successful
             break;
         case 0x07: // XMS 07H: Query A20 State
             CPU_AX = get_a20_enabled();
-            sprintf(tmp, "XMS FN %02Xh: A20 status: %s", CPU_AH, CPU_AX ? "ON" : "OFF");
+            sprintf(tmp, "XMS FN 07h: A20 status: %s", CPU_AX ? "ON" : "OFF");
             break;
         case 0x08: // XMS 08H: Query Free Extended Memory
-            CPU_AX = get_a20_enabled();
-            sprintf(tmp, "XMS FN %02Xh: A20 status: %s", CPU_AH, CPU_AX ? "ON" : "OFF");
+            CPU_AX = TOTAL_XMM_KB - 64; // minus HMA, TODO: minus used
+            CPU_BL = 0;
+            sprintf(tmp, "XMS FN 08h: Free Extended Memory: %dKB", CPU_AX);
+            break;
+        case 0x09: // XMS 09H: Allocate Extended Memory Block
+            // DX    desired size of block, in K-bytes
+            if (xmm_in_use) {
+                sprintf(tmp, "XMS FN 09h: Allocate Extended Memory Block: %dKB (rejected)", CPU_DX);
+                CPU_AX = XMS_ERROR_CODE;
+                CPU_DX = 0;
+                CPU_BL = 0xA1; // All XMS handles are in use
+                break;
+            }
+            xmm_in_use = true;
+            CPU_AX = XMS_SUCCESS_CODE; // TODO:
+            CPU_BL = 0;
+            sprintf(tmp, "XMS FN 09h: Allocate Extended Memory Block: %dKB (allocated #1)", CPU_DX);
+            // DX    XMS handle
+            CPU_DX = 1; // TODO: By default, XMS supports 32 handles.
+            break;
+        case 0x0a: // XMS 0aH: Free Extended Memory Block
+            // DX    XMS handle (as obtained via XMS 09H)
+            xmm_in_use = false;
+            CPU_AX = XMS_SUCCESS_CODE; // TODO: ## handlers
+            CPU_BL = 0;
+            sprintf(tmp, "XMS FN 0Ah: Free Extended Memory Block #%d", CPU_DX);
+            break;
+        // TODO: 0b, 0c
+        case 0x0e: { // XMS 0eH: Get Handle Information
+            // DX    XMS handle (as obtained via XMS 09H)
+            uint16_t handle = CPU_DX;
+            // out:
+            // BH    current lock count
+            // BL    current number of free XMS handles
+            // DX    size of the block, in K-bytes
+            CPU_AX = XMS_SUCCESS_CODE; // TODO:
+            CPU_BH = 0;
+            CPU_BL = 0;
+            CPU_DX = TOTAL_XMM_KB - 64;
+            sprintf(tmp, "XMS FN 0Eh: Handle Information #%d allocated %dKB", handle, CPU_DX);
+            break;
+        }
+        case 0x0f: // XMS 0fH: Resize Extended Memory Block
+            // BX    desired new size, in K-bytes
+            // DX    XMS handle (as obtained via XMS 09H) must be unlocked
+            xmm_in_use = false;
+            CPU_AX = XMS_SUCCESS_CODE; // TODO: 
+            CPU_BL = 0;
+            sprintf(tmp, "XMS FN 0Fh: Resize Extended Memory Block #%d to %dKB", CPU_DX, CPU_BX);
             break;
         case 0x10: // XMS 10H: Request Upper Memory Block
                    // DX    desired size of UMB▲, in paragraphs (16-byte units)
