@@ -236,7 +236,7 @@ static bool save_video_ram() {
         return false;
     }
     UINT bw;
-    result = f_write(&file, VRAM, sizeof(VRAM), &bw);
+    result = f_write(&file, VIDEORAM, sizeof(VIDEORAM), &bw);
     if (result != FR_OK) {
         return false;
     }
@@ -249,7 +249,7 @@ static bool restore_video_ram() {
     FRESULT result = f_open(&file, path, FA_READ);
     if (result == FR_OK) {
       UINT bw;
-      result = f_read(&file, VRAM, sizeof(VRAM), &bw);
+      result = f_read(&file, VIDEORAM, sizeof(VIDEORAM), &bw);
       if (result != FR_OK) {
         return false;
       }
