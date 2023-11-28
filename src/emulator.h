@@ -127,10 +127,10 @@ static inline void decodeflagsword(uint16_t x) {
 
 // TODO: remove this trash
 void logMsg(char*);
-uint8_t logMsg0();
+uint8_t xms_fn();
 
 #define StepIP(x)  ip += x
-#define getmem8(x, y) ((x == 0xFFFF && y == 0xF) ? logMsg0() : read86(segbase(x) + y))
+#define getmem8(x, y) ((x == 0xFFFF && y == 0xF) ? xms_fn() : read86(segbase(x) + y))
 #define getmem16(x, y)  readw86(segbase(x) + y)
 #define putmem8(x, y, z)  write86(segbase(x) + y, z)
 #define putmem16(x, y, z) writew86(segbase(x) + y, z)

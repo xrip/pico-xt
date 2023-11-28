@@ -28,9 +28,9 @@ extern uint16_t RAM_PAGES[RAM_BLOCKS]; // lba (14-0); 15 - written
 #define UMB_1_END 0xD0000ul
 #define UMB_1_SIZE (UMB_1_END - UMB_1_START)
 
-// after EMM before BIOS (shadow Basic) - 120KB
+// after EMM before BASIC BIOS - 88KB
 #define UMB_2_START 0xE0000ul
-#define UMB_2_END 0xFE000ul
+#define UMB_2_END 0xF6000ul
 #define UMB_2_SIZE (UMB_2_END - UMB_2_START)
 
 
