@@ -59,9 +59,7 @@ uint8_t RAM[RAM_SIZE];
 __aligned(4096)
 #endif
 uint8_t VIDEORAM[VIDEORAM_SIZE];
-#if !PICO_ON_DEVICE
-uint8_t EXTRAM[EXT_RAM_SIZE << 10];
-#endif
+
 
 uint8_t oper1b, oper2b, res8, nestlev, addrbyte;
 uint16_t saveip, savecs, oper1, oper2, res16, disp16, temp16, dummy, stacksize, frametemp;
@@ -111,6 +109,7 @@ __inline static void writeVRAM(uint32_t addr32, uint8_t value) {
     VIDEORAM[addr32 - VIDEORAM_START32] = value;
 }
 
+#if PICO_ON_DEVICE
 void write86psram(uint32_t addr32, uint8_t value) {
     if (addr32 < RAM_SIZE) { // Conventional available
         RAM[addr32] = value; return;
@@ -160,14 +159,17 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
         return;
     }
 }
+#endif
 
 void write86(uint32_t addr32, uint8_t value) {
+#if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         write86psram(addr32, value); return;
     }
     if (SD_CARD_AVAILABLE) {
         write86sdcard(addr32, value); return;
     }
+#endif
     if (addr32 < RAM_SIZE) {
         RAM[addr32] = value; return;
     }
@@ -182,7 +184,7 @@ inline static void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32,
     *ptr++ = (uint8_t) value;
     *ptr   = (uint8_t)(value >> 8);
 }
-
+#if PICO_ON_DEVICE
 inline static void write86psram16(uint32_t addr32, uint16_t value) {
     if (addr32 < RAM_SIZE) { // First not mapable block of Conventional RAM
         write16arr(RAM, 0, addr32, value); return;
@@ -232,18 +234,22 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
         return;
     }
 }
+#endif
 
 __inline void writew86(uint32_t addr32, uint16_t value) {
     if (addr32 & 0x00000001) { // not 16-bit alligned
         write86(addr32    , (uint8_t) value      );
         write86(addr32 + 1, (uint8_t)(value >> 8));
     }
+
+#if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         write86psram16(addr32, value); return;
     }
     if (SD_CARD_AVAILABLE) {
         write86sdcard16(addr32, value); return;
     }
+#endif
     if (addr32 < RAM_SIZE) {
         write16arr(RAM, 0, addr32, value); return;
     }
@@ -293,6 +299,7 @@ __inline static uint8_t read86video_ram(uint32_t addr32) {
     return VIDEORAM[addr32 - VIDEORAM_START32];
 }
 
+#if PICO_ON_DEVICE
 __inline static uint8_t read86psram(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
@@ -393,18 +400,22 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
     }
     return read86rom16(addr32);
 }
+#endif
 
 // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 uint8_t read86(uint32_t addr32) {
     if (addr32 == 0xFC000) { // TANDY graphics hack (TODO: BIOS)
         return 0x21;
     }
+
+#if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         return read86psram(addr32);
     }
     if (SD_CARD_AVAILABLE) {
         return read86sdcard(addr32);
     }
+#endif
     // no special features, cover all existing RAM
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
@@ -425,12 +436,15 @@ uint16_t readw86(uint32_t addr32) {
     if ((addr32 & 0x00000001) != 0) { // not 16-bit address
         return ((uint16_t)read86(addr32) | (uint16_t)(read86(addr32 + 1) << 8));
     }
+
+#if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         return read86psram16(addr32);
     }
     if (SD_CARD_AVAILABLE) {
         return read86sdcard16(addr32);
     }
+#endif
     if (addr32 < RAM_SIZE) { // Conventional (existing)
         return read16arr(RAM, 0, addr32);
     }
@@ -892,13 +906,14 @@ void reset86() {
 
     memset(RAM, 0x0, RAM_SIZE);
     memset(VIDEORAM, 0x0, VIDEORAM_SIZE);
-
+#if PICO_ON_DEVICE
     if (SD_CARD_AVAILABLE) {
         gpio_put(PICO_DEFAULT_LED_PIN, true);
         for (size_t page = 0; page < RAM_BLOCKS; ++page) {
             RAM_PAGES[page] = page;
         }
     }
+#endif
 
     CPU_CS = 0xFFFF;
     CPU_SS = 0x0000;

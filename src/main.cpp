@@ -156,25 +156,6 @@ int main() {
     sleep_ms(50);
 
     graphics_set_mode(TEXTMODE_80x30);
-#else
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
-
-
-    window = SDL_CreateWindow("pico-xt",
-                              SDL_WINDOWPOS_CENTERED,
-                              SDL_WINDOWPOS_CENTERED,
-                              640, 400,
-                              SDL_WINDOW_SHOWN);
-
-    screen = SDL_GetWindowSurface(window);
-    auto *pixels = (unsigned int *) screen->pixels;
-
-    SDL_PauseAudio(0);
-    if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
-        fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
-        return -1;
-    }
-#endif
 
     // TODO: сделать нормально
     psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.8, true);
@@ -198,6 +179,27 @@ int main() {
         logMsg((char *)"Mo PSRAM or SD CARD available. Only 160Kb RAM will be usable...");
         sleep_ms(3000);
     }
+#else
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
+
+
+    window = SDL_CreateWindow("pico-xt",
+                              SDL_WINDOWPOS_CENTERED,
+                              SDL_WINDOWPOS_CENTERED,
+                              640, 400,
+                              SDL_WINDOW_SHOWN);
+
+    screen = SDL_GetWindowSurface(window);
+    auto *pixels = (unsigned int *) screen->pixels;
+
+    SDL_PauseAudio(0);
+    if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
+        fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
+        return -1;
+    }
+#endif
+
+
 
 
     reset86();
@@ -211,9 +213,9 @@ int main() {
 //            SDL_SetWindowSize(window, 640, 400);
             for (uint16_t y = 0; y < 400; y++) {
                 for (uint8_t x = 0; x < cols; x++) {
-                    uint8_t c = VRAM[/*0xB8000 + */(y / 16) * (cols * 2) + x * 2 + 0];
+                    uint8_t c = VIDEORAM[/*0xB8000 + */(y / 16) * (cols * 2) + x * 2 + 0];
                     uint8_t glyph_row = font_8x16[c * 16 + y % 16];
-                    uint8_t color = VRAM[/*0xB8000 + */(y / 16) * (cols * 2) + x * 2 + 1];
+                    uint8_t color = VIDEORAM[/*0xB8000 + */(y / 16) * (cols * 2) + x * 2 + 1];
 
                     for (uint8_t bit = 0; bit < 8; bit++) {
                         if (cursor_blink_state && (y >> 4 == CURSOR_Y && x == CURSOR_X && (y % 16) >= 12 && (y % 16) <= 13)) {
@@ -235,7 +237,7 @@ int main() {
             for (int y = 0; y < 400; y++) {
                 for (int x = 0; x < 320; x++) {
                     uint32_t vidptr = /*0xB8000 + */(((y / 2) >> 1) * 80) + (((y / 2) & 1) * 8192) + (x >> 2);
-                    uint32_t curpixel = VRAM[vidptr];
+                    uint32_t curpixel = VIDEORAM[vidptr];
                     uint32_t color;
                     switch (x & 3) {
                         case 3:
@@ -273,7 +275,7 @@ int main() {
                 for (int x = 0; x < 640; x++) {
 
                     uint32_t vidptr = /*0xB8000 + */(((y /2) >> 1) * 80) + (((y / 2) & 1) * 8192) + (x >> 3);
-                    uint32_t curpixel = (VRAM[vidptr] >> (7 - (x & 7))) & 1;
+                    uint32_t curpixel = (VIDEORAM[vidptr] >> (7 - (x & 7))) & 1;
                     *pix++ = cga_palette[curpixel * 15];
                 }
             }
@@ -283,12 +285,12 @@ int main() {
             for (int y = 0; y < 200; y++) {
                 for (int x = 0; x < 160; x++) {
                     uint32_t vidptr = /*0xB8000 + */((y  >> 1) * 80) + ((y  & 1) * 8192) + x;
-                    uint32_t curpixel = (VRAM[vidptr] >> 4) & 15;
+                    uint32_t curpixel = (VIDEORAM[vidptr] >> 4) & 15;
                     *pix++ = cga_composite_palette[intensity][curpixel];
                     *pix++ = cga_composite_palette[intensity][curpixel];
                     *pix++ = cga_composite_palette[intensity][curpixel];
                     *pix++ = cga_composite_palette[intensity][curpixel];
-                    curpixel = (VRAM[vidptr]) & 15;
+                    curpixel = (VIDEORAM[vidptr]) & 15;
                     *pix++ = cga_composite_palette[intensity][curpixel];
                     *pix++ = cga_composite_palette[intensity][curpixel];
                     *pix++ = cga_composite_palette[intensity][curpixel];
@@ -300,9 +302,9 @@ int main() {
 //            SDL_SetWindowSize(window, 640, 400);
             for (uint16_t y = 0; y < 400; y++) {
                 for (uint8_t x = 0; x < cols; x++) {
-                    uint8_t c = VRAM[(y / 4) * (cols * 2) + x * 2 + 0];
+                    uint8_t c = VIDEORAM[(y / 4) * (cols * 2) + x * 2 + 0];
                     uint8_t glyph_row = font_8x16[c * 16 + y % 16];
-                    uint8_t color = VRAM[(y / 4) * (cols * 2) + x * 2 + 1];
+                    uint8_t color = VIDEORAM[(y / 4) * (cols * 2) + x * 2 + 1];
 
                     for (uint8_t bit = 0; bit < 8; bit++) {
                         if (cursor_blink_state && (y >> 4 == CURSOR_Y && x == CURSOR_X && (y % 16) >= 12 && (y % 16) <= 13)) {
@@ -324,7 +326,7 @@ int main() {
                     uint32_t charx = x;
                     uint32_t chary = y;
                     uint32_t vidptr = /*0xB8000 + */((chary >> 1) * 80) + ((chary & 1) * 8192) + (charx >> 1);
-                    uint32_t curpixel = VRAM[vidptr];
+                    uint32_t curpixel = VIDEORAM[vidptr];
                     //*vbuf_OUT++ = pal[(*vbuf8) & 0xf];
                     //*vbuf_OUT++ = pal[(*vbuf8 >> 4) & 0xf];
                     *pix++ = cga_palette[(curpixel >> 4) & 0xf];
@@ -338,9 +340,9 @@ int main() {
                     uint32_t vidptr =  ( (y / 2) &3) * 8192 + (y / 8 ) *160 + (x / 4);
                     uint32_t color;
                     if ( ( (x>>1) &1) ==0)
-                        color = tandy_palette[VRAM[vidptr] >> 4];
+                        color = tandy_palette[VIDEORAM[vidptr] >> 4];
                     else
-                        color = tandy_palette[VRAM[vidptr] & 15];
+                        color = tandy_palette[VIDEORAM[vidptr] & 15];
                     //prestretch[y][x] = color;
                     *pix++ = color;
                 }
