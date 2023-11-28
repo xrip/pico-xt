@@ -68,6 +68,8 @@ bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
 struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
+    gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
+    pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
 
     PWM_init_pin(ZX_AY_PWM_PIN0);
     PWM_init_pin(ZX_AY_PWM_PIN1);
@@ -171,9 +173,6 @@ int main() {
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-
-    gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
-    pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
 
 
 

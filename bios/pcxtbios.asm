@@ -458,9 +458,9 @@ endif
 endif
 str_banner_end:
 
-str_ega_vga	db	195, ' EGA Graphics', 0
-str_parallel	db	195, ' LPT Port at ', 0
-str_game	db	195, ' GamePort at 201h', 0
+str_ega_vga	db	195, ' EGA/VGA Graphics', 0
+str_parallel	db	195, ' Parallel Port at ', 0
+str_game	db	195, ' Game Port at 201h', 0
 
 
 ;---------------------------------------------------------------------------------------------------
@@ -700,7 +700,6 @@ endif
 	mov	[ds:10h], ax			; Start building Equipment Flag
 	and	al, 00110000b			;   if video card, mode set
 	jnz	@@video_found			;   found video interface
-;'	jmp	@@video_found			;   found video interface
 	mov	ax, offset dummy_int		; No hardware or EGA/VGA, dummy_int
 	mov	[es:40h], ax			;   becomes int_10 video service
 	jmp	short @@skip_video
