@@ -153,7 +153,10 @@ uint8_t xms_fn() {
             } else {
                 sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (rejected)", CPU_AH, CPU_DX << 4);
                 CPU_AX = XMS_ERROR_CODE; // ERROR
-                CPU_DX = !umb_2_in_use ? (umb_1_in_use ? UMB_2_SIZE : UMB_2_SIZE) >> 4 : 0; // actual size : no more UMB blocks
+                CPU_DX =(!umb_2_in_use ?
+                         (umb_1_in_use ? UMB_2_SIZE : UMB_1_SIZE) :
+                         (umb_1_in_use ? 0 : UMB_1_SIZE)
+                        ) >> 4; // actual size : no more UMB blocks
                 CPU_BL = !umb_2_in_use ? 0xB0 : 0xB1; //  Smaller : No UMBs are available;
             }
             break;
