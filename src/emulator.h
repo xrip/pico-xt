@@ -29,9 +29,9 @@ static FATFS fs;
 #endif
 
 #define BEEPER_PIN 28
-#define VRAM_START32 0xB8000ul
-#define VRAM_END32 0xC8000ul
-#define VRAM_SIZE (VRAM_END32 - VRAM_START32)
+#define VIDEORAM_START32 0xB8000ul
+#define VIDEORAM_END32 0xC8000ul
+#define VIDEORAM_SIZE (VIDEORAM_END32 - VIDEORAM_START32)
 
 #ifdef WIN_EXT_RAM
 #define EXT_RAM_SIZE 32 << 20 // 32Mb
@@ -40,7 +40,7 @@ extern uint8_t EXTRAM[EXT_RAM_SIZE];
 
 // TODO: no direct access support (for PC mode)
 extern uint8_t RAM[RAM_SIZE];
-extern uint8_t VRAM[VRAM_SIZE];
+extern uint8_t VIDEORAM[VIDEORAM_SIZE];
 extern bool PSRAM_AVAILABLE;
 extern bool SD_CARD_AVAILABLE;
 

@@ -58,7 +58,7 @@ uint8_t RAM[RAM_SIZE];
 #if PICO_ON_DEVICE
 __aligned(4096)
 #endif
-uint8_t VRAM[VRAM_SIZE];
+uint8_t VIDEORAM[VIDEORAM_SIZE];
 #if !PICO_ON_DEVICE
 uint8_t EXTRAM[EXT_RAM_SIZE << 10];
 #endif
@@ -107,8 +107,8 @@ void modregrm() {
 
 void write86(uint32_t addr32, uint8_t value);
 
-inline static void writeVRAM(uint32_t addr32, uint8_t value) {
-    VRAM[addr32 - VRAM_START32] = value;
+__inline static void writeVRAM(uint32_t addr32, uint8_t value) {
+    VIDEORAM[addr32 - VIDEORAM_START32] = value;
 }
 
 void write86psram(uint32_t addr32, uint8_t value) {
@@ -118,7 +118,7 @@ void write86psram(uint32_t addr32, uint8_t value) {
     if (addr32 < (640 << 10)) { // Conventional in PSRAM
         psram_write8(&psram_spi, addr32, value); return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
         writeVRAM(addr32, value); return;
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
@@ -143,7 +143,7 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
     if (addr32 < (640 << 10)) { // Conventional in swap
         ram_page_write(addr32, value); return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
         writeVRAM(addr32, value); return;
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
@@ -171,7 +171,7 @@ void write86(uint32_t addr32, uint8_t value) {
     if (addr32 < RAM_SIZE) {
         RAM[addr32] = value; return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
         writeVRAM(addr32, value); return;
     }
     // { char tmp[40]; sprintf(tmp, "ADDR W: 0x%X not found", addr32); logMsg(tmp); }
@@ -184,14 +184,14 @@ inline static void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32,
 }
 
 inline static void write86psram16(uint32_t addr32, uint16_t value) {
-    if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
+    if (addr32 < RAM_SIZE) { // First not mapable block of Conventional RAM
         write16arr(RAM, 0, addr32, value); return;
     }
     if (addr32 < (640 << 10)) { // Conventional in swap
         psram_write16(&psram_spi, addr32, value); return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        write16arr(VRAM, VRAM_START32, addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value); return;
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -215,8 +215,8 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
     if (addr32 < (640 << 10)) { // Conventional in swap
         ram_page_write16(addr32, value); return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        write16arr(VRAM, VRAM_START32, addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value); return;
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -233,7 +233,7 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
     }
 }
 
-void writew86(uint32_t addr32, uint16_t value) {
+__inline void writew86(uint32_t addr32, uint16_t value) {
     if (addr32 & 0x00000001) { // not 16-bit alligned
         write86(addr32    , (uint8_t) value      );
         write86(addr32 + 1, (uint8_t)(value >> 8));
@@ -247,8 +247,8 @@ void writew86(uint32_t addr32, uint16_t value) {
     if (addr32 < RAM_SIZE) {
         write16arr(RAM, 0, addr32, value); return;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        write16arr(VRAM, VRAM_START32, addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value); return;
     }
 }
 
@@ -262,6 +262,7 @@ __inline static uint8_t read86rom(uint32_t addr32) {
     if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) { // IBM BASIC ROM HIGH
         return BASICH[addr32 - 0xFA000UL];
     }
+
     return 0;
 }
 
@@ -288,20 +289,21 @@ __inline static uint16_t read86rom16(uint32_t addr32) {
 uint8_t read86(uint32_t addr32);
 uint16_t readw86(uint32_t addr32);
 
-inline static uint8_t read86vram(uint32_t addr32) {
-    return VRAM[addr32 - VRAM_START32];
+__inline static uint8_t read86video_ram(uint32_t addr32) {
+    return VIDEORAM[addr32 - VIDEORAM_START32];
 }
 
-inline static uint8_t read86psram(uint32_t addr32) {
+__inline static uint8_t read86psram(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
     }
     if (addr32 < (640 << 10)) { // Conventional
         return psram_read8(&psram_spi, addr32);
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read86vram(addr32);
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read86video_ram(addr32);
     }
+
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
@@ -324,8 +326,8 @@ inline static uint16_t read86psram16(uint32_t addr32) {
     if (addr32 < (640 << 10)) { // Conventional
         return psram_read16(&psram_spi, addr32);
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read16arr(VRAM, VRAM_START32, addr32);
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -349,8 +351,8 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
     if (addr32 < (640 << 10)) { // Conventional
         return ram_page_read(addr32);
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read86vram(addr32);
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read86video_ram(addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -374,8 +376,8 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
     if (addr32 < (640 << 10)) { // Conventional
         return ram_page_read16(addr32);
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read16arr(VRAM, VRAM_START32, addr32);
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -410,8 +412,8 @@ uint8_t read86(uint32_t addr32) {
     if (addr32 < (640 << 10)) { // Conventional (no RAM in this space)
         return 0;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read86vram(addr32);
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read86video_ram(addr32);
     }
     return read86rom(addr32);
 }
@@ -435,8 +437,8 @@ uint16_t readw86(uint32_t addr32) {
     if (addr32 < (640 << 10)) { // Conventional (no RAM in this space)
         return 0;
     }
-    if (addr32 >= VRAM_START32 && addr32 < VRAM_END32) { // video RAM range
-        return read16arr(VRAM, VRAM_START32, addr32);
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+        return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
     }
     return read86rom16(addr32);
 }
@@ -889,7 +891,8 @@ void reset86() {
     initsermouse(0x378, 4);
 
     memset(RAM, 0x0, RAM_SIZE);
-    memset(VRAM, 0x0, VRAM_SIZE);
+    memset(VIDEORAM, 0x0, VIDEORAM_SIZE);
+
     if (SD_CARD_AVAILABLE) {
         gpio_put(PICO_DEFAULT_LED_PIN, true);
         for (size_t page = 0; page < RAM_BLOCKS; ++page) {

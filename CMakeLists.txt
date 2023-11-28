@@ -26,6 +26,12 @@ if (PICO_PLATFORM STREQUAL "host")
     link_directories(
             ${SDL2_LIB_DIR}
     )
+
+    # Enable compiler and linker garbage collect unused code/data sections
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ffunction-sections -fdata-sections")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
+    add_link_options(-Wl,--gc-sections)
+
 else ()
     #add_compile_definitions(${PROJECT_NAME} NO_GRAPHICS)
     set(FAMILY rp2040)
@@ -57,7 +63,9 @@ pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip/DnCraptor")
 pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
-set(OVERCLOCKING 366)
+if (!OVERCLOCKING)
+    set(OVERCLOCKING 366)
+endif ()
 
 if (PICO_PLATFORM STREQUAL "host")
     target_link_libraries(${PROJECT_NAME} SDL2)
@@ -108,32 +116,32 @@ else ()
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/memmap.ld)
 
     family_configure_device_example(${PROJECT_NAME} noos)
-    
+
     target_sources(${PROJECT_NAME} PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/usb.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/msc_disk.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/usb_descriptors.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/usb.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/msc_disk.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb/usb_descriptors.c
     )
     target_include_directories(${PROJECT_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb
-        ${CMAKE_CURRENT_SOURCE_DIR}/assets
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/drivers/usb
+            ${CMAKE_CURRENT_SOURCE_DIR}/assets
     )
     if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(${PROJECT_NAME} PUBLIC
-            -Wno-error=suggest-attribute=format
-            -Wno-error=cast-qual
-            -Wno-error=unused-parameter
-            -Wno-error=conversion
-            -Wno-error=format=
-            -Wno-error=sign-compare
-            -Wno-error=missing-field-initializers
-            -Wno-error=switch
-            -Wno-error=implicit-fallthrough=
-            -Wno-error=stringop-truncation
-            -Wno-error=restrict
-            -w
-    )
+        target_compile_options(${PROJECT_NAME} PUBLIC
+                -Wno-error=suggest-attribute=format
+                -Wno-error=cast-qual
+                -Wno-error=unused-parameter
+                -Wno-error=conversion
+                -Wno-error=format=
+                -Wno-error=sign-compare
+                -Wno-error=missing-field-initializers
+                -Wno-error=switch
+                -Wno-error=implicit-fallthrough=
+                -Wno-error=stringop-truncation
+                -Wno-error=restrict
+                -w
+        )
     endif ()
 
     target_compile_definitions(${PROJECT_NAME} PRIVATE
@@ -174,12 +182,12 @@ else ()
             #ROM_DRIVE_B=1
     )
 
-#[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND picotool info ${OUTPUT_DIR}/$<TARGET_PROPERTY:OUTPUT_NAME>.uf2 &&
-            picotool reboot -f -u & mode COM8 baud=12 parity=n data=8 stop=1 & ping -n 3 127.1> nul &
-            picotool load ${OUTPUT_DIR}/$<TARGET_PROPERTY:OUTPUT_NAME>.uf2 &&
-            picotool reboot
-    )]]
+    #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND picotool info ${OUTPUT_DIR}/$<TARGET_PROPERTY:OUTPUT_NAME>.uf2 &&
+                picotool reboot -f -u & mode COM8 baud=12 parity=n data=8 stop=1 & ping -n 3 127.1> nul &
+                picotool load ${OUTPUT_DIR}/$<TARGET_PROPERTY:OUTPUT_NAME>.uf2 &&
+                picotool reboot
+        )]]
 
 endif ()
 
