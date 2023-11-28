@@ -26,6 +26,12 @@ if (PICO_PLATFORM STREQUAL "host")
     link_directories(
             ${SDL2_LIB_DIR}
     )
+
+    # Enable compiler and linker garbage collect unused code/data sections
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ffunction-sections -fdata-sections")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
+    add_link_options(-Wl,--gc-sections)
+
 else ()
     #add_compile_definitions(${PROJECT_NAME} NO_GRAPHICS)
     set(FAMILY rp2040)
