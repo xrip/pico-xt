@@ -14,6 +14,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ffunction-sections -fdata-sections")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
+
 if (PICO_PLATFORM STREQUAL "host")
     set(SDL2_LIB_DIR C:/SDL/lib)
     set(SDL2_INCLUDE_DIR C:/SDL/include)
@@ -26,11 +29,6 @@ if (PICO_PLATFORM STREQUAL "host")
     link_directories(
             ${SDL2_LIB_DIR}
     )
-
-    # Enable compiler and linker garbage collect unused code/data sections
-    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ffunction-sections -fdata-sections")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
-    add_link_options(-Wl,--gc-sections)
 
 else ()
     #add_compile_definitions(${PROJECT_NAME} NO_GRAPHICS)
@@ -45,9 +43,10 @@ else ()
     add_subdirectory(drivers/nespad)
 endif ()
 
+
 # INCLUDE FILES THAT SHOULD BE COMPILED:
 
-file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c" "src/*.h")
+file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c")
 
 
 message(STATUS "Add source files:")
@@ -75,7 +74,7 @@ if (PICO_PLATFORM STREQUAL "host")
     foreach (Dependency IN LISTS PROJECT_DEPENDENCIES)
         file(COPY ${Dependency} DESTINATION ${OUTPUT_DIR})
     endforeach ()
-
+    add_link_options(-Wl,--gc-sections)
 else ()
     if (OVERCLOCKING)
         set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}-${OVERCLOCKING}MHz")
@@ -91,6 +90,8 @@ else ()
         message(STATUS "==================================")
         message(STATUS "")
     endif ()
+    # Enable compiler and linker garbage collect unused code/data sections
+    add_link_options(-Wl,--gc-sections)
     target_link_libraries(${PROJECT_NAME} PRIVATE
             vga-nextgen
             ps2
