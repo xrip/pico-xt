@@ -93,10 +93,35 @@ static int RendererThread(void *ptr) {
 #endif
 
 #if PICO_ON_DEVICE
-
 pwm_config config = pwm_get_default_config();
+
 psram_spi_inst_t psram_spi;
 uint32_t overcloking_khz = OVERCLOCKING * 1000;
+
+repeating_timer_t sound_timer;
+#define ZX_AY_PWM_PIN0 (26)
+#define ZX_AY_PWM_PIN1 (27)
+
+void PWM_init_pin(uint pinN){
+    gpio_set_function(pinN, GPIO_FUNC_PWM);
+    uint slice_num = pwm_gpio_to_slice_num(pinN);
+
+    pwm_config c_pwm=pwm_get_default_config();
+    pwm_config_set_clkdiv(&c_pwm,1.0);
+    pwm_config_set_wrap(&c_pwm,255);//MAX PWM value
+    pwm_init(slice_num,&c_pwm,true);
+}
+
+bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
+
+    int16_t out = tickssource();
+    if (out) {
+        pwm_set_gpio_level(ZX_AY_PWM_PIN0,out); // Право
+        pwm_set_gpio_level(ZX_AY_PWM_PIN1,out); // Лево
+    }
+
+    return true;
+}
 __inline static void if_overclock() {
     int oc = overclock();
     if (oc > 0) overcloking_khz += 1000;
@@ -139,6 +164,15 @@ int main() {
     gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
     pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
 
+    PWM_init_pin(ZX_AY_PWM_PIN0);
+    PWM_init_pin(ZX_AY_PWM_PIN1);
+    static const int sound_frequency = 7100;
+    if (!add_repeating_timer_us(-1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
+        logMsg("Failed to add timer");
+        sleep_ms(3000);
+    }
+
+
     for (int i = 0; i < 6; i++) {
         sleep_ms(23);
         gpio_put(PICO_DEFAULT_LED_PIN, true);
@@ -179,6 +213,7 @@ int main() {
         logMsg((char *)"Mo PSRAM or SD CARD available. Only 160Kb RAM will be usable...");
         sleep_ms(3000);
     }
+
 #else
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
 
@@ -219,11 +254,14 @@ int main() {
 
                     for (uint8_t bit = 0; bit < 8; bit++) {
                         if (cursor_blink_state && (y >> 4 == CURSOR_Y && x == CURSOR_X && (y % 16) >= 12 && (y % 16) <= 13)) {
+                            if (videomode <= 1) pixels[y * 640 + (8 * x + bit)] = cga_palette[color & 0x0F];
                             pixels[y * 640 + (8 * x + bit)] = cga_palette[color & 0x0F];
                         } else {
                             if ((glyph_row >> bit) & 1) {
+                                if (videomode <= 1) pixels[y * 640 + (8 * x + bit)] = cga_palette[color & 0x0F];
                                 pixels[y * 640 + (8 * x + bit)] = cga_palette[color & 0x0F];
                             } else {
+                                if (videomode <= 1) pixels[y * 640 + (8 * x + bit)] = cga_palette[color >> 4];
                                 pixels[y * 640 + (8 * x + bit)] = cga_palette[color >> 4];
                             }
                         }
