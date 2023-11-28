@@ -67,6 +67,11 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x37A:
             outsoundsource(portnum, value);
             break;
+
+        case 0x388: // adlib
+        case 0x389:
+            outadlib(portnum, value);
+        break;
         case 0x3D4:
             // http://www.techhelpmanual.com/901-color_graphics_adapter_i_o_ports.html
             crt_controller_idx = value;
@@ -187,6 +192,11 @@ uint16_t portin(uint16_t portnum) {
             break;
         case 0x379:
             return insoundsource(portnum);
+
+        case 0x388: // adlib
+        case 0x389:
+            return inadlib(portnum);
+        break;
         case 0x3D4:
             return crt_controller_idx;
         case 0x3D5:

@@ -39,10 +39,44 @@ bool SD_CARD_AVAILABLE = false;
 bool runing = true;
 
 #if PICO_ON_DEVICE
+repeating_timer_t sound_timer;
+#define ZX_AY_PWM_PIN0 (26)
+#define ZX_AY_PWM_PIN1 (27)
 
+void PWM_init_pin(uint pinN){
+    gpio_set_function(pinN, GPIO_FUNC_PWM);
+    uint slice_num = pwm_gpio_to_slice_num(pinN);
+
+    pwm_config c_pwm=pwm_get_default_config();
+    pwm_config_set_clkdiv(&c_pwm,1.0);
+    pwm_config_set_wrap(&c_pwm,255);//MAX PWM value
+    pwm_init(slice_num,&c_pwm,true);
+}
+
+bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
+    static uint8_t sound_tick = 0;
+    int16_t out = tickssource();
+    out +=  adlibgensample() >> 4;
+
+    if (out) {
+        pwm_set_gpio_level(ZX_AY_PWM_PIN0,out); // Право
+        pwm_set_gpio_level(ZX_AY_PWM_PIN1,out); // Лево
+    }
+
+    return true;
+}
 struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
+
+    PWM_init_pin(ZX_AY_PWM_PIN0);
+    PWM_init_pin(ZX_AY_PWM_PIN1);
+    static const int sound_frequency = 8000;
+    if (!add_repeating_timer_us(-1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
+        logMsg("Failed to add timer");
+        sleep_ms(3000);
+    }
+
     graphics_init();
     graphics_set_buffer(VIDEORAM, 320, 200);
     graphics_set_textbuffer(VIDEORAM);
@@ -98,30 +132,7 @@ pwm_config config = pwm_get_default_config();
 psram_spi_inst_t psram_spi;
 uint32_t overcloking_khz = OVERCLOCKING * 1000;
 
-repeating_timer_t sound_timer;
-#define ZX_AY_PWM_PIN0 (26)
-#define ZX_AY_PWM_PIN1 (27)
 
-void PWM_init_pin(uint pinN){
-    gpio_set_function(pinN, GPIO_FUNC_PWM);
-    uint slice_num = pwm_gpio_to_slice_num(pinN);
-
-    pwm_config c_pwm=pwm_get_default_config();
-    pwm_config_set_clkdiv(&c_pwm,1.0);
-    pwm_config_set_wrap(&c_pwm,255);//MAX PWM value
-    pwm_init(slice_num,&c_pwm,true);
-}
-
-bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
-
-    int16_t out = tickssource();
-    if (out) {
-        pwm_set_gpio_level(ZX_AY_PWM_PIN0,out); // Право
-        pwm_set_gpio_level(ZX_AY_PWM_PIN1,out); // Лево
-    }
-
-    return true;
-}
 __inline static void if_overclock() {
     int oc = overclock();
     if (oc > 0) overcloking_khz += 1000;
@@ -164,13 +175,6 @@ int main() {
     gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
     pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
 
-    PWM_init_pin(ZX_AY_PWM_PIN0);
-    PWM_init_pin(ZX_AY_PWM_PIN1);
-    static const int sound_frequency = 7100;
-    if (!add_repeating_timer_us(-1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
-        logMsg("Failed to add timer");
-        sleep_ms(3000);
-    }
 
 
     for (int i = 0; i < 6; i++) {

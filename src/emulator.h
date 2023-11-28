@@ -207,6 +207,12 @@ void outsoundsource ( uint16_t portnum, uint8_t value );
 uint8_t insoundsource ( uint16_t portnum );
 int16_t tickssource();
 
+extern int16_t	adlibgensample	( void );
+extern uint8_t	inadlib		( uint16_t portnum );
+extern void	initadlib	( uint16_t baseport );
+extern void	outadlib	( uint16_t portnum, uint8_t value );
+extern void	tickadlib	( void );
+
 #if !PICO_ON_DEVICE
 void handleinput(void);
 #define logMsg(c) printf(c);
