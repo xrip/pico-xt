@@ -131,8 +131,8 @@ void portout(uint16_t portnum, uint16_t value) {
             char tmp[80];
             sprintf(tmp, "colorset %i, int %i\r\n", cga_colorset, cga_intensity);
             logMsg(tmp);
-            graphics_set_palette(0, cga_palette[bg_color]);
 #if PICO_ON_DEVICE
+            graphics_set_palette(0, cga_palette[bg_color]);
             if ((videomode == 6 && (port3D8 & 0x0f) == 0b1010) || videomode >= 8) {
                 break;
             }
