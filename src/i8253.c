@@ -55,12 +55,14 @@ void out8253(uint16_t portnum, uint8_t value) {
                 i8253.bytetoggle[portnum] = (~i8253.bytetoggle[portnum]) & 1;
             }
 
-        i8253.chanfreq[portnum] = (float) ( (uint32_t) ( ( (float) 1193182.0 / (float) i8253.effectivedata[portnum]) * (float) 1000.0) ) / (float) 1000.0;
+            i8253.chanfreq[portnum] =
+                    (float) ((uint32_t)(((float) 1193182.0 / (float) i8253.effectivedata[portnum]) * (float) 1000.0)) /
+                    (float) 1000.0;
 #if 1
             if (portnum == 0) {
                 // Timer freq 1,193,180
-                timer_period = ((uint32_t) ((float) 1000000.0 /
-                                                (((float) 1193182.0 / (float) i8253.effectivedata[portnum]))));
+                timer_period = ((uint32_t)((float) 1000000.0 /
+                                           (((float) 1193182.0 / (float) i8253.effectivedata[portnum]))));
             }
 #endif
             break;
@@ -79,17 +81,13 @@ uint8_t in8253(uint16_t portnum) {
         case 1:
         case 2: //channel data
             if ((i8253.accessmode[portnum] == 0) || (i8253.accessmode[portnum] == PIT_MODE_LOBYTE) ||
-                ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 0)))
+                ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 0))) {
                 curbyte = 0;
-            else if ((i8253.accessmode[portnum] == PIT_MODE_HIBYTE) ||
-                     ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 1)))
+            } else if ((i8253.accessmode[portnum] == PIT_MODE_HIBYTE) ||
+                       ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 1))) {
                 curbyte = 1;
-            if ((i8253.accessmode[portnum] == 0) || (i8253.accessmode[portnum] == PIT_MODE_LOBYTE) ||
-                ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 0)))
-                curbyte = 0;
-            else if ((i8253.accessmode[portnum] == PIT_MODE_HIBYTE) ||
-                     ((i8253.accessmode[portnum] == PIT_MODE_TOGGLE) && (i8253.bytetoggle[portnum] == 1)))
-                curbyte = 1;
+            }
+
             if ((i8253.accessmode[portnum] == 0) || (i8253.accessmode[portnum] == PIT_MODE_TOGGLE))
                 i8253.bytetoggle[portnum] = (~i8253.bytetoggle[portnum]) & 1;
             if (curbyte == 0) { //low byte
@@ -97,9 +95,8 @@ uint8_t in8253(uint16_t portnum) {
                 i8253.counter[portnum] -= 10;
                 return ((uint8_t) i8253.counter[portnum]);
             } else {   //high byte
-                return ((uint8_t) (i8253.counter[portnum] >> 8));
+                return ((uint8_t)(i8253.counter[portnum] >> 8));
             }
-            break;
     }
     return (0);
 }
