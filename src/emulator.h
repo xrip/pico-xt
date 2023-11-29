@@ -197,6 +197,20 @@ void init8253();
 void out8253(uint16_t portnum, uint8_t value);
 uint8_t in8253(uint16_t portnum);
 
+struct dmachan_s {
+    uint32_t page;
+    uint32_t addr;
+    uint32_t reload;
+    uint32_t count;
+    uint8_t direction;
+    uint8_t autoinit;
+    uint8_t writemode;
+    uint8_t masked;
+};
+
+uint8_t in8237(uint16_t addr);
+void out8237(uint16_t addr, uint8_t value);
+uint8_t read8237 (uint8_t channel);
 
 uint8_t insermouse ( uint16_t portnum );
 void outsermouse ( uint16_t portnum, uint8_t value );

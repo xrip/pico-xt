@@ -25,6 +25,40 @@ void portout(uint16_t portnum, uint16_t value) {
     //    printf("Diagnostic port out: %04X\r\n", value);
     //}
     switch (portnum) {
+        case 0x00:
+        case 0x01:
+        case 0x02:
+        case 0x03:
+        case 0x04:
+        case 0x05:
+        case 0x06:
+        case 0x07:
+        case 0x08:
+        case 0x09:
+        case 0x0A:
+        case 0x0B:
+        case 0x0C:
+        case 0x0D:
+        case 0x0E:
+        case 0x0F:
+        case 0x80:
+        case 0x81:
+        case 0x82:
+        case 0x83:
+        case 0x84:
+        case 0x85:
+        case 0x86:
+        case 0x87:
+        case 0x88:
+        case 0x89:
+        case 0x8A:
+        case 0x8B:
+        case 0x8C:
+        case 0x8D:
+        case 0x8E:
+        case 0x8F:
+            out8237(portnum, value);
+            return;
         case 0x20:
         case 0x21: //i8259
             out8259(portnum, value);
@@ -194,6 +228,39 @@ uint16_t portin(uint16_t portnum) {
         break;
     }
     switch (portnum) {
+        case 0x00:
+        case 0x01:
+        case 0x02:
+        case 0x03:
+        case 0x04:
+        case 0x05:
+        case 0x06:
+        case 0x07:
+        case 0x08:
+        case 0x09:
+        case 0x0A:
+        case 0x0B:
+        case 0x0C:
+        case 0x0D:
+        case 0x0E:
+        case 0x0F:
+        case 0x80:
+        case 0x81:
+        case 0x82:
+        case 0x83:
+        case 0x84:
+        case 0x85:
+        case 0x86:
+        case 0x87:
+        case 0x88:
+        case 0x89:
+        case 0x8A:
+        case 0x8B:
+        case 0x8C:
+        case 0x8D:
+        case 0x8E:
+        case 0x8F:
+            return in8237(portnum);
         case 0x20:
         case 0x21: //i8259
             return in8259(portnum);

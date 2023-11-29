@@ -1718,7 +1718,7 @@ void intcall86(uint8_t intnum) {
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             keyboard_send(0xFF);
 #else
-            //insertdisk(0, sizeof FDD0, FDD0, NULL);
+            insertdisk(0, sizeof FDD0, FDD0, NULL);
             if (1 == insertdisk(0, 0, NULL, "fdd0.img") ) {
                 //insertdisk(0, fdd0_sz(), fdd0_rom(), NULL);
             }
