@@ -25,6 +25,7 @@ void portout(uint16_t portnum, uint16_t value) {
     //    printf("Diagnostic port out: %04X\r\n", value);
     //}
     switch (portnum) {
+#ifdef DMA_8237
         case 0x00:
         case 0x01:
         case 0x02:
@@ -59,6 +60,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x8F:
             out8237(portnum, value);
             return;
+#endif
         case 0x20:
         case 0x21: //i8259
             out8259(portnum, value);
@@ -228,6 +230,7 @@ uint16_t portin(uint16_t portnum) {
         break;
     }
     switch (portnum) {
+#ifdef DMA_8237
         case 0x00:
         case 0x01:
         case 0x02:
@@ -261,6 +264,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x8E:
         case 0x8F:
             return in8237(portnum);
+#endif
         case 0x20:
         case 0x21: //i8259
             return in8259(portnum);
