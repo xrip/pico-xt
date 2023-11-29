@@ -23,17 +23,6 @@ extern uint16_t RAM_PAGES[RAM_BLOCKS]; // lba (14-0); 15 - written
 
 #define CONVENTIONAL_END 0xA0000ul
 
-// after VRAM before EMM - 32KB
-#define UMB_1_START VIDEORAM_END32
-#define UMB_1_END 0xD0000ul
-#define UMB_1_SIZE (UMB_1_END - UMB_1_START)
-
-// after EMM before BIOS - 88KB
-#define UMB_2_START 0xE0000ul
-#define UMB_2_END 0xFE000ul
-#define UMB_2_SIZE (UMB_2_END - UMB_2_START)
-
-
 bool init_vram();
 
 uint8_t ram_page_read(uint32_t addr32);

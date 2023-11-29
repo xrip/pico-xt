@@ -37,7 +37,7 @@ extern struct e820entry e820_list[];
 extern int e820_count;
 
 bool umb_in_use(uint32_t addr32);
-extern bool hma_hook;
+extern bool hma_in_use;
 
 uint8_t xms_fn();
 void xmm_reboot();

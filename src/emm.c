@@ -704,6 +704,7 @@ uint16_t allocate_emm_raw_pages(uint16_t pages) {
 
 void custom_on_board_emm() {
     char tmp[90];
+    if_reboot_detected();
     uint16_t FN = CPU_AH;
     // sprintf(tmp, "LIM40 FN %Xh", FN); logMsg(tmp);
     switch(CPU_AH) { // EMM LIM 4.0
@@ -1089,7 +1090,7 @@ void custom_on_board_emm() {
     case 0x5C: {
         CPU_AH = 0x00;
         sprintf(tmp, "LIM40 FN %Xh PREPARE EXPANDED MEMORY HARDWARE FOR WARM BOOT", FN); logMsg(tmp);
-        warm_reboot();
+        extra_mem_initialized = false;
         zf = 0;
         return;
     }

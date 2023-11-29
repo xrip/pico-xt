@@ -2,7 +2,8 @@
 #include <string.h>
 #include <stdio.h>
 
-static uint16_t a20_enable_count = 1;
+bool extra_mem_initialized = true; // TODO: reinit failed
+static uint16_t a20_enable_count = 0;
 
 void set_a20_global_enabled() {
     a20_enable_count++;
@@ -275,14 +276,22 @@ typedef struct umb {
     bool allocated;
 } umb_t;
 
-static umb_t umb_blocks[2] = {
-    UMB_1_START << 4, UMB_1_SIZE << 4, false,
-    UMB_2_START << 4, UMB_2_SIZE << 4, false
+#define UMB_BLOCKS 8
+
+static umb_t umb_blocks[UMB_BLOCKS] = {
+    0xA000, 0x0800, false, // TODO: remove on EGA enabled
+    0xA800, 0x0100, false, // TODO: remove on EGA enabled
+    0xB000, 0x0800, false, // TODO: remove on EGA enabled
+    0xC800, 0x0800, false,
+    0xE000, 0x0800, false,
+    0xE800, 0x0800, false,
+    0xF000, 0x0800, false,
+    0xF800, 0x0600, false
 };
 
 bool umb_in_use(uint32_t addr32) {
-    uint16_t paragraph = addr32 << 4;
-    for (int i = 0; i < 2; ++i) {
+    uint16_t paragraph = addr32 >> 4;
+    for (int i = 0; i < UMB_BLOCKS; ++i) {
         umb_t *p = &umb_blocks[i];
         if(p->allocated && p->seg <= paragraph && p->seg + p->sz > paragraph)
             return true;
@@ -294,7 +303,7 @@ bool umb_in_use(uint32_t addr32) {
 #define XMS_SUCCESS_CODE 0x0001
 
 static uint16_t umb_allocate(uint16_t* psz, uint16_t* err) {
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < UMB_BLOCKS; ++i) {
         umb_t *p = &umb_blocks[i];
         if(!p->allocated && p->sz >= *psz) {
             p->allocated = true;
@@ -304,7 +313,7 @@ static uint16_t umb_allocate(uint16_t* psz, uint16_t* err) {
         }
     }
     uint16_t max_sz = 0;
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < UMB_BLOCKS; ++i) {
         umb_t *p = &umb_blocks[i];
         if(!p->allocated && p->sz > max_sz) {
             max_sz = p->sz;
@@ -316,7 +325,7 @@ static uint16_t umb_allocate(uint16_t* psz, uint16_t* err) {
 }
 
 static uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < UMB_BLOCKS; ++i) {
         umb_t *p = &umb_blocks[i];
         if(p->allocated && p->seg >= *seg) {
             p->allocated = false;
@@ -329,17 +338,26 @@ static uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
 }
 
 bool hma_in_use = false;
-bool hma_hook = false;
+
+void if_reboot_detected() {
+    if (!extra_mem_initialized) {
+        extra_mem_initialized = true;
+        // logMsg("REBOOT WAS DETECTED");
+        sleep_ms(2000);
+        emm_reboot();
+        xmm_reboot();
+    }
+}
 
 uint8_t xms_fn() {
     char tmp[80];
+    if_reboot_detected();
     switch(CPU_AH) {
         case 0x00: // XMS 00H: Get XMS Version Number
             sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 2.0; Drv ver 1.0; HMA available", CPU_AH);
             CPU_AX = 0x0200; // spec. version
             CPU_BX = 0x0100; // driver version
             CPU_DX = 0x0001; // HMA installed
-            hma_hook = true;
             break;
         case 0x01: // XMS 01H: Request High Memory Area
             if (hma_in_use) {
@@ -490,13 +508,13 @@ uint8_t xms_fn() {
 }
 
 void xmm_reboot() {
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < UMB_BLOCKS; ++i) {
         umb_t *p = &umb_blocks[i];
         if(p->allocated) {
             p->allocated = false;
         }
     }
     hma_in_use = false;
-    hma_hook = false;
+    a20_enable_count = 0;
     memset(&xmm_handlers, 0, sizeof xmm_handlers);
 }

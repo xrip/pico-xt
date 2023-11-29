@@ -129,8 +129,11 @@ static inline void decodeflagsword(uint16_t x) {
 void logMsg(char*);
 uint8_t xms_fn();
 
+extern bool extra_mem_initialized;
+
 #define StepIP(x)  ip += x
-#define getmem8(x, y) ((x == 0xFFFF && y == 0xF) ? xms_fn() : read86(segbase(x) + y))
+
+#define getmem8(x, y) read86(segbase(x) + y)
 #define getmem16(x, y)  readw86(segbase(x) + y)
 #define putmem8(x, y, z)  write86(segbase(x) + y, z)
 #define putmem16(x, y, z) writew86(segbase(x) + y, z)
@@ -218,8 +221,6 @@ extern void	tickadlib	( void );
 void handleinput(void);
 #define logMsg(c) printf(c);
 #endif
-
-void warm_reboot();
 
 extern struct i8259_s {
     uint8_t imr; //mask register

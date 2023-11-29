@@ -1021,6 +1021,7 @@ void intcall86(uint8_t intnum) {
             return;
         }
         case 0x2F: {
+            if_reboot_detected();
             switch(CPU_AX) {
                 case 0x4300: {
                     logMsg("HIMEM.SYS (XMM) detection passed");
@@ -1094,12 +1095,12 @@ void intcall86(uint8_t intnum) {
                     cf = 0;
                     return;*/
                 case 0x88: // memory info
-                    if (ON_BOARD_RAM_KB > 64 * 1024) {
-                        CPU_AX = hma_hook ? 0 : 63 * 1024;
-                    } else {
-                        CPU_AX = hma_hook ? 0 : ON_BOARD_RAM_KB - 1024;
-                    }
-                    cf = hma_hook ? 1 : 0;
+#if ON_BOARD_RAM_KB > 64 * 1024
+                    CPU_AX = hma_in_use ? 63 * 1024 - 64 : 63 * 1024;
+#else 
+                    CPU_AX = hma_in_use ? ON_BOARD_RAM_KB - 1024 - 64 : ON_BOARD_RAM_KB - 1024;
+#endif
+                    cf = 0;
                     return;
                 /*case 0x89: { // switch to protected mode 286+
                         uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
@@ -1123,9 +1124,9 @@ void intcall86(uint8_t intnum) {
                         case 0x01:
 #if ON_BOARD_RAM_KB > 16*1024
                             CPU_CX = 1024 * 15; // 15MB
-                            CPU_DX = hma_hook ? (uint16_t)(ON_BOARD_RAM_KB - 16 * 1024) / 64 - 1 : (uint16_t)(ON_BOARD_RAM_KB - 16 * 1024) / 64;
+                            CPU_DX = (uint16_t)(ON_BOARD_RAM_KB - 16 * 1024) / 64;
 #else
-                            CPU_CX = hma_hook ? ON_BOARD_RAM_KB - 65 : ON_BOARD_RAM_KB - 1;
+                            CPU_CX = ON_BOARD_RAM_KB - 1;
                             CPU_DX = 0;
 #endif
                             CPU_AX = CPU_CX;
@@ -2207,7 +2208,15 @@ void __inline exec86(uint32_t execloops) {
             ip = ip & 0xFFFF;
             savecs = CPU_CS;
             saveip = ip;
-            opcode = getmem8(CPU_CS, ip);
+
+            if (CPU_CS == 0xFFFF && ip == 0x000F) { // hook for XMS
+                opcode = xms_fn();
+            } else if (CPU_CS == 0xFFFF && ip == 0x0000) { // hook for reboot
+                extra_mem_initialized = false;
+                opcode = getmem8(CPU_CS, ip);
+            } else {
+                opcode = getmem8(CPU_CS, ip);
+            }
             StepIP(1);
 
             switch (opcode) {
@@ -4349,11 +4358,4 @@ void __inline exec86(uint32_t execloops) {
                 break;
         }
     }
-}
-
-void warm_reboot() {
-    logMsg("    WARM REBOOT!");
-    sleep_ms(2000);
-    emm_reboot();
-    xmm_reboot();
 }
