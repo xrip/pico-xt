@@ -220,6 +220,7 @@ int main() {
         logMsg((char *)"init_vram failed");
         SD_CARD_AVAILABLE = false;
     }
+
     if (!PSRAM_AVAILABLE && !SD_CARD_AVAILABLE) {
         logMsg((char *)"Mo PSRAM or SD CARD available. Only 160Kb RAM will be usable...");
         sleep_ms(3000);
@@ -255,9 +256,6 @@ int main() {
         return -1;
     }
 #endif
-
-
-
 
     reset86();
     while (runing) {
@@ -413,7 +411,6 @@ int main() {
         if_usb();
         if_swap_drives();
         if_overclock();
-
 #endif
     }
     return 0;

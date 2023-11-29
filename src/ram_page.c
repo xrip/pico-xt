@@ -10,17 +10,18 @@ uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
 
 static uint32_t get_ram_page_for(const uint32_t addr32);
 
-#if BOOT_DEBUG_ACC
+#ifdef BOOT_DEBUG_ACC
 void logMsg(char* tmp);
+char tmp[40];
 #endif
 
 uint8_t ram_page_read(uint32_t addr32) {
     const register uint32_t ram_page = get_ram_page_for(addr32);
     const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-#if BOOT_DEBUG_ACC
+#ifdef BOOT_DEBUG_ACC
     uint8_t res = RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
-    if (addr32 >= 0x800000) {
-        char tmp[40]; sprintf(tmp, "R 8 %X: %02Xh", addr32, res); logMsg(tmp);
+    if (addr32 >= BOOT_DEBUG_ACC) {
+        sprintf(tmp, "R %08X ->   %02X", addr32, res); logMsg(tmp);
     }
     return res;
 #else
@@ -38,10 +39,10 @@ inline static uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr
 uint16_t ram_page_read16(uint32_t addr32) {
     const register uint32_t ram_page = get_ram_page_for(addr32);
     const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
-#if BOOT_DEBUG_ACC
+#ifdef BOOT_DEBUG_ACC
     uint16_t res = read16arr(RAM, 0, (ram_page * RAM_PAGE_SIZE) + addr_in_page);
     if (addr32 >= BOOT_DEBUG_ACC) {
-        char tmp[40]; sprintf(tmp, "R16 %X: %04Xh", addr32, res); logMsg(tmp);
+        sprintf(tmp, "R %08X -> %04X", addr32, res); logMsg(tmp);
     }
     return res;
 #else
@@ -50,6 +51,11 @@ uint16_t ram_page_read16(uint32_t addr32) {
 }
 
 void ram_page_write(uint32_t addr32, uint8_t value) {
+#ifdef BOOT_DEBUG_ACC
+    if (addr32 >= BOOT_DEBUG_ACC) {
+        sprintf(tmp, "W %08X <-   %02X", addr32, value); logMsg(tmp);
+    }
+#endif
     register uint32_t ram_page = get_ram_page_for(addr32);
     register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
     RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page] = value;
@@ -58,14 +64,14 @@ void ram_page_write(uint32_t addr32, uint8_t value) {
         // if higest (15) bit is set, it means - the page has changes
         RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
     }
-#if BOOT_DEBUG_ACC
-    if (addr32 >= BOOT_DEBUG_ACC) {
-        char tmp[40]; sprintf(tmp, "W 8 %X: %02Xh", addr32, value); logMsg(tmp);
-    }
-#endif
 }
 
 void ram_page_write16(uint32_t addr32, uint16_t value) {
+#ifdef BOOT_DEBUG_ACC
+    if (addr32 >= BOOT_DEBUG_ACC) {
+        sprintf(tmp, "W %08X <- %04X", addr32, value); logMsg(tmp);
+    }
+#endif
     register uint32_t ram_page = get_ram_page_for(addr32);
     register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
     register uint8_t* addr_in_ram = RAM + ram_page * RAM_PAGE_SIZE + addr_in_page;
@@ -76,11 +82,6 @@ void ram_page_write16(uint32_t addr32, uint16_t value) {
         // if higest (15) bit is set, it means - the page has changes
         RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
     }
-#if BOOT_DEBUG_ACC
-    if (addr32 >= BOOT_DEBUG_ACC) {
-        char tmp[40]; sprintf(tmp, "R16 %X: %04Xh", addr32, value); logMsg(tmp);
-    }
-#endif
 }
 
 static uint16_t oldest_ram_page = 1;
@@ -101,7 +102,9 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
             return ram_page;
         }
     }
-    // char tmp[40]; sprintf(tmp, "VRAM page: 0x%X", lba_page); logMsg(tmp);
+#ifdef BOOT_DEBUG_ACC
+    sprintf(tmp, "VRAM page: 0x%X", lba_page); logMsg(tmp);
+#endif
     // rolling page usage
     uint16_t ram_page = oldest_ram_page++;
     if (oldest_ram_page >= RAM_BLOCKS - 1) oldest_ram_page = 1; // do not use first page (id == 0)
@@ -111,19 +114,25 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     uint32_t old_lba_page = ram_page_desc & 0x7FFF; // 14-0 - max 32k keys for 4K LBA bloks
     RAM_PAGES[ram_page] = lba_page;
     if (ro_page_was_found) {
-        // just replace RO page (faster than RW flush to flash)
-        // sprintf(tmp, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
+        // just replace RO page (faster than RW flush to sdcard)
+#ifdef BOOT_DEBUG_ACC
+        sprintf(tmp, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
+#endif
         uint32_t ram_page_offset = ((uint32_t)ram_page) * RAM_PAGE_SIZE;
         uint32_t lba_page_offset = lba_page * RAM_PAGE_SIZE;
         read_vram_block(RAM + ram_page_offset, lba_page_offset, RAM_PAGE_SIZE);
         last_ram_page = ram_page;
         return ram_page;
     }
-    // Lets flush found RW page to flash
-    // sprintf(tmp, "2 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
+    // Lets flush found RW page to sdcard
+#ifdef BOOT_DEBUG_ACC
+    sprintf(tmp, "2 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
+#endif
     uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
     uint32_t lba_page_offset = old_lba_page * RAM_PAGE_SIZE;
-    // sprintf(tmp, "2 RAM offs 0x%X / VRAM offs: 0x%X", ram_page_offset, lba_page_offset); logMsg(tmp);
+#ifdef BOOT_DEBUG_ACC
+    sprintf(tmp, "2 RAM offs 0x%X / VRAM offs: 0x%X", ram_page_offset, lba_page_offset); logMsg(tmp);
+#endif
     flush_vram_block(RAM + ram_page_offset, lba_page_offset, RAM_PAGE_SIZE);
     // use new page:
     lba_page_offset = lba_page * RAM_PAGE_SIZE;
@@ -137,6 +146,8 @@ static FIL file;
 
 bool init_vram() {
     logMsg((char *)"Create <SD-card>\\XT\\pagefile.sys");
+    FRESULT fresult = f_stat(path , &file);
+    f_unlink(path); // ensure it is new file
     FRESULT result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_ALWAYS);
     if (result == FR_OK) {
         result = f_lseek(&file, TOTAL_VIRTUAL_MEMORY_KBS * 1024);

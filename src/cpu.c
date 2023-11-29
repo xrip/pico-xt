@@ -33,6 +33,9 @@ extern psram_spi_inst_t psram_spi;
 
 #endif
 
+uint8_t read86(uint32_t addr32);
+uint16_t readw86(uint32_t addr32);
+
 uint8_t opcode, segoverride, reptype, hdcount = 0, fdcount = 0, hltstate = 0;
 uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
@@ -114,7 +117,10 @@ void write86psram(uint32_t addr32, uint8_t value) {
     if (addr32 < RAM_SIZE) { // Conventional available
         RAM[addr32] = value; return;
     }
-    if (addr32 < (640 << 10)) { // Conventional in PSRAM
+    if (addr32 < CONVENTIONAL_END) { // Conventional in PSRAM
+        psram_write8(&psram_spi, addr32, value); return;
+    }
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
         psram_write8(&psram_spi, addr32, value); return;
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
@@ -126,12 +132,15 @@ void write86psram(uint32_t addr32, uint8_t value) {
             psram_write8(&psram_spi, lba, value); return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) { // HMA
         if (get_a20_enabled()) { // A20 line is ON
             psram_write8(&psram_spi, addr32, value); return;
         }
         write86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
+    }
+    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+        psram_write8(&psram_spi, addr32, value); return;
     }
 }
 
@@ -139,7 +148,10 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
     if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
         RAM[addr32] = value; return;
     }
-    if (addr32 < (640 << 10)) { // Conventional in swap
+    if (addr32 < CONVENTIONAL_END) { // Conventional in swap
+        ram_page_write(addr32, value); return;
+    }
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
         ram_page_write(addr32, value); return;
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
@@ -151,12 +163,17 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
             ram_page_write(lba, value); return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) { // HMA
         if (get_a20_enabled()) { // A20 line is ON
+            //char tmp[40]; sprintf(tmp, "HMAW %08Xh v: %02Xh", addr32, value); logMsg(tmp);
             ram_page_write(addr32, value); return;
         }
+        //char tmp[40]; sprintf(tmp, "conW %08Xh v: %02Xh", addr32, value); logMsg(tmp);
         write86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
+    }
+    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+        ram_page_write(addr32, value); return;
     }
 }
 #endif
@@ -189,7 +206,10 @@ inline static void write86psram16(uint32_t addr32, uint16_t value) {
     if (addr32 < RAM_SIZE) { // First not mapable block of Conventional RAM
         write16arr(RAM, 0, addr32, value); return;
     }
-    if (addr32 < (640 << 10)) { // Conventional in swap
+    if (addr32 < CONVENTIONAL_END) { // Conventional in swap
+        psram_write16(&psram_spi, addr32, value); return;
+    }
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
         psram_write16(&psram_spi, addr32, value); return;
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
@@ -201,12 +221,15 @@ inline static void write86psram16(uint32_t addr32, uint16_t value) {
             psram_write16(&psram_spi, lba, value); return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) { // HMA
         if (get_a20_enabled()) { // A20 line is ON
             psram_write16(&psram_spi, addr32, value); return;
         }
         writew86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
+    }
+    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+        psram_write16(&psram_spi, addr32, value); return;
     }
 }
 
@@ -214,7 +237,10 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
     if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
         write16arr(RAM, 0, addr32, value); return;
     }
-    if (addr32 < (640 << 10)) { // Conventional in swap
+    if (addr32 < CONVENTIONAL_END) { // Conventional in swap
+        ram_page_write16(addr32, value); return;
+    }
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
         ram_page_write16(addr32, value); return;
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
@@ -226,17 +252,22 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
             ram_page_write16(lba, value); return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) { // HMA
         if (get_a20_enabled()) { // A20 line is ON
+            //char tmp[40]; sprintf(tmp, "HMAW %08Xh v: %04Xh", addr32, value); logMsg(tmp);
             ram_page_write16(addr32, value); return;
         }
+        //char tmp[40]; sprintf(tmp, "conW %08Xh v: %04Xh", addr32, value); logMsg(tmp);
         writew86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
+    }
+    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+        ram_page_write16(addr32, value); return;
     }
 }
 #endif
 
-__inline void writew86(uint32_t addr32, uint16_t value) {
+INLINE void writew86(uint32_t addr32, uint16_t value) {
     if (addr32 & 0x00000001) { // not 16-bit alligned
         write86(addr32    , (uint8_t) value      );
         write86(addr32 + 1, (uint8_t)(value >> 8));
@@ -268,7 +299,6 @@ INLINE uint8_t read86rom(uint32_t addr32) {
     if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) { // IBM BASIC ROM HIGH
         return BASICH[addr32 - 0xFA000UL];
     }
-
     return 0;
 }
 
@@ -292,36 +322,38 @@ INLINE uint16_t read86rom16(uint32_t addr32) {
     return 0;
 }
 
-uint8_t read86(uint32_t addr32);
-uint16_t readw86(uint32_t addr32);
-
 INLINE uint8_t read86video_ram(uint32_t addr32) {
     return VIDEORAM[addr32 - VIDEORAM_START32];
 }
 
 #if PICO_ON_DEVICE
-__inline static uint8_t read86psram(uint32_t addr32) {
+INLINE static uint8_t read86psram(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
     }
-    if (addr32 < (640 << 10)) { // Conventional
+    if (addr32 < CONVENTIONAL_END) { // Conventional
         return psram_read8(&psram_spi, addr32);
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
         return read86video_ram(addr32);
     }
-
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
+        return psram_read8(&psram_spi, addr32);
+    }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             return psram_read8(&psram_spi, lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) { // HMA
         if (get_a20_enabled()) {
             return psram_read8(&psram_spi, addr32);
         }
         return read86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
+    }
+    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+        return psram_read8(&psram_spi, addr32);
     }
     return read86rom(addr32);
 }
@@ -330,7 +362,10 @@ inline static uint16_t read86psram16(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return read16arr(RAM, 0, addr32);
     }
-    if (addr32 < (640 << 10)) { // Conventional
+    if (addr32 < CONVENTIONAL_END) { // Conventional
+        return psram_read16(&psram_spi, addr32);
+    }
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
         return psram_read16(&psram_spi, addr32);
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
@@ -342,11 +377,14 @@ inline static uint16_t read86psram16(uint32_t addr32) {
             return psram_read16(&psram_spi, lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) { // HMA
         if (get_a20_enabled()) {
             return psram_read16(&psram_spi, addr32);
         }
         return readw86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
+    }
+    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+        return psram_read16(&psram_spi, addr32);
     }
     return read86rom16(addr32);
 }
@@ -355,7 +393,10 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
     if (addr32 < RAM_PAGE_SIZE) { // First page block fast access
         return RAM[addr32];
     }
-    if (addr32 < (640 << 10)) { // Conventional
+    if (addr32 < CONVENTIONAL_END) { // Conventional
+        return ram_page_read(addr32);
+    }
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB 
         return ram_page_read(addr32);
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
@@ -367,11 +408,16 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
             return ram_page_read(lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if (addr32 >= 0x100000UL && addr32 < 0x110000UL ) { // HMA
         if (get_a20_enabled()) {
+            //char tmp[40]; sprintf(tmp, "HMA: %08Xh v: %02Xh", addr32, ram_page_read(addr32)); logMsg(tmp);
             return ram_page_read(addr32);
         }
+        //char tmp[40]; sprintf(tmp, "con: %08Xh v: %02Xh", addr32, read86(addr32 - 0x100000UL)); logMsg(tmp);
         return read86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
+    }
+    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+        return ram_page_read(addr32);
     }
     return read86rom(addr32);
 }
@@ -380,7 +426,10 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
     if (addr32 < RAM_PAGE_SIZE) { // First page block fast access
         return read16arr(RAM, 0, addr32);
     }
-    if (addr32 < (640 << 10)) { // Conventional
+    if (addr32 < CONVENTIONAL_END) { // Conventional
+        return ram_page_read16(addr32);
+    }
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB #1
         return ram_page_read16(addr32);
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
@@ -392,11 +441,16 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
             return ram_page_read16(lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) { // HMA
         if (get_a20_enabled()) {
+            //char tmp[40]; sprintf(tmp, "HMA: %08Xh v: %04Xh", addr32, ram_page_read16(addr32)); logMsg(tmp);
             return ram_page_read16(addr32);
         }
+        //char tmp[40]; sprintf(tmp, "con: %08Xh v: %04Xh", addr32, readw86(addr32 - 0x100000UL)); logMsg(tmp);
         return readw86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
+    }
+    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+        return ram_page_read16(addr32);
     }
     return read86rom16(addr32);
 }
@@ -420,7 +474,7 @@ uint8_t read86(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
     }
-    if (addr32 < (640 << 10)) { // Conventional (no RAM in this space)
+    if (addr32 < CONVENTIONAL_END) { // Conventional (no RAM in this space)
         return 0;
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
@@ -448,7 +502,7 @@ uint16_t readw86(uint32_t addr32) {
     if (addr32 < RAM_SIZE) { // Conventional (existing)
         return read16arr(RAM, 0, addr32);
     }
-    if (addr32 < (640 << 10)) { // Conventional (no RAM in this space)
+    if (addr32 < CONVENTIONAL_END) { // Conventional (no RAM in this space)
         return 0;
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
@@ -968,424 +1022,40 @@ void writerm8(uint8_t rmval, uint8_t value) {
 
 uint8_t tandy_hack = 0;
 
-static void custom_on_board_emm() {
-    char tmp[90];
-    uint16_t FN = CPU_AH;
-    // sprintf(tmp, "LIM40 FN %Xh", FN); logMsg(tmp);
-    switch(CPU_AH) { // EMM LIM 4.0
-    // The Get Status function returns a status code indicating whether the
-    // memory manager is present and the hardware is working correctly.
-    case 0x40: {
-        CPU_AX = 0;
-        logMsg("LIM40 FN 40h status: 0");
-        zf = 0;
-        return;
-    }
-    // The Get Page Frame Address function returns the segment address where
-    // the page frame is located.
-    case 0x41: {
-        CPU_BX = emm_conventional_segment(); // page frame segment address
-        sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", FN, CPU_BX); logMsg(tmp);
-        CPU_AX = 0;
-        zf = 0;
-        return;
-    }
-    // The Get Unallocated Page Count function returns the number of
-    // unallocated pages and the total number of expanded memory pages.
-    case 0x42: {
-        CPU_BX = unallocated_emm_pages();
-        CPU_DX = total_emm_pages();
-        sprintf(tmp, "LIM40 FN %Xh -> %d free of %d EMM pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
-        CPU_AX = 0;
-        zf = 0;
-        return;
-    }
-    // The Allocate Pages function allocates the number of pages requested
-    // and assigns a unique EMM handle to these pages. The EMM handle owns
-    // these pages until the application deallocates them.
-    case 0x43: {
-        CPU_DX = allocate_emm_pages(CPU_BX, &CPU_AX);
-        sprintf(tmp, "LIM40 FN %Xh err: %Xh alloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
-        if (CPU_AX) zf = 1; else zf = 0;
-        return;
-    }
-    // The Map/Unmap Handle Page function maps a logical page at a specific
-    // physical page anywhere in the mappable regions of system memory.
-    case 0x44: {
-        // AL = physical_page_number
-        // BX = logical_page_number, if FFFFh, the physical page specified in AL will be unmapped
-        // DX = emm_handle
-        uint8_t AL = CPU_AL;
-        CPU_AX = map_unmap_emm_page(CPU_AL, CPU_BX, CPU_DX);
-        sprintf(tmp, "LIM40 FN %Xh res: phys page %d was mapped to %d logical for %d EMM handler",
-                      FN, AL, CPU_BX, CPU_DX); logMsg(tmp);
-        if (CPU_AX) zf = 1; else zf = 0;
-        return;
-    }
-    // Deallocate Pages deallocates the logical pages currently allocated to an EMM handle.
-    case 0x45: {
-        uint16_t emm_handle = CPU_DX;
-        CPU_AX = deallocate_emm_pages(emm_handle);
-        sprintf(tmp, "LIM40 FN %Xh res: %Xh - EMM handler %d dealloc", FN, CPU_AX, emm_handle); logMsg(tmp);
-        if (CPU_AX) zf = 1; else zf = 0;
-        return;
-    }
-    // The Get Version function returns the version number of the memory manager software.
-    case 0x46: {
-        /*
-                                     0100 0000
-                                       /   \
-                                      4  .  0
-        */
-        CPU_AL = 0b01000000; // 4.0
-        logMsg("LIM40 FN 46h res: 4.0");
-        CPU_AH = 0; zf = 0;
-        return;
-    }
-    // Save Page Map saves the contents of the page mapping registers on all
-    // expanded memory boards in an internal save area.
-    case 0x47: {
-        CPU_AX = save_emm_mapping(CPU_DX);
-        sprintf(tmp, "LIM40 FN %Xh res: %Xh (save mapping for %Xh)", FN, CPU_AX, CPU_DX); logMsg(tmp);
-        if (CPU_AX) zf = 1; else zf = 0;
-        return;
-    }
-    // The Restore Page Map function restores the page mapping register
-    // contents on the expanded memory boards for a particular EMM handle.
-    // This function lets your program restore the contents of the mapping
-    // registers its EMM handle saved.
-    case 0x48: {
-        logMsg("Restore Page Map - not implemented - nothing to do");
-        CPU_AX = restore_emm_mapping(CPU_DX);
-        sprintf(tmp, "LIM40 FN %Xh res: %Xh (restore mapping for %Xh)", FN, CPU_AX, CPU_DX); logMsg(tmp);
-        if (CPU_AX) zf = 1; else zf = 0;
-        return;
-    }
-    // The Get Handle Count function returns the number of open EMM handles
-    // (including the operating system handle 0) in the system.
-    case 0x4B: {
-        CPU_BX = total_open_emm_handles();
-        sprintf(tmp, "LIM40 FN %Xh res: %Xh - total_emm_handlers", FN, CPU_BX); logMsg(tmp);
-        CPU_AX = 0; zf = 0;
-        return;
-    }
-    // The Get Handle Pages function returns the number of pages allocated to
-    // a specific EMM handle.
-    case 0x4C: {
-        CPU_BX = get_emm_handle_pages(CPU_DX, &CPU_AX);
-        sprintf(tmp, "LIM40 FN %Xh handler: %d; res: %Xh; pages handled: %d", FN, CPU_DX, CPU_AX, CPU_BX); logMsg(tmp);
-        if (CPU_AX) zf = 1; else zf = 0;
-        return;
-    }
-    // The Get All Handle Pages function returns an array of the open emm
-    // handles and the number of pages allocated to each one.
-    case 0x4D: {
-        // ES:DI = pointer to handle_page
-        uint32_t addr32 = ((uint32_t)CPU_ES << 4) + CPU_DI;
-        CPU_BX = get_all_emm_handle_pages(addr32);
-        sprintf(tmp, "LIM40 FN %Xh all_handlers: %Xh (pages)", FN, CPU_BX); logMsg(tmp);
-        CPU_AX = 0; zf = 0;
-        return;
-    }
-    case 0x4E:
-        FN = CPU_AX;
-        switch(CPU_AL) {
-        // The Get Page Map subfunction saves the mapping context for all
-        // mappable memory regions (conventional and expanded) by copying the
-        // contents of the mapping registers from each expanded memory board to a
-        // destination array.
-        case 0x00: {
-            // ES:DI = dest_page_map
-            uint32_t addr32 = ((uint32_t)CPU_ES << 4) + CPU_DI;
-            get_emm_pages_map(addr32);
-            sprintf(tmp, "LIM40 FN %Xh emm pages: %Xh done", FN, CPU_AX); logMsg(tmp);
-            CPU_AX = 0; zf = 0;
-            return;
-        }
-        // The Set Page Map subfunction restores the mapping context for all
-        // mappable memory regions (conventional and expanded) by copying the
-        // contents of a source array into the mapping registers on each expanded
-        // memory board in the system.
-        case 0x01: {
-            // DS:SI = source_page_map
-            uint32_t addr32 = ((uint32_t)CPU_DS << 4) + CPU_SI;
-            set_emm_pages_map(addr32);
-            sprintf(tmp, "LIM40 FN %Xh (save emm) done", FN); logMsg(tmp);
-            CPU_AX = 0; zf = 0;
-            return;
-        }
-        // The Get & Set subfunction simultaneously saves a current mapping
-        // context and restores a previous mapping context for all mappable
-        // memory regions (both conventional and expanded).
-        case 0x02: {
-            // ES:DI = dest_page_map
-            // DS:SI = source_page_map
-            get_emm_pages_map(((uint32_t)CPU_ES << 4) + CPU_DI);
-            set_emm_pages_map(((uint32_t)CPU_DS << 4) + CPU_SI);
-            sprintf(tmp, "LIM40 FN %Xh (get/save) done", FN); logMsg(tmp);
-            CPU_AX = 0; zf = 0;
-            return;
-        }
-        // The Get Size of Page Map Save Array subfunction returns the storage
-        // requirements for the array passed by the other three subfunctions.
-        // This subfunction doesn't require an EMM handle.
-        case 0x03: {
-            CPU_AX = get_emm_pages_map_size();
-            sprintf(tmp, "LIM40 FN %Xh emm pages size: %Xh", FN, CPU_AX); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-    }
-    case 0x4F:
-        FN = CPU_AX;
-        switch(CPU_AL) {
-        // The Get Partial Page Map subfunction saves a partial mapping context
-        // for specific mappable memory regions in a system.
-        case 0x00: {
-            // DS:SI = partial_page_map
-            // ES:DI = dest_array
-            CPU_AX = get_partial_emm_page_map((CPU_DS << 4) + CPU_SI, (CPU_ES << 4) + CPU_DI);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_partial_emm_page_map (w/a)", FN, CPU_AH); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-        case 0x01: {
-            // DS:SI = source_array
-            CPU_AX = set_partial_emm_page_map((CPU_DS << 4) + CPU_SI);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh set_partial_emm_page_map (w/a)", FN, CPU_AH); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-        // The Return Size subfunction returns the storage requirements for the
-        // array passed by the other two subfunctions.  This subfunction doesn't
-        // require an EMM handle.
-        case 0x03: {
-            // BX = number of pages in the partial array
-            CPU_AX = get_emm_pages_map_size(); // W/A
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_emm_pages_map_size (w/a)", FN, CPU_AX); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-    }
-    case 0x50:
-        FN = CPU_AX;
-        switch(CPU_AL) {
-        // MAPPING AND UNMAPPING MULTIPLE PAGES
-        case 0x00: {
-            uint16_t handle = CPU_DX;
-            uint16_t log_to_phys_map_len = CPU_CX;
-            uint32_t log_to_phys_map = ((uint32_t)CPU_DS << 4) + CPU_SI;
-            CPU_AX = map_unmap_emm_pages(handle, log_to_phys_map_len, log_to_phys_map);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh map_unmap_emm_pages(%d, %d, %Xh)",
-                    FN, CPU_AX, handle, log_to_phys_map_len, log_to_phys_map); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-        // MAP/UNMAP MULTIPLE HANDLE PAGES (by physical segments)
-        case 0x01: {
-            uint16_t handle = CPU_DX;
-            uint16_t log_to_segment_map_len = CPU_CX;
-            uint32_t log_to_segment_map = ((uint32_t)CPU_DS << 4) + CPU_SI;
-            CPU_AX = map_unmap_emm_seg_pages(handle, log_to_segment_map_len, log_to_segment_map);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh map_unmap_emm_seg_pages(%d, %d, %Xh)",
-                    FN, CPU_AX, handle, log_to_segment_map_len, log_to_segment_map); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-    }
-    // REALLOCATE PAGES
-    case 0x51: {
-        CPU_AX = reallocate_emm_pages(CPU_DX, CPU_BX);
-        sprintf(tmp, "LIM40 FN %Xh err: %Xh realloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
-        if (CPU_AX) zf = 1; else zf = 0;
-        return;
-    }
-    // Optional: set handler attributes
-    case 0x52: {
-        sprintf(tmp, "LIM40 FN %Xh err: 91h Optional: set handler attributes (not implemented)", FN); logMsg(tmp);
-        CPU_AX = 0x9100; // not supported
-        zf = 1;
-        return;
-    }
-    case 0x53:
-        FN = CPU_AX;
-        switch(CPU_AL) {
-        // GET HANDLE NAME 
-        case 0x00: {
-            uint16_t handle = CPU_DX;
-            uint32_t handle_name = ((uint32_t)CPU_ES << 4) + CPU_DI;
-            CPU_AX = get_handle_name(handle, handle_name);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%d, %Xh)",
-                    FN, CPU_AX, handle, handle_name); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-        // SET HANDLE NAME
-        case 0x01: {
-            uint16_t handle = CPU_DX;
-            uint32_t handle_name = ((uint32_t)CPU_DS << 4) + CPU_SI;
-            CPU_AX = set_handle_name(handle, handle_name);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%d, %Xh)",
-                    FN, CPU_AX, handle, handle_name); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-    }
-    case 0x54:
-        FN = CPU_AX;
-        switch(CPU_AL) {
-        // GET HANDLE DIRECTORY
-        case 0x00: {
-            uint32_t handle_dir_struct = ((uint32_t)CPU_ES << 4) + CPU_DI;
-            CPU_AX = get_handle_dir(handle_dir_struct);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh handle_dir_struct(%Xh)", FN, CPU_AX, handle_dir_struct); logMsg(tmp);
-            if (CPU_AH) zf = 1; else zf = 0;
-            return;
-        }
-        // SEARCH FOR NAMED HANDLE
-        case 0x01: {
-            uint32_t handle_name = ((uint32_t)CPU_ES << 4) + CPU_DI;
-            CPU_DX = lookup_handle_dir(handle_name , &CPU_AX);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d lookup_handle_dir(%Xh)", FN, CPU_AH, CPU_DX, handle_name); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-        // GET TOTAL HANDLES
-        case 0x02: {
-            CPU_BX = MAX_EMM_HANDLERS;
-            sprintf(tmp, "LIM40 FN %Xh MAX_EMM_HANDLERS: %d", FN, CPU_BX); logMsg(tmp);
-            CPU_AX = 0; zf = 0;
-            return;
-        }
-        // TODO: 
-    }
-    // ALTER PAGE MAP & JUMP
-    case 0x55: {
-        uint8_t page_number_segment_selector = CPU_AL;
-        uint16_t handle = CPU_DX;
-        uint32_t map_and_jump = ((uint32_t)CPU_DS << 4) + CPU_SI;
-        CPU_AH = map_emm_and_jump(page_number_segment_selector, handle, map_and_jump);
-        sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d page_number_segment_selector: %d (not implemented)",
-                      FN, CPU_AH, CPU_DX, page_number_segment_selector); logMsg(tmp);
-        if (CPU_AH) zf = 1; else zf = 0;
-        return;
-    }
-    // ALTER PAGE MAP & CALL
-    case 0x56: {
-        uint8_t page_number_segment_selector = CPU_AL;
-        uint16_t handle = CPU_DX;
-        uint32_t map_and_call = ((uint32_t)CPU_DS << 4) + CPU_SI;
-        CPU_AH = map_emm_and_call(page_number_segment_selector, handle, map_and_call);
-        sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d page_number_segment_selector: %d (not implemented)",
-                      FN, CPU_AH, CPU_DX, page_number_segment_selector); logMsg(tmp);
-        if (CPU_AH) zf = 1; else zf = 0;
-        return;
-    }
-    // MOVE/EXCHANGE MEMORY REGION
-    case 0x57: {
-        CPU_AH = 0x86;
-        sprintf(tmp, "LIM40 FN %Xh MOVE/EXCHANGE MEMORY REGION (not implemented)", FN); logMsg(tmp);
-        if (CPU_AH) zf = 1; else zf = 0;
-        return;
-    }
-    case 0x58:
-        FN = CPU_AX;
-        switch(CPU_AL) {
-        // GET MAPPABLE PHYSICAL ADDRESS ARRAY
-        case 0x00: {
-            uint32_t mappable_phys_page = ((uint32_t)CPU_ES << 4) + CPU_DI;
-            CPU_AX = get_mappable_physical_array(mappable_phys_page);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_mappable_physical_array(%Xh)",
-                    FN, CPU_AX, mappable_phys_page); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-        // GET MAPPABLE PHYSICAL ADDRESS ARRAY ENTRIES
-        case 0x01: {
-            CPU_CX = get_mappable_phys_pages();
-            sprintf(tmp, "LIM40 FN %Xh get_mappable_phys_pages: %d", FN, CPU_CX); logMsg(tmp);
-            CPU_AX = 0; zf = 0;
-            return;
-        }
-    }
-    case 0x59:
-        FN = CPU_AX;
-        switch(CPU_AL) {
-        // GET HARDWARE CONFIGURATION ARRAY
-        case 0x00: {
-            uint32_t hardware_info = ((uint32_t)CPU_ES << 4) + CPU_DI;
-            get_hardvare_emm_info(hardware_info);
-            sprintf(tmp, "LIM40 FN %Xh GET HARDWARE CONFIGURATION ARRAY", FN); logMsg(tmp);
-            CPU_AX = 0; zf = 0;
-            return;
-        }
-        // GET UNALLOCATED RAW PAGE COUNT
-        case 0x01: {
-            CPU_BX = unallocated_emm_pages();
-            CPU_DX = total_emm_pages();
-            sprintf(tmp, "LIM40 FN %Xh %d of %d free pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
-            CPU_AX = 0; zf = 0;
-            return;
-        }
-    }
-    case 0x5A:
-        FN = CPU_AX;
-        switch(CPU_AL) {
-        //  ALLOCATE STANDARD PAGES
-        case 0x00: {
-            CPU_AX = allocate_emm_pages_sys(CPU_BX, CPU_DX);
-            sprintf(tmp, "LIM40 FN %Xh (%d, %d) allocate_emm_pages_sys res: %Xh", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-        //  ALLOCATE STANDARD/RAW
-        case 0x01: {
-            CPU_AX = allocate_emm_raw_pages(CPU_BX);
-            sprintf(tmp, "LIM40 FN %Xh (%d, %d) allocate_emm_raw_pages res: %Xh (not yet)", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
-            if (CPU_AX) zf = 1; else zf = 0;
-            return;
-        }
-    }
-    case 0x5B: {
-        CPU_AH = 0x86;
-        sprintf(tmp, "LIM40 FN %Xh ALTERNATE MAP REGISTER SET (not implemented)", FN); logMsg(tmp);
-        if (CPU_AH) zf = 1; else zf = 0;
-        return;
-    }
-    case 0x5C: {
-        CPU_AH = 0x86;
-        sprintf(tmp, "LIM40 FN %Xh PREPARE EXPANDED MEMORY HARDWARE FOR WARM BOOT (not implemented)", FN); logMsg(tmp);
-        if (CPU_AH) zf = 1; else zf = 0;
-        return;
-    }
-    case 0x5D: {
-        CPU_AH = 0x86;
-        sprintf(tmp, "LIM40 FN %Xh ENABLE/DISABLE OS/E FUNCTION SET (not implemented)", FN); logMsg(tmp);
-        if (CPU_AH) zf = 1; else zf = 0;
-        return;
-    }
-    default:
-        sprintf(tmp, "LIM40 FN %Xh (not implemented)", CPU_AX); logMsg(tmp);
-    }
-}
-
 void intcall86(uint8_t intnum) {
     switch (intnum) {
         case 0x67: {
             custom_on_board_emm();
             return;
         }
+        case 0x2F: {
+            if_reboot_detected();
+            switch(CPU_AX) {
+                case 0x4300: {
+                    logMsg("HIMEM.SYS (XMM) detection passed");
+                    CPU_AL = 0x80;
+                    return;
+                }
+                case 0x4310: {
+                    logMsg("HIMEM.SYS (XMM) Entry Address: FFFF:000F"); // W/A
+                    CPU_ES = 0xFFFF;
+                    CPU_BX = 0x000F;
+                    return;
+                }
+            }
+            break;
+        }
         case 0x15:
-            switch(CPU_AH) {/*
+            switch(CPU_AH) {
                 case 0x24: 
                     switch(CPU_AL) {
                         case 0x00:
-                            set_a20(1);
+                            set_a20_enabled(true);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2400 turn on A20_ENABLE_BIT");
                             return;
                         case 0x01:
-                            set_a20(0);
+                            set_a20_enabled(false);
                             cf = 0; CPU_AH = 0;
                             logMsg("INT15! 2401 turn off A20_ENABLE_BIT");
                             return;
@@ -1396,14 +1066,14 @@ void intcall86(uint8_t intnum) {
                             }
                             return;
                         case 0x03:
-                            CPU_BX = 0b10;
+                            CPU_BX = 0b11;
                             CPU_AH = 0;
                             cf = 0; {
                                 char tmp[80]; sprintf(tmp, "INT15! 2403 BX: %xh", CPU_BX); logMsg(tmp);
                             }
                             return;
                     }
-                    break;
+                    break;/*
                 case 0x4F:
                     CPU_AH = 0x86;
                     cf = 1;
@@ -1433,11 +1103,11 @@ void intcall86(uint8_t intnum) {
                     cf = 0;
                     return;*/
                 case 0x88: // memory info
-                    if (ON_BOARD_RAM_KB > 64 * 1024) {
-                        CPU_AX = 63 * 1024;
-                    } else {
-                        CPU_AX = ON_BOARD_RAM_KB - 1024;
-                    }
+#if ON_BOARD_RAM_KB > 64 * 1024
+                    CPU_AX = hma_in_use ? 63 * 1024 - 64 : 63 * 1024;
+#else 
+                    CPU_AX = hma_in_use ? ON_BOARD_RAM_KB - 1024 - 64 : ON_BOARD_RAM_KB - 1024;
+#endif
                     cf = 0;
                     return;
                 /*case 0x89: { // switch to protected mode 286+
@@ -1449,14 +1119,13 @@ void intcall86(uint8_t intnum) {
                     CPU_AH = 0;
                     cf = 0;
                     return;
-                
                 case 0x90: // Device busy interrupt.  Called by Int 16h when no key available
                     break;
                 case 0x91: // Interrupt complete.  Called by Int 16h when key becomes available
-                    break;
-                case 0xC0: // to be processed by BIOS
-                    // CPU_ES = 0xF000; // BIOS segment
-                    // CPU_BX = 0xE6f5; // BIOS config table
+                    break;*/
+                /*case 0xC0: // to be processed by BIOS
+                    CPU_ES = 0xFFFF; // BIOS segment
+                    CPU_BX = 0xFFFE; // BIOS config table
                     break;*/
                 case 0xE8:
                     switch(CPU_AL) {
@@ -1471,7 +1140,7 @@ void intcall86(uint8_t intnum) {
                             CPU_AX = CPU_CX;
                             CPU_BX = CPU_DX;
                             cf = 0;
-                            return; /*
+                            return;/*
                         case 0x20: {
                                 // ES:DI - destination for the table
                                 int count = e820_count;
@@ -1496,9 +1165,9 @@ void intcall86(uint8_t intnum) {
                                 char tmp[80]; sprintf(tmp, "INT15! E820 CX: 0x%X; BX: 0x%X", CPU_CX, CPU_BX); logMsg(tmp);
                                 cf = 0;
                                 return;
-                            }*/
+                            }
                         default:
-                            break;
+                            break;*/
                     }
                     break;
                 default: {
@@ -1539,7 +1208,7 @@ void intcall86(uint8_t intnum) {
                 // http://www.techhelpmanual.com/114-video_modes.html
                 // http://www.techhelpmanual.com/89-video_memory_layouts.html
                 char tmp[40];
-                sprintf(tmp, "VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
+                sprintf(tmp, "VBIOS: Mode 0x%x (0x%x)", CPU_AX, videomode);
                 logMsg(tmp);
 #if PICO_ON_DEVICE
                     switch (videomode) {
@@ -2512,7 +2181,7 @@ extern void ps2poll();
 
 #endif
 
-void __inline exec86(uint32_t execloops) {
+INLINE void exec86(uint32_t execloops) {
     uint8_t docontinue;
     static uint16_t firstip;
     static uint16_t trap_toggle = 0;
@@ -2547,7 +2216,15 @@ void __inline exec86(uint32_t execloops) {
             ip = ip & 0xFFFF;
             savecs = CPU_CS;
             saveip = ip;
-            opcode = getmem8(CPU_CS, ip);
+
+            if (CPU_CS == 0xFFFF && ip == 0x000F) { // hook for XMS
+                opcode = xms_fn();
+            } else if (CPU_CS == 0xFFFF && ip == 0x0000) { // hook for reboot
+                extra_mem_initialized = false;
+                opcode = getmem8(CPU_CS, ip);
+            } else {
+                opcode = getmem8(CPU_CS, ip);
+            }
             StepIP(1);
 
             switch (opcode) {

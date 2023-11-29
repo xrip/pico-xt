@@ -8,6 +8,8 @@
 
 bool    get_a20_enabled();
 void    set_a20_enabled(bool v);
+void    set_a20_global_enabled();
+void    set_a20_global_diabled();
 
 #define E820_RAM          1
 #define E820_RESERVED     2
@@ -33,3 +35,9 @@ void i15_89h(uint8_t IDT1, uint8_t IDT2, uint32_t gdt_far);
 // e820 map storage
 extern struct e820entry e820_list[];
 extern int e820_count;
+
+bool umb_in_use(uint32_t addr32);
+extern bool hma_in_use;
+
+uint8_t xms_fn();
+void xmm_reboot();

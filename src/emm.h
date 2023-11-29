@@ -123,3 +123,6 @@ uint8_t map_emm_and_call(uint8_t page_number_segment_selector, uint16_t handle, 
 void get_hardvare_emm_info(uint32_t hardware_info);
 uint16_t allocate_emm_pages_sys(uint16_t handler, uint16_t pages);
 uint16_t allocate_emm_raw_pages(uint16_t pages);
+
+void custom_on_board_emm();
+void emm_reboot();

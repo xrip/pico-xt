@@ -34,9 +34,6 @@ static FATFS fs;
 #endif
 
 #define BEEPER_PIN 28
-#define VIDEORAM_START32 0xB8000ul
-#define VIDEORAM_END32 0xC8000ul
-#define VIDEORAM_SIZE (VIDEORAM_END32 - VIDEORAM_START32)
 
 #ifdef WIN_EXT_RAM
 #define EXT_RAM_SIZE 32 << 20 // 32Mb
@@ -133,7 +130,14 @@ static inline void decodeflagsword(uint16_t x) {
 #define CPU_CH    regs.byteregs[regch]
 #define CPU_DH    regs.byteregs[regdh]
 
+// TODO: remove this trash
+void logMsg(char*);
+uint8_t xms_fn();
+
+extern bool extra_mem_initialized;
+
 #define StepIP(x)  ip += x
+
 #define getmem8(x, y) read86(segbase(x) + y)
 #define getmem16(x, y)  readw86(segbase(x) + y)
 #define putmem8(x, y, z)  write86(segbase(x) + y, z)
@@ -236,7 +240,6 @@ extern void	tickadlib	( void );
 void handleinput(void);
 #define logMsg(c) printf(c);
 #endif
-
 
 extern struct i8259_s {
     uint8_t imr; //mask register

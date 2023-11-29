@@ -2,6 +2,10 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+#define VIDEORAM_START32 0xB8000ul
+#define VIDEORAM_END32 0xC8000ul
+#define VIDEORAM_SIZE (VIDEORAM_END32 - VIDEORAM_START32)
+
 #define RAM_PAGE_SIZE_KB 4ul
 #define RAM_PAGE_SIZE (RAM_PAGE_SIZE_KB * 1024)
 #define RAM_IN_PAGE_ADDR_MASK (0x00000FFF)
@@ -16,6 +20,8 @@ extern uint8_t RAM[RAM_SIZE];
 
 #define RAM_BLOCKS (RAM_SIZE / RAM_PAGE_SIZE)
 extern uint16_t RAM_PAGES[RAM_BLOCKS]; // lba (14-0); 15 - written
+
+#define CONVENTIONAL_END 0xA0000ul
 
 bool init_vram();
 
