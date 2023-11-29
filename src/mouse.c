@@ -110,7 +110,7 @@ void sermouseevent ( uint8_t buttons, int8_t xrel, int8_t yrel )
 	uint8_t highbits = (xrel < 0) ? 3 : 0;
 	if (yrel < 0)
 		highbits |= 12;
-	bufsermousedata(0x40 | (buttons << 4) | highbits);
+	bufsermousedata(0x40 | highbits | (buttons << 4));
 	bufsermousedata(xrel & 63);
 	bufsermousedata(yrel & 63);
 }

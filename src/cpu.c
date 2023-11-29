@@ -108,7 +108,7 @@ void modregrm() {
 
 void write86(uint32_t addr32, uint8_t value);
 
-__inline static void writeVRAM(uint32_t addr32, uint8_t value) {
+INLINE void writeVRAM(uint32_t addr32, uint8_t value) {
     VIDEORAM[addr32 - VIDEORAM_START32] = value;
 }
 
@@ -194,7 +194,7 @@ void write86(uint32_t addr32, uint8_t value) {
     // { char tmp[40]; sprintf(tmp, "ADDR W: 0x%X not found", addr32); logMsg(tmp); }
 }
 
-inline static void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16_t value) {
+INLINE void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16_t value) {
     register uint8_t* ptr = arr - base_addr + addr32;
     *ptr++ = (uint8_t) value;
     *ptr   = (uint8_t)(value >> 8);
@@ -263,7 +263,7 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
 }
 #endif
 
-__inline void writew86(uint32_t addr32, uint16_t value) {
+INLINE void writew86(uint32_t addr32, uint16_t value) {
     if (addr32 & 0x00000001) { // not 16-bit alligned
         write86(addr32    , (uint8_t) value      );
         write86(addr32 + 1, (uint8_t)(value >> 8));
@@ -285,7 +285,7 @@ __inline void writew86(uint32_t addr32, uint16_t value) {
     }
 }
 
-__inline static uint8_t read86rom(uint32_t addr32) {
+INLINE uint8_t read86rom(uint32_t addr32) {
     if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) { // BIOS ROM range
         return BIOS[addr32 - 0xFE000UL];
     }
@@ -298,14 +298,14 @@ __inline static uint8_t read86rom(uint32_t addr32) {
     return 0;
 }
 
-inline static uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
+INLINE uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
     register uint8_t* ptr = arr + addr32 - base_addr;
     register uint16_t b1 = *ptr++;
     register uint16_t b0 = *ptr;
     return b1 | (b0 << 8);
 }
 
-__inline static uint16_t read86rom16(uint32_t addr32) {
+INLINE uint16_t read86rom16(uint32_t addr32) {
     if (addr32 >= 0xFE000UL && addr32 <= 0xFFFFFUL) { // BIOS ROM range
         return read16arr(BIOS, 0xFE000UL, addr32);
     }
@@ -318,12 +318,12 @@ __inline static uint16_t read86rom16(uint32_t addr32) {
     return 0;
 }
 
-__inline static uint8_t read86video_ram(uint32_t addr32) {
+INLINE uint8_t read86video_ram(uint32_t addr32) {
     return VIDEORAM[addr32 - VIDEORAM_START32];
 }
 
 #if PICO_ON_DEVICE
-__inline static uint8_t read86psram(uint32_t addr32) {
+INLINE static uint8_t read86psram(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
     }
@@ -451,7 +451,7 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
 // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 uint8_t read86(uint32_t addr32) {
     if (addr32 == 0xFC000) { // TANDY graphics hack (TODO: BIOS)
-        return 0x21;
+        //return 0x21;
     }
 
 #if PICO_ON_DEVICE
@@ -1379,7 +1379,7 @@ void intcall86(uint8_t intnum) {
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             keyboard_send(0xFF);
 #else
-            //insertdisk(0, sizeof FDD0, FDD0, NULL);
+            insertdisk(0, sizeof FDD0, FDD0, NULL);
             if (1 == insertdisk(0, 0, NULL, "fdd0.img") ) {
                 //insertdisk(0, fdd0_sz(), fdd0_rom(), NULL);
             }
@@ -2173,7 +2173,7 @@ extern void ps2poll();
 
 #endif
 
-void __inline exec86(uint32_t execloops) {
+INLINE void exec86(uint32_t execloops) {
     uint8_t docontinue;
     static uint16_t firstip;
     static uint16_t trap_toggle = 0;
