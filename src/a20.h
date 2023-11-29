@@ -8,6 +8,8 @@
 
 bool    get_a20_enabled();
 void    set_a20_enabled(bool v);
+void    set_a20_global_enabled();
+void    set_a20_global_diabled();
 
 #define E820_RAM          1
 #define E820_RESERVED     2

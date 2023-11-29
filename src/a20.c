@@ -2,16 +2,26 @@
 #include <string.h>
 #include <stdio.h>
 
-static bool is_a20_enabled = false;
+static uint16_t a20_enable_count = 0;
+
+void set_a20_global_enabled() {
+    a20_enable_count++;
+
+}
+void set_a20_global_diabled() {
+    if (a20_enable_count)
+        a20_enable_count--;
+}
 
 bool get_a20_enabled() {
-    //char tmp[40]; sprintf(tmp, "A20: GET %s", is_a20_enabled ? "ON" : "OFF"); logMsg(tmp);
-    return is_a20_enabled;
+    //char tmp[40]; sprintf(tmp, "A20: GET %d", a20_enable_count); logMsg(tmp);
+    return a20_enable_count > 0;
 }
 
 void set_a20_enabled(bool v) {
     //char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
-    is_a20_enabled = v;
+    if (a20_enable_count == 1 && !v) a20_enable_count--;
+    if (v && !a20_enable_count) ++a20_enable_count;
 }
 
 // Maximum number of map entries in the e820 map
@@ -139,7 +149,7 @@ uint8_t read86(uint32_t addr32);
 uint8_t set_a20(bool i) {
 
 }
-
+/*
 void i15_87h(uint16_t words_to_move, uint32_t gdt_far) {
     bool prev_a20_enable = is_a20_enabled; // enable A20 line if not
     is_a20_enabled = true;
@@ -162,7 +172,7 @@ void i15_87h(uint16_t words_to_move, uint32_t gdt_far) {
     }
     is_a20_enabled = prev_a20_enable; // restore prev. A20 line state    
 }
-
+*/
 typedef struct xmm_handler {
     uint16_t seg;
     uint16_t sz_kb;
@@ -278,16 +288,16 @@ uint8_t xms_fn() {
             hma_hook = true;
             break;
         case 0x01: // XMS 01H: Request High Memory Area
-            if (hma_in_use) {
-                sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected)", CPU_AH, CPU_DX);
-                CPU_AX = XMS_ERROR_CODE; // ERROR
-                CPU_BL = 0x91; // HMA is already in use
-            } else {
+         //   if (hma_in_use) {
+          //      sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected)", CPU_AH, CPU_DX);
+         //       CPU_AX = XMS_ERROR_CODE; // ERROR
+         //       CPU_BL = 0x91; // HMA is already in use
+          //  } else {
                 sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (allocated)", CPU_AH, CPU_DX);
                 hma_in_use = true;
                 CPU_AX = XMS_SUCCESS_CODE; // successful
                 CPU_BL = 0x00;
-            }
+          ///  }
             break;
         case 0x02: // XMS 02H: Release High Memory Area
             hma_in_use = false;
@@ -296,17 +306,27 @@ uint8_t xms_fn() {
             CPU_BL = 0x00;
             break;
         case 0x03: // XMS 03H: Global Enable A20
+            set_a20_global_enabled();
+            sprintf(tmp, "XMS FN %02Xh: Global Enable A20", CPU_AH);
+            CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
+            CPU_BL = 0x00;
+            break;
         case 0x05: // XMS 05H: Local Enable A20
             set_a20_enabled(true);
-            sprintf(tmp, "XMS FN %02Xh: Enable A20", CPU_AH);
-            CPU_AX = XMS_SUCCESS_CODE; // successful
+            sprintf(tmp, "XMS FN %02Xh: Local Enable A20", CPU_AH);
+            CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
             CPU_BL = 0x00;
             break;
         case 0x04: // XMS 04H: Global Disable A20
+            set_a20_global_diabled();
+            sprintf(tmp, "XMS FN %02Xh: Global Disable A20", CPU_AH);
+            CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
+            CPU_BL = 0x00;
+            break;
         case 0x06: // XMS 06H: Local Disable A20
             set_a20_enabled(false);
-            sprintf(tmp, "XMS FN %02Xh: Disable A20", CPU_AH);
-            CPU_AX = XMS_SUCCESS_CODE; // successful
+            sprintf(tmp, "XMS FN %02Xh: Local Disable A20", CPU_AH);
+            CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
             CPU_BL = 0x00;
             break;
         case 0x07: // XMS 07H: Query A20 State
