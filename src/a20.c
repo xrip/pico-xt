@@ -7,9 +7,11 @@ static uint16_t a20_enable_count = 0;
 
 void set_a20_global_enabled() {
     a20_enable_count++;
+    if (a20_enable_count == 0) a20_enable_count = 1;
     //char tmp[40]; sprintf(tmp, "A20: GSETu %d", a20_enable_count); logMsg(tmp);
 }
 void set_a20_global_diabled() {
+    if (hma_in_use && a20_enable_count == 1) return;
     if (a20_enable_count)
         a20_enable_count--;
     //char tmp[40]; sprintf(tmp, "A20: GSETd %d", a20_enable_count); logMsg(tmp);
@@ -22,7 +24,10 @@ bool get_a20_enabled() {
 
 void set_a20_enabled(bool v) {
     //char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
-    if (a20_enable_count == 1 && !v) a20_enable_count--;
+    if (a20_enable_count == 1 && !v) {
+        if (hma_in_use && a20_enable_count == 1) return;
+        a20_enable_count--;
+    }
     if (v && !a20_enable_count) ++a20_enable_count;
 }
 
