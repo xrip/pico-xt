@@ -165,8 +165,10 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
     }
     if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) { // HMA
         if (get_a20_enabled()) { // A20 line is ON
+            //char tmp[40]; sprintf(tmp, "HMAW %08Xh v: %02Xh", addr32, value); logMsg(tmp);
             ram_page_write(addr32, value); return;
         }
+        //char tmp[40]; sprintf(tmp, "conW %08Xh v: %02Xh", addr32, value); logMsg(tmp);
         write86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
     }
@@ -252,8 +254,10 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
     }
     if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) { // HMA
         if (get_a20_enabled()) { // A20 line is ON
+            //char tmp[40]; sprintf(tmp, "HMAW %08Xh v: %04Xh", addr32, value); logMsg(tmp);
             ram_page_write16(addr32, value); return;
         }
+        //char tmp[40]; sprintf(tmp, "conW %08Xh v: %04Xh", addr32, value); logMsg(tmp);
         writew86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
     }
@@ -406,8 +410,10 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
     }
     if (addr32 >= 0x100000UL && addr32 < 0x110000UL ) { // HMA
         if (get_a20_enabled()) {
+            //char tmp[40]; sprintf(tmp, "HMA: %08Xh v: %02Xh", addr32, ram_page_read(addr32)); logMsg(tmp);
             return ram_page_read(addr32);
         }
+        //char tmp[40]; sprintf(tmp, "con: %08Xh v: %02Xh", addr32, read86(addr32 - 0x100000UL)); logMsg(tmp);
         return read86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
     }
     if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
@@ -437,8 +443,10 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
     }
     if (addr32 >= 0x100000UL && addr32 < 0x110000UL) { // HMA
         if (get_a20_enabled()) {
+            //char tmp[40]; sprintf(tmp, "HMA: %08Xh v: %04Xh", addr32, ram_page_read16(addr32)); logMsg(tmp);
             return ram_page_read16(addr32);
         }
+        //char tmp[40]; sprintf(tmp, "con: %08Xh v: %04Xh", addr32, readw86(addr32 - 0x100000UL)); logMsg(tmp);
         return readw86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
     }
     if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
@@ -1200,7 +1208,7 @@ void intcall86(uint8_t intnum) {
                 // http://www.techhelpmanual.com/114-video_modes.html
                 // http://www.techhelpmanual.com/89-video_memory_layouts.html
                 char tmp[40];
-                sprintf(tmp, "VBIOS: Mode 0x%x (0x%x)\r\n", CPU_AX, videomode);
+                sprintf(tmp, "VBIOS: Mode 0x%x (0x%x)", CPU_AX, videomode);
                 logMsg(tmp);
 #if PICO_ON_DEVICE
                     switch (videomode) {

@@ -146,6 +146,8 @@ static FIL file;
 
 bool init_vram() {
     logMsg((char *)"Create <SD-card>\\XT\\pagefile.sys");
+    FRESULT fresult = f_stat(path , &file);
+    f_unlink(path); // ensure it is new file
     FRESULT result = f_open(&file, path, FA_READ | FA_WRITE | FA_CREATE_ALWAYS);
     if (result == FR_OK) {
         result = f_lseek(&file, TOTAL_VIRTUAL_MEMORY_KBS * 1024);
@@ -185,7 +187,7 @@ FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     char tmp[40];
-    if (file_offset >= 0xA0000) {
+    if (file_offset >= 0x100000) {
         sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset);
         logMsg(tmp);
     }
@@ -205,7 +207,7 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     char tmp[40];
-    if (file_offset >= 0xA0000) {
+    if (file_offset >= 0x100000) {
         sprintf(tmp, "Flush pagefile 0x%X->0x%X", src, file_offset);
         logMsg(tmp);
     }
