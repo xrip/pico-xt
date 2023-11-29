@@ -50,11 +50,11 @@ static const char* e820_type_name(uint32_t type) {
 
 // Show the current e820_list.
 static void dump_map(void) {
-    printf(1, "e820 map has %d items:\n", e820_count);
+    printf( "e820 map has %d items:\n", e820_count);
     for (int i = 0; i < e820_count; i++) {
         struct e820entry *e = &e820_list[i];
         uint64_t e_end = e->start + e->size;
-        printf(1, "  %d: %016llx - %016llx = %d %s\n", i, e->start, e_end, e->type, e820_type_name(e->type));
+        printf( "  %d: %016llx - %016llx = %d %s\n", i, e->start, e_end, e->type, e820_type_name(e->type));
     }
 }
 
@@ -63,7 +63,7 @@ static void dump_map(void) {
 // Add a new entry to the list.  This scans for overlaps and keeps the
 // list sorted.
 void e820_add(uint64_t start, uint64_t size, uint32_t type) {
-    printf(8, "Add to e820 map: %08llx %08llx %d\n", start, size, type);
+    printf( "Add to e820 map: %08llx %08llx %d\n", start, size, type);
     if (! size)
         // Huh?  Nothing to do.
         return;
