@@ -163,7 +163,7 @@ void portout(uint16_t portnum, uint16_t value) {
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;
             char tmp[80];
-            sprintf(tmp, "colorset %i, int %i\r\n", cga_colorset, cga_intensity);
+            sprintf(tmp, "colorset %i, int %i", cga_colorset, cga_intensity);
             logMsg(tmp);
 #if PICO_ON_DEVICE
             graphics_set_palette(0, cga_palette[bg_color]);

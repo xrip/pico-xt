@@ -1047,6 +1047,25 @@ void intcall86(uint8_t intnum) {
         }
         case 0x15:
             switch(CPU_AH) {
+                case 0xDA: if (CPU_AL == 0x88) { // TODO: ensure
+                    CPU_CL = 0;
+                    CPU_BX = ON_BOARD_RAM_KB - 1024 - (hma_in_use ? 64 : 0);
+                    cf = 0;
+                    logMsg("INT15! DA88h mem info");
+                    return;
+                }
+                case 0x8A: { // TODO: ensure
+                    CPU_DX = 0;
+                    CPU_AX = ON_BOARD_RAM_KB - 1024 - (hma_in_use ? 64 : 0);
+                    cf = 0;
+                    logMsg("INT15! 8Ah mem info");
+                    return;
+                }
+                case 0xC7: { // DS:SI to memory map
+                    // TODO:
+                    logMsg("INT15! C7h mem-map info");
+                    break;
+                }
                 case 0x24: 
                     switch(CPU_AL) {
                         case 0x00:
@@ -1134,7 +1153,7 @@ void intcall86(uint8_t intnum) {
                             CPU_CX = 1024 * 15; // 15MB
                             CPU_DX = (uint16_t)(ON_BOARD_RAM_KB - 16 * 1024) / 64;
 #else
-                            CPU_CX = ON_BOARD_RAM_KB - 1;
+                            CPU_CX = ON_BOARD_RAM_KB - 1024;
                             CPU_DX = 0;
 #endif
                             CPU_AX = CPU_CX;
