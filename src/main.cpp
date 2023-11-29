@@ -54,14 +54,14 @@ void PWM_init_pin(uint pinN){
 }
 
 bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
-    static uint8_t sound_tick = 0;
-    int16_t out = tickssource();
-    out +=  adlibgensample() >> 4;
+    uint8_t sound_tick = 0;
+    int16_t out = adlibgensample() >> 3;
+    out += tickssource() >> 1;
 
-    if (out) {
-        pwm_set_gpio_level(ZX_AY_PWM_PIN0,out); // Право
-        pwm_set_gpio_level(ZX_AY_PWM_PIN1,out); // Лево
-    }
+    //if (out) {
+        pwm_set_gpio_level(ZX_AY_PWM_PIN0,(uint8_t)((uint16_t)out+128)); // Право
+        pwm_set_gpio_level(ZX_AY_PWM_PIN1,(uint8_t)((uint16_t)out+128)); // Лево
+    //}
 
     return true;
 }
@@ -157,6 +157,14 @@ __inline static void if_overclock() {
 }
 #endif
 
+static void fill_audio ( void *udata, uint8_t *stream, int len )
+{
+    int16_t out = adlibgensample() >> 4;
+    out += tickssource() >> 1;
+    *stream = (uint8_t)((uint16_t)out+128);
+    //memcpy(stream, &out, len);
+}
+
 int main() {
 #if PICO_ON_DEVICE
 #if (OVERCLOCKING > 270)
@@ -229,7 +237,17 @@ int main() {
 
     screen = SDL_GetWindowSurface(window);
     auto *pixels = (unsigned int *) screen->pixels;
+    static SDL_AudioSpec wanted;
+    wanted.freq = 8000;
+    wanted.format = AUDIO_U8;
+    wanted.channels = 1;
+    wanted.samples = 1;
+    wanted.callback = fill_audio;
+    wanted.userdata = NULL;
 
+    if (SDL_OpenAudio(&wanted, NULL) < 0) {
+        printf("Error: %s\n", SDL_GetError());
+    }
     SDL_PauseAudio(0);
     if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
         fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());

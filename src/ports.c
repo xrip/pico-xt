@@ -146,6 +146,24 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
         case 0x3DA:
             break;
+        case 0x3DE: // tandy register
+            break;
+        case 0x3DF: // tandy CRT/Processor Page Register
+        /*
+        CRT/Processor Page Register
+        This 8-bit (write-only) register is addressed at 3DF. The descriptions below are
+        of the register functions:
+        Bit	Description
+        0	CRT Page 0
+        1	CRT Page 1
+        2	CRT Page 2
+        3	Processor Page 0
+        4	Processor Page 1
+        5	Processor Page 2
+        6	Video Address Mode 0
+        7	Video Address Mode 1
+        */
+            break;
         case 0x3F8:
         case 0x3F9:
         case 0x3FA:
