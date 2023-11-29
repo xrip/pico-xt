@@ -4,6 +4,11 @@
 #pragma once
 #ifndef TINY8086_CPU8086_H
 #define TINY8086_CPU8086_H
+#if PICO_ON_DEVICE
+#define INLINE __always_inline
+#else
+#define INLINE __forceinline
+#endif
 
 #include <stdint.h>
 #include <stdio.h>
