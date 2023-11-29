@@ -233,7 +233,7 @@ int main() {
                               SDL_WINDOWPOS_CENTERED,
                               SDL_WINDOWPOS_CENTERED,
                               640*2, 400*2,
-                              SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+                              SDL_WINDOW_SHOWN);
     screen = SDL_GetWindowSurface(window);
     auto drawsurface = SDL_CreateRGBSurface(SDL_SWSURFACE, 640, 400, screen->format->BitsPerPixel, screen->format->Rmask, screen->format->Gmask, screen->format->Bmask, screen->format->Amask);
     auto *pixels = (unsigned int *) drawsurface->pixels;
