@@ -20,7 +20,7 @@
 
 /* ssource.c: functions to emulate the Disney Sound Source's 16-byte FIFO buffer. */
 #include "emulator.h"
-
+// https://archive.org/details/dss-programmers-guide/page/n1/mode/2up
 // https://groups.google.com/g/comp.sys.ibm.pc.games/c/gsz2CLJZsx4
 
 static uint8_t ssourcebuf[16], ssourceptr = 0;

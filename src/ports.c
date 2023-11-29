@@ -13,10 +13,12 @@ uint8_t crt_controller_idx, crt_controller[18];
 uint16_t port378, port379, port37A, port3D8, port3D9, port3DA, port201;
 
 void portout(uint16_t portnum, uint16_t value) {
-    switch (portnum)
-    {
-    case 0x92:
-        { char tmp[90]; sprintf(tmp, "PORT %Xh set %Xh", portnum, value); logMsg(tmp); }
+    switch (portnum) {
+        case 0x92: {
+            char tmp[90];
+            sprintf(tmp, "PORT %Xh set %Xh", portnum, value);
+            logMsg(tmp);
+        }
         break;
     }
     //if (portnum == 0x80) {
@@ -40,7 +42,8 @@ void portout(uint16_t portnum, uint16_t value) {
             portram[portnum] = value;
             if (value & A20_ENABLE_BIT) {
                 set_a20_enabled(true);
-            } else {
+            }
+            else {
                 set_a20_enabled(false);
             }
             break;
@@ -64,6 +67,11 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x37A:
             outsoundsource(portnum, value);
             break;
+
+        case 0x388: // adlib
+        case 0x389:
+            outadlib(portnum, value);
+            break;
         case 0x3D4:
             // http://www.techhelpmanual.com/901-color_graphics_adapter_i_o_ports.html
             crt_controller_idx = value;
@@ -80,15 +88,14 @@ void portout(uint16_t portnum, uint16_t value) {
             // https://www.seasip.info/VintagePC/cga.html
             port3D8 = value;
 
-        //printf("port3D8 0x%x\r\n", value);
         // third cga palette (black/red/cyan/white)
             if (videomode == 5 && (port3D8 >> 2) & 1) {
-                logMsg("cga hacked palette\n");
+                logMsg("the unofficial Mode 5 palette, accessed by disabling ColorBurst\n");
+                cga_colorset = 2;
 #if PICO_ON_DEVICE
-                graphics_set_palette(0, cga_palette[0]);
-                graphics_set_palette(1, cga_palette[4]);
-                graphics_set_palette(2, cga_palette[3]);
-                graphics_set_palette(3, cga_palette[15]);
+                for (int i = 0; i < 4; i++) {
+                    graphics_set_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
+                }
 #endif
             }
 
@@ -118,23 +125,44 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
         case 0x3D9:
             port3D9 = value;
+            uint8_t bg_color = value & 0xf;
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;
+            char tmp[80];
+            sprintf(tmp, "colorset %i, int %i\r\n", cga_colorset, cga_intensity);
+            logMsg(tmp);
 #if PICO_ON_DEVICE
+            graphics_set_palette(0, cga_palette[bg_color]);
             if ((videomode == 6 && (port3D8 & 0x0f) == 0b1010) || videomode >= 8) {
                 break;
             }
 
-            char tmp[80];
-            sprintf(tmp,"colorset %i, int %i\r\n", cga_colorset, cga_intensity);
-            logMsg(tmp);
-            for (int i = 0; i < 4; i++) {
+
+            for (int i = 1; i < 4; i++) {
                 graphics_set_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
             }
         //setVGA_color_palette(0, cga_palette[0]);
 #endif
             break;
         case 0x3DA:
+            break;
+        case 0x3DE: // tandy register
+            break;
+        case 0x3DF: // tandy CRT/Processor Page Register
+        /*
+        CRT/Processor Page Register
+        This 8-bit (write-only) register is addressed at 3DF. The descriptions below are
+        of the register functions:
+        Bit	Description
+        0	CRT Page 0
+        1	CRT Page 1
+        2	CRT Page 2
+        3	Processor Page 0
+        4	Processor Page 1
+        5	Processor Page 2
+        6	Video Address Mode 0
+        7	Video Address Mode 1
+        */
             break;
         case 0x3F8:
         case 0x3F9:
@@ -152,16 +180,17 @@ void portout(uint16_t portnum, uint16_t value) {
 }
 
 uint16_t portin(uint16_t portnum) {
-    switch (portnum)
-    {
-    case PORT_A20:
-        { char tmp[90]; sprintf(
-            tmp,
-            "PORT %Xh get %Xh A20: %s", portnum,
-            get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT),
-            get_a20_enabled() ? "ON" : "OFF"
-          );
-        logMsg(tmp); }
+    switch (portnum) {
+        case PORT_A20: {
+            char tmp[90];
+            sprintf(
+                tmp,
+                "PORT %Xh get %Xh A20: %s", portnum,
+                get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT),
+                get_a20_enabled() ? "ON" : "OFF"
+            );
+            logMsg(tmp);
+        }
         break;
     }
     switch (portnum) {
@@ -179,9 +208,15 @@ uint16_t portin(uint16_t portnum) {
             return portram[portnum];
         case PORT_A20:
             return get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT);
-            break;
+        case 0x201: // joystick
+            return 0b11110000;
         case 0x379:
             return insoundsource(portnum);
+
+        case 0x388: // adlib
+        case 0x389:
+            return inadlib(portnum);
+            break;
         case 0x3D4:
             return crt_controller_idx;
         case 0x3D5:
