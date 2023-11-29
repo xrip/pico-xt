@@ -208,7 +208,8 @@ uint16_t portin(uint16_t portnum) {
             return portram[portnum];
         case PORT_A20:
             return get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT);
-            break;
+        case 0x201: // joystick
+            return 0b11110000;
         case 0x379:
             return insoundsource(portnum);
 

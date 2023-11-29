@@ -226,17 +226,18 @@ int main() {
     }
 
 #else
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO);
 
 
     window = SDL_CreateWindow("pico-xt",
                               SDL_WINDOWPOS_CENTERED,
                               SDL_WINDOWPOS_CENTERED,
-                              640, 400,
-                              SDL_WINDOW_SHOWN);
-
+                              640*2, 400*2,
+                              SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     screen = SDL_GetWindowSurface(window);
-    auto *pixels = (unsigned int *) screen->pixels;
+    auto drawsurface = SDL_CreateRGBSurface(SDL_SWSURFACE, 640, 400, screen->format->BitsPerPixel, screen->format->Rmask, screen->format->Gmask, screen->format->Bmask, screen->format->Amask);
+    auto *pixels = (unsigned int *) drawsurface->pixels;
+
     static SDL_AudioSpec wanted;
     wanted.freq = 8000;
     wanted.format = AUDIO_U8;
@@ -405,6 +406,7 @@ int main() {
                 //pix += 320;
             }
         }
+        SDL_BlitScaled(drawsurface, NULL, screen, NULL);
         SDL_UpdateWindowSurface(window);
 #else
         exec86(200);
