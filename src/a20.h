@@ -36,8 +36,8 @@ void i15_89h(uint8_t IDT1, uint8_t IDT2, uint32_t gdt_far);
 extern struct e820entry e820_list[];
 extern int e820_count;
 
-extern bool umb_1_in_use;
-extern bool umb_2_in_use;
+bool umb_in_use(uint32_t addr32);
 extern bool hma_hook;
 
 uint8_t xms_fn();
+void xmm_reboot();

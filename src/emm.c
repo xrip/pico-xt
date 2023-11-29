@@ -1087,9 +1087,10 @@ void custom_on_board_emm() {
         return;
     }
     case 0x5C: {
-        CPU_AH = 0x86;
-        sprintf(tmp, "LIM40 FN %Xh PREPARE EXPANDED MEMORY HARDWARE FOR WARM BOOT (not implemented)", FN); logMsg(tmp);
-        if (CPU_AH) zf = 1; else zf = 0;
+        CPU_AH = 0x00;
+        sprintf(tmp, "LIM40 FN %Xh PREPARE EXPANDED MEMORY HARDWARE FOR WARM BOOT", FN); logMsg(tmp);
+        warm_reboot();
+        zf = 0;
         return;
     }
     case 0x5D: {
@@ -1101,4 +1102,11 @@ void custom_on_board_emm() {
     default:
         sprintf(tmp, "LIM40 FN %Xh (not implemented)", CPU_AX); logMsg(tmp);
     }
+}
+
+void emm_reboot() {
+   memset(emm_saved_tables, 0, sizeof emm_saved_tables);
+   memset(emm_desc_table, 0, sizeof emm_desc_table);
+   memset(handlers, 0, sizeof handlers);
+   init_emm();
 }

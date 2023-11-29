@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 
-static uint16_t a20_enable_count = 0;
+static uint16_t a20_enable_count = 1;
 
 void set_a20_global_enabled() {
     a20_enable_count++;
@@ -14,12 +14,12 @@ void set_a20_global_diabled() {
 }
 
 bool get_a20_enabled() {
-    //char tmp[40]; sprintf(tmp, "A20: GET %d", a20_enable_count); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "A20: GET %d", a20_enable_count); logMsg(tmp);
     return a20_enable_count > 0;
 }
 
 void set_a20_enabled(bool v) {
-    //char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
     if (a20_enable_count == 1 && !v) a20_enable_count--;
     if (v && !a20_enable_count) ++a20_enable_count;
 }
@@ -269,13 +269,67 @@ __always_inline uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
     return 0;
 }
 
-bool umb_1_in_use = false;
-bool umb_2_in_use = false;
-bool hma_in_use = false;
-bool hma_hook = false;
+typedef struct umb {
+    uint16_t seg;
+    uint16_t sz; // paragraphs
+    bool allocated;
+} umb_t;
+
+static umb_t umb_blocks[2] = {
+    UMB_1_START << 4, UMB_1_SIZE << 4, false,
+    UMB_2_START << 4, UMB_2_SIZE << 4, false
+};
+
+bool umb_in_use(uint32_t addr32) {
+    uint16_t paragraph = addr32 << 4;
+    for (int i = 0; i < 2; ++i) {
+        umb_t *p = &umb_blocks[i];
+        if(p->allocated && p->seg <= paragraph && p->seg + p->sz > paragraph)
+            return true;
+    }
+    return false;
+}
 
 #define XMS_ERROR_CODE   0x0000
 #define XMS_SUCCESS_CODE 0x0001
+
+static uint16_t umb_allocate(uint16_t* psz, uint16_t* err) {
+    for (int i = 0; i < 2; ++i) {
+        umb_t *p = &umb_blocks[i];
+        if(!p->allocated && p->sz >= *psz) {
+            p->allocated = true;
+            *psz = p->sz;
+            *err = XMS_SUCCESS_CODE;
+            return p->seg;
+        }
+    }
+    uint16_t max_sz = 0;
+    for (int i = 0; i < 2; ++i) {
+        umb_t *p = &umb_blocks[i];
+        if(!p->allocated && p->sz > max_sz) {
+            max_sz = p->sz;
+        }
+    }
+    *psz = max_sz;
+    *err = XMS_ERROR_CODE;
+    return max_sz ? 0x00B0 /*smaller exists*/ : 0x00B1; // no UMB available
+}
+
+static uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
+    for (int i = 0; i < 2; ++i) {
+        umb_t *p = &umb_blocks[i];
+        if(p->allocated && p->seg >= *seg) {
+            p->allocated = false;
+            *err = XMS_SUCCESS_CODE;
+            return 0x0000;
+        }
+    }
+    *err = XMS_ERROR_CODE;
+    return 0x00B2; // invalid seg
+}
+
+bool hma_in_use = false;
+bool hma_hook = false;
 
 uint8_t xms_fn() {
     char tmp[80];
@@ -288,16 +342,20 @@ uint8_t xms_fn() {
             hma_hook = true;
             break;
         case 0x01: // XMS 01H: Request High Memory Area
-         //   if (hma_in_use) {
-          //      sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected)", CPU_AH, CPU_DX);
-         //       CPU_AX = XMS_ERROR_CODE; // ERROR
-         //       CPU_BL = 0x91; // HMA is already in use
-          //  } else {
+            if (hma_in_use) {
+                sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected - in use)", CPU_AH, CPU_DX);
+                CPU_AX = XMS_ERROR_CODE; // ERROR
+                CPU_BL = 0x91; // HMA is already in use
+            } else if (get_a20_enabled()) {
+                sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected - A20 is off)", CPU_AH, CPU_DX);
+                CPU_AX = XMS_ERROR_CODE; // ERROR
+                CPU_BL = 0x82; // A20 is OFF
+            } else {
                 sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (allocated)", CPU_AH, CPU_DX);
                 hma_in_use = true;
                 CPU_AX = XMS_SUCCESS_CODE; // successful
                 CPU_BL = 0x00;
-          ///  }
+            }
             break;
         case 0x02: // XMS 02H: Release High Memory Area
             hma_in_use = false;
@@ -336,9 +394,10 @@ uint8_t xms_fn() {
             break;
         case 0x08: { // XMS 08H: Query Free Extended Memory
             uint16_t used_kb = xmm_used_kb();
-            CPU_AX = TOTAL_XMM_KB - 64 - used_kb; // minus HMA, TODO: minus used
+            CPU_AX = TOTAL_XMM_KB - 64 - used_kb; // free XMS - total minus HMA, minus used
             CPU_BL = used_kb + 64 >= TOTAL_XMM_KB ? 0xA0 : 0;
-            sprintf(tmp, "XMS FN 08h: Free Extended Memory: %dKB", CPU_AX);
+            CPU_DX = TOTAL_XMM_KB - 64; // total XMS amount
+            sprintf(tmp, "XMS FN 08h: Free Extended Memory: %dKB of %dKB", CPU_AX, CPU_DX);
             break;
         }
         case 0x09: { // XMS 09H: Allocate Extended Memory Block
@@ -360,11 +419,12 @@ uint8_t xms_fn() {
             if (CPU_DX > MAX_XMM_HANDLERS) {
                 CPU_AX = XMS_ERROR_CODE;
                 CPU_BL = 0xA2; // Invalid handler
+            } else {
+                xmm_handlers[CPU_DX - 1].sz_kb = 0;
+                CPU_AX = XMS_SUCCESS_CODE;
+                CPU_BL = 0;
             }
-            xmm_handlers[CPU_DX - 1].sz_kb = 0;
-            CPU_AX = XMS_SUCCESS_CODE;
-            CPU_BL = 0;
-            sprintf(tmp, "XMS FN 0Ah: Free Extended Memory Block #%d", CPU_DX);
+            sprintf(tmp, "XMS FN 0Ah: Free Extended Memory Block #%d; res: %02X", CPU_DX, CPU_BL);
             break;
         }
         case 0x0B:
@@ -392,7 +452,7 @@ uint8_t xms_fn() {
             if (handle > MAX_XMM_HANDLERS) {
                 CPU_AX = XMS_ERROR_CODE;
                 CPU_BL = 0xA2; // invalid handler
-                sprintf(tmp, "XMS FN 0Eh: Handle Information #%d faile (no suc id)", handle);
+                sprintf(tmp, "XMS FN 0Eh: Handle Information #%d failed (no such id)", handle);
                 break;
             }
             CPU_AX = XMS_SUCCESS_CODE; // TODO:
@@ -412,36 +472,13 @@ uint8_t xms_fn() {
             break;
         case 0x10: // XMS 10H: Request Upper Memory Block
                    // DX    desired size of UMB, in paragraphs (16-byte units)
-            if (CPU_DX <= (UMB_2_SIZE >> 4) && !umb_2_in_use) {
-                uint16_t requested = CPU_DX;
-                CPU_BX = UMB_2_START;
-                umb_2_in_use = true;
-                CPU_DX = UMB_2_SIZE >> 4;
-                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated %04Xh bytes #2)", CPU_AH, requested << 4, CPU_DX << 4);
-                CPU_AX = XMS_SUCCESS_CODE; // successful
-            } else if (CPU_DX <= (UMB_1_SIZE >> 4) && !umb_1_in_use) {
-                uint16_t requested = CPU_DX;
-                CPU_BX = UMB_1_START;
-                umb_1_in_use = true;
-                CPU_DX = UMB_1_SIZE >> 4;
-                sprintf(tmp, "XMS FN %02Xh: requested UMB: %04Xh bytes (allocated %04Xh bytes #1)", CPU_AH, requested << 4, CPU_DX << 4);
-                CPU_AX = XMS_SUCCESS_CODE; // successful
-            } else {
-                uint16_t requested = CPU_DX;
-                CPU_DX =(!umb_1_in_use ?
-                         (umb_2_in_use ? UMB_1_SIZE : UMB_2_SIZE) :
-                         (umb_2_in_use ? 0 : UMB_2_SIZE)
-                        ) >> 4; // actual size : no more UMB blocks
-                CPU_BX =(!umb_1_in_use ?
-                         (umb_2_in_use ? UMB_1_START : UMB_2_START) :
-                         (umb_2_in_use ? 0 : UMB_2_START)
-                        ) >> 4;
-                // b0H  A smaller UMB is available
-                // b1H  No UMBs are available
-                CPU_BL = umb_1_in_use && umb_2_in_use ? 0xB1 : 0xB0; //  Smaller : No UMBs are available;
-                sprintf(tmp, "XMS FN 10h: requested UMB: %04Xh bytes (rejected) have max: %04Xh bytes", requested << 4, CPU_DX << 4);
-                CPU_AX = XMS_ERROR_CODE; // ERROR
-            }
+            CPU_BX = umb_allocate(&CPU_DX, &CPU_AX);
+            sprintf(tmp, "XMS FN 10h: UMB allocation: BX(seg/err): %04Xh; DX(sz): %04Xh; AX(err): %04Xh", CPU_BX, CPU_DX, CPU_AX);
+            break;
+        case 0x11: // XMS 10H: Release Upper Memory Block
+                   // DX    desired size of UMB, in paragraphs (16-byte units)
+            CPU_BX = umb_deallocate(&CPU_DX, &CPU_AX);
+            sprintf(tmp, "XMS FN 11h: UMB dellocation: BX(seg/err): %04Xh; DX(sz): %04Xh; AX(err): %04Xh", CPU_BX, CPU_DX, CPU_AX);
             break;
         default:
             sprintf(tmp, "XMS FN %2Xh: ERROR (not implemented)", CPU_AH);
@@ -450,4 +487,16 @@ uint8_t xms_fn() {
     }
     logMsg(tmp);
     return 0xCB /* CB RETF */;
+}
+
+void xmm_reboot() {
+    for (int i = 0; i < 2; ++i) {
+        umb_t *p = &umb_blocks[i];
+        if(p->allocated) {
+            p->allocated = false;
+        }
+    }
+    hma_in_use = false;
+    hma_hook = false;
+    memset(&xmm_handlers, 0, sizeof xmm_handlers);
 }

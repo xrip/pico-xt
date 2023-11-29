@@ -219,6 +219,7 @@ void handleinput(void);
 #define logMsg(c) printf(c);
 #endif
 
+void warm_reboot();
 
 extern struct i8259_s {
     uint8_t imr; //mask register

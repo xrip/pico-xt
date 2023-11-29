@@ -125,3 +125,4 @@ uint16_t allocate_emm_pages_sys(uint16_t handler, uint16_t pages);
 uint16_t allocate_emm_raw_pages(uint16_t pages);
 
 void custom_on_board_emm();
+void emm_reboot();
