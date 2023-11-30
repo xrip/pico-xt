@@ -1150,7 +1150,7 @@ void intcall86(uint8_t intnum) {
                     return;
                 }
                 case 0x4310: {
-                    logMsg("HIMEM.SYS (XMM) Entry Address: FFFF:000F"); // W/A
+                    logMsg("HIMEM.SYS (XMM) Entry Address: 0000:03FF"); // W/A
                     CPU_ES = XMS_FN_CS; // 
                     CPU_BX = XMS_FN_IP; // 
                     return;
@@ -1246,9 +1246,9 @@ void intcall86(uint8_t intnum) {
                     return;*/
                 case 0x88: // memory info
 #if ON_BOARD_RAM_KB > 64 * 1024
-                    CPU_AX = hma_in_use ? 63 * 1024 - 64 : 63 * 1024;
+                    CPU_AX = hma_in_use ? 0 : 63 * 1024;
 #else
-                    CPU_AX = hma_in_use ? ON_BOARD_RAM_KB - 1024 - 64 : ON_BOARD_RAM_KB - 1024;
+                    CPU_AX = hma_in_use ? 0 : ON_BOARD_RAM_KB - 1024;
 #endif
                     cf = 0;
                     return;
