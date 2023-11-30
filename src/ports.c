@@ -128,6 +128,7 @@ void portout(uint16_t portnum, uint16_t value) {
         {
             //printf("W 0x%x : 0x%x\r\n", portnum, value);
             static uint8_t r, g, b;
+            //value = value & 63;
             //value = value; // & 63;
             switch (vga_color_index) {
                 case 0: //red
@@ -165,7 +166,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3D8: // CGA Mode control register
             // https://www.seasip.info/VintagePC/cga.html
             port3D8 = value;
-
+            if (videomode == 13) return;
         // third cga palette (black/red/cyan/white)
             if (videomode == 5 && (port3D8 >> 2) & 1) {
                 logMsg("the unofficial Mode 5 palette, accessed by disabling ColorBurst\n");
@@ -203,6 +204,7 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
         case 0x3D9:
             port3D9 = value;
+            if (videomode == 13) return;
             uint8_t bg_color = value & 0xf;
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;
