@@ -249,11 +249,11 @@ INLINE uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
         *pBL = 0xA0; // not enough memory
         return 0;
     }
-    uint16_t seg = (TOTAL_XMM_KB - 64) << 6;
+    uint16_t seg = 0x11000;
     for (uint16_t i = 0; i < MAX_XMM_HANDLERS; ++i) {
         xmm_handler_t *ph = &xmm_handlers[i];
         if (ph->sz_kb) {
-            seg += ph->sz_kb << 6;
+            seg += ph->sz_kb << 6; // KB -> B =<< 10, B -> P =>> 4
             continue;
         }
         uint16_t seg_candidate = seg;

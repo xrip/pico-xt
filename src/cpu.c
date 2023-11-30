@@ -1151,8 +1151,8 @@ void intcall86(uint8_t intnum) {
                 }
                 case 0x4310: {
                     logMsg("HIMEM.SYS (XMM) Entry Address: FFFF:000F"); // W/A
-                    CPU_ES = 0xFFFF;
-                    CPU_BX = 0x000F;
+                    CPU_ES = XMS_FN_CS; // 
+                    CPU_BX = XMS_FN_IP; // 
                     return;
                 }
             }
@@ -2388,10 +2388,10 @@ extern void ps2poll();
             ip = ip & 0xFFFF;
             savecs = CPU_CS;
             saveip = ip;
-
-            if (CPU_CS == 0xFFFF && ip == 0x000F) {
+            // W/A-hack: last byte of interrupts table (actually should not be ever used as CS:IP)
+            if (CPU_CS == XMS_FN_CS && ip == XMS_FN_IP) {
                 // hook for XMS
-                opcode = xms_fn();
+                opcode = xms_fn(); // always returns RET TODO: far/short ret?
             }
             else if (CPU_CS == 0xFFFF && ip == 0x0000) {
                 // hook for reboot
