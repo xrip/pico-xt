@@ -263,6 +263,7 @@ extern struct i8253_s {
     uint8_t active[3];
     uint16_t counter[3];
 } i8253;
-#define rgb(b, g, r) r | (g<<8) | (b<<16) | (0xFF << 24);
+#define rgb(r, g, b) ((r<<16) | (g << 8 ) | b )
+#define rgb1(b, g, r) r | (g<<8) | (b<<16);
 //r<<16) | (g << 8 ) | b )
 #endif //TINY8086_CPU8086_H

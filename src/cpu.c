@@ -1352,6 +1352,12 @@ void intcall86(uint8_t intnum) {
                     sprintf(tmp, "VBIOS: Mode 0x%x (0x%x)", CPU_AX, videomode);
                     logMsg(tmp);
 #if PICO_ON_DEVICE
+                    if (videomode == 13) {
+                        graphics_set_buffer(VIDEORAM, 320, 200);
+                    }
+                    else {
+                        graphics_set_buffer(VIDEORAM + 98304, 320, 200);
+                    }
                     switch (videomode) {
                         case 0:
                         case 1:
@@ -1392,6 +1398,7 @@ void intcall86(uint8_t intnum) {
                             graphics_set_mode(TGA_320x200x16);
                             break;
                         case 0x13:
+                            graphics_set_buffer(VIDEORAM, 320, 200);
                             for (int i = 0; i < 256; i++) {
                                 graphics_set_palette(i, vga_palette[i]);
                             }
@@ -1399,33 +1406,37 @@ void intcall86(uint8_t intnum) {
                             port3D8 = port3D8 & 0xFE;
                             break;
                     }
-                    if (videomode == 13) {
-                        graphics_set_buffer(VIDEORAM, 320, 200);
-                    } else {
-                        graphics_set_buffer(VIDEORAM+98304, 320, 200);
-                    }
+
 #endif
                 // Установить видеорежим
                     break;
                 case 0x10: //VGA DAC functions
+                    if (videomode != 0x13) return;
                     printf("palette manipulation\r\n");
                     switch (CPU_AL) {
                         case 0x10: //set individual DAC register
                             vga_palette[CPU_BX] = rgb((CPU_DH & 63) << 2, (CPU_CH & 63) << 2, (CPU_CL & 63) << 2);
-                        break;
+#if PICO_ON_DEVICE
+                        graphics_set_palette(CPU_BX, vga_palette[CPU_BX]);
+#endif
+                            break;
                         case 0x12: //set block of DAC registers
                             memloc = CPU_ES * 16 + CPU_DX;
-                        for (n = CPU_BX; n < (uint32_t)(CPU_BX + CPU_CX); n++) {
-                            vga_palette[n] = rgb(read86(memloc) << 2, read86(memloc + 1) << 2, read86(memloc + 2) << 2);
-                            memloc += 3;
-                        }
+                            for (n = CPU_BX; n < (uint32_t)(CPU_BX + CPU_CX); n++) {
+                                vga_palette[n] = rgb(read86(memloc) << 2, read86(memloc + 1) << 2,
+                                                     read86(memloc + 2) << 2);
+#if PICO_ON_DEVICE
+                                graphics_set_palette(n, vga_palette[n]);
+#endif
+                                memloc += 3;
+                            }
                     }
-                break;
+                    break;
                 case 0x1A: //get display combination code (ps, vga/mcga)
                     CPU_AL = 0x1A;
-                CPU_BL = 0x04;
-                CPU_BH = 0x08;
-                break;
+                    CPU_BL = 0x04;
+                    CPU_BH = 0x08;
+                    break;
                 /*
                                 case 0x1A: //get display combination code (ps, vga/mcga)
                                     CPU_AL = 0x1A;
@@ -2357,7 +2368,7 @@ extern void ps2poll();
 
 #endif
 
- void exec86(uint32_t execloops) {
+void exec86(uint32_t execloops) {
     uint8_t docontinue;
     static uint16_t firstip;
     static uint16_t trap_toggle = 0;

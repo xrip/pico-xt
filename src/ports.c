@@ -132,17 +132,17 @@ void portout(uint16_t portnum, uint16_t value) {
             //value = value; // & 63;
             switch (vga_color_index) {
                 case 0: //red
-                    r =  value << 2;
+                    r =  ((uint8_t)value) << 2;
                 break;
                 case 1: //green
-                    g = value << 2;
+                    g = ((uint8_t)value) << 2;
                 break;
                 case 2: //blue
-                    b = value << 2;
-                vga_palette[vga_palette_index] = rgb(r,g,b);
+                    b = ((uint8_t)value) << 2;
+                vga_palette[vga_palette_index] = (uint32_t)rgb(r,g,b);
 #if PICO_ON_DEVICE
                 graphics_set_palette(vga_palette_index, vga_palette[vga_palette_index]);
-#endif;
+#endif
                 //printf("RGB#%i %x\r\n", vga_palette_index, vga_palette[vga_palette_index]);
                 vga_palette_index++;
                 break;
@@ -339,12 +339,12 @@ uint16_t portin(uint16_t portnum) {
         case 0x3C9: //RGB data register
             switch (latchReadRGB++) {
                 case 0: //blue
-                    return (vga_palette[latchReadPal] ) & 63;
+                    return (vga_palette[latchReadPal] >> 2) & 63;
                 case 1: //green
-                    return (vga_palette[latchReadPal] ) & 63;
+                    return (vga_palette[latchReadPal] >> 2) & 63;
                 case 2: //red
                     latchReadRGB = 0;
-                return (vga_palette[latchReadPal++] ) & 63;
+                return (vga_palette[latchReadPal++] >> 2) & 63;
             }
             break;
         case 0x3D4:

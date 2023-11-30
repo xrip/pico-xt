@@ -681,6 +681,25 @@ int main() {
         		}
         		//pix += 320;
         	}
+        } else if (mode == 0x0d) {
+        	uint32_t *pix = pixels;
+        	vidramptr = VIDEORAM;
+        	for (int y = 0; y < 400; y++) {
+        		for (int x = 0; x < 640; x++) {
+        			uint32_t divx = x>>1;
+        			uint32_t divy = y>>1;
+        			uint32_t vidptr = divy*40 + (divx>>3);
+        			int x1 = 7 - (divx & 7);
+        			uint32_t color = (vidramptr[vidptr] >> x1) & 1;
+        			color += ( ( (vidramptr[0x10000 + vidptr] >> x1) & 1) << 1);
+        			color += ( ( (vidramptr[0x20000 + vidptr] >> x1) & 1) << 2);
+        			color += ( ( (vidramptr[0x30000 + vidptr] >> x1) & 1) << 3);
+        			color = cga_palette[color];
+        			//prestretch[y][x] = color;
+        			*pix++ = color;
+        		}
+        		//pix += 320;
+        	}
         }
         SDL_BlitScaled(drawsurface, NULL, screen, NULL);
         SDL_UpdateWindowSurface(window);
