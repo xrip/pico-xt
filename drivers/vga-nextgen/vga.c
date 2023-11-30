@@ -122,15 +122,10 @@ void __not_in_flash_func(dma_handler_VGA)() {
         case CGA_320x200x4:
         case CGA_640x200x2:
         case TGA_320x200x16:
+        case VGA_320x200x256:
             line_number = screen_line / 2;
             if (screen_line % 2) return;
             line = screen_line / 2 - graphics_buffer_shift_y;
-            break;
-        case VGA_640x480x256_DIV_3:
-            line_number = screen_line / 2;
-            if (screen_line % 3) return;
-            div_factor = 3;
-            line = screen_line / 3 - graphics_buffer_shift_y;
             break;
 
         case TEXTMODE_160x100:
@@ -218,6 +213,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
     //uint8_t* vbuf8=vbuf+((line&1)*8192+(line>>1)*g_buf_width/4);
     uint8_t *input_buffer_8bit = input_buffer + ((line / 2) * 80) + ((line & 1) * 8192);
 
+
     //output_buffer = &lines_pattern[2 + ((line_number) & 1)];
 
     uint16_t *output_buffer_16bit = (uint16_t *) (*output_buffer);
@@ -297,13 +293,15 @@ void __not_in_flash_func(dma_handler_VGA)() {
                     input_buffer_8bit++;
                 }
             break;
-        case VGA_640x480x256_DIV_3:
-            output_buffer_8bit = (uint8_t *) output_buffer_16bit;
-            for (int i = width; i--;) {
-                *output_buffer_8bit++ = current_palette[*input_buffer_8bit];
-                *output_buffer_8bit++ = current_palette[*input_buffer_8bit] >> 8;
-                *output_buffer_8bit++ = current_palette[*input_buffer_8bit++];
+        case VGA_320x200x256:
+            input_buffer_8bit = input_buffer + line * 320;
+            for(int i=width;i--;)
+            {
+                *output_buffer_16bit++=current_palette[*input_buffer_8bit++];
+                *output_buffer_16bit++=current_palette[*input_buffer_8bit++];
+
             }
+        break;
             break;
         default:
             break;
@@ -366,7 +364,7 @@ enum graphics_mode_t graphics_set_mode(enum graphics_mode_t mode) {
         case CGA_640x200x2:
         case CGA_320x200x4:
         case CGA_160x200x16:
-        case VGA_640x480x256_DIV_3:
+        case VGA_320x200x256:
         case TGA_320x200x16:
 
             TMPL_LINE8 = 0b11000000;

@@ -1,9 +1,13 @@
 #pragma once
 #include <stdbool.h>
 #include <inttypes.h>
-
+/* CGA
 #define VIDEORAM_START32 0xB8000ul
 #define VIDEORAM_END32 0xC8000ul
+*/
+#define VIDEORAM_START32 0xA0000ul
+#define VIDEORAM_END32 0xBFFFFul
+
 #define VIDEORAM_SIZE (VIDEORAM_END32 - VIDEORAM_START32)
 
 #define RAM_PAGE_SIZE_KB 4ul
@@ -11,7 +15,9 @@
 #define RAM_IN_PAGE_ADDR_MASK (0x00000FFF)
 
 #if PICO_ON_DEVICE
-#define RAM_SIZE (4 * 40ul << 10) // 40 pages 4Kb = 160KB real pico RAM
+// CGA
+//#define RAM_SIZE (4 * 40ul << 10) // 40 pages 4Kb = 160KB real pico RAM
+#define RAM_SIZE (4 * 24ul << 10) // 40 pages 4Kb = 160KB real pico RAM
 #else
 #define RAM_SIZE (640ul << 10)
 #endif

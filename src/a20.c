@@ -190,7 +190,7 @@ typedef struct xmm_handler {
 
 static xmm_handler_t xmm_handlers[MAX_XMM_HANDLERS] = { 0 };
 
-__always_inline uint8_t xmm_free_handlers() {
+INLINE uint8_t xmm_free_handlers() {
     uint8_t res = 0;
     for (uint16_t i = 0; i < MAX_XMM_HANDLERS; ++i) {
         if (!xmm_handlers[i].sz_kb) res++;
@@ -235,7 +235,7 @@ uint8_t /*BL*/ unlock_ext_mem_block(uint16_t handler) {
     return 0;
 }
 
-__always_inline uint16_t xmm_used_kb() {
+INLINE uint16_t xmm_used_kb() {
     uint16_t res = 0;
     for (uint16_t i = 0; i < MAX_XMM_HANDLERS; ++i) {
         res += xmm_handlers[i].sz_kb;
@@ -243,7 +243,7 @@ __always_inline uint16_t xmm_used_kb() {
     return res;
 }
 
-__always_inline uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
+INLINE uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
     uint16_t free_kb = TOTAL_XMM_KB - 64 - xmm_used_kb();
     if (free_kb < kbs) {
         *pBL = 0xA0; // not enough memory
@@ -282,12 +282,12 @@ typedef struct umb {
     bool allocated;
 } umb_t;
 
-#define UMB_BLOCKS 8
+#define UMB_BLOCKS 5
 
 static umb_t umb_blocks[UMB_BLOCKS] = {
-    0xA000, 0x0800, false, // TODO: remove on EGA enabled
-    0xA800, 0x0100, false, // TODO: remove on EGA enabled
-    0xB000, 0x0800, false, // TODO: remove on EGA enabled
+    //0xA000, 0x0800, false, // TODO: remove on EGA enabled
+    //0xA800, 0x0100, false, // TODO: remove on EGA enabled
+    //0xB000, 0x0800, false, // TODO: remove on EGA enabled
     0xC800, 0x0800, false,
     0xE000, 0x0800, false,
     0xE800, 0x0800, false,
@@ -349,7 +349,7 @@ void if_reboot_detected() {
     if (!extra_mem_initialized) {
         extra_mem_initialized = true;
         // logMsg("REBOOT WAS DETECTED");
-        sleep_ms(2000);
+        //sleep_ms(2000);
         emm_reboot();
         xmm_reboot();
     }

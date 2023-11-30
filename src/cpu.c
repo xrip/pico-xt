@@ -396,7 +396,7 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
     if (addr32 < CONVENTIONAL_END) { // Conventional
         return ram_page_read(addr32);
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB 
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
         return ram_page_read(addr32);
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
@@ -1245,6 +1245,10 @@ void intcall86(uint8_t intnum) {
                                 graphics_set_palette(i, tandy_palette[i]);
                             }
                             graphics_set_mode(TGA_320x200x16);
+                            break;
+                        case 0x13:
+                            graphics_set_buffer(VIDEORAM, 320, 200);
+                            graphics_set_mode(VGA_320x200x256);
                             break;
                     }
 #endif

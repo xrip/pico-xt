@@ -80,8 +80,8 @@ void __time_critical_func(render_core)() {
     }
 
     graphics_init();
-    graphics_set_buffer(VIDEORAM, 320, 200);
-    graphics_set_textbuffer(VIDEORAM);
+    graphics_set_buffer(VIDEORAM+98304, 320, 200);
+    graphics_set_textbuffer(VIDEORAM+98304);
     graphics_set_bgcolor(0);
     graphics_set_offset(0, 0);
     graphics_set_flashmode(true, true);
