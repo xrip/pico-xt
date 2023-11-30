@@ -127,19 +127,19 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3C9: //RGB data register
         {
             //printf("W 0x%x : 0x%x\r\n", portnum, value);
-            static uint8_t r, g, b;
+            static uint32_t color;
             //value = value & 63;
             //value = value; // & 63;
             switch (vga_color_index) {
                 case 0: //red
-                    r =  ((uint8_t)value) << 2;
+                    color =  value << 16;
                 break;
                 case 1: //green
-                    g = ((uint8_t)value) << 2;
+                    color |= value << 8;
                 break;
                 case 2: //blue
-                    b = ((uint8_t)value) << 2;
-                vga_palette[vga_palette_index] = (uint32_t)rgb(r,g,b);
+                    color |= value;
+                vga_palette[vga_palette_index] = color << 2;
 #if PICO_ON_DEVICE
                 graphics_set_palette(vga_palette_index, vga_palette[vga_palette_index]);
 #endif
