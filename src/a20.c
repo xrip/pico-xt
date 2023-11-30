@@ -366,7 +366,7 @@ uint8_t xms_fn() {
     if_reboot_detected();
     switch(CPU_AH) {
         case 0x00: // XMS 00H: Get XMS Version Number
-            sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 2.0; Drv ver 1.0; HMA available", CPU_AH);
+            sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 1.0; Drv ver 1.1; HMA available", CPU_AH);
             CPU_AX = 0x0300; // spec. version
             CPU_BX = 0x0101; // driver version
             CPU_DX = 0x0001; // HMA installed
@@ -427,7 +427,7 @@ uint8_t xms_fn() {
             register uint16_t used_kb = xmm_used_kb();
             CPU_BL = used_kb + 64 >= TOTAL_XMM_KB ? 0xA0 : 0;
             CPU_DX = TOTAL_XMM_KB - 64 - used_kb; // total free XMS amount
-            sprintf(tmp, "XMS FN 08h: Free Extended Memory: %dKB of %dKB", CPU_AX, CPU_DX);
+            sprintf(tmp, "XMS FN 08h: Size of largest block: %dKB of %dKB", CPU_AX, CPU_DX);
             break;
         }
         case 0x09: { // XMS 09H: Allocate Extended Memory Block
