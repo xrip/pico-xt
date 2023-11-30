@@ -24,6 +24,8 @@
 #include "emulator.h"
 //#define DEBUG_DMA 1
 
+#ifdef DMA_8237
+
 static struct dmachan_s dmachan[4];
 static uint8_t flipflop = 0;
 
@@ -116,3 +118,4 @@ __inline uint8_t in8237(uint16_t addr) {
     return 0;
 }
 
+#endif
