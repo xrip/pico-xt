@@ -1392,13 +1392,17 @@ void intcall86(uint8_t intnum) {
                             graphics_set_mode(TGA_320x200x16);
                             break;
                         case 0x13:
-                            graphics_set_buffer(VIDEORAM, 320, 200);
                             for (int i = 0; i < 256; i++) {
                                 graphics_set_palette(i, vga_palette[i]);
                             }
                             graphics_set_mode(VGA_320x200x256);
                             port3D8 = port3D8 & 0xFE;
                             break;
+                    }
+                    if (videomode == 13) {
+                        graphics_set_buffer(VIDEORAM, 320, 200);
+                    } else {
+                        graphics_set_buffer(VIDEORAM+98304, 320, 200);
                     }
 #endif
                 // Установить видеорежим
