@@ -1276,7 +1276,7 @@ void intcall86(uint8_t intnum) {
                             CPU_CX = 1024 * 15; // 15MB
                             CPU_DX = (uint16_t)(ON_BOARD_RAM_KB - 16 * 1024) / 64;
 #else
-                            CPU_CX = ON_BOARD_RAM_KB - 1024;
+                            CPU_CX = ON_BOARD_RAM_KB - 1024 - (hma_in_use ? 64 : 0);
                             CPU_DX = 0;
 #endif
                             CPU_AX = CPU_CX;

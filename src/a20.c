@@ -186,7 +186,7 @@ typedef struct xmm_handler {
     uint8_t locks_cnt;
 } xmm_handler_t;
 
-#define MAX_XMM_HANDLERS 32
+#define MAX_XMM_HANDLERS 60
 
 static xmm_handler_t xmm_handlers[MAX_XMM_HANDLERS] = { 0 };
 
@@ -199,6 +199,7 @@ INLINE uint8_t xmm_free_handlers() {
 }
 
 uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
+    // TODO: error handling
     uint32_t w0 = readw86(tbl_addr++); tbl_addr++;
     uint32_t w1 = readw86(tbl_addr++); tbl_addr++;
     uint32_t len = (w1 << 16) | w0; // bytes to transfer
@@ -243,34 +244,34 @@ INLINE uint16_t xmm_used_kb() {
     return res;
 }
 
+static INLINE void init_handlers() {
+    uint16_t seg = 0x11000;
+    for (uint16_t i = 0; i < MAX_XMM_HANDLERS; ++i) {
+        xmm_handler_t *ph = &xmm_handlers[i];
+        ph->seg = seg;
+        seg += 0x400; // static 16k pages
+    }
+}
+
 INLINE uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
     uint16_t free_kb = TOTAL_XMM_KB - 64 - xmm_used_kb();
-    if (free_kb < kbs) {
+    if (kbs > 16) {
         *pBL = 0xA0; // not enough memory
         return 0;
     }
     uint16_t seg = 0x11000;
-    for (uint16_t i = 0; i < MAX_XMM_HANDLERS; ++i) {
+    if (xmm_handlers[0].seg != seg) {
+        init_handlers();
+    }
+    for (uint16_t i = 0; i < MAX_XMM_HANDLERS; ++i, seg += 0x400) {
         xmm_handler_t *ph = &xmm_handlers[i];
-        if (ph->sz_kb) {
-            seg += ph->sz_kb << 6; // KB -> B =<< 10, B -> P =>> 4
+        if (ph->sz_kb) { // allocated
             continue;
         }
-        uint16_t seg_candidate = seg;
-        uint16_t next_seg = seg_candidate + (kbs << 6);
-        for (uint16_t j = j + 1; j < MAX_XMM_HANDLERS; ++j) {
-            xmm_handler_t *phj = &xmm_handlers[j];
-            if (phj->sz_kb && phj->seg < seg_candidate) {
-                seg_candidate = 0;
-                break;
-            }
-        }
-        if (seg_candidate != 0) {
-            ph->seg = seg_candidate;
-            ph->sz_kb = kbs;
-            *pBL = 0;
-            return i + 1;
-        }
+        ph->seg = seg;
+        ph->sz_kb = kbs;
+        *pBL = 0;
+        return i + 1;
     }
     *pBL = 0xA1; // all available handlers are allocated
     return 0;
@@ -412,10 +413,10 @@ uint8_t xms_fn() {
             CPU_BL = 0x00;
             break;
         case 0x08: { // XMS 08H: Query Free Extended Memory
-            uint16_t used_kb = xmm_used_kb();
-            CPU_AX = TOTAL_XMM_KB - 64 - used_kb; // free XMS - total minus HMA, minus used
+            CPU_AX = 16; // Largest supported memory block
+            register uint16_t used_kb = xmm_used_kb();
             CPU_BL = used_kb + 64 >= TOTAL_XMM_KB ? 0xA0 : 0;
-            CPU_DX = TOTAL_XMM_KB - 64; // total XMS amount
+            CPU_DX = TOTAL_XMM_KB - 64 - used_kb; // total free XMS amount
             sprintf(tmp, "XMS FN 08h: Free Extended Memory: %dKB of %dKB", CPU_AX, CPU_DX);
             break;
         }
@@ -440,6 +441,7 @@ uint8_t xms_fn() {
                 CPU_BL = 0xA2; // Invalid handler
             } else {
                 xmm_handlers[CPU_DX - 1].sz_kb = 0;
+                xmm_handlers[CPU_DX - 1].locks_cnt = 0;
                 CPU_AX = XMS_SUCCESS_CODE;
                 CPU_BL = 0;
             }
@@ -484,6 +486,18 @@ uint8_t xms_fn() {
         case 0x0F: // XMS 0fH: Resize Extended Memory Block
             // BX    desired new size, in K-bytes
             // DX    XMS handle (as obtained via XMS 09H) must be unlocked
+            if (CPU_BX > 16) {
+                sprintf(tmp, "XMS FN 0Fh: Resize Extended Memory Block (failed) #%d to %dKB", CPU_DX, CPU_BX);
+                CPU_AX = XMS_ERROR_CODE;
+                CPU_BL = 0xA0; // no free space
+                break;
+            }
+            if (CPU_DX > MAX_XMM_HANDLERS) {
+                sprintf(tmp, "XMS FN 0Fh: Resize Extended Memory Block (invalid hndl) #%d to %dKB", CPU_DX, CPU_BX);
+                CPU_AX = XMS_ERROR_CODE;
+                CPU_BL = 0xA2; // Invalid handler
+                break;
+            }
             xmm_handlers[CPU_DX - 1].sz_kb = CPU_BX;
             CPU_AX = XMS_SUCCESS_CODE; // TODO: error handling
             CPU_BL = 0;
