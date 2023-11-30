@@ -207,16 +207,17 @@ static INLINE uint16_t xmm_handle_size(uint16_t h) {
 }
 
 static INLINE uint16_t handle2seg(uint16_t handle) {
-    return handle * XMS_STATIC_PAGE_PHARAGRAPS + BASE_XMS_HANLES_SEG;
+    return (handle - 1) * XMS_STATIC_PAGE_PHARAGRAPS + BASE_XMS_HANLES_SEG;
 }
 
-char tmp[80];
+//char tmp[80];
 uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
     // TODO: error handling
     uint32_t w0 = readw86(tbl_addr++); tbl_addr++;
     uint32_t w1 = readw86(tbl_addr++); tbl_addr++;
     uint32_t len = (w1 << 16) | w0; // bytes to transfer
     uint16_t s_h = readw86(tbl_addr++); tbl_addr++; // handle of source
+    //sprintf(tmp, "move_ext_mem_block LEN:%08X (%04X:%04X) SH:%04X", len, w0, w1, s_h); logMsg(tmp);
     if (s_h > MAX_XMM_HANDLES) {
         return 0xA3;
     }
@@ -224,7 +225,8 @@ uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
     uint32_t s1 = readw86(tbl_addr++); tbl_addr++;
     uint32_t s_o = s_h == 0 ?
         ((s1 << 4) + s0) :
-        ((s1 << 16) | s0) + ((uint32_t)handle2seg(s_h - 1) << 4); // source offset
+        ((s1 << 16) | s0) + ((uint32_t)handle2seg(s_h) << 4); // source offset
+    //sprintf(tmp, "move_ext_mem_block S_O:%08X (%04X:%04X)", s_o, s0, s1); logMsg(tmp);
     uint16_t d_h = readw86(tbl_addr++); tbl_addr++; // handle of destination
     if (d_h > MAX_XMM_HANDLES) {
         return 0xA3;
@@ -233,8 +235,8 @@ uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
     uint32_t d1 = readw86(tbl_addr);
     uint32_t d_o = d_h == 0 ?
         ((d1 << 4) + d0) :
-        ((d1 << 16) | d0) +  ((uint32_t)handle2seg(d_h - 1) << 4); // destination offset
-    sprintf(tmp, "move_ext_mem_block(%d) S:%08X D:%08X", len, s_o, d_o); logMsg(tmp);
+        ((d1 << 16) | d0) +  ((uint32_t)handle2seg(d_h) << 4); // destination offset
+    //sprintf(tmp, "move_ext_mem_block D_H:%04X D_O(%04X:%04X)", d_h, d0, d1); logMsg(tmp);
     for (uint32_t s_i = 0; s_o < len; s_o += 2, d_o += 2) { // TODO: block move
         uint16_t d = readw86(s_o);
         writew86(d_o, d);
@@ -284,7 +286,7 @@ INLINE uint16_t xmm_used_kb() {
 INLINE uint16_t get_handle_feets(uint16_t kbs) {
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
         xmm_handle_t *ph = &xmm_handles[i];
-        sprintf(tmp, "get_handle_feets(%d) H:%d SZ:%d LC:%d", kbs, ph->handle, ph->sz_kb, ph->locks_cnt); logMsg(tmp);
+        //sprintf(tmp, "get_handle_feets(%d) H:%d SZ:%d LC:%d", kbs, ph->handle, ph->sz_kb, ph->locks_cnt); logMsg(tmp);
         if (ph->handle) { // allocated
             continue;
         }
@@ -544,8 +546,8 @@ uint8_t xms_fn() {
             break;
         }
         case 0x0B:
+            sprintf(tmp, "XMS FN 0Bh: Move Extended Memory Block; BL: %04X:%04X", CPU_DS, CPU_SI);
             CPU_BL = move_ext_mem_block(((uint32_t)CPU_DS << 5) + CPU_SI);
-            sprintf(tmp, "XMS FN 0Bh: Move Extended Memory Block; BL: %0Xh", CPU_BL);
             CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
             break;
         case 0x0C: {
