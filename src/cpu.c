@@ -34,6 +34,7 @@ extern psram_spi_inst_t psram_spi;
 #endif
 
 uint8_t read86(uint32_t addr32);
+
 uint16_t readw86(uint32_t addr32);
 
 uint8_t opcode, segoverride, reptype, hdcount = 0, fdcount = 0, hltstate = 0;
@@ -114,66 +115,96 @@ INLINE void writeVRAM(uint32_t addr32, uint8_t value) {
 
 #if PICO_ON_DEVICE
 void write86psram(uint32_t addr32, uint8_t value) {
-    if (addr32 < RAM_SIZE) { // Conventional available
-        RAM[addr32] = value; return;
+    if (addr32 < RAM_SIZE) {
+        // Conventional available
+        RAM[addr32] = value;
+        return;
     }
-    if (addr32 < CONVENTIONAL_END) { // Conventional in PSRAM
-        psram_write8(&psram_spi, addr32, value); return;
+    if (addr32 < CONVENTIONAL_END) {
+        // Conventional in PSRAM
+        psram_write8(&psram_spi, addr32, value);
+        return;
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
-        psram_write8(&psram_spi, addr32, value); return;
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+        // UMB
+        psram_write8(&psram_spi, addr32, value);
+        return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
-        writeVRAM(addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        writeVRAM(addr32, value);
+        return;
     }
-    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            psram_write8(&psram_spi, lba, value); return;
+            psram_write8(&psram_spi, lba, value);
+            return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) { // HMA
-        if (get_a20_enabled()) { // A20 line is ON
-            psram_write8(&psram_spi, addr32, value); return;
+    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) {
+        // HMA
+        if (get_a20_enabled()) {
+            // A20 line is ON
+            psram_write8(&psram_spi, addr32, value);
+            return;
         }
         write86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
     }
-    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
-        psram_write8(&psram_spi, addr32, value); return;
+    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+        // XMS
+        psram_write8(&psram_spi, addr32, value);
+        return;
     }
 }
 
 void write86sdcard(uint32_t addr32, uint8_t value) {
-    if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
-        RAM[addr32] = value; return;
+    if (addr32 < RAM_PAGE_SIZE) {
+        // First not mapable block of Conventional RAM
+        RAM[addr32] = value;
+        return;
     }
-    if (addr32 < CONVENTIONAL_END) { // Conventional in swap
-        ram_page_write(addr32, value); return;
+    if (addr32 < CONVENTIONAL_END) {
+        // Conventional in swap
+        ram_page_write(addr32, value);
+        return;
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
-        ram_page_write(addr32, value); return;
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+        // UMB
+        ram_page_write(addr32, value);
+        return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
-        writeVRAM(addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        writeVRAM(addr32, value);
+        return;
     }
-    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            ram_page_write(lba, value); return;
+            ram_page_write(lba, value);
+            return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) { // HMA
-        if (get_a20_enabled()) { // A20 line is ON
+    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) {
+        // HMA
+        if (get_a20_enabled()) {
+            // A20 line is ON
             //char tmp[40]; sprintf(tmp, "HMAW %08Xh v: %02Xh", addr32, value); logMsg(tmp);
-            ram_page_write(addr32, value); return;
+            ram_page_write(addr32, value);
+            return;
         }
         //char tmp[40]; sprintf(tmp, "conW %08Xh v: %02Xh", addr32, value); logMsg(tmp);
         write86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
     }
-    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
-        ram_page_write(addr32, value); return;
+    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+        // XMS
+        ram_page_write(addr32, value);
+        return;
     }
 }
 #endif
@@ -181,122 +212,166 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
 void write86(uint32_t addr32, uint8_t value) {
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
-        write86psram(addr32, value); return;
+        write86psram(addr32, value);
+        return;
     }
     if (SD_CARD_AVAILABLE) {
-        write86sdcard(addr32, value); return;
+        write86sdcard(addr32, value);
+        return;
     }
 #endif
     if (addr32 < RAM_SIZE) {
-        RAM[addr32] = value; return;
+        RAM[addr32] = value;
+        return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
-        writeVRAM(addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        writeVRAM(addr32, value);
+        return;
     }
     // { char tmp[40]; sprintf(tmp, "ADDR W: 0x%X not found", addr32); logMsg(tmp); }
 }
 
 INLINE void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16_t value) {
     register uint8_t* ptr = arr - base_addr + addr32;
-    *ptr++ = (uint8_t) value;
-    *ptr   = (uint8_t)(value >> 8);
+    *ptr++ = (uint8_t)value;
+    *ptr = (uint8_t)(value >> 8);
 }
 #if PICO_ON_DEVICE
 inline static void write86psram16(uint32_t addr32, uint16_t value) {
-    if (addr32 < RAM_SIZE) { // First not mapable block of Conventional RAM
-        write16arr(RAM, 0, addr32, value); return;
+    if (addr32 < RAM_SIZE) {
+        // First not mapable block of Conventional RAM
+        write16arr(RAM, 0, addr32, value);
+        return;
     }
-    if (addr32 < CONVENTIONAL_END) { // Conventional in swap
-        psram_write16(&psram_spi, addr32, value); return;
+    if (addr32 < CONVENTIONAL_END) {
+        // Conventional in swap
+        psram_write16(&psram_spi, addr32, value);
+        return;
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
-        psram_write16(&psram_spi, addr32, value); return;
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+        // UMB
+        psram_write16(&psram_spi, addr32, value);
+        return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
-        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value);
+        return;
     }
-    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            psram_write16(&psram_spi, lba, value); return;
+            psram_write16(&psram_spi, lba, value);
+            return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) { // HMA
-        if (get_a20_enabled()) { // A20 line is ON
-            psram_write16(&psram_spi, addr32, value); return;
+    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) {
+        // HMA
+        if (get_a20_enabled()) {
+            // A20 line is ON
+            psram_write16(&psram_spi, addr32, value);
+            return;
         }
         writew86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
     }
-    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
-        psram_write16(&psram_spi, addr32, value); return;
+    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+        // XMS
+        psram_write16(&psram_spi, addr32, value);
+        return;
     }
 }
 
 inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
-    if (addr32 < RAM_PAGE_SIZE) { // First not mapable block of Conventional RAM
-        write16arr(RAM, 0, addr32, value); return;
+    if (addr32 < RAM_PAGE_SIZE) {
+        // First not mapable block of Conventional RAM
+        write16arr(RAM, 0, addr32, value);
+        return;
     }
-    if (addr32 < CONVENTIONAL_END) { // Conventional in swap
-        ram_page_write16(addr32, value); return;
+    if (addr32 < CONVENTIONAL_END) {
+        // Conventional in swap
+        ram_page_write16(addr32, value);
+        return;
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
-        ram_page_write16(addr32, value); return;
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+        // UMB
+        ram_page_write16(addr32, value);
+        return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
-        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value);
+        return;
     }
-    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            ram_page_write16(lba, value); return;
+            ram_page_write16(lba, value);
+            return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) { // HMA
-        if (get_a20_enabled()) { // A20 line is ON
+    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) {
+        // HMA
+        if (get_a20_enabled()) {
+            // A20 line is ON
             //char tmp[40]; sprintf(tmp, "HMAW %08Xh v: %04Xh", addr32, value); logMsg(tmp);
-            ram_page_write16(addr32, value); return;
+            ram_page_write16(addr32, value);
+            return;
         }
         //char tmp[40]; sprintf(tmp, "conW %08Xh v: %04Xh", addr32, value); logMsg(tmp);
         writew86(addr32 - 0x100000UL, value); // Rool back to low addressed
         return;
     }
-    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
-        ram_page_write16(addr32, value); return;
+    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+        // XMS
+        ram_page_write16(addr32, value);
+        return;
     }
 }
 #endif
 
 INLINE void writew86(uint32_t addr32, uint16_t value) {
-    if (addr32 & 0x00000001) { // not 16-bit alligned
-        write86(addr32    , (uint8_t) value      );
+    if (addr32 & 0x00000001) {
+        // not 16-bit alligned
+        write86(addr32, (uint8_t)value);
         write86(addr32 + 1, (uint8_t)(value >> 8));
     }
 
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
-        write86psram16(addr32, value); return;
+        write86psram16(addr32, value);
+        return;
     }
     if (SD_CARD_AVAILABLE) {
-        write86sdcard16(addr32, value); return;
+        write86sdcard16(addr32, value);
+        return;
     }
 #endif
     if (addr32 < RAM_SIZE) {
-        write16arr(RAM, 0, addr32, value); return;
+        write16arr(RAM, 0, addr32, value);
+        return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
-        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value); return;
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value);
+        return;
     }
 }
 
 INLINE uint8_t read86rom(uint32_t addr32) {
-    if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) { // BIOS ROM range
+    if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
+        // BIOS ROM range
         return BIOS[addr32 - 0xFE000UL];
     }
-    if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) { // IBM BASIC ROM LOW
+    if ((addr32 >= 0xF6000UL) && (addr32 < 0xFA000UL)) {
+        // IBM BASIC ROM LOW
         return BASICL[addr32 - 0xF6000UL];
     }
-    if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) { // IBM BASIC ROM HIGH
+    if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) {
+        // IBM BASIC ROM HIGH
         return BASICH[addr32 - 0xFA000UL];
     }
     return 0;
@@ -310,13 +385,16 @@ INLINE uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
 }
 
 INLINE uint16_t read86rom16(uint32_t addr32) {
-    if (addr32 >= 0xFE000UL && addr32 <= 0xFFFFFUL) { // BIOS ROM range
+    if (addr32 >= 0xFE000UL && addr32 <= 0xFFFFFUL) {
+        // BIOS ROM range
         return read16arr(BIOS, 0xFE000UL, addr32);
     }
-    if (addr32 >= 0xF6000UL && addr32 < 0xFA000UL) { // IBM BASIC ROM LOW
+    if (addr32 >= 0xF6000UL && addr32 < 0xFA000UL) {
+        // IBM BASIC ROM LOW
         return read16arr(BASICL, 0xF6000U, addr32);
     }
-    if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) { // IBM BASIC ROM HIGH
+    if ((addr32 >= 0xFA000UL) && (addr32 < 0xFE000UL)) {
+        // IBM BASIC ROM HIGH
         return read16arr(BASICH, 0xFA000UL, addr32);
     }
     return 0;
@@ -331,28 +409,34 @@ INLINE static uint8_t read86psram(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
     }
-    if (addr32 < CONVENTIONAL_END) { // Conventional
+    if (addr32 < CONVENTIONAL_END) {
+        // Conventional
         return psram_read8(&psram_spi, addr32);
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
         return read86video_ram(addr32);
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+        // UMB
         return psram_read8(&psram_spi, addr32);
     }
-    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             return psram_read8(&psram_spi, lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) { // HMA
+    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) {
+        // HMA
         if (get_a20_enabled()) {
             return psram_read8(&psram_spi, addr32);
         }
         return read86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
     }
-    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+        // XMS
         return psram_read8(&psram_spi, addr32);
     }
     return read86rom(addr32);
@@ -362,53 +446,65 @@ inline static uint16_t read86psram16(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return read16arr(RAM, 0, addr32);
     }
-    if (addr32 < CONVENTIONAL_END) { // Conventional
+    if (addr32 < CONVENTIONAL_END) {
+        // Conventional
         return psram_read16(&psram_spi, addr32);
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+        // UMB
         return psram_read16(&psram_spi, addr32);
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
         return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
     }
-    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             return psram_read16(&psram_spi, lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) { // HMA
+    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) {
+        // HMA
         if (get_a20_enabled()) {
             return psram_read16(&psram_spi, addr32);
         }
         return readw86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
     }
-    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+        // XMS
         return psram_read16(&psram_spi, addr32);
     }
     return read86rom16(addr32);
 }
 
 inline static uint8_t read86sdcard(uint32_t addr32) {
-    if (addr32 < RAM_PAGE_SIZE) { // First page block fast access
+    if (addr32 < RAM_PAGE_SIZE) {
+        // First page block fast access
         return RAM[addr32];
     }
-    if (addr32 < CONVENTIONAL_END) { // Conventional
+    if (addr32 < CONVENTIONAL_END) {
+        // Conventional
         return ram_page_read(addr32);
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+        // UMB
         return ram_page_read(addr32);
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
         return read86video_ram(addr32);
     }
-    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             return ram_page_read(lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < 0x110000UL ) { // HMA
+    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) {
+        // HMA
         if (get_a20_enabled()) {
             //char tmp[40]; sprintf(tmp, "HMA: %08Xh v: %02Xh", addr32, ram_page_read(addr32)); logMsg(tmp);
             return ram_page_read(addr32);
@@ -416,32 +512,39 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
         //char tmp[40]; sprintf(tmp, "con: %08Xh v: %02Xh", addr32, read86(addr32 - 0x100000UL)); logMsg(tmp);
         return read86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
     }
-    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+        // XMS
         return ram_page_read(addr32);
     }
     return read86rom(addr32);
 }
 
 inline static uint16_t read86sdcard16(uint32_t addr32) {
-    if (addr32 < RAM_PAGE_SIZE) { // First page block fast access
+    if (addr32 < RAM_PAGE_SIZE) {
+        // First page block fast access
         return read16arr(RAM, 0, addr32);
     }
-    if (addr32 < CONVENTIONAL_END) { // Conventional
+    if (addr32 < CONVENTIONAL_END) {
+        // Conventional
         return ram_page_read16(addr32);
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) { // UMB #1
+    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+        // UMB #1
         return ram_page_read16(addr32);
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
         return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
     }
-    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) { // EMS
+    if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
+        // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
         if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
             return ram_page_read16(lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) { // HMA
+    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) {
+        // HMA
         if (get_a20_enabled()) {
             //char tmp[40]; sprintf(tmp, "HMA: %08Xh v: %04Xh", addr32, ram_page_read16(addr32)); logMsg(tmp);
             return ram_page_read16(addr32);
@@ -449,7 +552,8 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
         //char tmp[40]; sprintf(tmp, "con: %08Xh v: %04Xh", addr32, readw86(addr32 - 0x100000UL)); logMsg(tmp);
         return readw86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
     }
-    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) { // XMS
+    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+        // XMS
         return ram_page_read16(addr32);
     }
     return read86rom16(addr32);
@@ -458,7 +562,8 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
 
 // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 uint8_t read86(uint32_t addr32) {
-    if (addr32 == 0xFC000) { // TANDY graphics hack (TODO: BIOS)
+    if (addr32 == 0xFC000) {
+        // TANDY graphics hack (TODO: BIOS)
         //return 0x21;
     }
 
@@ -474,20 +579,24 @@ uint8_t read86(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
     }
-    if (addr32 < CONVENTIONAL_END) { // Conventional (no RAM in this space)
+    if (addr32 < CONVENTIONAL_END) {
+        // Conventional (no RAM in this space)
         return 0;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
         return read86video_ram(addr32);
     }
     return read86rom(addr32);
 }
 
 uint16_t readw86(uint32_t addr32) {
-    if (addr32 == 0xFC000 || addr32 == 0xFC000 - 1) { // TANDY graphics hack (TODO: BIOS)
+    if (addr32 == 0xFC000 || addr32 == 0xFC000 - 1) {
+        // TANDY graphics hack (TODO: BIOS)
         return ((uint16_t)read86(addr32) | (uint16_t)(read86(addr32 + 1) << 8));
     }
-    if ((addr32 & 0x00000001) != 0) { // not 16-bit address
+    if ((addr32 & 0x00000001) != 0) {
+        // not 16-bit address
         return ((uint16_t)read86(addr32) | (uint16_t)(read86(addr32 + 1) << 8));
     }
 
@@ -499,13 +608,16 @@ uint16_t readw86(uint32_t addr32) {
         return read86sdcard16(addr32);
     }
 #endif
-    if (addr32 < RAM_SIZE) { // Conventional (existing)
+    if (addr32 < RAM_SIZE) {
+        // Conventional (existing)
         return read16arr(RAM, 0, addr32);
     }
-    if (addr32 < CONVENTIONAL_END) { // Conventional (no RAM in this space)
+    if (addr32 < CONVENTIONAL_END) {
+        // Conventional (no RAM in this space)
         return 0;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) { // video RAM range
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
         return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
     }
     return read86rom16(addr32);
@@ -1023,6 +1135,7 @@ void writerm8(uint8_t rmval, uint8_t value) {
 uint8_t tandy_hack = 0;
 
 void intcall86(uint8_t intnum) {
+    uint32_t tempcalc, memloc, n;
     switch (intnum) {
         case 0x67: {
             custom_on_board_emm();
@@ -1030,7 +1143,7 @@ void intcall86(uint8_t intnum) {
         }
         case 0x2F: {
             if_reboot_detected();
-            switch(CPU_AX) {
+            switch (CPU_AX) {
                 case 0x4300: {
                     logMsg("HIMEM.SYS (XMM) detection passed");
                     CPU_AL = 0x80;
@@ -1046,53 +1159,63 @@ void intcall86(uint8_t intnum) {
             break;
         }
         case 0x15:
-            switch(CPU_AH) {
-                case 0xDA: if (CPU_AL == 0x88) { // TODO: ensure
-                    CPU_CL = 0;
-                    CPU_BX = ON_BOARD_RAM_KB - 1024 - (hma_in_use ? 64 : 0);
-                    cf = 0;
-                    logMsg("INT15! DA88h mem info");
-                    return;
-                }
-                case 0x8A: { // TODO: ensure
+            switch (CPU_AH) {
+                case 0xDA: if (CPU_AL == 0x88) {
+                        // TODO: ensure
+                        CPU_CL = 0;
+                        CPU_BX = ON_BOARD_RAM_KB - 1024 - (hma_in_use ? 64 : 0);
+                        cf = 0;
+                        logMsg("INT15! DA88h mem info");
+                        return;
+                    }
+                case 0x8A: {
+                    // TODO: ensure
                     CPU_DX = 0;
                     CPU_AX = ON_BOARD_RAM_KB - 1024 - (hma_in_use ? 64 : 0);
                     cf = 0;
                     logMsg("INT15! 8Ah mem info");
                     return;
                 }
-                case 0xC7: { // DS:SI to memory map
+                case 0xC7: {
+                    // DS:SI to memory map
                     // TODO:
                     logMsg("INT15! C7h mem-map info");
                     break;
                 }
-                case 0x24: 
-                    switch(CPU_AL) {
+                case 0x24:
+                    switch (CPU_AL) {
                         case 0x00:
                             set_a20_enabled(true);
-                            cf = 0; CPU_AH = 0;
+                            cf = 0;
+                            CPU_AH = 0;
                             logMsg("INT15! 2400 turn on A20_ENABLE_BIT");
                             return;
                         case 0x01:
                             set_a20_enabled(false);
-                            cf = 0; CPU_AH = 0;
+                            cf = 0;
+                            CPU_AH = 0;
                             logMsg("INT15! 2401 turn off A20_ENABLE_BIT");
                             return;
                         case 0x02:
                             CPU_AL = get_a20_enabled();
-                            cf = 0; CPU_AH = 0; {
-                                char tmp[80]; sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL); logMsg(tmp);
+                            cf = 0;
+                            CPU_AH = 0; {
+                                char tmp[80];
+                                sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL);
+                                logMsg(tmp);
                             }
                             return;
                         case 0x03:
                             CPU_BX = 0b11;
                             CPU_AH = 0;
                             cf = 0; {
-                                char tmp[80]; sprintf(tmp, "INT15! 2403 BX: %xh", CPU_BX); logMsg(tmp);
+                                char tmp[80];
+                                sprintf(tmp, "INT15! 2403 BX: %xh", CPU_BX);
+                                logMsg(tmp);
                             }
                             return;
                     }
-                    break;/*
+                    break; /*
                 case 0x4F:
                     CPU_AH = 0x86;
                     cf = 1;
@@ -1124,7 +1247,7 @@ void intcall86(uint8_t intnum) {
                 case 0x88: // memory info
 #if ON_BOARD_RAM_KB > 64 * 1024
                     CPU_AX = hma_in_use ? 63 * 1024 - 64 : 63 * 1024;
-#else 
+#else
                     CPU_AX = hma_in_use ? ON_BOARD_RAM_KB - 1024 - 64 : ON_BOARD_RAM_KB - 1024;
 #endif
                     cf = 0;
@@ -1147,7 +1270,7 @@ void intcall86(uint8_t intnum) {
                     CPU_BX = 0xFFFE; // BIOS config table
                     break;*/
                 case 0xE8:
-                    switch(CPU_AL) {
+                    switch (CPU_AL) {
                         case 0x01:
 #if ON_BOARD_RAM_KB > 16*1024
                             CPU_CX = 1024 * 15; // 15MB
@@ -1159,7 +1282,7 @@ void intcall86(uint8_t intnum) {
                             CPU_AX = CPU_CX;
                             CPU_BX = CPU_DX;
                             cf = 0;
-                            return;/*
+                            return; /*
                         case 0x20: {
                                 // ES:DI - destination for the table
                                 int count = e820_count;
@@ -1197,12 +1320,11 @@ void intcall86(uint8_t intnum) {
         case 0x10:
             //printf("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
             switch (CPU_AH) {
-
                 case 0x0f:
-                        if (videomode < 8) break;
-                        CPU_AL = videomode;
-                        CPU_AH = 80;
-                        CPU_BH = 0;
+                    if (videomode < 8) break;
+                    CPU_AL = videomode;
+                    CPU_AH = 80;
+                    CPU_BH = 0;
                     return;
                 case 0x00:
                     videomode = CPU_AL & 0x7F;
@@ -1226,17 +1348,21 @@ void intcall86(uint8_t intnum) {
 #endif
                 // http://www.techhelpmanual.com/114-video_modes.html
                 // http://www.techhelpmanual.com/89-video_memory_layouts.html
-                char tmp[40];
-                sprintf(tmp, "VBIOS: Mode 0x%x (0x%x)", CPU_AX, videomode);
-                logMsg(tmp);
+                    char tmp[40];
+                    sprintf(tmp, "VBIOS: Mode 0x%x (0x%x)", CPU_AX, videomode);
+                    logMsg(tmp);
 #if PICO_ON_DEVICE
                     switch (videomode) {
                         case 0:
                         case 1:
                             graphics_set_mode(TEXTMODE_40x30);
                             break;
+
+                        case 7:
+
                         case 2:
                         case 3:
+
                             graphics_set_mode(TEXTMODE_80x30);
                             break;
                         case 4:
@@ -1267,12 +1393,29 @@ void intcall86(uint8_t intnum) {
                             break;
                         case 0x13:
                             graphics_set_buffer(VIDEORAM, 320, 200);
+                            for (int i = 0; i < 256; i++) {
+                                graphics_set_palette(i, vga_palette[i]);
+                            }
                             graphics_set_mode(VGA_320x200x256);
+                            port3D8 = port3D8 & 0xFE;
                             break;
                     }
 #endif
                 // Установить видеорежим
                     break;
+                case 0x10: //VGA DAC functions
+                    switch (CPU_AL) {
+                        case 0x10: //set individual DAC register
+                            vga_palette[CPU_BX] = rgb((CPU_DH & 63) << 2, (CPU_CH & 63) << 2, (CPU_CL & 63) << 2);
+                        break;
+                        case 0x12: //set block of DAC registers
+                            memloc = CPU_ES * 16 + CPU_DX;
+                        for (n = CPU_BX; n < (uint32_t)(CPU_BX + CPU_CX); n++) {
+                            vga_palette[n] = rgb(read86(memloc) << 2, read86(memloc + 1) << 2, read86(memloc + 2) << 2);
+                            memloc += 3;
+                        }
+                    }
+                break;
                 /*
                                 case 0x1A: //get display combination code (ps, vga/mcga)
                                     CPU_AL = 0x1A;
@@ -2240,12 +2383,16 @@ INLINE void exec86(uint32_t execloops) {
             savecs = CPU_CS;
             saveip = ip;
 
-            if (CPU_CS == 0xFFFF && ip == 0x000F) { // hook for XMS
+            if (CPU_CS == 0xFFFF && ip == 0x000F) {
+                // hook for XMS
                 opcode = xms_fn();
-            } else if (CPU_CS == 0xFFFF && ip == 0x0000) { // hook for reboot
+            }
+            else if (CPU_CS == 0xFFFF && ip == 0x0000) {
+                // hook for reboot
                 extra_mem_initialized = false;
                 opcode = getmem8(CPU_CS, ip);
-            } else {
+            }
+            else {
                 opcode = getmem8(CPU_CS, ip);
             }
             StepIP(1);

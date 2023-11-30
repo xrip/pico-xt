@@ -297,7 +297,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
             input_buffer_8bit = input_buffer + line * 320;
             for(int i=width;i--;)
             {
-                *output_buffer_16bit++=current_palette[*input_buffer_8bit++];
+                //*output_buffer_16bit++=current_palette[*input_buffer_8bit++];
                 *output_buffer_16bit++=current_palette[*input_buffer_8bit++];
 
             }
