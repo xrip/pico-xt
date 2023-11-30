@@ -12,6 +12,11 @@ uint16_t portram[256];
 uint8_t crt_controller_idx, crt_controller[18];
 uint16_t port378, port379, port37A, port3D8, port3D9, port3DA, port201;
 
+static uint8_t vga_palette_index = 0;
+static uint8_t vga_color_index = 0;
+static uint8_t dac_state = 0;
+static uint8_t latchReadRGB = 0, latchReadPal = 0;
+
 void portout(uint16_t portnum, uint16_t value) {
     switch (portnum) {
         case 0x92: {
@@ -108,6 +113,43 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x389:
             outadlib(portnum, value);
             break;
+        case 0x3C7: //color index register (read operations)
+            //printf("W 0x%x : 0x%x\r\n", portnum, value);
+                dac_state = 0;
+        latchReadRGB = 0;
+            break;
+        case 0x3C8: //color index register (write operations)
+            //printf("W 0x%x : 0x%x\r\n", portnum, value);
+            vga_color_index = 0;
+            dac_state = 3;
+            vga_palette_index = value & 255;
+            break;
+        case 0x3C9: //RGB data register
+        {
+            //printf("W 0x%x : 0x%x\r\n", portnum, value);
+            static uint8_t r, g, b;
+            //value = value; // & 63;
+            switch (vga_color_index) {
+                case 0: //red
+                    r =  value << 2;
+                break;
+                case 1: //green
+                    g = value << 2;
+                break;
+                case 2: //blue
+                    b = value << 2;
+                vga_palette[vga_palette_index] = rgb(r,g,b);
+#if PICO_ON_DEVICE
+                graphics_set_palette(vga_palette_index, vga_palette[vga_palette_index]);
+#endif;
+                //printf("RGB#%i %x\r\n", vga_palette_index, vga_palette[vga_palette_index]);
+                vga_palette_index++;
+                break;
+            }
+            vga_color_index = (vga_color_index + 1) % 3;
+
+            break;
+        }
         case 0x3D4:
             // http://www.techhelpmanual.com/901-color_graphics_adapter_i_o_ports.html
             crt_controller_idx = value;
@@ -287,6 +329,21 @@ uint16_t portin(uint16_t portnum) {
         case 0x388: // adlib
         case 0x389:
             return inadlib(portnum);
+            break;
+        case 0x3C7: //DAC state
+            return dac_state;
+        case 0x3C8: //palette index
+            return latchReadPal;
+        case 0x3C9: //RGB data register
+            switch (latchReadRGB++) {
+                case 0: //blue
+                    return (vga_palette[latchReadPal] ) & 63;
+                case 1: //green
+                    return (vga_palette[latchReadPal] ) & 63;
+                case 2: //red
+                    latchReadRGB = 0;
+                return (vga_palette[latchReadPal++] ) & 63;
+            }
             break;
         case 0x3D4:
             return crt_controller_idx;

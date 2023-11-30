@@ -238,7 +238,7 @@ extern void	tickadlib	( void );
 
 #if !PICO_ON_DEVICE
 void handleinput(void);
-#define logMsg(c) printf(c);
+#define logMsg(c) printf("%s\r\n",c);
 #endif
 
 extern struct i8259_s {
@@ -263,5 +263,6 @@ extern struct i8253_s {
     uint8_t active[3];
     uint16_t counter[3];
 } i8253;
-#define rgb(r, g, b) ((r<<16) | (g << 8 ) | b )
+#define rgb(b, g, r) r | (g<<8) | (b<<16) | (0xFF << 24);
+//r<<16) | (g << 8 ) | b )
 #endif //TINY8086_CPU8086_H

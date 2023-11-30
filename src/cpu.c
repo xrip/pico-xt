@@ -333,7 +333,7 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
 }
 #endif
 
-INLINE void writew86(uint32_t addr32, uint16_t value) {
+void writew86(uint32_t addr32, uint16_t value) {
     if (addr32 & 0x00000001) {
         // not 16-bit alligned
         write86(addr32, (uint8_t)value);
@@ -564,7 +564,7 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
 uint8_t read86(uint32_t addr32) {
     if (addr32 == 0xFC000) {
         // TANDY graphics hack (TODO: BIOS)
-        //return 0x21;
+        return 0x21;
     }
 
 #if PICO_ON_DEVICE
@@ -1404,6 +1404,7 @@ void intcall86(uint8_t intnum) {
                 // Установить видеорежим
                     break;
                 case 0x10: //VGA DAC functions
+                    printf("palette manipulation\r\n");
                     switch (CPU_AL) {
                         case 0x10: //set individual DAC register
                             vga_palette[CPU_BX] = rgb((CPU_DH & 63) << 2, (CPU_CH & 63) << 2, (CPU_CL & 63) << 2);
@@ -1415,6 +1416,11 @@ void intcall86(uint8_t intnum) {
                             memloc += 3;
                         }
                     }
+                break;
+                case 0x1A: //get display combination code (ps, vga/mcga)
+                    CPU_AL = 0x1A;
+                CPU_BL = 0x04;
+                CPU_BH = 0x08;
                 break;
                 /*
                                 case 0x1A: //get display combination code (ps, vga/mcga)
@@ -2347,13 +2353,13 @@ extern void ps2poll();
 
 #endif
 
-INLINE void exec86(uint32_t execloops) {
+ void exec86(uint32_t execloops) {
     uint8_t docontinue;
     static uint16_t firstip;
     static uint16_t trap_toggle = 0;
 
     //counterticks = (uint64_t) ( (double) timerfreq / (double) 65536.0);
-    tickssource();
+    //tickssource();
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
         //if ((totalexec & 256) == 0)
         if (trap_toggle) {

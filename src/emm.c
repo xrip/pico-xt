@@ -57,7 +57,6 @@
 #include "emm.h"
 #include <string.h>
 #include <stdbool.h>
-#include "emulator.h"
 
 uint16_t emm_conventional_segment() {
     return PHYSICAL_EMM_SEGMENT;
