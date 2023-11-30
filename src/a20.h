@@ -1,6 +1,10 @@
 #pragma once
 #define PORT_A20 0x92
 #define A20_ENABLE_BIT 0x02
+#define UMB_START_ADDRESS 0xC8000ul
+#define UMB_BLOCKS 5
+#define HMA_START_ADDRESS 0x100000ul
+#define OUT_OF_HMA_ADDRESS 0x10FFF0ul
 
 #include <stdbool.h>
 #include <inttypes.h>

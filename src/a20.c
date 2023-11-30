@@ -282,13 +282,8 @@ typedef struct umb {
     bool allocated;
 } umb_t;
 
-#define UMB_BLOCKS 5
-
 static umb_t umb_blocks[UMB_BLOCKS] = {
-    //0xA000, 0x0800, false, // TODO: remove on EGA enabled
-    //0xA800, 0x0100, false, // TODO: remove on EGA enabled
-    //0xB000, 0x0800, false, // TODO: remove on EGA enabled
-    0xC800, 0x0800, false,
+    UMB_START_ADDRESS >> 4, 0x0800, false,
     0xE000, 0x0800, false,
     0xE800, 0x0800, false,
     0xF000, 0x0800, false,
@@ -361,8 +356,8 @@ uint8_t xms_fn() {
     switch(CPU_AH) {
         case 0x00: // XMS 00H: Get XMS Version Number
             sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 2.0; Drv ver 1.0; HMA available", CPU_AH);
-            CPU_AX = 0x0200; // spec. version
-            CPU_BX = 0x0100; // driver version
+            CPU_AX = 0x0300; // spec. version
+            CPU_BX = 0x0101; // driver version
             CPU_DX = 0x0001; // HMA installed
             break;
         case 0x01: // XMS 01H: Request High Memory Area
