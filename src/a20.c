@@ -224,15 +224,25 @@ uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
     return 0;
 }
 
-uint8_t /*BL*/ lock_ext_mem_block(uint16_t handler) {
-    // TODO: error handling
-    xmm_handlers[handler - 1].locks_cnt++;
+uint8_t /*BL*/ lock_ext_mem_block(uint16_t handler, uint16_t* pw1, uint16_t* pw0) {
+    if(handler > MAX_XMM_HANDLERS) {
+        return 0xA2; // the handler is invalid
+    }
+    xmm_handlers[handler].locks_cnt++;
+    uint32_t addr32 = (BASE_XMS_HANLERS_SEG << 4) + (uint32_t)handler * (XMS_STATIC_PAGE_PHARAGRAPS << 4);
+    *pw1 = addr32 >> 16;
+    *pw0 = addr32;
     return 0;
 }
 
 uint8_t /*BL*/ unlock_ext_mem_block(uint16_t handler) {
-    // TODO: error handling
-    xmm_handlers[handler - 1].locks_cnt--;
+    if(handler > MAX_XMM_HANDLERS) {
+        return 0xA2; // the handler is invalid
+    }
+    if (xmm_handlers[handler].locks_cnt == 0) {
+        return 0xAA; // is not locked
+    }
+    xmm_handlers[handler].locks_cnt--;
     return 0;
 }
 
@@ -245,11 +255,11 @@ INLINE uint16_t xmm_used_kb() {
 }
 
 static INLINE void init_handlers() {
-    uint16_t seg = 0x11000;
+    uint16_t seg = BASE_XMS_HANLERS_SEG;
     for (uint16_t i = 0; i < MAX_XMM_HANDLERS; ++i) {
         xmm_handler_t *ph = &xmm_handlers[i];
         ph->seg = seg;
-        seg += 0x400; // static 16k pages
+        seg += XMS_STATIC_PAGE_PHARAGRAPS; // static 16k pages
     }
 }
 
@@ -453,14 +463,16 @@ uint8_t xms_fn() {
             sprintf(tmp, "XMS FN 0Bh: Move Extended Memory Block; BL: %0Xh", CPU_BL);
             CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
             break;
-        case 0x0C:
-            CPU_BL = lock_ext_mem_block(CPU_DX);
-            sprintf(tmp, "XMS FN 0Ch: Lock Extended Memory Block #%0Xh", CPU_DX);
+        case 0x0C: {
+            uint16_t handler = CPU_DX - 1;
+            CPU_BL = lock_ext_mem_block(handler, &CPU_DX, &CPU_BX);
+            sprintf(tmp, "XMS FN 0Ch: Lock Extended Memory Block #%d %04X:%044X err: %02X", handler, CPU_DX, CPU_BX, CPU_BL);
             CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
             break;
+        }
         case 0x0D:
-            CPU_BL = unlock_ext_mem_block(CPU_DX);
-            sprintf(tmp, "XMS FN 0Dh: Unlock Extended Memory Block #%0Xh", CPU_DX);
+            CPU_BL = unlock_ext_mem_block(CPU_DX - 1);
+            sprintf(tmp, "XMS FN 0Dh: Unlock Extended Memory Block #%d", CPU_DX - 1);
             CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
             break;
         case 0x0E: { // XMS 0eH: Get Handle Information

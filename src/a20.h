@@ -5,6 +5,8 @@
 #define UMB_BLOCKS 5
 #define HMA_START_ADDRESS 0x100000ul
 #define OUT_OF_HMA_ADDRESS 0x10FFF0ul
+#define BASE_XMS_HANLERS_SEG 0x11000ul
+#define XMS_STATIC_PAGE_PHARAGRAPS 0x400ul // 16k
 // last byte of interrupts table (actually should not be ever used as CS:IP)
 #define XMS_FN_CS 0x0000
 #define XMS_FN_IP 0x03FF
