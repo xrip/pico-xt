@@ -122,6 +122,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
         case CGA_320x200x4:
         case CGA_640x200x2:
         case TGA_320x200x16:
+        case EGA_320x200x16:
         case VGA_320x200x256:
             line_number = screen_line / 2;
             if (screen_line % 2) return;
@@ -293,6 +294,31 @@ void __not_in_flash_func(dma_handler_VGA)() {
                     input_buffer_8bit++;
                 }
             break;
+        case EGA_320x200x16:
+            //4bit buf
+                input_buffer_8bit = input_buffer + line * 40;
+                for (int x = 0; x < 40; x++) {
+                    int x1 = 7 - (x & 7);
+                    uint8_t color = (*input_buffer_8bit >> x1) &1;
+                    color |= (*input_buffer_8bit+32000 >> x1) &1;
+                    color |= (*input_buffer_8bit+32000*2 >> x1) &1;
+                    color |= (*input_buffer_8bit+32000*3 >> x1) &1;
+                    *output_buffer_16bit++ = current_palette[color];
+                    *output_buffer_16bit++ = current_palette[color];
+                    *output_buffer_16bit++ = current_palette[color];
+                    *output_buffer_16bit++ = current_palette[color];
+                    input_buffer_8bit++;
+                    color = (*input_buffer_8bit >> x1) &1;
+                    color |= (*input_buffer_8bit+32000 >> x1) &1;
+                    color |= (*input_buffer_8bit+32000*2 >> x1) &1;
+                    color |= (*input_buffer_8bit+32000*3 >> x1) &1;
+                    *output_buffer_16bit++ = current_palette[color];
+                    *output_buffer_16bit++ = current_palette[color];
+                    *output_buffer_16bit++ = current_palette[color];
+                    *output_buffer_16bit++ = current_palette[color];
+                    input_buffer_8bit++;
+                }
+            break;
         case VGA_320x200x256:
             input_buffer_8bit = input_buffer + line * 320;
             for(int i=width;i--;)
@@ -365,6 +391,7 @@ enum graphics_mode_t graphics_set_mode(enum graphics_mode_t mode) {
         case CGA_320x200x4:
         case CGA_160x200x16:
         case VGA_320x200x256:
+        case EGA_320x200x16:
         case TGA_320x200x16:
 
             TMPL_LINE8 = 0b11000000;
