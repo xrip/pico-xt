@@ -564,7 +564,7 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
 uint8_t read86(uint32_t addr32) {
     if (addr32 == 0xFC000) {
         // TANDY graphics hack (TODO: BIOS)
-        return 0x21;
+        //return 0x21;
     }
 
 #if PICO_ON_DEVICE
@@ -1360,15 +1360,30 @@ void intcall86(uint8_t intnum) {
                     }
                     switch (videomode) {
                         case 0:
+                            for (int i = 0; i < 16; i++) {
+                                graphics_set_palette(i, cga_grayscale_palette[i]);
+                            }
+                            graphics_set_mode(TEXTMODE_40x30);
+                            break;
                         case 1:
+                            for (int i = 0; i < 16; i++) {
+                                graphics_set_palette(i, cga_palette[i]);
+                            }
                             graphics_set_mode(TEXTMODE_40x30);
                             break;
 
-                        case 7:
 
                         case 2:
+                            for (int i = 0; i < 16; i++) {
+                                graphics_set_palette(i, cga_grayscale_palette[i]);
+                            }
+                            graphics_set_mode(TEXTMODE_80x30);
+                            break;
                         case 3:
-
+                        case 7:
+                        for (int i = 0; i < 16; i++) {
+                            graphics_set_palette(i, cga_palette[i]);
+                        }
                             graphics_set_mode(TEXTMODE_80x30);
                             break;
                         case 4:

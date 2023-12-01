@@ -27,6 +27,26 @@ const uint32_t cga_palette[16] = {
     0xFFFFFF //white
 };
 
+// cga 16 shade palette (text mode)
+const uint32_t cga_grayscale_palette[16] = {
+    0x000000,
+    0x393939,
+    0x818181,
+    0x8d8d8d,
+    0x5c5c5c,
+    0x6c6c6c,
+    0x717171,
+    0xa9a9a9,
+    0x545454,
+    0x757575,
+    0xcacaca,
+    0xd9d9d9,
+    0x9b9b9b,
+    0xafafaf,
+    0xf0f0f0,
+    0xfefefe,
+  };
+
 const uint8_t cga_gfxpal[3][2][4] = {
     //palettes for 320x200 graphics mode
     {

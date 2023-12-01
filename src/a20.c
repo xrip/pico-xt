@@ -198,7 +198,7 @@ INLINE uint8_t xmm_free_handles() {
     return res;
 }
 
-static INLINE uint16_t xmm_handle_size(uint16_t h) {
+INLINE uint16_t xmm_handle_size(uint16_t h) {
     uint16_t res = 0;
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
         if (xmm_handles[i].handle == h) res += xmm_handles[i].sz_kb;
@@ -206,7 +206,7 @@ static INLINE uint16_t xmm_handle_size(uint16_t h) {
     return res;
 }
 
-static INLINE uint16_t handle2seg(uint16_t handle) {
+INLINE uint16_t handle2seg(uint16_t handle) {
     return (handle - 1) * XMS_STATIC_PAGE_PHARAGRAPS + BASE_XMS_HANLES_SEG;
 }
 
