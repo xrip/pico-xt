@@ -135,8 +135,6 @@ static inline void decodeflagsword(uint16_t x) {
 void logMsg(char*);
 uint8_t xms_fn();
 
-extern bool extra_mem_initialized;
-
 #define StepIP(x)  ip += x
 
 #define getmem8(x, y) read86(segbase(x) + y)
@@ -180,17 +178,18 @@ extern union _bytewordregs_ {
     uint8_t byteregs[8];
 } regs;
 
-
+void reboot_detected();
 
 void diskhandler();
 uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname);
 
+void writew86(uint32_t addr32, uint16_t value);
 void write86(uint32_t addr32, uint8_t value);
+uint16_t readw86(uint32_t addr32);
+uint8_t read86(uint32_t addr32);
+
 void reset86(void);
 void exec86(uint32_t execloops);
-uint8_t read86(uint32_t addr32);
-uint16_t readw86(uint32_t addr32);
-
 
 void portout(uint16_t portnum, uint16_t value);
 uint16_t portin(uint16_t portnum);
