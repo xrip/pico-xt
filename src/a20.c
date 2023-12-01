@@ -323,7 +323,7 @@ bool hma_in_use = false;
 
 void reboot_detected() {
     logMsg("REBOOT WAS DETECTED");
-    sleep_ms(500);
+    //sleep_ms(500);
     emm_reboot();
     xmm_reboot();
 }

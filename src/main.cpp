@@ -717,7 +717,7 @@ int main() {
         } else if (mode >= 0x0d && mode < 0x13) {
             uint32_t* pix = pixels;
             vidramptr = VIDEORAM;
-            const uint32_t planesize = 32000;
+            const uint32_t planesize = 16000;
             for (int y = 0; y < 400; y++) {
                 for (int x = 0; x < 640; x++) {
                     uint32_t divx = x>>1;

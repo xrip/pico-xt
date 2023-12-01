@@ -112,7 +112,7 @@ void write86(uint32_t addr32, uint8_t value);
 INLINE void writeVRAM(uint32_t addr32, uint8_t value) {
     uint32_t offset = 0;
     if (videomode >= 0x0D) {
-        offset += ega_plane * 32000; /// 32000 = 320x200x16
+        offset += ega_plane * 16000; /// 32000 = 320x200x16
     }
     VIDEORAM[offset + addr32 - VIDEORAM_START32] = value;
 }
@@ -410,7 +410,7 @@ INLINE uint16_t read86rom16(uint32_t addr32) {
 INLINE uint8_t read86video_ram(uint32_t addr32) {
     uint32_t offset = 0;
     if (videomode >= 0x0D) {
-        offset += ega_plane * 32000; /// 32000 = 320x200x16
+        offset += ega_plane * 16000; /// 32000 = 320x200x16
     }
     return VIDEORAM[offset + addr32 - VIDEORAM_START32];
 }
