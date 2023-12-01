@@ -50,7 +50,7 @@ TURBO_HOTKEY	= 1		; Define to enable "CTRL ALT -" hotkey to toggle turbo mode
 ;TEST_CPU	= 1		; Define to test CPU at power on
 				;   If enabled, ENHANCED_KEYB must be disabled due to memory limits
 
-TEST_VIDEO	= 1		; Define to test video memory at power on (Mono/Herc/CGA only)
+TEST_VIDEO	= 0		; Define to test video memory at power on (Mono/Herc/CGA only)
 				;   If enabled, CLEAR_UMA must be disabled due to memory limits
 
 MAX_MEMORY	= 640		; Maximum conventional memory allowed in KB (with EGA/VGA)
@@ -451,15 +451,15 @@ else
 endif
 else
 ifdef	TURBO_ENABLED
-	str_banner	db	'Turbo XT BIOS v3.1 - 10/28/2017', 0
+	str_banner	db	15h,' MURMULATOR PC/XT - 11/30/2023', 0
 else
 	str_banner	db	'Super XT BIOS v3.1 - 10/28/2017', 0
 endif
 endif
 str_banner_end:
 
-str_ega_vga	db	195, ' EGA/VGA Graphics', 0
-str_parallel	db	195, ' Parallel Port at ', 0
+str_ega_vga	db	195, ' CGA/TGA/VGA Graphics', 0
+str_parallel	db	195, ' LPT Port at ', 0
 str_game	db	195, ' Game Port at 201h', 0
 
 
@@ -693,7 +693,7 @@ else						; Read 5160 switch config
 ;	mov	cl, 4				;   and init video mode
 ;	shl	al, cl				;   shift in hi nibble
 ;	or	al, ah
-	mov     al, 01100001b			; video type cga 80x25
+	mov     al, 61h			        ; video type cga 80x25
 endif
 	mov	ah, 0
 
@@ -988,7 +988,7 @@ print_error:
 	mov	si, offset str_ega_vga		; Otherwise we have EGA/VGA
 	jmp	short @@display_video
 @@is_cga:
-	mov	si, offset str_cga
+	mov	si, offset str_ega_vga
 @@display_video:
 	call	print				; Print video adapter present
 
@@ -1856,7 +1856,7 @@ proc	int_14	far
 endp	int_14
 
 
-str_serial	db	195, ' Serial Port at ', 0
+str_serial	db	195, ' COM Port at ', 0
 
 
 ;---------------------------------------------------------------------------------------------------
@@ -2430,9 +2430,10 @@ proc	stuff_keyboard_buffer	near
 endp	stuff_keyboard_buffer
 
 
-str_banner_2	db	CR, LF, 'Upgrades by Ya`akov Miles & Jon Petrosky', 0
-str_8088	db	'8088 CPU (', 0
-str_boot_basic	db	'Press SPACE to boot ROM BASIC...', 0
+str_banner_2	db	CR, LF, 'Turbo XT BIOS v3.1. Upgrades by Ya`akov Miles & Jon Petrosky',CR,LF, 0
+str_8088	db	'', 0
+;str_8088	db	'8088 CPU (', 0
+str_boot_basic	db	'SPACE to run BASIC', 0
 
 
 ;---------------------------------------------------------------------------------------------------
@@ -3105,7 +3106,7 @@ proc	int_17	far
 endp	int_17
 
 
-str_cga		db	195, ' TGA Graphics', 0
+;str_cga		db	195, ' CGA Graphics', 0
 
 
 ;---------------------------------------------------------------------------------------------------
@@ -4780,7 +4781,7 @@ proc	title_print	near
 	mov	bx, 0070h			; Mono uses inverse attribute
 	cmp	[byte es:49h], 7		; Get CRT mode
 	je	@@loop				;   monochrome
-	mov	bl, 1Fh				; Color uses white on blue
+	mov	bl, 0E0h				; Color uses white on blue
 
 @@loop:
 	lodsb					; Print zero terminated string
@@ -4802,7 +4803,7 @@ else
 	call	color_out_char			;   extend bar
 	add	cl, 4
 
-	sub	bl, 61h				; Change color to white on black
+	mov	bl, 0E8h				; Change color to white on black
 	jns	@@fade				;   jump if monochrome
 	mov	bl, 001h			;   else use black on blue
 
