@@ -17,6 +17,10 @@ static uint8_t vga_color_index = 0;
 static uint8_t dac_state = 0;
 static uint8_t latchReadRGB = 0, latchReadPal = 0;
 
+uint8_t ega_plane = 0;
+static uint16_t port3C4 = 0;
+static uint16_t port3C5 = 0;
+
 void portout(uint16_t portnum, uint16_t value) {
     switch (portnum) {
         case 0x92: {
@@ -113,10 +117,29 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x389:
             outadlib(portnum, value);
             break;
+        case 0x3C4: //sequence controller index
+            // TODO: implement other EGA sequences
+            port3C4 =  value & 255;
+            break;
+        case 0x3C5: //sequence controller data
+            // TODO: Это грязный хак, сделать нормально
+            port3C5 = value & 255;
+            if ((port3C4 & 0x1F) == 0x02) {
+                switch (value) {
+                    case 0x01: ega_plane = 0; break;
+                    case 0x02: ega_plane = 1; break;
+                    case 0x04: ega_plane = 2; break;
+                    case 0x08: ega_plane = 3; break;
+                    default:
+                        ega_plane = 0;
+                }
+
+            }
+            break;
         case 0x3C7: //color index register (read operations)
             //printf("W 0x%x : 0x%x\r\n", portnum, value);
-                dac_state = 0;
-        latchReadRGB = 0;
+            dac_state = 0;
+            latchReadRGB = 0;
             break;
         case 0x3C8: //color index register (write operations)
             //printf("W 0x%x : 0x%x\r\n", portnum, value);
@@ -132,20 +155,20 @@ void portout(uint16_t portnum, uint16_t value) {
             //value = value; // & 63;
             switch (vga_color_index) {
                 case 0: //red
-                    color =  value << 16;
-                break;
+                    color = value << 16;
+                    break;
                 case 1: //green
                     color |= value << 8;
-                break;
+                    break;
                 case 2: //blue
                     color |= value;
-                vga_palette[vga_palette_index] = color << 2;
+                    vga_palette[vga_palette_index] = color << 2;
 #if PICO_ON_DEVICE
                 graphics_set_palette(vga_palette_index, vga_palette[vga_palette_index]);
 #endif
                 //printf("RGB#%i %x\r\n", vga_palette_index, vga_palette[vga_palette_index]);
-                vga_palette_index++;
-                break;
+                    vga_palette_index++;
+                    break;
             }
             vga_color_index = (vga_color_index + 1) % 3;
 
@@ -229,20 +252,20 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3DE: // tandy register
             break;
         case 0x3DF: // tandy CRT/Processor Page Register
-        /*
-        CRT/Processor Page Register
-        This 8-bit (write-only) register is addressed at 3DF. The descriptions below are
-        of the register functions:
-        Bit	Description
-        0	CRT Page 0
-        1	CRT Page 1
-        2	CRT Page 2
-        3	Processor Page 0
-        4	Processor Page 1
-        5	Processor Page 2
-        6	Video Address Mode 0
-        7	Video Address Mode 1
-        */
+            /*
+            CRT/Processor Page Register
+            This 8-bit (write-only) register is addressed at 3DF. The descriptions below are
+            of the register functions:
+            Bit	Description
+            0	CRT Page 0
+            1	CRT Page 1
+            2	CRT Page 2
+            3	Processor Page 0
+            4	Processor Page 1
+            5	Processor Page 2
+            6	Video Address Mode 0
+            7	Video Address Mode 1
+            */
             break;
         case 0x3F8:
         case 0x3F9:
@@ -331,7 +354,12 @@ uint16_t portin(uint16_t portnum) {
         case 0x388: // adlib
         case 0x389:
             return inadlib(portnum);
-            break;
+        case 0x3C4: //sequence controller index
+            // TODO: implement other EGA sequences
+            return port3C4;
+        case 0x3C5:
+            if (port3C4 == 0x02) return port3C5;
+            return 0xFF;
         case 0x3C7: //DAC state
             return dac_state;
         case 0x3C8: //palette index
@@ -344,7 +372,7 @@ uint16_t portin(uint16_t portnum) {
                     return (vga_palette[latchReadPal] >> 2) & 63;
                 case 2: //red
                     latchReadRGB = 0;
-                return (vga_palette[latchReadPal++] >> 2) & 63;
+                    return (vga_palette[latchReadPal++] >> 2) & 63;
             }
             break;
         case 0x3D4:

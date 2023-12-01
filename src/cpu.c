@@ -110,7 +110,11 @@ void modregrm() {
 void write86(uint32_t addr32, uint8_t value);
 
 INLINE void writeVRAM(uint32_t addr32, uint8_t value) {
-    VIDEORAM[addr32 - VIDEORAM_START32] = value;
+    uint32_t offset = 0;
+    if (videomode >= 0x0D) {
+        offset += ega_plane * 32000; /// 32000 = 320x200x16
+    }
+    VIDEORAM[offset + addr32 - VIDEORAM_START32] = value;
 }
 
 #if PICO_ON_DEVICE
@@ -401,7 +405,11 @@ INLINE uint16_t read86rom16(uint32_t addr32) {
 }
 
 INLINE uint8_t read86video_ram(uint32_t addr32) {
-    return VIDEORAM[addr32 - VIDEORAM_START32];
+    uint32_t offset = 0;
+    if (videomode >= 0x0D) {
+        offset += ega_plane * 32000; /// 32000 = 320x200x16
+    }
+    return VIDEORAM[offset + addr32 - VIDEORAM_START32];
 }
 
 #if PICO_ON_DEVICE
@@ -1337,15 +1345,13 @@ void intcall86(uint8_t intnum) {
                 //if (videomode >= 8) CPU_AL = 4;
 
                 // FIXME!!
-                    RAM[0x449] = videomode;
+                    RAM[0x449] = CPU_AL;
                     RAM[0x44A] = (uint8_t)videomode <= 2 ? 40 : 80;
                     RAM[0x44B] = 0;
                     RAM[0x484] = (uint8_t)(25 - 1);
-#ifdef EGA
                     if ((CPU_AL & 0x80) == 0x00) {
-                        memset(VRAM, 0x0, sizeof VRAM);
+                        memset(VIDEORAM, 0x0, sizeof VIDEORAM);
                     }
-#endif
                 // http://www.techhelpmanual.com/114-video_modes.html
                 // http://www.techhelpmanual.com/89-video_memory_layouts.html
                     char tmp[40];
@@ -1446,6 +1452,13 @@ void intcall86(uint8_t intnum) {
                                 memloc += 3;
                             }
                     }
+                    break;
+                case 0x12:
+                    CPU_BH = 0 ;   // default BIOS setup (0=color; 1=monochrome)
+                              CPU_BL = 1;   //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
+                                    //(Note: if BL>4, then this is not an EGA BIOS)
+                              CPU_CH = 0;    //feature bits (values of those RCA connectors)
+                              CPU_CL = 0;   //switch settings
                     break;
                 case 0x1A: //get display combination code (ps, vga/mcga)
                     CPU_AL = 0x1A;
