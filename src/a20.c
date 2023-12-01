@@ -210,33 +210,34 @@ INLINE uint16_t handle2seg(uint16_t handle) {
     return (handle - 1) * XMS_STATIC_PAGE_PHARAGRAPS + BASE_XMS_HANLES_SEG;
 }
 
-//char tmp[80];
 uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
-    // TODO: error handling
+    char tmp[80];
     uint32_t w0 = readw86(tbl_addr++); tbl_addr++;
     uint32_t w1 = readw86(tbl_addr++); tbl_addr++;
     uint32_t len = (w1 << 16) | w0; // bytes to transfer
     uint16_t s_h = readw86(tbl_addr++); tbl_addr++; // handle of source
-    //sprintf(tmp, "move_ext_mem_block LEN:%08X (%04X:%04X) SH:%04X", len, w0, w1, s_h); logMsg(tmp);
+    sprintf(tmp, "move_ext_mem_block LEN:%08Xh (%04X:%04X) Src H:%04Xh", len, w1, w0, s_h); logMsg(tmp);
     if (s_h > MAX_XMM_HANDLES) {
         return 0xA3;
     }
     uint32_t s0 = readw86(tbl_addr++); tbl_addr++;
     uint32_t s1 = readw86(tbl_addr++); tbl_addr++;
+    uint32_t shs = s_h == 0 ? 0 : handle2seg(s_h);
     uint32_t s_o = s_h == 0 ?
         ((s1 << 4) + s0) :
-        ((s1 << 16) | s0) + ((uint32_t)handle2seg(s_h) << 4); // source offset
-    //sprintf(tmp, "move_ext_mem_block S_O:%08X (%04X:%04X)", s_o, s0, s1); logMsg(tmp);
+        ((s1 << 16) | s0) + (shs << 4); // source offset
     uint16_t d_h = readw86(tbl_addr++); tbl_addr++; // handle of destination
+    sprintf(tmp, "move_ext_mem_block Src O:%08X (%04X:%04X), SHS: %04Xh, Dst H: %04x", s_o, s1, s0, shs, d_h); logMsg(tmp);
     if (d_h > MAX_XMM_HANDLES) {
         return 0xA3;
     }
     uint32_t d0 = readw86(tbl_addr++); tbl_addr++;
     uint32_t d1 = readw86(tbl_addr);
+    uint32_t dhs = d_h == 0 ? 0 : handle2seg(d_h);
     uint32_t d_o = d_h == 0 ?
         ((d1 << 4) + d0) :
-        ((d1 << 16) | d0) +  ((uint32_t)handle2seg(d_h) << 4); // destination offset
-    //sprintf(tmp, "move_ext_mem_block D_H:%04X D_O(%04X:%04X)", d_h, d0, d1); logMsg(tmp);
+        ((d1 << 16) | d0) + (dhs << 4); // destination offset
+    sprintf(tmp, "move_ext_mem_block Dst O:%08X (%04X:%04X) DHS: %04Xh", d_o, d1, d0, dhs); logMsg(tmp);
     for (uint32_t s_i = 0; s_o < len; s_o += 2, d_o += 2) { // TODO: block move
         uint16_t d = readw86(s_o);
         writew86(d_o, d);
@@ -547,7 +548,7 @@ uint8_t xms_fn() {
         }
         case 0x0B:
             sprintf(tmp, "XMS FN 0Bh: Move Extended Memory Block; BL: %04X:%04X", CPU_DS, CPU_SI);
-            CPU_BL = move_ext_mem_block(((uint32_t)CPU_DS << 5) + CPU_SI);
+            CPU_BL = move_ext_mem_block(((uint32_t)CPU_DS << 4) + CPU_SI);
             CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
             break;
         case 0x0C: {
