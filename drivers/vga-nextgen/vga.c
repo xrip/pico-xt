@@ -113,7 +113,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
         return;
     }//если нет видеобуфера - рисуем пустую строку
 
-    int line, line_number;
+    int y, line_number;
 
     uint32_t * *output_buffer = &lines_pattern[2 + (screen_line & 1)];
     uint div_factor = 2;
@@ -122,10 +122,11 @@ void __not_in_flash_func(dma_handler_VGA)() {
         case CGA_320x200x4:
         case CGA_640x200x2:
         case TGA_320x200x16:
+        case EGA_320x200x16:
         case VGA_320x200x256:
             line_number = screen_line / 2;
             if (screen_line % 2) return;
-            line = screen_line / 2 - graphics_buffer_shift_y;
+            y = screen_line / 2 - graphics_buffer_shift_y;
             break;
 
         case TEXTMODE_160x100:
@@ -183,14 +184,14 @@ void __not_in_flash_func(dma_handler_VGA)() {
         }
     }
 
-    if (line < 0) {
+    if (y < 0) {
         dma_channel_set_read_addr(dma_chan_ctrl, &lines_pattern[0], false); // TODO: ensue it is required
         return;
     }
-    if (line >= graphics_buffer_height) {
+    if (y >= graphics_buffer_height) {
         // заполнение линии цветом фона
-        if ((line == graphics_buffer_height) | (line == (graphics_buffer_height + 1)) |
-            (line == (graphics_buffer_height + 2))) {
+        if ((y == graphics_buffer_height) | (y == (graphics_buffer_height + 1)) |
+            (y == (graphics_buffer_height + 2))) {
 
             uint32_t * output_buffer_32bit = (uint32_t *) *output_buffer;
             uint32_t p_i = ((line_number & is_flash_line) + (frame_number & is_flash_frame)) & 1;
@@ -211,7 +212,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
     // uint8_t* vbuf8=vbuf+(line*g_buf_width/2); //4bit buf
     //uint8_t* vbuf8=vbuf+(line*g_buf_width/4); //2bit buf
     //uint8_t* vbuf8=vbuf+((line&1)*8192+(line>>1)*g_buf_width/4);
-    uint8_t *input_buffer_8bit = input_buffer + ((line / 2) * 80) + ((line & 1) * 8192);
+    uint8_t *input_buffer_8bit = input_buffer + ((y / 2) * 80) + ((y & 1) * 8192);
 
 
     //output_buffer = &lines_pattern[2 + ((line_number) & 1)];
@@ -245,7 +246,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
     if (width < 0) return; // TODO: detect a case
 
     // Индекс палитры в зависимости от настроек чередования строк и кадров
-    uint16_t *current_palette = palette[((line & is_flash_line) + (frame_number & is_flash_frame)) & 1];
+    uint16_t *current_palette = palette[((y & is_flash_line) + (frame_number & is_flash_frame)) & 1];
 
     uint8_t *output_buffer_8bit;
     switch (graphics_mode) {
@@ -286,15 +287,30 @@ void __not_in_flash_func(dma_handler_VGA)() {
             break;
         case TGA_320x200x16:
             //4bit buf
-                input_buffer_8bit = input_buffer + ((line & 3) * 8192) + ((line / 4) * 160) ;
-                for (int i = width / 2; i--;) {
+                input_buffer_8bit = input_buffer + ((y & 3) * 8192) + ((y / 4) * 160) ;
+                for (int x = width / 2; x--;) {
                     *output_buffer_16bit++ = current_palette[(*input_buffer_8bit >> 4) & 15];
                     *output_buffer_16bit++ = current_palette[(*input_buffer_8bit) & 15];
                     input_buffer_8bit++;
                 }
             break;
+        case EGA_320x200x16: {
+            input_buffer_8bit = input_buffer + y * 40;
+            for (int x = 0; x < 40; x++) {
+
+                for (int bit = 7; bit--;) {
+                    uint8_t color = (*(input_buffer_8bit) >> bit) & 1;
+                    color |= ((*(input_buffer_8bit+16000) >> bit) & 1) << 1;
+                    color |= ((*(input_buffer_8bit+32000) >> bit) & 1) << 2;
+                    color |= ((*(input_buffer_8bit+48000) >> bit) & 1) << 3;
+                    *output_buffer_16bit++ = current_palette[color];
+                }
+                input_buffer_8bit++;
+            }
+            break;
+        }
         case VGA_320x200x256:
-            input_buffer_8bit = input_buffer + line * 320;
+            input_buffer_8bit = input_buffer + y * 320;
             for(int i=width;i--;)
             {
                 //*output_buffer_16bit++=current_palette[*input_buffer_8bit++];
@@ -365,6 +381,7 @@ enum graphics_mode_t graphics_set_mode(enum graphics_mode_t mode) {
         case CGA_320x200x4:
         case CGA_160x200x16:
         case VGA_320x200x256:
+        case EGA_320x200x16:
         case TGA_320x200x16:
 
             TMPL_LINE8 = 0b11000000;

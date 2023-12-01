@@ -355,7 +355,7 @@ static bool xms_in_use = false; // XMS 3.0 requires to hook INT 15h only after f
 
 void reboot_detected() {
     logMsg("REBOOT WAS DETECTED");
-    sleep_ms(500);
+    //sleep_ms(500);
     emm_reboot();
     xmm_reboot();
 }
