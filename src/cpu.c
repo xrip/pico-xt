@@ -125,7 +125,7 @@ void write86psram(uint32_t addr32, uint8_t value) {
         psram_write8(&psram_spi, addr32, value);
         return;
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+    if (addr32 >= UMB_START_ADDRESS && addr32 < HMA_START_ADDRESS && umb_in_use(addr32)) {
         // UMB
         psram_write8(&psram_spi, addr32, value);
         return;
@@ -143,17 +143,17 @@ void write86psram(uint32_t addr32, uint8_t value) {
             return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) {
+    if ((addr32) >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
         if (get_a20_enabled()) {
             // A20 line is ON
             psram_write8(&psram_spi, addr32, value);
             return;
         }
-        write86(addr32 - 0x100000UL, value); // Rool back to low addressed
+        write86(addr32 - HMA_START_ADDRESS, value); // Rool back to low addressed
         return;
     }
-    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+    if ((addr32) >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         psram_write8(&psram_spi, addr32, value);
         return;
@@ -171,7 +171,7 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
         ram_page_write(addr32, value);
         return;
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+    if (addr32 >= UMB_START_ADDRESS && addr32 < HMA_START_ADDRESS && umb_in_use(addr32)) {
         // UMB
         ram_page_write(addr32, value);
         return;
@@ -189,7 +189,7 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
             return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) {
+    if ((addr32) >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
         if (get_a20_enabled()) {
             // A20 line is ON
@@ -198,10 +198,10 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
             return;
         }
         //char tmp[40]; sprintf(tmp, "conW %08Xh v: %02Xh", addr32, value); logMsg(tmp);
-        write86(addr32 - 0x100000UL, value); // Rool back to low addressed
+        write86(addr32 - HMA_START_ADDRESS, value); // Rool back to low addressed
         return;
     }
-    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+    if ((addr32) >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         ram_page_write(addr32, value);
         return;
@@ -249,7 +249,7 @@ inline static void write86psram16(uint32_t addr32, uint16_t value) {
         psram_write16(&psram_spi, addr32, value);
         return;
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+    if (addr32 >= UMB_START_ADDRESS && addr32 < HMA_START_ADDRESS && umb_in_use(addr32)) {
         // UMB
         psram_write16(&psram_spi, addr32, value);
         return;
@@ -267,17 +267,17 @@ inline static void write86psram16(uint32_t addr32, uint16_t value) {
             return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) {
+    if ((addr32) >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
         if (get_a20_enabled()) {
             // A20 line is ON
             psram_write16(&psram_spi, addr32, value);
             return;
         }
-        writew86(addr32 - 0x100000UL, value); // Rool back to low addressed
+        writew86(addr32 - HMA_START_ADDRESS, value); // Rool back to low addressed
         return;
     }
-    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+    if ((addr32) >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         psram_write16(&psram_spi, addr32, value);
         return;
@@ -295,7 +295,7 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
         ram_page_write16(addr32, value);
         return;
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+    if (addr32 >= UMB_START_ADDRESS && addr32 < HMA_START_ADDRESS && umb_in_use(addr32)) {
         // UMB
         ram_page_write16(addr32, value);
         return;
@@ -313,7 +313,7 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
             return;
         }
     }
-    if ((addr32) >= 0x100000UL && addr32 < 0x110000UL) {
+    if ((addr32) >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
         if (get_a20_enabled()) {
             // A20 line is ON
@@ -322,10 +322,10 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
             return;
         }
         //char tmp[40]; sprintf(tmp, "conW %08Xh v: %04Xh", addr32, value); logMsg(tmp);
-        writew86(addr32 - 0x100000UL, value); // Rool back to low addressed
+        writew86(addr32 - HMA_START_ADDRESS, value); // Rool back to low addressed
         return;
     }
-    if ((addr32) >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+    if ((addr32) >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         ram_page_write16(addr32, value);
         return;
@@ -417,7 +417,7 @@ INLINE static uint8_t read86psram(uint32_t addr32) {
         // video RAM range
         return read86video_ram(addr32);
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+    if (addr32 >= UMB_START_ADDRESS && addr32 < HMA_START_ADDRESS && umb_in_use(addr32)) {
         // UMB
         return psram_read8(&psram_spi, addr32);
     }
@@ -428,14 +428,14 @@ INLINE static uint8_t read86psram(uint32_t addr32) {
             return psram_read8(&psram_spi, lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) {
+    if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
         if (get_a20_enabled()) {
             return psram_read8(&psram_spi, addr32);
         }
-        return read86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
+        return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
     }
-    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+    if (addr32 >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         return psram_read8(&psram_spi, addr32);
     }
@@ -450,7 +450,7 @@ inline static uint16_t read86psram16(uint32_t addr32) {
         // Conventional
         return psram_read16(&psram_spi, addr32);
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+    if (addr32 >= UMB_START_ADDRESS && addr32 < HMA_START_ADDRESS && umb_in_use(addr32)) {
         // UMB
         return psram_read16(&psram_spi, addr32);
     }
@@ -465,14 +465,14 @@ inline static uint16_t read86psram16(uint32_t addr32) {
             return psram_read16(&psram_spi, lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) {
+    if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
         if (get_a20_enabled()) {
             return psram_read16(&psram_spi, addr32);
         }
-        return readw86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
+        return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
     }
-    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+    if (addr32 >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         return psram_read16(&psram_spi, addr32);
     }
@@ -488,7 +488,7 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
         // Conventional
         return ram_page_read(addr32);
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+    if (addr32 >= UMB_START_ADDRESS && addr32 < 0x100000 && umb_in_use(addr32)) {
         // UMB
         return ram_page_read(addr32);
     }
@@ -503,7 +503,7 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
             return ram_page_read(lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) {
+    if (addr32 >= 0x100000UL && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
         if (get_a20_enabled()) {
             //char tmp[40]; sprintf(tmp, "HMA: %08Xh v: %02Xh", addr32, ram_page_read(addr32)); logMsg(tmp);
@@ -512,7 +512,7 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
         //char tmp[40]; sprintf(tmp, "con: %08Xh v: %02Xh", addr32, read86(addr32 - 0x100000UL)); logMsg(tmp);
         return read86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
     }
-    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+    if (addr32 >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         return ram_page_read(addr32);
     }
@@ -528,7 +528,7 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
         // Conventional
         return ram_page_read16(addr32);
     }
-    if (addr32 >= 0xA0000 && addr32 < 0x100000 && umb_in_use(addr32)) {
+    if (addr32 >= UMB_START_ADDRESS && addr32 < 0x100000 && umb_in_use(addr32)) {
         // UMB #1
         return ram_page_read16(addr32);
     }
@@ -543,7 +543,7 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
             return ram_page_read16(lba);
         }
     }
-    if (addr32 >= 0x100000UL && addr32 < 0x110000UL) {
+    if (addr32 >= 0x100000UL && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
         if (get_a20_enabled()) {
             //char tmp[40]; sprintf(tmp, "HMA: %08Xh v: %04Xh", addr32, ram_page_read16(addr32)); logMsg(tmp);
@@ -552,7 +552,7 @@ inline static uint16_t read86sdcard16(uint32_t addr32) {
         //char tmp[40]; sprintf(tmp, "con: %08Xh v: %04Xh", addr32, readw86(addr32 - 0x100000UL)); logMsg(tmp);
         return readw86(addr32 - 0x100000UL); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
     }
-    if (addr32 >= 0x110000UL && addr32 < (ON_BOARD_RAM_KB << 10)) {
+    if (addr32 >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         return ram_page_read16(addr32);
     }
@@ -1150,9 +1150,9 @@ void intcall86(uint8_t intnum) {
                     return;
                 }
                 case 0x4310: {
-                    logMsg("HIMEM.SYS (XMM) Entry Address: FFFF:000F"); // W/A
-                    CPU_ES = 0xFFFF;
-                    CPU_BX = 0x000F;
+                    logMsg("HIMEM.SYS (XMM) Entry Address: 0000:03FF"); // W/A
+                    CPU_ES = XMS_FN_CS; // 
+                    CPU_BX = XMS_FN_IP; // 
                     return;
                 }
             }
@@ -1246,9 +1246,9 @@ void intcall86(uint8_t intnum) {
                     return;*/
                 case 0x88: // memory info
 #if ON_BOARD_RAM_KB > 64 * 1024
-                    CPU_AX = hma_in_use ? 63 * 1024 - 64 : 63 * 1024;
+                    CPU_AX = hma_in_use ? 0 : 63 * 1024;
 #else
-                    CPU_AX = hma_in_use ? ON_BOARD_RAM_KB - 1024 - 64 : ON_BOARD_RAM_KB - 1024;
+                    CPU_AX = hma_in_use ? 0 : ON_BOARD_RAM_KB - 1024;
 #endif
                     cf = 0;
                     return;
@@ -1276,7 +1276,7 @@ void intcall86(uint8_t intnum) {
                             CPU_CX = 1024 * 15; // 15MB
                             CPU_DX = (uint16_t)(ON_BOARD_RAM_KB - 16 * 1024) / 64;
 #else
-                            CPU_CX = ON_BOARD_RAM_KB - 1024;
+                            CPU_CX = ON_BOARD_RAM_KB - 1024 - (hma_in_use ? 64 : 0);
                             CPU_DX = 0;
 #endif
                             CPU_AX = CPU_CX;
@@ -2403,10 +2403,10 @@ void exec86(uint32_t execloops) {
             ip = ip & 0xFFFF;
             savecs = CPU_CS;
             saveip = ip;
-
-            if (CPU_CS == 0xFFFF && ip == 0x000F) {
+            // W/A-hack: last byte of interrupts table (actually should not be ever used as CS:IP)
+            if (CPU_CS == XMS_FN_CS && ip == XMS_FN_IP) {
                 // hook for XMS
-                opcode = xms_fn();
+                opcode = xms_fn(); // always returns RET TODO: far/short ret?
             }
             else if (CPU_CS == 0xFFFF && ip == 0x0000) {
                 // hook for reboot

@@ -186,11 +186,10 @@ FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
 
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char tmp[40];
-    if (file_offset >= 0x100000) {
-        sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset);
-        logMsg(tmp);
-    }
+  //  if (file_offset >= 0x100000) {
+  //      sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset);
+  //      logMsg(tmp);
+  //  }
     FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
         return;
@@ -198,6 +197,7 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     UINT br;
     result = f_read(&file, dst, sz, &br);
     if (result != FR_OK) {
+        char tmp[40];
         sprintf(tmp, "Failed to f_read: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
     }
@@ -206,11 +206,10 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
 
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
-    char tmp[40];
-    if (file_offset >= 0x100000) {
-        sprintf(tmp, "Flush pagefile 0x%X->0x%X", src, file_offset);
-        logMsg(tmp);
-    }
+   // if (file_offset >= 0x100000) {
+   //     sprintf(tmp, "Flush pagefile 0x%X->0x%X", src, file_offset);
+   //     logMsg(tmp);
+   // }
     FRESULT result = vram_seek(&file, file_offset);
     if (result != FR_OK) {
         return;
@@ -218,6 +217,7 @@ void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     UINT bw;
     result = f_write(&file, src, sz, &bw);
     if (result != FR_OK) {
+        char tmp[40];
         sprintf(tmp, "Failed to f_write: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
     }

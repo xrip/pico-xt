@@ -322,6 +322,7 @@ uint16_t save_emm_mapping(uint16_t ext_handler) {
                           // page mapping registers.  The state of the map registers has
                           // not been saved.
     }
+    to_save->ext_handler = ext_handler;
     memcpy(to_save->table, emm_desc_table, sizeof emm_desc_table);
     return 0;
 }
@@ -780,7 +781,7 @@ void custom_on_board_emm() {
     // expanded memory boards in an internal save area.
     case 0x47: {
         CPU_AX = save_emm_mapping(CPU_DX);
-        sprintf(tmp, "LIM40 FN %Xh res: %Xh (save mapping for %Xh)", FN, CPU_AX, CPU_DX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh res: %Xh (save mapping for %d)", FN, CPU_AX, CPU_DX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -789,9 +790,8 @@ void custom_on_board_emm() {
     // This function lets your program restore the contents of the mapping
     // registers its EMM handle saved.
     case 0x48: {
-        logMsg("Restore Page Map - not implemented - nothing to do");
         CPU_AX = restore_emm_mapping(CPU_DX);
-        sprintf(tmp, "LIM40 FN %Xh res: %Xh (restore mapping for %Xh)", FN, CPU_AX, CPU_DX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh res: %Xh (restore mapping for %d)", FN, CPU_AX, CPU_DX); logMsg(tmp);
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
