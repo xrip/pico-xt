@@ -346,8 +346,8 @@ uint16_t portin(uint16_t portnum) {
             return portram[portnum];
         case PORT_A20:
             return get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT);
-        case 0x201: // joystick
-            return 0b11110000;
+        /*case 0x201: // joystick
+            return 0b11110000;*/
         case 0x379:
             return insoundsource(portnum);
 
@@ -355,6 +355,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x389:
             return inadlib(portnum);
         case 0x3C4: //sequence controller index
+            // https://wiki.osdev.org/VGA_Hardware#Port_0x3C0
             // TODO: implement other EGA sequences
             return port3C4;
         case 0x3C5:
