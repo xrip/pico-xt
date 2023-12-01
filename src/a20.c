@@ -321,6 +321,7 @@ INLINE uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
 }
 
 bool hma_in_use = false;
+static bool xms_in_use = false;
 
 void reboot_detected() {
     logMsg("REBOOT WAS DETECTED");
@@ -329,15 +330,115 @@ void reboot_detected() {
     xmm_reboot();
 }
 
+bool INT_15h() {
+    if (!xms_in_use) {
+        return false; // XMS 3.0 requires to hook INT 15h only after first non-version XMS call
+    }
+    switch (CPU_AH) {
+        case 0xDA:
+            if (CPU_AL == 0x88) {
+                CPU_CL = 0;
+                CPU_BX = ON_BOARD_RAM_KB - 1024 - (hma_in_use ? 64 : 0);
+                cf = 0;
+                logMsg("INT15! DA88h mem info");
+                return true;
+            }
+        case 0x8A:
+            CPU_DX = 0;
+            CPU_AX = ON_BOARD_RAM_KB - 1024 - (hma_in_use ? 64 : 0);
+            cf = 0;
+            logMsg("INT15! 8Ah mem info");
+            return true;
+        case 0xC7:
+            // DS:SI to memory map
+            // TODO:
+            logMsg("INT15! C7h mem-map info");
+            return false;
+        case 0x24:
+            switch (CPU_AL) {
+                case 0x00:
+                    set_a20_enabled(true);
+                    cf = 0;
+                    CPU_AH = 0;
+                    logMsg("INT15! 2400 turn on A20_ENABLE_BIT");
+                    return true;
+                case 0x01:
+                    set_a20_enabled(false);
+                    cf = 0;
+                    CPU_AH = 0;
+                    logMsg("INT15! 2401 turn off A20_ENABLE_BIT");
+                    return true;
+                case 0x02:
+                    CPU_AL = get_a20_enabled();
+                    cf = 0;
+                    CPU_AH = 0; {
+                        char tmp[80];
+                        sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL);
+                        logMsg(tmp);
+                    }
+                    return true;
+                case 0x03:
+                    CPU_BX = 0b11;
+                    CPU_AH = 0;
+                    cf = 0; {
+                        char tmp[80];
+                        sprintf(tmp, "INT15! 2403 BX: %xh", CPU_BX);
+                        logMsg(tmp);
+                    }
+                    return true;
+            }
+            break;
+        case 0x87: { // Memory block move EMS
+                uint16_t words_to_move = CPU_CX;
+                uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
+                i15_87h(words_to_move, gdt_far);
+            }
+            CPU_AH = 0;
+            cf = 0;
+            return true;
+        case 0x88: // memory info
+#if ON_BOARD_RAM_KB > 64 * 1024
+            CPU_AX = hma_in_use ? 0 : 63 * 1024;
+#else
+            CPU_AX = hma_in_use ? 0 : ON_BOARD_RAM_KB - 1024;
+#endif
+            cf = 0;
+            return true;
+        case 0xE8:
+            switch (CPU_AL) {
+                case 0x01:
+#if ON_BOARD_RAM_KB > 16*1024
+                    CPU_CX = 1024 * 15; // 15MB
+                    CPU_DX = (uint16_t)(ON_BOARD_RAM_KB - 16 * 1024) / 64;
+#else
+                    CPU_CX = ON_BOARD_RAM_KB - 1024 - (hma_in_use ? 64 : 0);
+                    CPU_DX = 0;
+#endif
+                    CPU_AX = CPU_CX;
+                    CPU_BX = CPU_DX;
+                    cf = 0;
+                    return true;
+                case 0x20: // TODO: ES:DI - destination for the table
+                    return false;
+            }
+            return false;
+        default: {
+            // char tmp[80]; sprintf(tmp, "INT 15h CPU_AH: 0x%X; CPU_AL: 0x%X", CPU_AH, CPU_AL); logMsg(tmp);
+        }
+    }
+    return false;
+}
+
 uint8_t xms_fn() {
     char tmp[80];
-    switch(CPU_AH) {
-        case 0x00: // XMS 00H: Get XMS Version Number
-            sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 3.0; Drv ver 1.01; HMA available", CPU_AH);
-            CPU_AX = 0x0300; // spec. version
-            CPU_BX = 0x0101; // driver version
-            CPU_DX = 0x0001; // HMA installed
-            break;
+    if (CPU_AH == 0x00) { // XMS 00H: Get XMS Version Number
+        sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 3.0; Drv ver 1.01; HMA available", CPU_AH);
+        CPU_AX = 0x0300; // spec. version
+        CPU_BX = 0x0101; // driver version
+        CPU_DX = 0x0001; // HMA installed
+    } else {
+        xms_in_use = true;
+        switch(CPU_AH) {
         case 0x01: // XMS 01H: Request High Memory Area
             if (hma_in_use) {
                 sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected - in use)", CPU_AH, CPU_DX);
@@ -497,6 +598,7 @@ uint8_t xms_fn() {
             sprintf(tmp, "XMS FN %2Xh: ERROR (not implemented)", CPU_AH);
             CPU_AX = XMS_ERROR_CODE; // ERROR
             CPU_BL = 0x80; // Function not implemented
+        }
     }
     logMsg(tmp);
     return 0xCB /* CB RETF */;
@@ -510,6 +612,7 @@ void xmm_reboot() {
         }
     }
     hma_in_use = false;
+    xms_in_use = false;
     a20_enable_count = 0;
     memset(&xmm_handles, 0, sizeof xmm_handles);
 }
