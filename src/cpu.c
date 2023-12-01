@@ -242,7 +242,7 @@ INLINE void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16
     *ptr = (uint8_t)(value >> 8);
 }
 #if PICO_ON_DEVICE
-inline static void write86psram16(uint32_t addr32, uint16_t value) {
+INLINE void write86psram16(uint32_t addr32, uint16_t value) {
     if (addr32 < RAM_SIZE) {
         // First not mapable block of Conventional RAM
         write16arr(RAM, 0, addr32, value);
@@ -288,7 +288,7 @@ inline static void write86psram16(uint32_t addr32, uint16_t value) {
     }
 }
 
-inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
+INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
     if (addr32 < RAM_PAGE_SIZE) {
         // First not mapable block of Conventional RAM
         write16arr(RAM, 0, addr32, value);
@@ -338,12 +338,15 @@ inline static void write86sdcard16(uint32_t addr32, uint16_t value) {
 #endif
 
 void writew86(uint32_t addr32, uint16_t value) {
+    if (addr32 == 0 && value == 0) {
+        // reboot hook
+        reboot_detected();
+    }
     if (addr32 & 0x00000001) {
         // not 16-bit alligned
         write86(addr32, (uint8_t)value);
         write86(addr32 + 1, (uint8_t)(value >> 8));
     }
-
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         write86psram16(addr32, value);
@@ -450,7 +453,7 @@ INLINE static uint8_t read86psram(uint32_t addr32) {
     return read86rom(addr32);
 }
 
-inline static uint16_t read86psram16(uint32_t addr32) {
+INLINE uint16_t read86psram16(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return read16arr(RAM, 0, addr32);
     }
@@ -487,7 +490,7 @@ inline static uint16_t read86psram16(uint32_t addr32) {
     return read86rom16(addr32);
 }
 
-inline static uint8_t read86sdcard(uint32_t addr32) {
+INLINE uint8_t read86sdcard(uint32_t addr32) {
     if (addr32 < RAM_PAGE_SIZE) {
         // First page block fast access
         return RAM[addr32];
@@ -527,7 +530,7 @@ inline static uint8_t read86sdcard(uint32_t addr32) {
     return read86rom(addr32);
 }
 
-inline static uint16_t read86sdcard16(uint32_t addr32) {
+INLINE uint16_t read86sdcard16(uint32_t addr32) {
     if (addr32 < RAM_PAGE_SIZE) {
         // First page block fast access
         return read16arr(RAM, 0, addr32);
@@ -631,7 +634,7 @@ uint16_t readw86(uint32_t addr32) {
     return read86rom16(addr32);
 }
 
-void flag_szp8(uint8_t value) {
+INLINE void flag_szp8(uint8_t value) {
     if (!value) {
         zf = 1;
     }
@@ -649,7 +652,7 @@ void flag_szp8(uint8_t value) {
     pf = parity[value]; /* retrieve parity state from lookup table */
 }
 
-void flag_szp16(uint16_t value) {
+INLINE void flag_szp16(uint16_t value) {
     if (!value) {
         zf = 1;
     }
@@ -667,19 +670,19 @@ void flag_szp16(uint16_t value) {
     pf = parity[value & 255]; /* retrieve parity state from lookup table */
 }
 
-void flag_log8(uint8_t value) {
+INLINE void flag_log8(uint8_t value) {
     flag_szp8(value);
     cf = 0;
     of = 0; /* bitwise logic ops always clear carry and overflow */
 }
 
-void flag_log16(uint16_t value) {
+INLINE void flag_log16(uint16_t value) {
     flag_szp16(value);
     cf = 0;
     of = 0; /* bitwise logic ops always clear carry and overflow */
 }
 
-void flag_adc8(uint8_t v1, uint8_t v2, uint8_t v3) {
+INLINE void flag_adc8(uint8_t v1, uint8_t v2, uint8_t v3) {
     /* v1 = destination operand, v2 = source operand, v3 = carry flag */
     uint16_t dst;
 
@@ -707,7 +710,7 @@ void flag_adc8(uint8_t v1, uint8_t v2, uint8_t v3) {
     }
 }
 
-void flag_adc16(uint16_t v1, uint16_t v2, uint16_t v3) {
+INLINE void flag_adc16(uint16_t v1, uint16_t v2, uint16_t v3) {
     uint32_t dst;
 
     dst = (uint32_t)v1 + (uint32_t)v2 + (uint32_t)v3;
@@ -734,7 +737,7 @@ void flag_adc16(uint16_t v1, uint16_t v2, uint16_t v3) {
     }
 }
 
-void flag_add8(uint8_t v1, uint8_t v2) {
+INLINE void flag_add8(uint8_t v1, uint8_t v2) {
     /* v1 = destination operand, v2 = source operand */
     uint16_t dst;
 
@@ -762,7 +765,7 @@ void flag_add8(uint8_t v1, uint8_t v2) {
     }
 }
 
-void flag_add16(uint16_t v1, uint16_t v2) {
+INLINE void flag_add16(uint16_t v1, uint16_t v2) {
     /* v1 = destination operand, v2 = source operand */
     uint32_t dst;
 
@@ -790,7 +793,7 @@ void flag_add16(uint16_t v1, uint16_t v2) {
     }
 }
 
-void flag_sbb8(uint8_t v1, uint8_t v2, uint8_t v3) {
+INLINE void flag_sbb8(uint8_t v1, uint8_t v2, uint8_t v3) {
     /* v1 = destination operand, v2 = source operand, v3 = carry flag */
     uint16_t dst;
 
@@ -819,7 +822,7 @@ void flag_sbb8(uint8_t v1, uint8_t v2, uint8_t v3) {
     }
 }
 
-void flag_sbb16(uint16_t v1, uint16_t v2, uint16_t v3) {
+INLINE void flag_sbb16(uint16_t v1, uint16_t v2, uint16_t v3) {
     /* v1 = destination operand, v2 = source operand, v3 = carry flag */
     uint32_t dst;
 
@@ -848,7 +851,7 @@ void flag_sbb16(uint16_t v1, uint16_t v2, uint16_t v3) {
     }
 }
 
-void flag_sub8(uint8_t v1, uint8_t v2) {
+INLINE void flag_sub8(uint8_t v1, uint8_t v2) {
     /* v1 = destination operand, v2 = source operand */
     uint16_t dst;
 
@@ -876,7 +879,7 @@ void flag_sub8(uint8_t v1, uint8_t v2) {
     }
 }
 
-void flag_sub16(uint16_t v1, uint16_t v2) {
+INLINE void flag_sub16(uint16_t v1, uint16_t v2) {
     /* v1 = destination operand, v2 = source operand */
     uint32_t dst;
 
@@ -904,77 +907,77 @@ void flag_sub16(uint16_t v1, uint16_t v2) {
     }
 }
 
-static inline void op_adc8() {
+INLINE void op_adc8() {
     res8 = oper1b + oper2b + cf;
     flag_adc8(oper1b, oper2b, cf);
 }
 
-static inline void op_adc16() {
+INLINE void op_adc16() {
     res16 = oper1 + oper2 + cf;
     flag_adc16(oper1, oper2, cf);
 }
 
-static inline void op_add8() {
+INLINE void op_add8() {
     res8 = oper1b + oper2b;
     flag_add8(oper1b, oper2b);
 }
 
-static inline void op_add16() {
+INLINE void op_add16() {
     res16 = oper1 + oper2;
     flag_add16(oper1, oper2);
 }
 
-static inline void op_and8() {
+INLINE void op_and8() {
     res8 = oper1b & oper2b;
     flag_log8(res8);
 }
 
-static inline void op_and16() {
+INLINE void op_and16() {
     res16 = oper1 & oper2;
     flag_log16(res16);
 }
 
-static inline void op_or8() {
+INLINE void op_or8() {
     res8 = oper1b | oper2b;
     flag_log8(res8);
 }
 
-static inline void op_or16() {
+INLINE void op_or16() {
     res16 = oper1 | oper2;
     flag_log16(res16);
 }
 
-static inline void op_xor8() {
+INLINE void op_xor8() {
     res8 = oper1b ^ oper2b;
     flag_log8(res8);
 }
 
-static inline void op_xor16() {
+INLINE void op_xor16() {
     res16 = oper1 ^ oper2;
     flag_log16(res16);
 }
 
-static inline void op_sub8() {
+INLINE void op_sub8() {
     res8 = oper1b - oper2b;
     flag_sub8(oper1b, oper2b);
 }
 
-static inline void op_sub16() {
+INLINE void op_sub16() {
     res16 = oper1 - oper2;
     flag_sub16(oper1, oper2);
 }
 
-static inline void op_sbb8() {
+INLINE void op_sbb8() {
     res8 = oper1b - (oper2b + cf);
     flag_sbb8(oper1b, oper2b, cf);
 }
 
-static inline void op_sbb16() {
+INLINE void op_sbb16() {
     res16 = oper1 - (oper2 + cf);
     flag_sbb16(oper1, oper2, cf);
 }
 
-static inline void getea(uint8_t rmval) {
+INLINE void getea(uint8_t rmval) {
     uint32_t tempea;
 
     tempea = 0;
@@ -1042,12 +1045,12 @@ static inline void getea(uint8_t rmval) {
     ea = (tempea & 0xFFFF) + (useseg << 4);
 }
 
-static inline void push(uint16_t pushval) {
+INLINE void push(uint16_t pushval) {
     CPU_SP = CPU_SP - 2;
     putmem16(CPU_SS, CPU_SP, pushval);
 }
 
-static inline uint16_t pop() {
+INLINE uint16_t pop() {
     uint16_t tempval;
 
     tempval = getmem16(CPU_SS, CPU_SP);
@@ -1099,27 +1102,23 @@ void reset86() {
     videomode = 3;
 }
 
-uint16_t readrm16(uint8_t rmval) {
+INLINE uint16_t readrm16(uint8_t rmval) {
     if (mode < 3) {
         getea(rmval);
         return read86(ea) | ((uint16_t)read86(ea + 1) << 8);
     }
-    else {
-        return getreg16(rmval);
-    }
+    return getreg16(rmval);
 }
 
-uint8_t readrm8(uint8_t rmval) {
+INLINE uint8_t readrm8(uint8_t rmval) {
     if (mode < 3) {
         getea(rmval);
         return read86(ea);
     }
-    else {
-        return getreg8(rmval);
-    }
+    return getreg8(rmval);
 }
 
-void writerm16(uint8_t rmval, uint16_t value) {
+INLINE void writerm16(uint8_t rmval, uint16_t value) {
     if (mode < 3) {
         getea(rmval);
         write86(ea, value & 0xFF);
@@ -1130,7 +1129,7 @@ void writerm16(uint8_t rmval, uint16_t value) {
     }
 }
 
-void writerm8(uint8_t rmval, uint8_t value) {
+INLINE void writerm8(uint8_t rmval, uint8_t value) {
     if (mode < 3) {
         getea(rmval);
         write86(ea, value);
@@ -1142,7 +1141,7 @@ void writerm8(uint8_t rmval, uint8_t value) {
 
 uint8_t tandy_hack = 0;
 
-void intcall86(uint8_t intnum) {
+INLINE void intcall86(uint8_t intnum) {
     uint32_t tempcalc, memloc, n;
     switch (intnum) {
         case 0x67: {
@@ -1150,7 +1149,6 @@ void intcall86(uint8_t intnum) {
             return;
         }
         case 0x2F: {
-            if_reboot_detected();
             switch (CPU_AX) {
                 case 0x4300: {
                     logMsg("HIMEM.SYS (XMM) detection passed");
@@ -1243,7 +1241,7 @@ void intcall86(uint8_t intnum) {
                 case 0x83: // real-time clock
                 case 0x86:
                     // TODO:
-                    break;
+                    break;*/
                 case 0x87: { // Memory block move EMS
                         uint16_t words_to_move = CPU_CX;
                         uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
@@ -1251,7 +1249,7 @@ void intcall86(uint8_t intnum) {
                     }
                     CPU_AH = 0;
                     cf = 0;
-                    return;*/
+                    return;
                 case 0x88: // memory info
 #if ON_BOARD_RAM_KB > 64 * 1024
                     CPU_AX = hma_in_use ? 0 : 63 * 1024;
@@ -1634,7 +1632,7 @@ void intcall86(uint8_t intnum) {
 }
 
 
-uint8_t op_grp2_8(uint8_t cnt) {
+INLINE uint8_t op_grp2_8(uint8_t cnt) {
     uint16_t s;
     uint16_t shift;
     uint16_t oldcf;
@@ -1760,7 +1758,7 @@ uint8_t op_grp2_8(uint8_t cnt) {
     return s & 0xFF;
 }
 
-uint16_t op_grp2_16(uint8_t cnt) {
+INLINE uint16_t op_grp2_16(uint8_t cnt) {
     uint32_t s;
     uint32_t shift;
     uint32_t oldcf;
@@ -1883,7 +1881,7 @@ uint16_t op_grp2_16(uint8_t cnt) {
     return (uint16_t)s & 0xFFFF;
 }
 
-void op_div8(uint16_t valdiv, uint8_t divisor) {
+INLINE void op_div8(uint16_t valdiv, uint8_t divisor) {
     if (divisor == 0) {
         intcall86(0);
         return;
@@ -1898,7 +1896,7 @@ void op_div8(uint16_t valdiv, uint8_t divisor) {
     CPU_AL = valdiv / (uint16_t)divisor;
 }
 
-void op_idiv8(uint16_t valdiv, uint8_t divisor) {
+INLINE void op_idiv8(uint16_t valdiv, uint8_t divisor) {
     uint16_t s1;
     uint16_t s2;
     uint16_t d1;
@@ -1931,7 +1929,7 @@ void op_idiv8(uint16_t valdiv, uint8_t divisor) {
     CPU_AL = (uint8_t)d1;
 }
 
-void op_grp3_8() {
+INLINE void op_grp3_8() {
     oper1 = signext(oper1b);
     oper2 = signext(oper2b);
     switch (reg) {
@@ -2444,11 +2442,6 @@ void exec86(uint32_t execloops) {
             if (CPU_CS == XMS_FN_CS && ip == XMS_FN_IP) {
                 // hook for XMS
                 opcode = xms_fn(); // always returns RET TODO: far/short ret?
-            }
-            else if (CPU_CS == 0xFFFF && ip == 0x0000) {
-                // hook for reboot
-                extra_mem_initialized = false;
-                opcode = getmem8(CPU_CS, ip);
             }
             else {
                 opcode = getmem8(CPU_CS, ip);
