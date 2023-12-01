@@ -160,7 +160,8 @@ uint8_t /*BL*/ unlock_ext_mem_block(uint16_t handle) {
 INLINE uint16_t xmm_used_kb() {
     uint16_t res = 0;
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
-        res += XMS_STATIC_PAGE_KBS; // xmm_handles[i].sz_kb;
+        if (xmm_handles[i].handle)
+            res += XMS_STATIC_PAGE_KBS; // xmm_handles[i].sz_kb;
     }
     return res;
 }
