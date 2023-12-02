@@ -9,7 +9,7 @@
 #define VIDEORAM_END32 0xBFFFFul
 
 #define VIDEORAM_SIZE (VIDEORAM_END32 - VIDEORAM_START32)
-#define SWAP_BLOCK_4k
+
 // --- select only one of 'em
 #ifdef SWAP_BLOCK_1k
 #define RAM_PAGE_SIZE_KB 1ul

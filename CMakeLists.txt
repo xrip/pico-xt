@@ -62,9 +62,9 @@ pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip/DnCraptor")
 pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
-if (!OVERCLOCKING)
-set(OVERCLOCKING 396)
-endif ()
+#if (!OVERCLOCKING)
+set(OVERCLOCKING 366)
+#endif ()
 
 
 if (PICO_PLATFORM STREQUAL "host")
@@ -180,6 +180,10 @@ else ()
 
             #BOOT_DEBUG=1
             #BOOT_DEBUG_ACC=0xA0000
+            
+            #SWAP_BLOCK_1k
+            SWAP_BLOCK_2k
+            #SWAP_BLOCK_4k
 
             #ROM_DRIVE_B=1
 

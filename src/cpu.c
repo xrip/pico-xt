@@ -432,7 +432,7 @@ INLINE uint8_t read86video_ram(uint32_t addr32) {
 }
 
 #if PICO_ON_DEVICE
-INLINE static uint8_t read86psram(uint32_t addr32) {
+INLINE uint8_t read86psram(uint32_t addr32) {
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
     }
