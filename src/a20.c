@@ -97,6 +97,9 @@ INLINE uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
     if (s_h > MAX_XMM_HANDLES) {
         return 0xA3;
     }
+    if (s_h > 0 && xmm_handles[s_h - 1].locks_cnt) {
+        return 0xAB; // handle is locked
+    }
     uint32_t s0 = readw86(tbl_addr++); tbl_addr++;
     uint32_t s1 = readw86(tbl_addr++); tbl_addr++;
     uint32_t shs = s_h == 0 ? 0 : handle2seg(s_h);
@@ -109,6 +112,9 @@ INLINE uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
     uint16_t d_h = readw86(tbl_addr++); tbl_addr++; // handle of destination
     if (d_h > MAX_XMM_HANDLES) {
         return 0xA3;
+    }
+    if (d_h > 0 && xmm_handles[d_h - 1].locks_cnt) {
+        return 0xAB; // handle is locked
     }
     uint32_t d0 = readw86(tbl_addr++); tbl_addr++;
     uint32_t d1 = readw86(tbl_addr);
@@ -160,7 +166,8 @@ uint8_t /*BL*/ unlock_ext_mem_block(uint16_t handle) {
 INLINE uint16_t xmm_used_kb() {
     uint16_t res = 0;
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
-        res += XMS_STATIC_PAGE_KBS; // xmm_handles[i].sz_kb;
+        if (xmm_handles[i].handle)
+            res += XMS_STATIC_PAGE_KBS; // xmm_handles[i].sz_kb;
     }
     return res;
 }
@@ -185,16 +192,32 @@ INLINE uint16_t get_handle_feets(uint16_t kbs) {
     return 0xFFFF;
 }
 
+INLINE uint16_t xmm_free_kb() {
+    uint16_t res = 0;
+    for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
+        if (!xmm_handles[i].handle)
+            res += XMS_STATIC_PAGE_KBS;
+    }
+    return res;
+}
+
 INLINE uint16_t xmm_max_block_kb() {
-    uint16_t res = TOTAL_XMM_KB - 64;
-    while (get_handle_feets(res) == 0xFFFF) {
-        res -= XMS_STATIC_PAGE_KBS;
-        if(res == 0 || res > TOTAL_XMM_KB) {
-            res = 0;
-            break;
+    uint16_t max = 0;
+    uint16_t ri = 0;
+    for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
+        if (xmm_handles[i].handle) {
+            if (ri > max) {
+                max = ri;
+            }
+            ri = 0;
+        } else {
+            ri += XMS_STATIC_PAGE_KBS;
         }
     }
-    return (uint16_t)res;
+    if (ri > max) {
+        max = ri;
+    }
+    return max;
 }
 
 INLINE uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
@@ -221,12 +244,14 @@ INLINE uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
 }
 
 INLINE uint8_t resize_xmm_page(uint16_t handle, uint16_t kbs) {
+    uint8_t save_lock = 0;
     for (uint16_t i = handle - 1; i < MAX_XMM_HANDLES; ++i) {
         xmm_handle_t* p =  &xmm_handles[i];
         if (p->handle != handle) {
             break;
         }
         p->handle = 0;
+        save_lock = p->locks_cnt;
         p->locks_cnt = 0;
         p->sz_kb = 0;
     }
@@ -236,7 +261,7 @@ INLINE uint8_t resize_xmm_page(uint16_t handle, uint16_t kbs) {
         accumulated += XMS_STATIC_PAGE_KBS;
         xmm_handle_t *ph = &xmm_handles[i];
         ph->sz_kb = accumulated > kbs ? accumulated - kbs : XMS_STATIC_PAGE_KBS;
-        ph->locks_cnt = 0;
+        ph->locks_cnt = save_lock;
         ph->handle = handle;
         if (accumulated > kbs) {
             return 0;
@@ -245,16 +270,22 @@ INLINE uint8_t resize_xmm_page(uint16_t handle, uint16_t kbs) {
     return 0xA1; // all available handlers are allocated
 }
 
-void deallocate_xmm_page(uint16_t h) {
+INLINE uint8_t deallocate_xmm_page(uint16_t h) {
+    if (CPU_DX > MAX_XMM_HANDLES) {
+        return 0xA2; // Invalid handler
+    }
     for (uint16_t i = h - 1; i < MAX_XMM_HANDLES; ++i) {
         xmm_handle_t* p =  &xmm_handles[i];
         if (p->handle != h) {
             break;
         }
+        if (p->locks_cnt) {
+            return 0xAB; // the handle is locked
+        }
         p->handle = 0;
-        p->locks_cnt = 0;
         p->sz_kb = 0;
     }
+    return 0;
 }
 
 typedef struct umb {
@@ -320,6 +351,7 @@ INLINE uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
 }
 
 bool hma_in_use = false;
+static bool xms_in_use = false; // XMS 3.0 requires to hook INT 15h only after first non-version XMS call
 
 void reboot_detected() {
     logMsg("REBOOT WAS DETECTED");
@@ -328,15 +360,117 @@ void reboot_detected() {
     xmm_reboot();
 }
 
+bool INT_15h() {
+    switch (CPU_AH) {
+        case 0xDA:
+            if (CPU_AL == 0x88) {
+                CPU_CL = 0;
+                CPU_BX = ON_BOARD_RAM_KB - 1024; // - (hma_in_use ? 64 : 0);
+                cf = 0;
+                logMsg("INT15! DA88h mem info");
+                return true;
+            }
+            return false;
+        case 0x8A: //  количество блоков по 1Кб свыше 64Мб
+            CPU_DX = 0; //  старшая часть размера памяти
+            CPU_AX = 0; // ON_BOARD_RAM_KB - 1024; // - (hma_in_use ? 64 : 0);
+            cf = 0;
+            logMsg("INT15! 8Ah mem info");
+            return true;
+        case 0xC7:
+            // DS:SI to memory map
+            // TODO:
+            logMsg("INT15! C7h mem-map info");
+            return false;
+        case 0x24:
+            switch (CPU_AL) {
+                case 0x00:
+                    set_a20_enabled(true);
+                    cf = 0;
+                    CPU_AH = 0;
+                    logMsg("INT15! 2400 turn on A20_ENABLE_BIT");
+                    return true;
+                case 0x01:
+                    set_a20_enabled(false);
+                    cf = 0;
+                    CPU_AH = 0;
+                    logMsg("INT15! 2401 turn off A20_ENABLE_BIT");
+                    return true;
+                case 0x02:
+                    CPU_AL = get_a20_enabled();
+                    cf = 0;
+                    CPU_AH = 0; {
+                        char tmp[80];
+                        sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL);
+                        logMsg(tmp);
+                    }
+                    return true;
+                case 0x03:
+                    CPU_BX = 0b11;
+                    CPU_AH = 0;
+                    cf = 0; {
+                        char tmp[80];
+                        sprintf(tmp, "INT15! 2403 BX: %xh", CPU_BX);
+                        logMsg(tmp);
+                    }
+                    return true;
+            }
+            break;
+        case 0x87:
+            if (!xms_in_use) {
+                return false;
+            }
+            else { // Memory block move EMS
+                uint16_t words_to_move = CPU_CX;
+                uint32_t gdt_far = (CPU_ES << 4) + CPU_SI;
+                i15_87h(words_to_move, gdt_far);
+            }
+            CPU_AH = 0;
+            cf = 0;
+            return true;
+        case 0x88: // memory info
+#if ON_BOARD_RAM_KB > 64 * 1024
+            CPU_AX = 63 * 1024;
+#else
+            CPU_AX = ON_BOARD_RAM_KB - 1024;
+#endif
+            cf = 0;
+            return true;
+        case 0xE8:
+            switch (CPU_AL) {
+                case 0x01:
+#if ON_BOARD_RAM_KB > 16*1024
+                    CPU_CX = 1024 * 15; // 15MB
+                    CPU_DX = (uint16_t)(ON_BOARD_RAM_KB - 16 * 1024) / 64;
+#else
+                    CPU_CX = ON_BOARD_RAM_KB - 1024; // - (hma_in_use ? 64 : 0);
+                    CPU_DX = 0;
+#endif
+                    CPU_AX = CPU_CX;
+                    CPU_BX = CPU_DX;
+                    cf = 0;
+                    return true;
+                case 0x20: // TODO: ES:DI - destination for the table
+                    return false;
+            }
+            return false;
+        default: {
+            // char tmp[80]; sprintf(tmp, "INT 15h CPU_AH: 0x%X; CPU_AL: 0x%X", CPU_AH, CPU_AL); logMsg(tmp);
+        }
+    }
+    return false;
+}
+
 uint8_t xms_fn() {
     char tmp[80];
-    switch(CPU_AH) {
-        case 0x00: // XMS 00H: Get XMS Version Number
-            sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 3.0; Drv ver 1.01; HMA available", CPU_AH);
-            CPU_AX = 0x0300; // spec. version
-            CPU_BX = 0x0101; // driver version
-            CPU_DX = 0x0001; // HMA installed
-            break;
+    if (CPU_AH == 0x00) { // XMS 00H: Get XMS Version Number
+        sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 3.0; Drv ver 1.01; HMA available", CPU_AH);
+        CPU_AX = 0x0300; // spec. version
+        CPU_BX = 0x0101; // driver version
+        CPU_DX = 0x0001; // HMA installed
+    } else {
+        xms_in_use = true;
+        switch(CPU_AH) {
         case 0x01: // XMS 01H: Request High Memory Area
             if (hma_in_use) {
                 sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected - in use)", CPU_AH, CPU_DX);
@@ -389,11 +523,12 @@ uint8_t xms_fn() {
             CPU_BL = 0x00;
             break;
         case 0x08: { // XMS 08H: Query Free Extended Memory
-            CPU_AX = xmm_max_block_kb();
-            register uint16_t used_kb = xmm_used_kb();
-            CPU_BL = used_kb + 64 >= TOTAL_XMM_KB ? 0xA0 : 0;
-            CPU_DX = TOTAL_XMM_KB - 64 - used_kb; // total free XMS amount
-            sprintf(tmp, "XMS FN 08h: Size of largest block: %dKB of %dKB", CPU_AX, CPU_DX);
+            uint16_t t = xmm_max_block_kb();
+            CPU_AX = t > RESERVED_XMS_KB ? t - RESERVED_XMS_KB : t; // TODO: adjust UMB and HMA usage
+            t = xmm_free_kb();
+            CPU_DX = t > RESERVED_XMS_KB ? t - RESERVED_XMS_KB : t; // total free XMS amount
+            sprintf(tmp, "XMS FN 08h: Size of largest block: %dKB of %dKB free XMS space", CPU_AX, CPU_DX);
+            CPU_BL = 0;
             break;
         }
         case 0x09: { // XMS 09H: Allocate Extended Memory Block
@@ -412,14 +547,8 @@ uint8_t xms_fn() {
         }
         case 0x0A: { // XMS 0AH: Free Extended Memory Block
             // DX    XMS handle (as obtained via XMS 09H)
-            if (CPU_DX > MAX_XMM_HANDLES) {
-                CPU_AX = XMS_ERROR_CODE;
-                CPU_BL = 0xA2; // Invalid handler
-            } else {
-                deallocate_xmm_page(CPU_DX);
-                CPU_AX = XMS_SUCCESS_CODE;
-                CPU_BL = 0;
-            }
+            CPU_BL = deallocate_xmm_page(CPU_DX);
+            CPU_AX = CPU_BL > 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
             sprintf(tmp, "XMS FN 0Ah: Free Extended Memory Block #%d; res: %02X", CPU_DX, CPU_BL);
             break;
         }
@@ -432,15 +561,15 @@ uint8_t xms_fn() {
             CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
             break;
         case 0x0C: {
-            uint16_t handler = CPU_DX - 1;
+            uint16_t handler = CPU_DX;
             CPU_BL = lock_ext_mem_block(handler, &CPU_DX, &CPU_BX);
             sprintf(tmp, "XMS FN 0Ch: Lock Extended Memory Block #%d %04X:%044X err: %02X", handler, CPU_DX, CPU_BX, CPU_BL);
             CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
             break;
         }
         case 0x0D:
-            CPU_BL = unlock_ext_mem_block(CPU_DX - 1);
-            sprintf(tmp, "XMS FN 0Dh: Unlock Extended Memory Block #%d", CPU_DX - 1);
+            CPU_BL = unlock_ext_mem_block(CPU_DX);
+            sprintf(tmp, "XMS FN 0Dh: Unlock Extended Memory Block #%d", CPU_DX);
             CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
             break;
         case 0x0E: { // XMS 0eH: Get Handle Information
@@ -496,6 +625,7 @@ uint8_t xms_fn() {
             sprintf(tmp, "XMS FN %2Xh: ERROR (not implemented)", CPU_AH);
             CPU_AX = XMS_ERROR_CODE; // ERROR
             CPU_BL = 0x80; // Function not implemented
+        }
     }
     logMsg(tmp);
     return 0xCB /* CB RETF */;
@@ -509,6 +639,7 @@ void xmm_reboot() {
         }
     }
     hma_in_use = false;
+    xms_in_use = false;
     a20_enable_count = 0;
     memset(&xmm_handles, 0, sizeof xmm_handles);
 }

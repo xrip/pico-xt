@@ -138,7 +138,7 @@ uint16_t get_emm_handle_pages(uint16_t emm_handle, uint16_t *err) {
 }
 
 uint32_t get_logical_lba_for_physical_lba(uint32_t physical_lba_addr) {
-    uint16_t physical_page_number = (physical_lba_addr >> 14);
+    uint16_t physical_page_number = (physical_lba_addr >> 14); // >> 10 kb >> 4 16kb
     uint32_t offset_in_the_page = physical_lba_addr - (physical_page_number << 14);
     for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         const emm_record_t * di = &emm_desc_table[i];

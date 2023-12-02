@@ -106,11 +106,6 @@ void set_emm_pages_map(uint32_t addr32);
 uint16_t get_emm_pages_map_size();
 uint16_t get_partial_emm_page_map(uint32_t partial_page_map, uint32_t dest_array);
 uint16_t set_partial_emm_page_map(uint32_t dest_array);
-// from cpu.c
-extern void writew86(uint32_t addr32, uint16_t value);
-//void write86(uint32_t addr32, uint8_t value);
-//uint16_t readw86(uint32_t addr32);
-//uint8_t read86(uint32_t addr32);
 
 uint16_t map_unmap_emm_pages(uint16_t handle, uint16_t log_to_phys_map_len, uint32_t log_to_phys_map);
 uint16_t map_unmap_emm_seg_pages(uint16_t handle, uint16_t log_to_seg_map_len, uint32_t log_to_segment_map);
