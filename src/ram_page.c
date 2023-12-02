@@ -29,7 +29,7 @@ uint8_t ram_page_read(uint32_t addr32) {
 #endif
 }
 
-inline static uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
+INLINE uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
     register uint8_t* ptr = arr + addr32 - base_addr;
     register uint16_t b1 = *ptr++;
     register uint16_t b0 = *ptr;

@@ -10,9 +10,19 @@
 
 #define VIDEORAM_SIZE (VIDEORAM_END32 - VIDEORAM_START32)
 
+// --- select only one of 'em
+#ifdef SWAP_BLOCK_1k
 #define RAM_PAGE_SIZE_KB 1ul
-#define RAM_PAGE_SIZE (RAM_PAGE_SIZE_KB * 1024)
 #define RAM_IN_PAGE_ADDR_MASK (0x000003FF)
+#endif
+// --- select only one of 'em
+#ifdef SWAP_BLOCK_4k
+#define RAM_PAGE_SIZE_KB 4ul
+#define RAM_IN_PAGE_ADDR_MASK (0x00000FFF)
+#endif
+// --- select only one of 'em ^
+
+#define RAM_PAGE_SIZE (RAM_PAGE_SIZE_KB * 1024)
 
 #if PICO_ON_DEVICE
 // CGA
