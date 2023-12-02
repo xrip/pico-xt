@@ -119,6 +119,11 @@ INLINE void writeVRAM(uint32_t addr32, uint8_t value) {
 
 #if PICO_ON_DEVICE
 void write86psram(uint32_t addr32, uint8_t value) {
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        writeVRAM(addr32, value);
+        return;
+    }
     if (addr32 < RAM_SIZE) {
         // Conventional available
         RAM[addr32] = value;
@@ -129,16 +134,13 @@ void write86psram(uint32_t addr32, uint8_t value) {
         psram_write8(&psram_spi, addr32, value);
         return;
     }
+
     if (addr32 >= UMB_START_ADDRESS && addr32 < HMA_START_ADDRESS && umb_in_use(addr32)) {
         // UMB
         psram_write8(&psram_spi, addr32, value);
         return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        writeVRAM(addr32, value);
-        return;
-    }
+
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
         // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -214,6 +216,11 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
 #endif
 
 void write86(uint32_t addr32, uint8_t value) {
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        writeVRAM(addr32, value);
+        return;
+    }
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         write86psram(addr32, value);
@@ -228,11 +235,7 @@ void write86(uint32_t addr32, uint8_t value) {
         RAM[addr32] = value;
         return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        writeVRAM(addr32, value);
-        return;
-    }
+
     // { char tmp[40]; sprintf(tmp, "ADDR W: 0x%X not found", addr32); logMsg(tmp); }
 }
 
@@ -243,6 +246,15 @@ INLINE void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16
 }
 #if PICO_ON_DEVICE
 INLINE void write86psram16(uint32_t addr32, uint16_t value) {
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        uint32_t offset = 0;
+        if (videomode >= 0x0D) {
+            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        // video RAM range
+        write16arr(VIDEORAM, VIDEORAM_START32, offset + addr32, value);
+        return;
+    }
     if (addr32 < RAM_SIZE) {
         // First not mapable block of Conventional RAM
         write16arr(RAM, 0, addr32, value);
@@ -258,11 +270,7 @@ INLINE void write86psram16(uint32_t addr32, uint16_t value) {
         psram_write16(&psram_spi, addr32, value);
         return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value);
-        return;
-    }
+
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
         // EMS
         uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -306,7 +314,11 @@ INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
-        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value);
+        uint32_t offset = 0;
+        if (videomode >= 0x0D) {
+            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        write16arr(VIDEORAM, VIDEORAM_START32, offset+addr32, value);
         return;
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
@@ -363,7 +375,11 @@ void writew86(uint32_t addr32, uint16_t value) {
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
-        write16arr(VIDEORAM, VIDEORAM_START32, addr32, value);
+        uint32_t offset = 0;
+        if (videomode >= 0x0D) {
+            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        write16arr(VIDEORAM, VIDEORAM_START32, offset+addr32, value);
         return;
     }
 }
@@ -467,7 +483,11 @@ INLINE uint16_t read86psram16(uint32_t addr32) {
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
-        return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
+        uint32_t offset = 0;
+        if (videomode >= 0x0D) {
+            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        return read16arr(VIDEORAM, VIDEORAM_START32, offset+addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
         // EMS
@@ -545,7 +565,11 @@ INLINE uint16_t read86sdcard16(uint32_t addr32) {
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
-        return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
+        uint32_t offset = 0;
+        if (videomode >= 0x0D) {
+            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        return read16arr(VIDEORAM, VIDEORAM_START32, offset+addr32);
     }
     if ((addr32 >> 4) >= PHYSICAL_EMM_SEGMENT && (addr32 >> 4) < PHYSICAL_EMM_SEGMENT_END) {
         // EMS
@@ -629,7 +653,11 @@ uint16_t readw86(uint32_t addr32) {
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
-        return read16arr(VIDEORAM, VIDEORAM_START32, addr32);
+        uint32_t offset = 0;
+        if (videomode >= 0x0D) {
+            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        return read16arr(VIDEORAM, VIDEORAM_START32, offset+addr32);
     }
     return read86rom16(addr32);
 }
@@ -1202,10 +1230,7 @@ INLINE void intcall86(uint8_t intnum) {
                     sprintf(tmp, "VBIOS: Mode 0x%x (0x%x)", CPU_AX, videomode);
                     logMsg(tmp);
 #if PICO_ON_DEVICE
-                    if (videomode == 13) {
-                        graphics_set_buffer(VIDEORAM, 320, 200);
-                    }
-                    else {
+                    if (videomode <= 0xd) {
                         graphics_set_buffer(VIDEORAM + 98304, 320, 200);
                     }
                     switch (videomode) {

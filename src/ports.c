@@ -356,6 +356,8 @@ uint16_t portin(uint16_t portnum) {
             return inadlib(portnum);
         case 0x3C4: //sequence controller index
             // https://wiki.osdev.org/VGA_Hardware#Port_0x3C0
+                // https://files.osdev.org/mirrors/geezer/osd/graphics/modes.c
+                    // https://vtda.org/books/Computing/Programming/EGA-VGA-ProgrammersReferenceGuide2ndEd_BradleyDyckKliewer.pdf
             // TODO: implement other EGA sequences
             return port3C4;
         case 0x3C5:
