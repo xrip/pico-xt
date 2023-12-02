@@ -63,19 +63,23 @@ typedef struct xmm_handle {
     uint8_t locks_cnt;
 } xmm_handle_t;
 
+#if XMS_OVER_HMA_KB
 #define MAX_XMM_HANDLES 60
-
 static xmm_handle_t xmm_handles[MAX_XMM_HANDLES] = { 0 };
+#endif
 
 INLINE uint8_t xmm_free_handles() {
     uint8_t res = 0;
+#if XMS_OVER_HMA_KB
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
         if (!xmm_handles[i].sz_kb) res++;
     }
+#endif
     return res;
 }
 
 INLINE uint16_t xmm_handle_size(uint16_t h) {
+#if XMS_OVER_HMA_KB
     if (h == 0) {
         return 0;
     }
@@ -86,6 +90,9 @@ INLINE uint16_t xmm_handle_size(uint16_t h) {
         }
     }
     return res;
+#else
+    return 0;
+#endif
 }
 
 INLINE uint16_t handle2seg(uint16_t handle) {
@@ -93,6 +100,7 @@ INLINE uint16_t handle2seg(uint16_t handle) {
 }
 
 INLINE uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
+#if XMS_OVER_HMA_KB
     // char tmp[80];
     uint32_t w0 = readw86(tbl_addr++); tbl_addr++;
     uint32_t w1 = readw86(tbl_addr++); tbl_addr++;
@@ -136,9 +144,13 @@ INLINE uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
         writew86(d_o, d);
     }
     return 0;
+#else
+    return 0x86;
+#endif
 }
 
 INLINE uint8_t /*BL*/ lock_ext_mem_block(uint16_t handle, uint16_t* pw1, uint16_t* pw0) {
+#if XMS_OVER_HMA_KB
     if(handle > MAX_XMM_HANDLES) {
         return 0xA2; // the handle is invalid
     }
@@ -151,9 +163,13 @@ INLINE uint8_t /*BL*/ lock_ext_mem_block(uint16_t handle, uint16_t* pw1, uint16_
     *pw1 = addr32 >> 16;
     *pw0 = addr32;
     return 0;
+#else
+    return 0x86;
+#endif
 }
 
 uint8_t /*BL*/ unlock_ext_mem_block(uint16_t handle) {
+#if XMS_OVER_HMA_KB
     if(handle > MAX_XMM_HANDLES) {
         return 0xA2; // the handler is invalid
     }
@@ -167,18 +183,24 @@ uint8_t /*BL*/ unlock_ext_mem_block(uint16_t handle) {
         }
     }
     return 0;
+#else
+    return 0x86;
+#endif
 }
 
 INLINE uint16_t xmm_used_kb() {
     uint16_t res = 0;
+#if XMS_OVER_HMA_KB
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
         if (xmm_handles[i].handle)
-            res += XMS_STATIC_PAGE_KBS; // xmm_handles[i].sz_kb;
+            res += XMS_STATIC_PAGE_KBS;
     }
+#endif
     return res;
 }
 
 INLINE uint16_t get_handle_feets(uint16_t kbs) {
+#if XMS_OVER_HMA_KB
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
         xmm_handle_t *ph = &xmm_handles[i];
         // sprintf(tmp, "get_handle_feets(%d) H:%d SZ:%d LC:%d", kbs, ph->handle, ph->sz_kb, ph->locks_cnt); logMsg(tmp);
@@ -195,20 +217,24 @@ INLINE uint16_t get_handle_feets(uint16_t kbs) {
             ph = &xmm_handles[++i];
         }
     }
+#endif
     return 0xFFFF;
 }
 
 INLINE uint16_t xmm_free_kb() {
     uint16_t res = 0;
+#if XMS_OVER_HMA_KB
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
         if (!xmm_handles[i].handle)
             res += XMS_STATIC_PAGE_KBS;
     }
+#endif
     return res;
 }
 
 INLINE uint16_t xmm_max_block_kb() {
     uint16_t max = 0;
+#if XMS_OVER_HMA_KB
     uint16_t ri = 0;
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
         if (xmm_handles[i].handle) {
@@ -223,6 +249,7 @@ INLINE uint16_t xmm_max_block_kb() {
     if (ri > max) {
         max = ri;
     }
+#endif
     return max;
 }
 
@@ -232,6 +259,7 @@ INLINE uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
         *pBL = 0xA0; // not enough memory
         return 0;
     }
+#if XMS_OVER_HMA_KB
     uint16_t accumulated = 0;
     uint16_t h = i + 1;
     for (; i < MAX_XMM_HANDLES; ++i) {
@@ -245,11 +273,13 @@ INLINE uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
             return h;
         }
     }
+#endif
     *pBL = 0xA1; // all available handlers are allocated
     return 0;
 }
 
 INLINE uint8_t resize_xmm_page(uint16_t handle, uint16_t kbs) {
+#if XMS_OVER_HMA_KB
     uint8_t save_lock = 0;
     for (uint16_t i = handle - 1; i < MAX_XMM_HANDLES; ++i) {
         xmm_handle_t* p =  &xmm_handles[i];
@@ -273,10 +303,12 @@ INLINE uint8_t resize_xmm_page(uint16_t handle, uint16_t kbs) {
             return 0;
         }
     }
+#endif
     return 0xA1; // all available handlers are allocated
 }
 
 INLINE uint8_t deallocate_xmm_page(uint16_t h) {
+#if XMS_OVER_HMA_KB
     if (CPU_DX > MAX_XMM_HANDLES) {
         return 0xA2; // Invalid handler
     }
@@ -292,6 +324,9 @@ INLINE uint8_t deallocate_xmm_page(uint16_t h) {
         p->sz_kb = 0;
     }
     return 0;
+#else
+    return 0x86;
+#endif
 }
 
 #define XMS_ERROR_CODE   0x0000
@@ -583,6 +618,7 @@ uint8_t xms_fn() {
         case 0x0E: { // XMS 0eH: Get Handle Information
             // DX    XMS handle (as obtained via XMS 09H)
             uint16_t handle = CPU_DX;
+#if XMS_OVER_HMA_KB
             // out:
             // BH    current lock count
             // BL    current number of free XMS handles
@@ -597,12 +633,17 @@ uint8_t xms_fn() {
             CPU_BH = xmm_handles[CPU_DX - 1].locks_cnt;
             CPU_BL = xmm_free_handles();
             CPU_DX = xmm_handle_size(CPU_DX);
+#else
+            CPU_BL = 0x86;
+            CPU_AX = XMS_ERROR_CODE;
+#endif
             sprintf(tmp, "XMS FN 0Eh: Handle Information #%d allocated %dKB", handle, CPU_DX);
             break;
         }
         case 0x0F: // XMS 0fH: Resize Extended Memory Block
             // BX    desired new size, in K-bytes
             // DX    XMS handle (as obtained via XMS 09H) must be unlocked
+#if XMS_OVER_HMA_KB
             if (CPU_DX > MAX_XMM_HANDLES) {
                 sprintf(tmp, "XMS FN 0Fh: Resize Extended Memory Block (invalid hndl) #%d to %dKB", CPU_DX, CPU_BX);
                 CPU_AX = XMS_ERROR_CODE;
@@ -617,6 +658,10 @@ uint8_t xms_fn() {
             }
             CPU_BL = resize_xmm_page(CPU_DX, CPU_BX);
             CPU_AX = CPU_BL > 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
+#else
+            CPU_BL = 0x86;
+            CPU_AX = XMS_ERROR_CODE;
+#endif
             sprintf(tmp, "XMS FN 0Fh: Resize Extended Memory Block #%d to %dKB", CPU_DX, CPU_BX);
             break;
 #ifdef XMS_UMB
@@ -653,7 +698,9 @@ void xmm_reboot() {
     hma_in_use = false;
     xms_in_use = false;
     a20_enable_count = 0;
+#if XMS_OVER_HMA_KB
     memset(&xmm_handles, 0, sizeof xmm_handles);
+#endif
 }
 
 #endif

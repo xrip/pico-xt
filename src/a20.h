@@ -11,7 +11,12 @@
 #define HMA_START_ADDRESS 0x100000ul
 #define OUT_OF_HMA_ADDRESS 0x10FFF0ul
 #define BASE_XMS_HANLES_SEG 0x11000ul
+// TODO:
+#if XMS_OVER_HMA_KB
 #define XMS_STATIC_PAGE_KBS 16ul
+#else
+#define XMS_STATIC_PAGE_KBS 0ul
+#endif
 #define XMS_STATIC_PAGE_PHARAGRAPS (XMS_STATIC_PAGE_KBS << 6)
 // last byte of interrupts table (actually should not be ever used as CS:IP)
 #define XMS_FN_CS 0x0000

@@ -396,7 +396,7 @@ INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
 }
 #endif
 
-
+#ifdef HANDLE_REBOOT
 void reboot_detected() {
     logMsg("REBOOT WAS DETECTED");
 #ifdef EMS_DRIVER
@@ -406,12 +406,15 @@ void reboot_detected() {
     xmm_reboot();
 #endif
 }
+#endif
 
 void writew86(uint32_t addr32, uint16_t value) {
+#ifdef HANDLE_REBOOT
     if (addr32 == 0 && value == 0) {
         // reboot hook
         reboot_detected();
     }
+#endif
     if (addr32 & 0x00000001) {
         // not 16-bit alligned
         write86(addr32, (uint8_t)value);
