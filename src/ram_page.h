@@ -16,6 +16,11 @@
 #define RAM_IN_PAGE_ADDR_MASK (0x000003FF)
 #endif
 // --- select only one of 'em
+#ifdef SWAP_BLOCK_2k
+#define RAM_PAGE_SIZE_KB 2ul
+#define RAM_IN_PAGE_ADDR_MASK (0x000007FF)
+#endif
+// --- select only one of 'em
 #ifdef SWAP_BLOCK_4k
 #define RAM_PAGE_SIZE_KB 4ul
 #define RAM_IN_PAGE_ADDR_MASK (0x00000FFF)
