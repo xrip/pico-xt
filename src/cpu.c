@@ -397,11 +397,23 @@ INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
 #endif
 
 #ifdef HANDLE_REBOOT
+static bool reboot_exec = false;
 void reboot_detected() {
+    if (reboot_exec) {
+        reboot_exec = false;
+        return;
+    }
+    reboot_exec = true;
     logMsg("REBOOT WAS DETECTED");
     if (!PSRAM_AVAILABLE && SD_CARD_AVAILABLE && !init_vram()) {
         logMsg((char *)"init_vram failed");
         SD_CARD_AVAILABLE = false;
+    }
+    if (PSRAM_AVAILABLE) {
+        logMsg("PSRAM cleanup"); // TODO: block mode
+        for (uint32_t addr32 = 0; addr32 < (8ul << 20); addr32 += 4) {
+            psram_write32(&psram_spi, addr32, 0);
+        }
     }
 #ifdef EMS_DRIVER
     emm_reboot();
