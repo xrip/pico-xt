@@ -183,8 +183,8 @@ else ()
             
             # select onr of the folowing:
             #SWAP_BLOCK_1k
-            #SWAP_BLOCK_2k
-            SWAP_BLOCK_4k
+            SWAP_BLOCK_2k
+            #SWAP_BLOCK_4k
 
             EMS_DRIVER=1
             XMS_DRIVER=1
