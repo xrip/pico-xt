@@ -1167,7 +1167,9 @@ void reset86() {
     SDL_AddTimer(timer_period / 1000, ClockTick, "timer");
     SDL_AddTimer(500, BlinkTimer, "blink");
 #endif
+#ifdef EMS_DRIVER
     init_emm();
+#endif
     init8253();
     init8259();
     initsermouse(0x378, 4);
@@ -1235,10 +1237,12 @@ uint8_t tandy_hack = 0;
 INLINE void intcall86(uint8_t intnum) {
     uint32_t tempcalc, memloc, n;
     switch (intnum) {
+#ifdef EMS_DRIVER
         case 0x67: {
             custom_on_board_emm();
             return;
         }
+#endif
         case 0x2F: {
             switch (CPU_AX) {
                 case 0x4300: {

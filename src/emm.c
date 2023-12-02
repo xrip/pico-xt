@@ -58,6 +58,8 @@
 #include <string.h>
 #include <stdbool.h>
 
+#ifdef EMS_DRIVER
+
 uint16_t emm_conventional_segment() {
     return PHYSICAL_EMM_SEGMENT;
 }
@@ -1109,3 +1111,5 @@ void emm_reboot() {
    memset(handlers, 0, sizeof handlers);
    init_emm();
 }
+
+#endif

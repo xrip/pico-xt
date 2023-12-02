@@ -186,7 +186,7 @@ else ()
             SWAP_BLOCK_2k
             #SWAP_BLOCK_4k
 
-            EMS_DRIVER=1
+            #EMS_DRIVER=1
             XMS_DRIVER=1
             XMS_UMB=1
             XMS_HMA=1
