@@ -22,14 +22,6 @@ static uint16_t port3C4 = 0;
 static uint16_t port3C5 = 0;
 
 void portout(uint16_t portnum, uint16_t value) {
-    switch (portnum) {
-        case 0x92: {
-            char tmp[90];
-            sprintf(tmp, "PORT %Xh set %Xh", portnum, value);
-            logMsg(tmp);
-        }
-        break;
-    }
     //if (portnum == 0x80) {
     //    printf("Diagnostic port out: %04X\r\n", value);
     //}

@@ -32,7 +32,7 @@
 #if PICO_ON_DEVICE
 // CGA
 //#define RAM_SIZE (4 * 40ul << 10) // 40 pages 4Kb = 160KB real pico RAM
-#define RAM_SIZE (4 * 22ul << 10) // 40 pages 4Kb = 160KB real pico RAM
+#define RAM_SIZE (2 * 44ul << 10) // 44 pages (2Kb) = 88KB real pico RAM
 #else
 #define RAM_SIZE (640ul << 10)
 #endif

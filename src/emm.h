@@ -58,28 +58,8 @@
 #include <inttypes.h>
 #include "emulator.h"
 
-// Settings for max 8MB 0f PSRAM
-#ifdef XMS_HMA
- #define XMS_HMA_KB 64ul
-#else
- #define XMS_HMA_KB 0
-#endif
-#if XMS_OVER_HMA_KB
- #define ON_BOARD_RAM_KB (1024ul + XMS_HMA_KB + RESERVED_XMS_KB)
-#else
- #define ON_BOARD_RAM_KB (2ul << 10)
-#endif
-
-#define BASE_X86_KB 1024ul
-#define TOTAL_XMM_KB (ON_BOARD_RAM_KB - BASE_X86_KB)
-#ifdef EMS_DRIVER
- #define TOTAL_EMM_KB (6ul << 10)
-#else
- #define TOTAL_EMM_KB 0
-#endif
 #define EMM_LBA_SHIFT_KB ON_BOARD_RAM_KB
 #define TOTAL_EMM_PAGES (TOTAL_EMM_KB >> 4)
-#define TOTAL_VIRTUAL_MEMORY_KBS (ON_BOARD_RAM_KB + TOTAL_EMM_KB)
 
 #define PHYSICAL_EMM_SEGMENT 0xD000
 #define PHYSICAL_EMM_SEGMENT_KB 64

@@ -6,10 +6,14 @@
 
 static uint16_t a20_enable_count = 0;
 
+// several applications expects, A20 line turn-on/off will take long time
+#define A20_DELAY_MS 33
+
 void set_a20_global_enabled() {
     a20_enable_count++;
     if (a20_enable_count == 0) a20_enable_count = 1;
     //char tmp[40]; sprintf(tmp, "A20: GSETu %d", a20_enable_count); logMsg(tmp);
+    sleep_ms(A20_DELAY_MS);
 }
 void set_a20_global_diabled() {
 #ifdef XMS_HMA
@@ -18,6 +22,7 @@ void set_a20_global_diabled() {
     if (a20_enable_count)
         a20_enable_count--;
     //char tmp[40]; sprintf(tmp, "A20: GSETd %d", a20_enable_count); logMsg(tmp);
+    sleep_ms(A20_DELAY_MS);
 }
 
 bool get_a20_enabled() {
@@ -34,6 +39,7 @@ void set_a20_enabled(bool v) {
         a20_enable_count--;
     }
     if (v && !a20_enable_count) ++a20_enable_count;
+    sleep_ms(A20_DELAY_MS);
 }
 
 
@@ -695,6 +701,7 @@ void xmm_reboot() {
         }
     }
 #endif
+    portout(PORT_A20, 0);
     hma_in_use = false;
     xms_in_use = false;
     a20_enable_count = 0;

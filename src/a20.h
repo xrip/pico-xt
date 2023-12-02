@@ -34,8 +34,12 @@ void    set_a20_global_diabled();
 
 bool INT_15h();
 bool umb_in_use(uint32_t addr32);
+
 #ifdef XMS_HMA
-extern bool hma_in_use;
+ #define XMS_HMA_KB 64ul
+ extern bool hma_in_use;
+#else
+ #define XMS_HMA_KB 0
 #endif
 
 uint8_t xms_fn();

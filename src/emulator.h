@@ -11,6 +11,24 @@
 #define INLINE __forceinline
 #endif
 
+// Settings for max 8MB 0f PSRAM
+#define TOTAL_VIRTUAL_MEMORY_KBS (8ul << 10)
+
+#if XMS_OVER_HMA_KB
+#define ON_BOARD_RAM_KB (1024ul + XMS_OVER_HMA_KB + XMS_HMA_KB + RESERVED_XMS_KB)
+#else
+#define ON_BOARD_RAM_KB (1024ul + XMS_HMA_KB + RESERVED_XMS_KB)
+#endif
+
+#define BASE_X86_KB 1024ul
+#define TOTAL_XMM_KB (ON_BOARD_RAM_KB - BASE_X86_KB)
+
+#ifdef EMS_DRIVER
+#define TOTAL_EMM_KB (TOTAL_VIRTUAL_MEMORY_KBS - ON_BOARD_RAM_KB)
+#else
+#define TOTAL_EMM_KB 0
+#endif
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
