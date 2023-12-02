@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#ifdef XMS_DRIVER
+
 static uint16_t a20_enable_count = 0;
 
 void set_a20_global_enabled() {
@@ -10,7 +12,9 @@ void set_a20_global_enabled() {
     //char tmp[40]; sprintf(tmp, "A20: GSETu %d", a20_enable_count); logMsg(tmp);
 }
 void set_a20_global_diabled() {
+#ifdef XMS_HMA
     if (hma_in_use && a20_enable_count == 1) return;
+#endif
     if (a20_enable_count)
         a20_enable_count--;
     //char tmp[40]; sprintf(tmp, "A20: GSETd %d", a20_enable_count); logMsg(tmp);
@@ -24,7 +28,9 @@ bool get_a20_enabled() {
 void set_a20_enabled(bool v) {
     //char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
     if (a20_enable_count == 1 && !v) {
+#ifdef XMS_HMA
         if (hma_in_use && a20_enable_count == 1) return;
+#endif
         a20_enable_count--;
     }
     if (v && !a20_enable_count) ++a20_enable_count;
@@ -288,6 +294,10 @@ INLINE uint8_t deallocate_xmm_page(uint16_t h) {
     return 0;
 }
 
+#define XMS_ERROR_CODE   0x0000
+#define XMS_SUCCESS_CODE 0x0001
+
+#ifdef XMS_UMB
 typedef struct umb {
     uint16_t seg;
     uint16_t sz; // paragraphs
@@ -311,9 +321,6 @@ bool umb_in_use(uint32_t addr32) {
     }
     return false;
 }
-
-#define XMS_ERROR_CODE   0x0000
-#define XMS_SUCCESS_CODE 0x0001
 
 INLINE uint16_t umb_allocate(uint16_t* psz, uint16_t* err) {
     for (int i = 0; i < UMB_BLOCKS; ++i) {
@@ -349,17 +356,10 @@ INLINE uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
     *err = XMS_ERROR_CODE;
     return 0x00B2; // invalid seg
 }
+#endif
 
 bool hma_in_use = false;
 static bool xms_in_use = false; // XMS 3.0 requires to hook INT 15h only after first non-version XMS call
-
-void reboot_detected() {
-    logMsg("REBOOT WAS DETECTED");
-#ifdef EMS_DRIVER
-    emm_reboot();
-#endif
-    xmm_reboot();
-}
 
 bool INT_15h() {
     switch (CPU_AH) {
@@ -465,13 +465,19 @@ bool INT_15h() {
 uint8_t xms_fn() {
     char tmp[80];
     if (CPU_AH == 0x00) { // XMS 00H: Get XMS Version Number
+#ifdef XMS_HMA
         sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 3.0; Drv ver 1.01; HMA available", CPU_AH);
+        CPU_DX = 0x0001; // HMA installed
+#else
+        sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 3.0; Drv ver 1.01; HMA is turned off", CPU_AH);
+        CPU_DX = 0x0000; // HMA not installed
+#endif
         CPU_AX = 0x0300; // spec. version
         CPU_BX = 0x0101; // driver version
-        CPU_DX = 0x0001; // HMA installed
     } else {
         xms_in_use = true;
         switch(CPU_AH) {
+#ifdef XMS_HMA
         case 0x01: // XMS 01H: Request High Memory Area
             if (hma_in_use) {
                 sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected - in use)", CPU_AH, CPU_DX);
@@ -494,6 +500,7 @@ uint8_t xms_fn() {
             CPU_AX = XMS_SUCCESS_CODE; // successful
             CPU_BL = 0x00;
             break;
+#endif
         case 0x03: // XMS 03H: Global Enable A20
             set_a20_global_enabled();
             sprintf(tmp, "XMS FN %02Xh: Global Enable A20", CPU_AH);
@@ -612,6 +619,7 @@ uint8_t xms_fn() {
             CPU_AX = CPU_BL > 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
             sprintf(tmp, "XMS FN 0Fh: Resize Extended Memory Block #%d to %dKB", CPU_DX, CPU_BX);
             break;
+#ifdef XMS_UMB
         case 0x10: // XMS 10H: Request Upper Memory Block
                    // DX    desired size of UMB, in paragraphs (16-byte units)
             CPU_BX = umb_allocate(&CPU_DX, &CPU_AX);
@@ -622,6 +630,7 @@ uint8_t xms_fn() {
             CPU_BX = umb_deallocate(&CPU_DX, &CPU_AX);
             sprintf(tmp, "XMS FN 11h: UMB dellocation: BX(seg/err): %04Xh; DX(sz): %04Xh; AX(err): %04Xh", CPU_BX, CPU_DX, CPU_AX);
             break;
+#endif
         default:
             sprintf(tmp, "XMS FN %2Xh: ERROR (not implemented)", CPU_AH);
             CPU_AX = XMS_ERROR_CODE; // ERROR
@@ -633,14 +642,18 @@ uint8_t xms_fn() {
 }
 
 void xmm_reboot() {
+#ifdef XMS_UMB
     for (int i = 0; i < UMB_BLOCKS; ++i) {
         umb_t *p = &umb_blocks[i];
         if(p->allocated) {
             p->allocated = false;
         }
     }
+#endif
     hma_in_use = false;
     xms_in_use = false;
     a20_enable_count = 0;
     memset(&xmm_handles, 0, sizeof xmm_handles);
 }
+
+#endif

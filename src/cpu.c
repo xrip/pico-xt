@@ -396,6 +396,17 @@ INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
 }
 #endif
 
+
+void reboot_detected() {
+    logMsg("REBOOT WAS DETECTED");
+#ifdef EMS_DRIVER
+    emm_reboot();
+#endif
+#ifdef XMS_DRIVER
+    xmm_reboot();
+#endif
+}
+
 void writew86(uint32_t addr32, uint16_t value) {
     if (addr32 == 0 && value == 0) {
         // reboot hook
@@ -1243,6 +1254,7 @@ INLINE void intcall86(uint8_t intnum) {
             return;
         }
 #endif
+#ifdef XMS_DRIVER
         case 0x2F: {
             switch (CPU_AX) {
                 case 0x4300: {
@@ -1264,6 +1276,7 @@ INLINE void intcall86(uint8_t intnum) {
                 return;
             }
             break;
+#endif
         case 0x10:
             //printf("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
             switch (CPU_AH) {
@@ -2376,6 +2389,7 @@ void exec86(uint32_t execloops) {
             ip = ip & 0xFFFF;
             savecs = CPU_CS;
             saveip = ip;
+#ifdef XMS_DRIVER
             // W/A-hack: last byte of interrupts table (actually should not be ever used as CS:IP)
             if (CPU_CS == XMS_FN_CS && ip == XMS_FN_IP) {
                 // hook for XMS
@@ -2384,6 +2398,9 @@ void exec86(uint32_t execloops) {
             else {
                 opcode = getmem8(CPU_CS, ip);
             }
+#else
+            opcode = getmem8(CPU_CS, ip);
+#endif
             StepIP(1);
 
             switch (opcode) {

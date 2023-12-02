@@ -83,6 +83,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x60:
             if (portnum < 256) portram[portnum] = value;
             break;
+#ifdef XMS_DRIVER
         case PORT_A20:
             portram[portnum] = value;
             if (value & A20_ENABLE_BIT) {
@@ -92,6 +93,7 @@ void portout(uint16_t portnum, uint16_t value) {
                 set_a20_enabled(false);
             }
             break;
+#endif
         case 0x64: // Passthrought all
 #if PICO_ON_DEVICE
             keyboard_send(value);
@@ -284,19 +286,6 @@ void portout(uint16_t portnum, uint16_t value) {
 
 uint16_t portin(uint16_t portnum) {
     switch (portnum) {
-        case PORT_A20: {
-            char tmp[90];
-            sprintf(
-                tmp,
-                "PORT %Xh get %Xh A20: %s", portnum,
-                get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT),
-                get_a20_enabled() ? "ON" : "OFF"
-            );
-            logMsg(tmp);
-        }
-        break;
-    }
-    switch (portnum) {
 #ifdef DMA_8237
         case 0x00:
         case 0x01:
@@ -344,8 +333,10 @@ uint16_t portin(uint16_t portnum) {
         case 0x61:
         case 0x64:
             return portram[portnum];
+#ifdef XMS_DRIVER
         case PORT_A20:
             return get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT);
+#endif
         /*case 0x201: // joystick
             return 0b11110000;*/
         case 0x379:

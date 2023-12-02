@@ -134,7 +134,6 @@ static inline void decodeflagsword(uint16_t x) {
 
 // TODO: remove this trash
 void logMsg(char*);
-uint8_t xms_fn();
 
 #define StepIP(x)  ip += x
 
@@ -178,8 +177,6 @@ extern union _bytewordregs_ {
     uint16_t wordregs[8];
     uint8_t byteregs[8];
 } regs;
-
-void reboot_detected();
 
 void diskhandler();
 uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname);
