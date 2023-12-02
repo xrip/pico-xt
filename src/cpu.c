@@ -130,6 +130,11 @@ void write86psram(uint32_t addr32, uint8_t value) {
         psram_write8(&psram_spi, addr32, value);
         return;
     }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        writeVRAM(addr32, value);
+        return;
+    }
 #ifdef EMS_DRIVER
     if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
         // EMS
@@ -183,6 +188,11 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
         ram_page_write(addr32, value);
         return;
     }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        writeVRAM(addr32, value);
+        return;
+    }
 #ifdef EMS_DRIVER
     if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
         // EMS
@@ -229,11 +239,6 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
 #endif
 
 void write86(uint32_t addr32, uint8_t value) {
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        writeVRAM(addr32, value);
-        return;
-    }
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         write86psram(addr32, value);
@@ -246,6 +251,11 @@ void write86(uint32_t addr32, uint8_t value) {
 #endif
     if (addr32 < RAM_SIZE) {
         RAM[addr32] = value;
+        return;
+    }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        writeVRAM(addr32, value);
         return;
     }
     // { char tmp[40]; sprintf(tmp, "ADDR W: 0x%X not found", addr32); logMsg(tmp); }
@@ -268,6 +278,15 @@ INLINE void write86psram16(uint32_t addr32, uint16_t value) {
     if (addr32 < CONVENTIONAL_END) {
         // Conventional in swap
         psram_write16(&psram_spi, addr32, value);
+        return;
+    }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        uint32_t offset = 0;
+        if (videomode >= 0x0D) {
+            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        write16arr(VIDEORAM, VIDEORAM_START32, offset+addr32, value);
         return;
     }
 #ifdef EMS_DRIVER
@@ -323,6 +342,15 @@ INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
         ram_page_write16(addr32, value);
         return;
     }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        uint32_t offset = 0;
+        if (videomode >= 0x0D) {
+            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        write16arr(VIDEORAM, VIDEORAM_START32, offset+addr32, value);
+        return;
+    }
 #ifdef EMS_DRIVER
     if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
         // EMS
@@ -369,15 +397,6 @@ INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
 #endif
 
 void writew86(uint32_t addr32, uint16_t value) {
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        uint32_t offset = 0;
-        if (videomode >= 0x0D) {
-            offset += ega_plane * 16000; /// 32000 = 320x200x16
-        }
-        write16arr(VIDEORAM, VIDEORAM_START32, offset+addr32, value);
-        return;
-    }
     if (addr32 == 0 && value == 0) {
         // reboot hook
         reboot_detected();
@@ -386,6 +405,15 @@ void writew86(uint32_t addr32, uint16_t value) {
         // not 16-bit alligned
         write86(addr32, (uint8_t)value);
         write86(addr32 + 1, (uint8_t)(value >> 8));
+    }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        uint32_t offset = 0;
+        if (videomode >= 0x0D) {
+            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        write16arr(VIDEORAM, VIDEORAM_START32, offset+addr32, value);
+        return;
     }
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
@@ -443,7 +471,7 @@ INLINE uint16_t read86rom16(uint32_t addr32) {
 }
 
 INLINE uint8_t read86video_ram(uint32_t addr32) {
-    if(videomode >= 0x0D)  /// 32000 = 320x200x16
+    if(videomode >= 0x0D) 
         return VIDEORAM[addr32 - VIDEORAM_START32 + ega_plane * 16000];
     return VIDEORAM[addr32 - VIDEORAM_START32];
 }
