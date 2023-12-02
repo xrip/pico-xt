@@ -388,7 +388,7 @@ uint16_t portin(uint16_t portnum) {
     }
 }
 
-__inline void portout16(uint16_t portnum, uint16_t value) {
+void portout16(uint16_t portnum, uint16_t value) {
 #ifdef DEBUG_PORT_TRAFFIC
     printf("IO: writing WORD port %Xh with data %04Xh\n", portnum, value);
 #endif
@@ -396,7 +396,7 @@ __inline void portout16(uint16_t portnum, uint16_t value) {
     portout(portnum + 1, (uint8_t)(value >> 8));
 }
 
-__inline uint16_t portin16(uint16_t portnum) {
+uint16_t portin16(uint16_t portnum) {
     uint16_t ret = (uint16_t)portin(portnum);
     ret |= ((uint16_t)portin(portnum + 1) << 8);
 #ifdef DEBUG_PORT_TRAFFIC

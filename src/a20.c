@@ -701,12 +701,14 @@ void xmm_reboot() {
         }
     }
 #endif
-    portout(PORT_A20, 0);
+// TODO: inti ports.c
+    memset(portram, 0, sizeof(portram));
+    port378, port379, port37A, port3D8, port3D9, port201 = 0; // port3DA ?>
     hma_in_use = false;
     xms_in_use = false;
     a20_enable_count = 0;
 #if XMS_OVER_HMA_KB
-    memset(&xmm_handles, 0, sizeof xmm_handles);
+    memset(xmm_handles, 0, sizeof xmm_handles);
 #endif
 }
 

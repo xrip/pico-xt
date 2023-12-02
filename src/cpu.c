@@ -399,6 +399,10 @@ INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
 #ifdef HANDLE_REBOOT
 void reboot_detected() {
     logMsg("REBOOT WAS DETECTED");
+    if (!PSRAM_AVAILABLE && SD_CARD_AVAILABLE && !init_vram()) {
+        logMsg((char *)"init_vram failed");
+        SD_CARD_AVAILABLE = false;
+    }
 #ifdef EMS_DRIVER
     emm_reboot();
 #endif
