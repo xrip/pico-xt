@@ -184,7 +184,6 @@ else ()
             #ROM_DRIVE_B=1
 
             DMA_8237
-            SWAP_BLOCK_1k
     )
 
     #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
