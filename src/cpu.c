@@ -36,7 +36,13 @@ extern psram_spi_inst_t psram_spi;
 static bool a20_line_open = false;
 
 void notify_a20_line_state_changed(bool v) {
+    if (v) logMsg("A20 ON");
+    else logMsg("A20 OFF'");
     a20_line_open = v;
+}
+
+bool is_a20_line_open() {
+    return a20_line_open;
 }
 
 uint8_t read86(uint32_t addr32);
@@ -2387,11 +2393,11 @@ void exec86(uint32_t execloops) {
             saveip = ip;
 #ifdef XMS_DRIVER
             // W/A-hack: last byte of interrupts table (actually should not be ever used as CS:IP)
-            /*if (CPU_CS == XMS_FN_CS && ip == XMS_FN_IP) {
+            if (CPU_CS == XMS_FN_CS && ip == XMS_FN_IP) {
                 // hook for XMS
                 opcode = xms_fn(); // always returns RET TODO: far/short ret?
             }
-            else*/ {
+            else {
                 opcode = getmem8(CPU_CS, ip);
             }
 #else
