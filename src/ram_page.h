@@ -9,11 +9,16 @@
 #define VIDEORAM_END32 0xBFFFFul
 
 #define VIDEORAM_SIZE (VIDEORAM_END32 - VIDEORAM_START32)
-#define SWAP_BLOCK_4k
+
 // --- select only one of 'em
 #ifdef SWAP_BLOCK_1k
 #define RAM_PAGE_SIZE_KB 1ul
 #define RAM_IN_PAGE_ADDR_MASK (0x000003FF)
+#endif
+// --- select only one of 'em
+#ifdef SWAP_BLOCK_2k
+#define RAM_PAGE_SIZE_KB 2ul
+#define RAM_IN_PAGE_ADDR_MASK (0x000007FF)
 #endif
 // --- select only one of 'em
 #ifdef SWAP_BLOCK_4k
@@ -27,7 +32,7 @@
 #if PICO_ON_DEVICE
 // CGA
 //#define RAM_SIZE (4 * 40ul << 10) // 40 pages 4Kb = 160KB real pico RAM
-#define RAM_SIZE (4 * 22ul << 10) // 40 pages 4Kb = 160KB real pico RAM
+#define RAM_SIZE (2 * 44ul << 10) // 44 pages (2Kb) = 88KB real pico RAM
 #else
 #define RAM_SIZE (640ul << 10)
 #endif

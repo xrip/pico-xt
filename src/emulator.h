@@ -5,9 +5,28 @@
 #ifndef TINY8086_CPU8086_H
 #define TINY8086_CPU8086_H
 #if PICO_ON_DEVICE
-#define INLINE __always_inline
+//#define INLINE __always_inline
+#define INLINE static inline
 #else
 #define INLINE __forceinline
+#endif
+
+// Settings for max 8MB 0f PSRAM
+#define TOTAL_VIRTUAL_MEMORY_KBS (8ul << 10)
+
+#if XMS_OVER_HMA_KB
+#define ON_BOARD_RAM_KB (1024ul + XMS_OVER_HMA_KB + XMS_HMA_KB + RESERVED_XMS_KB)
+#else
+#define ON_BOARD_RAM_KB (1024ul + XMS_HMA_KB + RESERVED_XMS_KB)
+#endif
+
+#define BASE_X86_KB 1024ul
+#define TOTAL_XMM_KB (ON_BOARD_RAM_KB - BASE_X86_KB)
+
+#ifdef EMS_DRIVER
+#define TOTAL_EMM_KB (TOTAL_VIRTUAL_MEMORY_KBS - ON_BOARD_RAM_KB)
+#else
+#define TOTAL_EMM_KB 0
 #endif
 
 #include <stdint.h>
@@ -133,7 +152,6 @@ static inline void decodeflagsword(uint16_t x) {
 
 // TODO: remove this trash
 void logMsg(char*);
-uint8_t xms_fn();
 
 #define StepIP(x)  ip += x
 
@@ -177,8 +195,6 @@ extern union _bytewordregs_ {
     uint16_t wordregs[8];
     uint8_t byteregs[8];
 } regs;
-
-void reboot_detected();
 
 void diskhandler();
 uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname);
@@ -267,3 +283,6 @@ extern struct i8253_s {
 #define rgb1(b, g, r) r | (g<<8) | (b<<16);
 //r<<16) | (g << 8 ) | b )
 #endif //TINY8086_CPU8086_H
+
+void notify_a20_line_state_changed(bool v);
+void ports_reboot();
