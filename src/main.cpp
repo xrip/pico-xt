@@ -211,7 +211,7 @@ int main() {
     graphics_set_mode(TEXTMODE_80x30);
 
     // TODO: сделать нормально
-    psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.8, true);
+    psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.6, true);
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
     PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
 
