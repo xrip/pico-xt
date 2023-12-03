@@ -14,8 +14,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 
-set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ffunction-sections -fdata-sections -O3")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections -O3")
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ffunction-sections -fdata-sections -O2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections -O2")
 
 if (PICO_PLATFORM STREQUAL "host")
     set(SDL2_LIB_DIR C:/SDL/lib)
@@ -63,7 +63,7 @@ pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
 #if (!OVERCLOCKING)
-set(OVERCLOCKING 396)
+set(OVERCLOCKING 416)
 #endif ()
 
 
@@ -186,12 +186,12 @@ else ()
             SWAP_BLOCK_2k
             #SWAP_BLOCK_4k
 
-            EMS_DRIVER=1
+            #EMS_DRIVER=1
             #EMS_DEBUG=1
-            XMS_DRIVER=1
-            XMS_OVER_HMA_KB=0
-            XMS_UMB=1
-            XMS_HMA=1
+            #XMS_DRIVER=1
+            #XMS_OVER_HMA_KB=0
+            #XMS_UMB=1
+            #XMS_HMA=1
             HANDLE_REBOOT
 
             #ROM_DRIVE_B=1
