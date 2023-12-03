@@ -80,8 +80,8 @@ void __time_critical_func(render_core)() {
     }
 
     graphics_init();
-    graphics_set_buffer(VIDEORAM+98304, 320, 200);
-    graphics_set_textbuffer(VIDEORAM+98304);
+    graphics_set_buffer(VIDEORAM, 320, 200);
+    graphics_set_textbuffer(VIDEORAM+32768);
     graphics_set_bgcolor(0);
     graphics_set_offset(0, 0);
     graphics_set_flashmode(true, true);
@@ -211,7 +211,7 @@ int main() {
     graphics_set_mode(TEXTMODE_80x30);
 
     // TODO: сделать нормально
-    psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.8, true);
+    psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.6, true);
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
     PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
 
@@ -524,7 +524,7 @@ int main() {
 #if !PICO_ON_DEVICE
         handleinput();
         uint8_t mode = videomode; // & 0x0F;
-        uint8_t* vidramptr = VIDEORAM + 98304;
+        uint8_t* vidramptr = VIDEORAM+34304;
         if (mode == 0x11) mode = 1;
         if (mode <= 3 || mode == 0x56) {
             uint8_t cols = videomode <= 1 ? 40 : 80;

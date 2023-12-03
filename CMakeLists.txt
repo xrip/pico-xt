@@ -14,8 +14,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}")
 
-set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ffunction-sections -fdata-sections -O3")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections -O3")
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ffunction-sections -fdata-sections -O2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections -O2")
 
 if (PICO_PLATFORM STREQUAL "host")
     set(SDL2_LIB_DIR C:/SDL/lib)
@@ -62,9 +62,9 @@ pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip/DnCraptor")
 pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
-#if (!OVERCLOCKING)
+if (!OVERCLOCKING)
 set(OVERCLOCKING 396)
-#endif ()
+endif ()
 
 
 if (PICO_PLATFORM STREQUAL "host")
@@ -76,6 +76,9 @@ if (PICO_PLATFORM STREQUAL "host")
         file(COPY ${Dependency} DESTINATION ${OUTPUT_DIR})
     endforeach ()
     add_link_options(-Wl,--gc-sections)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+            SWAP_BLOCK_4k
+    )
 else ()
     if (OVERCLOCKING)
         set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}-${OVERCLOCKING}MHz")

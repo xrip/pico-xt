@@ -6,7 +6,7 @@
 #define TINY8086_CPU8086_H
 #if PICO_ON_DEVICE
 //#define INLINE __always_inline
-#define INLINE static inline
+#define INLINE static
 #else
 #define INLINE __forceinline
 #endif

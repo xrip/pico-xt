@@ -34,8 +34,9 @@ extern psram_spi_inst_t psram_spi;
 #endif
 
 static bool a20_line_open = false;
+
 void notify_a20_line_state_changed(bool v) {
-   a20_line_open = v;
+    a20_line_open = v;
 }
 
 uint8_t read86(uint32_t addr32);
@@ -114,13 +115,11 @@ void modregrm() {
 
 void write86(uint32_t addr32, uint8_t value);
 
-INLINE void writeVRAM(uint32_t addr32, uint16_t value) {
-    if (videomode >= 0x0D) {
-        VIDEORAM[ega_plane * 16000 + addr32 - VIDEORAM_START32] = value; 
+static __inline void writeVRAM(uint32_t addr32, uint16_t value) {
+    if (videomode >= 0x0D && ega_plane) {
+        addr32 += ega_plane * 16000;
     }
-    else {
-        VIDEORAM[addr32 - VIDEORAM_START32] = value;
-    }
+    VIDEORAM[(addr32 - VIDEORAM_START32) % 65536] = value;
 }
 
 #if PICO_ON_DEVICE
@@ -133,11 +132,6 @@ void write86psram(uint32_t addr32, uint8_t value) {
     if (addr32 < CONVENTIONAL_END) {
         // Conventional in PSRAM
         psram_write8(&psram_spi, addr32, value);
-        return;
-    }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        writeVRAM(addr32, value);
         return;
     }
 #ifdef EMS_DRIVER
@@ -193,11 +187,6 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
         ram_page_write(addr32, value);
         return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        writeVRAM(addr32, value);
-        return;
-    }
 #ifdef EMS_DRIVER
     if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
         // EMS
@@ -244,6 +233,11 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
 #endif
 
 void write86(uint32_t addr32, uint8_t value) {
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        writeVRAM(addr32, value);
+        return;
+    }
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         write86psram(addr32, value);
@@ -256,11 +250,6 @@ void write86(uint32_t addr32, uint8_t value) {
 #endif
     if (addr32 < RAM_SIZE) {
         RAM[addr32] = value;
-        return;
-    }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        writeVRAM(addr32, value);
         return;
     }
     // { char tmp[40]; sprintf(tmp, "ADDR W: 0x%X not found", addr32); logMsg(tmp); }
@@ -287,11 +276,10 @@ INLINE void write86psram16(uint32_t addr32, uint16_t value) {
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
-        uint32_t offset = 0;
-        if (videomode >= 0x0D) {
-            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        if (videomode >= 0x0D && ega_plane) {
+            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
         }
-        write16arr(VIDEORAM, VIDEORAM_START32, offset+addr32, value);
+        write16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536, value);
         return;
     }
 #ifdef EMS_DRIVER
@@ -347,15 +335,7 @@ INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
         ram_page_write16(addr32, value);
         return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        uint32_t offset = 0;
-        if (videomode >= 0x0D) {
-            offset += ega_plane * 16000; /// 32000 = 320x200x16
-        }
-        write16arr(VIDEORAM, VIDEORAM_START32, offset+addr32, value);
-        return;
-    }
+
 #ifdef EMS_DRIVER
     if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
         // EMS
@@ -444,11 +424,10 @@ void writew86(uint32_t addr32, uint16_t value) {
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
-        uint32_t offset = 0;
-        if (videomode >= 0x0D) {
-            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        if (videomode >= 0x0D && ega_plane) {
+            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
         }
-        write16arr(VIDEORAM, VIDEORAM_START32, offset+addr32, value);
+        write16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536, value);
         return;
     }
 #if PICO_ON_DEVICE
@@ -467,7 +446,7 @@ void writew86(uint32_t addr32, uint16_t value) {
     }
 }
 
-INLINE uint8_t read86rom(uint32_t addr32) {
+static __inline uint8_t read86rom(uint32_t addr32) {
     if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
         // BIOS ROM range
         return BIOS[addr32 - 0xFE000UL];
@@ -483,7 +462,7 @@ INLINE uint8_t read86rom(uint32_t addr32) {
     return 0;
 }
 
-INLINE uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
+static __inline uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
     register uint8_t* ptr = arr + addr32 - base_addr;
     register uint16_t b1 = *ptr++;
     register uint16_t b0 = *ptr;
@@ -505,11 +484,12 @@ INLINE uint16_t read86rom16(uint32_t addr32) {
     }
     return 0;
 }
-
-INLINE uint8_t read86video_ram(uint32_t addr32) {
-    if(videomode >= 0x0D) 
-        return VIDEORAM[addr32 - VIDEORAM_START32 + ega_plane * 16000];
-    return VIDEORAM[addr32 - VIDEORAM_START32];
+#define __always_inline
+__always_inline uint8_t read86video_ram(uint32_t addr32) {
+    if (videomode >= 0x0D && ega_plane) {
+        addr32 += ega_plane * 16000;
+    }
+    return VIDEORAM[(addr32 - VIDEORAM_START32) % 65536];
 }
 
 #if PICO_ON_DEVICE
@@ -703,13 +683,9 @@ INLINE uint16_t read86sdcard16(uint32_t addr32) {
     return read86rom16(addr32);
 }
 #endif
-
+#define __time_critical_func(f) f
 // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
-uint8_t read86(uint32_t addr32) {
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        return read86video_ram(addr32);
-    }
+uint8_t __time_critical_func(read86)(uint32_t addr32) {
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         return read86psram(addr32);
@@ -721,6 +697,10 @@ uint8_t read86(uint32_t addr32) {
     // no special features, cover all existing RAM
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
+    }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        return read86video_ram(addr32);
     }
     if (addr32 < CONVENTIONAL_END) {
         // Conventional (no RAM in this space)
@@ -736,11 +716,10 @@ uint16_t readw86(uint32_t addr32) {
     }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
-        uint32_t offset = 0;
-        if (videomode >= 0x0D) {
-            offset += ega_plane * 16000; /// 32000 = 320x200x16
+        if (videomode >= 0x0D && ega_plane) {
+            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
         }
-        return read16arr(VIDEORAM, VIDEORAM_START32, offset+addr32);
+        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536);
     }
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
@@ -1327,7 +1306,7 @@ INLINE void intcall86(uint8_t intnum) {
                     logMsg(tmp);
 #if PICO_ON_DEVICE
                     if (videomode <= 0xd) {
-                        graphics_set_buffer(VIDEORAM + 98304, 320, 200);
+                        graphics_set_buffer(VIDEORAM + 32768, 320, 200);
                     }
                     switch (videomode) {
                         case 0:
@@ -1428,11 +1407,11 @@ INLINE void intcall86(uint8_t intnum) {
                     }
                     break;
                 case 0x12:
-                    CPU_BH = 0 ;   // default BIOS setup (0=color; 1=monochrome)
-                              CPU_BL = 10;   //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
-                                    //(Note: if BL>4, then this is not an EGA BIOS)
-                              CPU_CH = 0;    //feature bits (values of those RCA connectors)
-                              CPU_CL = 0;   //switch settings
+                    CPU_BH = 0; // default BIOS setup (0=color; 1=monochrome)
+                    CPU_BL = 3; //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
+                //(Note: if BL>4, then this is not an EGA BIOS)
+                    CPU_CH = 0; //feature bits (values of those RCA connectors)
+                    CPU_CL = 0; //switch settings
                     break;
                 case 0x1A: //get display combination code (ps, vga/mcga)
                     CPU_AL = 0x1A;
@@ -1577,10 +1556,10 @@ INLINE void intcall86(uint8_t intnum) {
             keyboard_send(0xFF);
 #else
             insertdisk(0, sizeof FDD0, FDD0, NULL);
-            if (1 == insertdisk(0, 0, NULL, "fdd0.img") ) {
+            if (1 == insertdisk(0, 0, NULL, "fdd0.img")) {
                 //insertdisk(0, fdd0_sz(), fdd0_rom(), NULL);
             }
-            //insertdisk(1, fdd1_sz(), fdd1_rom(), NULL);
+        //insertdisk(1, fdd1_sz(), fdd1_rom(), NULL);
             insertdisk(128, 0, NULL, "hdd.img");
 #endif
             break;
