@@ -62,9 +62,9 @@ pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip/DnCraptor")
 pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
-#if (!OVERCLOCKING)
-set(OVERCLOCKING 416)
-#endif ()
+if (!OVERCLOCKING)
+set(OVERCLOCKING 396)
+endif ()
 
 
 if (PICO_PLATFORM STREQUAL "host")
@@ -76,6 +76,9 @@ if (PICO_PLATFORM STREQUAL "host")
         file(COPY ${Dependency} DESTINATION ${OUTPUT_DIR})
     endforeach ()
     add_link_options(-Wl,--gc-sections)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+            SWAP_BLOCK_4k
+    )
 else ()
     if (OVERCLOCKING)
         set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}-${OVERCLOCKING}MHz")
@@ -186,12 +189,12 @@ else ()
             SWAP_BLOCK_2k
             #SWAP_BLOCK_4k
 
-            #EMS_DRIVER=1
+            EMS_DRIVER=1
             #EMS_DEBUG=1
-            #XMS_DRIVER=1
-            #XMS_OVER_HMA_KB=0
-            #XMS_UMB=1
-            #XMS_HMA=1
+            XMS_DRIVER=1
+            XMS_OVER_HMA_KB=0
+            XMS_UMB=1
+            XMS_HMA=1
             HANDLE_REBOOT
 
             #ROM_DRIVE_B=1
