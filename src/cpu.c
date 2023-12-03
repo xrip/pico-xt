@@ -467,7 +467,7 @@ void writew86(uint32_t addr32, uint16_t value) {
     }
 }
 
-INLINE uint8_t read86rom(uint32_t addr32) {
+static __inline uint8_t read86rom(uint32_t addr32) {
     if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
         // BIOS ROM range
         return BIOS[addr32 - 0xFE000UL];
@@ -483,7 +483,7 @@ INLINE uint8_t read86rom(uint32_t addr32) {
     return 0;
 }
 
-INLINE uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
+static __inline uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
     register uint8_t* ptr = arr + addr32 - base_addr;
     register uint16_t b1 = *ptr++;
     register uint16_t b0 = *ptr;
