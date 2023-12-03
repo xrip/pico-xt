@@ -1406,18 +1406,19 @@ INLINE void intcall86(uint8_t intnum) {
                             }
                     }
                     break;
-                case 0x12:
+                /*case 0x12:
+                  break;
                     CPU_BH = 0; // default BIOS setup (0=color; 1=monochrome)
-                    CPU_BL = 3; //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
+                    CPU_BL = 0; //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
                 //(Note: if BL>4, then this is not an EGA BIOS)
                     CPU_CH = 0; //feature bits (values of those RCA connectors)
                     CPU_CL = 0; //switch settings
-                    break;
+                    return;*/
                 case 0x1A: //get display combination code (ps, vga/mcga)
                     CPU_AL = 0x1A;
-                    CPU_BL = 0x04;
-                    CPU_BH = 0x08;
-                    break;
+                    CPU_BL = 0x08;
+                    CPU_BH = 0x00;
+                    return;
                 /*
                                 case 0x1A: //get display combination code (ps, vga/mcga)
                                     CPU_AL = 0x1A;

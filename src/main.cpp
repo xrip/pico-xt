@@ -524,7 +524,7 @@ int main() {
 #if !PICO_ON_DEVICE
         handleinput();
         uint8_t mode = videomode; // & 0x0F;
-        uint8_t* vidramptr = VIDEORAM+34304;
+        uint8_t* vidramptr = VIDEORAM+32768;
         if (mode == 0x11) mode = 1;
         if (mode <= 3 || mode == 0x56) {
             uint8_t cols = videomode <= 1 ? 40 : 80;
