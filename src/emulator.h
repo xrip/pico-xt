@@ -8,7 +8,11 @@
 //#define INLINE __always_inline
 #define INLINE static
 #else
+#ifndef __GNUC__
 #define INLINE __forceinline
+#else
+#define INLINE __attribute__((always_inline))
+#endif
 #endif
 
 // Settings for max 8MB 0f PSRAM
