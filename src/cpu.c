@@ -490,8 +490,7 @@ INLINE uint16_t read86rom16(uint32_t addr32) {
     }
     return 0;
 }
-#define __always_inline
-__always_inline uint8_t read86video_ram(uint32_t addr32) {
+uint8_t read86video_ram(uint32_t addr32) {
     if (videomode >= 0x0D && ega_plane) {
         addr32 += ega_plane * 16000;
     }
@@ -707,9 +706,8 @@ INLINE uint16_t read86sdcard16(uint32_t addr32) {
     return read86rom16(addr32);
 }
 #endif
-#define __time_critical_func(f) f
 // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
-uint8_t __time_critical_func(read86)(uint32_t addr32) {
+uint8_t read86(uint32_t addr32) {
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         return read86psram(addr32);
