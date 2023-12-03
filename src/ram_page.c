@@ -189,7 +189,10 @@ extern psram_spi_inst_t psram_spi;
 
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     if (PSRAM_AVAILABLE) {
-        psram_read(&psram_spi, file_offset, dst, sz);
+        uint32_t step_size = sz >= 16 ? 16 : sz;
+        for (uint32_t step = 0; step < sz; step += step_size) {
+            psram_read(&psram_spi, file_offset+step, dst+step, step_size);
+        }
         return;
     }
     gpio_put(PICO_DEFAULT_LED_PIN, true);
@@ -213,7 +216,11 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
 
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     if (PSRAM_AVAILABLE) {
-        psram_write(&psram_spi, file_offset, src, sz); // TODO: try async fast
+        uint32_t step_size = sz >= 16 ? 16 : sz;
+        for (uint32_t step = 0; step < sz; step += step_size) {
+            psram_write(&psram_spi, file_offset+step, src+step, step_size);
+        }
+        //psram_write(&psram_spi, file_offset, src, sz); // TODO: try async fast
         return;
     }
     gpio_put(PICO_DEFAULT_LED_PIN, true);
