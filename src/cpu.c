@@ -119,7 +119,7 @@ static __inline void writeVRAM(uint32_t addr32, uint16_t value) {
     if (videomode >= 0x0D && ega_plane) {
         addr32 += ega_plane * 16000;
     }
-    VIDEORAM[(addr32 - VIDEORAM_START32) % 64000] = value;
+    VIDEORAM[(addr32 - VIDEORAM_START32) % 65536] = value;
 }
 
 #if PICO_ON_DEVICE
@@ -132,11 +132,6 @@ void write86psram(uint32_t addr32, uint8_t value) {
     if (addr32 < CONVENTIONAL_END) {
         // Conventional in PSRAM
         psram_write8(&psram_spi, addr32, value);
-        return;
-    }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        writeVRAM(addr32, value);
         return;
     }
 #ifdef EMS_DRIVER
@@ -190,11 +185,6 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
     if (addr32 < CONVENTIONAL_END) {
         // Conventional in swap
         ram_page_write(addr32, value);
-        return;
-    }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        writeVRAM(addr32, value);
         return;
     }
 #ifdef EMS_DRIVER
@@ -289,7 +279,7 @@ INLINE void write86psram16(uint32_t addr32, uint16_t value) {
         if (videomode >= 0x0D && ega_plane) {
             addr32 += ega_plane * 16000; /// 32000 = 320x200x16
         }
-        write16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 64000, value);
+        write16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536, value);
         return;
     }
 #ifdef EMS_DRIVER
@@ -345,14 +335,7 @@ INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
         ram_page_write16(addr32, value);
         return;
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        if (videomode >= 0x0D && ega_plane) {
-            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
-        }
-        write16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 64000, value);
-        return;
-    }
+
 #ifdef EMS_DRIVER
     if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
         // EMS
@@ -444,7 +427,7 @@ void writew86(uint32_t addr32, uint16_t value) {
         if (videomode >= 0x0D && ega_plane) {
             addr32 += ega_plane * 16000; /// 32000 = 320x200x16
         }
-        write16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 64000, value);
+        write16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536, value);
         return;
     }
 #if PICO_ON_DEVICE
@@ -506,7 +489,7 @@ __always_inline uint8_t read86video_ram(uint32_t addr32) {
     if (videomode >= 0x0D && ega_plane) {
         addr32 += ega_plane * 16000;
     }
-    return VIDEORAM[(addr32 - VIDEORAM_START32) % 64000];
+    return VIDEORAM[(addr32 - VIDEORAM_START32) % 65536];
 }
 
 #if PICO_ON_DEVICE
@@ -736,7 +719,7 @@ uint16_t readw86(uint32_t addr32) {
         if (videomode >= 0x0D && ega_plane) {
             addr32 += ega_plane * 16000; /// 32000 = 320x200x16
         }
-        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 64000);
+        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536);
     }
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
@@ -1323,7 +1306,7 @@ INLINE void intcall86(uint8_t intnum) {
                     logMsg(tmp);
 #if PICO_ON_DEVICE
                     if (videomode <= 0xd) {
-                        graphics_set_buffer(VIDEORAM + 34304, 320, 200);
+                        graphics_set_buffer(VIDEORAM + 32768, 320, 200);
                     }
                     switch (videomode) {
                         case 0:
@@ -1425,7 +1408,7 @@ INLINE void intcall86(uint8_t intnum) {
                     break;
                 case 0x12:
                     CPU_BH = 0; // default BIOS setup (0=color; 1=monochrome)
-                    CPU_BL = 10; //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
+                    CPU_BL = 3; //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
                 //(Note: if BL>4, then this is not an EGA BIOS)
                     CPU_CH = 0; //feature bits (values of those RCA connectors)
                     CPU_CL = 0; //switch settings
