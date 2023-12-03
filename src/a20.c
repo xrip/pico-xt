@@ -15,7 +15,7 @@ static bool xms_in_use = false; // XMS 3.0 requires to hook INT 15h only after f
 void set_a20_global_enabled() {
     a20_enable_count++;
     if (a20_enable_count == 0) a20_enable_count = 1;
-    char tmp[40]; sprintf(tmp, "A20: GSETu %d", a20_enable_count); logMsg(tmp);
+    // char tmp[40]; sprintf(tmp, "A20: GSETu %d", a20_enable_count); logMsg(tmp);
     sleep_ms(A20_DELAY_MS);
     notify_a20_line_state_changed(true);
 }
@@ -26,18 +26,18 @@ void set_a20_global_diabled() {
 #endif
     if (a20_enable_count)
         a20_enable_count--;
-    char tmp[40]; sprintf(tmp, "A20: GSETd %d", a20_enable_count); logMsg(tmp);
+    // char tmp[40]; sprintf(tmp, "A20: GSETd %d", a20_enable_count); logMsg(tmp);
     sleep_ms(A20_DELAY_MS);
     notify_a20_line_state_changed(a20_enable_count > 0);
 }
 
 bool get_a20_enabled() {
-    char tmp[40]; sprintf(tmp, "A20: GET %d", a20_enable_count); logMsg(tmp);
+    // char tmp[40]; sprintf(tmp, "A20: GET %d", a20_enable_count); logMsg(tmp);
     return a20_enable_count > 0;
 }
 
 void set_a20_enabled(bool v) {
-    char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
+    // char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
     if (a20_enable_count == 1 && !v) {
 #ifdef XMS_HMA
         if (hma_in_use_count > 1 && a20_enable_count == 1) return;
@@ -406,6 +406,26 @@ INLINE uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
 }
 #endif
 
+bool INT_2Fh() {
+    switch (CPU_AX) {
+        case 0x4300: {
+            // logMsg("HIMEM.SYS (XMM) detection passed");
+            if(a20_enable_count == 0) {
+                set_a20_global_enabled();
+            }
+            CPU_AL = 0x80;
+            return true;
+        }
+        case 0x4310: {
+            // logMsg("HIMEM.SYS (XMM) Entry Address: 0000:03FF"); // W/A
+            CPU_ES = XMS_FN_CS; // 
+            CPU_BX = XMS_FN_IP; // 
+            return true;
+        }
+    }
+    return false;
+}
+
 bool INT_15h() {
     switch (CPU_AH) {
         case 0xDA:
@@ -572,7 +592,7 @@ uint8_t xms_fn() {
             break;
         case 0x07: // XMS 07H: Query A20 State
             CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
-            sprintf(tmp, "XMS FN 07h: A20 status: %s", CPU_AX ? "ON" : "OFF");
+            sprintf(tmp, "XMS FN 07h: Query A20 status: %s", CPU_AX ? "ON" : "OFF");
             CPU_BL = 0x00;
             break;
         case 0x08: { // XMS 08H: Query Free Extended Memory
@@ -705,9 +725,6 @@ void xmm_reboot() {
         }
     }
 #endif
-// TODO: inti ports.c
-    memset(portram, 0, sizeof(portram));
-    port378, port379, port37A, port3D8, port3D9, port201 = 0; // port3DA ?>
     hma_in_use_count = 0;
     xms_in_use = false;
     a20_enable_count = 0;

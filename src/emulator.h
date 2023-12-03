@@ -285,3 +285,4 @@ extern struct i8253_s {
 #endif //TINY8086_CPU8086_H
 
 void notify_a20_line_state_changed(bool v);
+void ports_reboot();

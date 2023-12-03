@@ -410,13 +410,14 @@ void reboot_detected() {
     }
     reboot_exec = true;
     logMsg("REBOOT WAS DETECTED");
+    ports_reboot();
     if (!PSRAM_AVAILABLE && SD_CARD_AVAILABLE && !init_vram()) {
         logMsg((char *)"init_vram failed");
         SD_CARD_AVAILABLE = false;
     }
     if (PSRAM_AVAILABLE) {
-        logMsg("PSRAM cleanup"); // TODO: block mode
-        for (uint32_t addr32 = 0; addr32 < (8ul << 20); addr32 += 4) {
+        logMsg("PSRAM cleanup"); // TODO: block mode, ensure diapason
+        for (uint32_t addr32 = (1ul << 20); addr32 < (2ul << 20); addr32 += 4) {
             psram_write32(&psram_spi, addr32, 0);
         }
     }
@@ -1280,18 +1281,8 @@ INLINE void intcall86(uint8_t intnum) {
 #endif
 #ifdef XMS_DRIVER
         case 0x2F: {
-            switch (CPU_AX) {
-                case 0x4300: {
-                    logMsg("HIMEM.SYS (XMM) detection passed");
-                    CPU_AL = 0x80;
-                    return;
-                }
-                case 0x4310: {
-                    logMsg("HIMEM.SYS (XMM) Entry Address: 0000:03FF"); // W/A
-                    CPU_ES = XMS_FN_CS; // 
-                    CPU_BX = XMS_FN_IP; // 
-                    return;
-                }
+            if (INT_2Fh()) {
+                return;
             }
             break;
         }

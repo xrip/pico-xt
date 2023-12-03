@@ -12,6 +12,11 @@ uint16_t portram[256];
 uint8_t crt_controller_idx, crt_controller[18];
 uint16_t port378, port379, port37A, port3D8, port3D9, port3DA, port201;
 
+void ports_reboot() {
+    memset(portram, 0, sizeof(portram));
+    port378, port379, port37A, port3D8, port3D9, port3DA, port201 = 0;
+}
+
 static uint8_t vga_palette_index = 0;
 static uint8_t vga_color_index = 0;
 static uint8_t dac_state = 0;
