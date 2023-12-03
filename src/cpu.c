@@ -427,7 +427,7 @@ INLINE uint8_t read86page(uint32_t addr32) {
     return read86rom(addr32);
 }
 
-INLINE uint16_t read86sdcard16(uint32_t addr32) {
+INLINE uint16_t read86page16(uint32_t addr32) {
     if (addr32 < RAM_PAGE_SIZE) {
         // First page block fast access
         return read16arr(RAM, 0, addr32);
