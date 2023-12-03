@@ -1312,6 +1312,7 @@ INLINE void intcall86(uint8_t intnum) {
                 //if (videomode >= 8) CPU_AL = 4;
 
                 // FIXME!!
+                    ega_plane = 0;
                     RAM[0x449] = CPU_AL;
                     RAM[0x44A] = (uint8_t)videomode <= 2 ? 40 : 80;
                     RAM[0x44B] = 0;
