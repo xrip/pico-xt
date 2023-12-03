@@ -2407,11 +2407,11 @@ void exec86(uint32_t execloops) {
             saveip = ip;
 #ifdef XMS_DRIVER
             // W/A-hack: last byte of interrupts table (actually should not be ever used as CS:IP)
-            /*if (CPU_CS == XMS_FN_CS && ip == XMS_FN_IP) {
+            if (CPU_CS == XMS_FN_CS && ip == XMS_FN_IP) {
                 // hook for XMS
                 opcode = xms_fn(); // always returns RET TODO: far/short ret?
             }
-            else*/ {
+            else {
                 opcode = getmem8(CPU_CS, ip);
             }
 #else
