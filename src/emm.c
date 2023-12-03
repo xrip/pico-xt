@@ -157,14 +157,20 @@ uint16_t total_emm_pages() {
     return TOTAL_EMM_PAGES;
 }
 
-static char tmp[80];
+#ifdef EMS_DEBUG
+static char tmp[85];
+#endif
 uint16_t allocated_emm_pages() {
     uint16_t res = 0;
+#ifdef EMS_DEBUG
     logMsg("Handler | in use | pages | ALLOCATED");
+#endif
     for (int i = 0; i < MAX_EMM_HANDLERS; ++i) {
         emm_handler_t * h = &handlers[i];
         if (h->handler_in_use) {
+#ifdef EMS_DEBUG
             sprintf(tmp, "    %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
+#endif
             res += h->pages_acllocated;
         }
     }
@@ -195,17 +201,21 @@ uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err) {
           the OS handle.  An application can use Function 21 to find out how
           many handles an EMM supports.
     */
+#ifdef EMS_DEBUG
     logMsg("Handler | in use | pages | ALLOCATE");
+#endif
     for (int i = 1; i < MAX_EMM_HANDLERS; ++i) {
         emm_handler_t * h = &handlers[i];
-        sprintf(tmp, "    %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated);
-        logMsg(tmp);
+#ifdef EMS_DEBUG
+        sprintf(tmp, "    %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
+#endif
         if (!h->handler_in_use) {
             handler = i;
             h->handler_in_use = true;
             h->pages_acllocated = pages;
-            sprintf(tmp, "res %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated);
-            logMsg(tmp);
+#ifdef EMS_DEBUG
+            sprintf(tmp, "res %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
+#endif
             break;
         }
     }
@@ -225,9 +235,11 @@ uint16_t reallocate_emm_pages(uint16_t handler, uint16_t pages) {
         return 0x87 << 8; // There aren't enough expanded memory pages present
     }
     if (handlers[handler].pages_acllocated == pages) {
+#ifdef EMS_DEBUG
         sprintf(tmp, "reallocated %03d | %d | %05d |",
                       handler, handlers[handler].handler_in_use, handlers[handler].pages_acllocated);
         logMsg(tmp);
+#endif
         return 0;
     }
     if (handlers[handler].pages_acllocated > pages) {
@@ -235,13 +247,15 @@ uint16_t reallocate_emm_pages(uint16_t handler, uint16_t pages) {
             return 0x88 << 8; // There aren't enough unallocated pages
         }
     }
+#ifdef EMS_DEBUG
     sprintf(tmp, "reallocate  %03d | %d | %05d |",
-                  handler, handlers[handler].handler_in_use, handlers[handler].pages_acllocated);
-    logMsg(tmp);
+                  handler, handlers[handler].handler_in_use, handlers[handler].pages_acllocated); logMsg(tmp);
+#endif
     handlers[handler].pages_acllocated = pages;
+#ifdef EMS_DEBUG
     sprintf(tmp, "reallocated %03d | %d | %05d |",
-                  handler, handlers[handler].handler_in_use, handlers[handler].pages_acllocated);
-    logMsg(tmp);
+                  handler, handlers[handler].handler_in_use, handlers[handler].pages_acllocated); logMsg(tmp);
+#endif
     return 0;
 }
 
@@ -264,36 +278,42 @@ uint16_t map_unmap_emm_page(
         return 0x8A00; // Logical page number is grater than allocated to the handle.
     }
     uint32_t physical_page_lba = phisical_page_2_lba(physical_page_number);
+#ifdef EMS_DEBUG
     logMsg("EMM TBL | Handler | Logical page | Physical page | MAP-UNMAP");
+#endif
     if (logical_page_number == 0xFFFF) { // if BX contains logical page number
                                          // FFFFh, the physical page will be unmapped
         for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
             emm_record_t * di = &emm_desc_table[i];
+#ifdef EMS_DEBUG
             sprintf(tmp, "   %04d |     %02Xh |        %04Xh |         %04Xh |",
-                          i, di->handler, di->logical_page, di->physical_page);
-            logMsg(tmp);
+                          i, di->handler, di->logical_page, di->physical_page); logMsg(tmp);
+#endif
             if (di->physical_page == physical_page_number && di->handler == emm_handle) {
                 di->handler = 0xFF;
+#ifdef EMS_DEBUG
                 sprintf(tmp, "r  %04d |     %02Xh |        %04Xh |         %04Xh |",
-                          i, di->handler, di->logical_page, di->physical_page);
-                logMsg(tmp);
+                          i, di->handler, di->logical_page, di->physical_page); logMsg(tmp);
+#endif
             }
         }
         return 0;
     }
     for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         emm_record_t * di = &emm_desc_table[i];
+#ifdef EMS_DEBUG
         sprintf(tmp, "   %04d |     %02Xh |        %04Xh |         %04Xh |",
-                      i, di->handler, di->logical_page, di->physical_page);
-        logMsg(tmp);
+                      i, di->handler, di->logical_page, di->physical_page); logMsg(tmp);
+#endif
         if (di->handler == emm_handle && di->physical_page == physical_page_number || // replace the page
             di->handler == 0xFF) { // empty line
             di->physical_page = physical_page_number;
             di->logical_page = logical_page_number;
             di->handler = emm_handle;
+#ifdef EMS_DEBUG
             sprintf(tmp, "r: %04d |     %02Xh |        %04Xh |         %04Xh |",
-                          i, di->handler, di->logical_page, di->physical_page);
-            logMsg(tmp);
+                          i, di->handler, di->logical_page, di->physical_page); logMsg(tmp);
+#endif
             return 0;
         }
     }
@@ -323,27 +343,35 @@ uint16_t deallocate_emm_pages(uint16_t emm_handle) {
             }
         }
     }
+#ifdef EMS_DEBUG
     logMsg("EMM TBL | Handler | Logical page | Physical page | DEALLOCATE");
+#endif
     for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         emm_record_t * di = &emm_desc_table[i];
+#ifdef EMS_DEBUG
         sprintf(tmp, "   %04d |     %02Xh |        %04Xh |         %04Xh |",
-                     i, di->handler, di->logical_page, di->physical_page);
-        logMsg(tmp);
+                     i, di->handler, di->logical_page, di->physical_page); logMsg(tmp);
+#endif
         if (di->handler == emm_handle) {
             // return 0x86 << 8; // The memory manager detected a save or restore page mapping context error.
             di->handler = 0xFF;
+#ifdef EMS_DEBUG
             sprintf(tmp, "r  %04d |     %02Xh |        %04Xh |         %04Xh |",
-                          i, di->handler, di->logical_page, di->physical_page);
-            logMsg(tmp);
+                          i, di->handler, di->logical_page, di->physical_page); logMsg(tmp);
+#endif
         }
     }
+#ifdef EMS_DEBUG
     logMsg("Handler | in use | pages | DEALLOCATE");
     sprintf(tmp, "    %03d |      %d | %05d |", emm_handle, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
+#endif
     h->pages_acllocated = 0;
     if (emm_handle) {// do not mark zero handler as not in use
         h->handler_in_use = false;
     }
+#ifdef EMS_DEBUG
     sprintf(tmp, "res %03d |      %d | %05d |", emm_handle, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
+#endif
     return 0;
 }
 
@@ -365,16 +393,19 @@ uint16_t save_emm_mapping(uint16_t ext_handler) {
                           // not been saved.
     }
     to_save->ext_handler = ext_handler;
+#ifdef EMS_DEBUG
     logMsg("EMM TBL | Handler | Logical page | Physical page | SAVE");
+#endif
     for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         emm_record_t* pd = &to_save->table[i];
         const emm_record_t* ps = &emm_desc_table[i];
         pd->handler = ps->handler;
         pd->logical_page = ps->logical_page;
         pd->physical_page = ps->physical_page;
+#ifdef EMS_DEBUG
         sprintf(tmp, "   %04d |     %02Xh |        %04Xh |         %04Xh |",
-                      i, ps->handler, ps->logical_page, ps->physical_page);
-        logMsg(tmp);
+                      i, ps->handler, ps->logical_page, ps->physical_page); logMsg(tmp);
+#endif
     }
     return 0;
 }
@@ -383,16 +414,19 @@ uint16_t restore_emm_mapping(uint16_t ext_handler) {
     for (int i = 0; i < MAX_SAVED_EMM_TABLES; ++i) {
         emm_saved_table_t * di = &emm_saved_tables[i];
         if (di->ext_handler == ext_handler) {
+#ifdef EMS_DEBUG
             logMsg("EMM TBL | Handler | Logical page | Physical page | RESTORE");
+#endif
             for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
                 const emm_record_t* ps = &di->table[i];
                 emm_record_t* pd = &emm_desc_table[i];
                 pd->handler = ps->handler;
                 pd->logical_page = ps->logical_page;
                 pd->physical_page = ps->physical_page;
+#ifdef EMS_DEBUG
                 sprintf(tmp, "   %04d |     %02Xh |        %04Xh |         %04Xh |",
-                             i, ps->handler, ps->logical_page, ps->physical_page);
-                logMsg(tmp);
+                             i, ps->handler, ps->logical_page, ps->physical_page); logMsg(tmp);
+#endif
             }
             memset(di->table, 0, sizeof emm_desc_table);
             di->ext_handler = 0;
@@ -425,15 +459,18 @@ uint16_t restore_emm_mapping(uint16_t ext_handler) {
                      pages allocated to the open EMM handle.
 */
 uint16_t get_all_emm_handle_pages(uint32_t addr32) {
+#ifdef EMS_DEBUG
     logMsg("get_all_emm_handle_pages");
+#endif
     uint16_t res = 0;
     for (int handler = 0; handler < MAX_EMM_HANDLERS; ++handler) {
         emm_handler_t * h = &handlers[handler];
         if (!h->handler_in_use)
             continue;
+#ifdef EMS_DEBUG
         sprintf(tmp, "ALL EMM H: %03d | in use: %01d | pages: %04d |",
-                      handler, h->handler_in_use, h->pages_acllocated);
-        logMsg(tmp);
+                      handler, h->handler_in_use, h->pages_acllocated);  logMsg(tmp);
+#endif
         ++res;
         writew86(addr32++, handler); addr32++;
         writew86(addr32++, h->pages_acllocated); addr32++;
@@ -442,7 +479,9 @@ uint16_t get_all_emm_handle_pages(uint32_t addr32) {
 }
 
 void get_emm_pages_map(uint32_t addr32) {
+#ifdef EMS_DEBUG
     logMsg("set_emm_pages_map TODO");
+#endif
     uint8_t * t = &emm_desc_table;
     for (int i = 0; i < sizeof emm_desc_table; ++i) {
         write86(addr32++, *t++);
@@ -450,7 +489,9 @@ void get_emm_pages_map(uint32_t addr32) {
 }
 
 void set_emm_pages_map(uint32_t addr32) {
+#ifdef EMS_DEBUG
     logMsg("set_emm_pages_map TODO");
+#endif
     uint8_t * t = &emm_desc_table;
     for (int i = 0; i < sizeof emm_desc_table; ++i) {
         *t++ = read86(addr32++);
@@ -458,7 +499,9 @@ void set_emm_pages_map(uint32_t addr32) {
 }
 
 uint16_t get_emm_pages_map_size() {
+#ifdef EMS_DEBUG
     logMsg("get_emm_pages_map_size TODO");
+#endif
     return sizeof emm_desc_table;
 }
 
@@ -634,12 +677,13 @@ uint16_t map_unmap_emm_seg_pages(uint16_t handle, uint16_t log_to_seg_map_len, u
 */
 uint16_t get_mappable_phys_pages() { return 4; }
 uint16_t get_mappable_physical_array(uint16_t mappable_phys_page) {
-    char tmp[80];
     uint16_t cs = PHYSICAL_EMM_SEGMENT;
     for (uint16_t physical_page = 0; physical_page < get_mappable_phys_pages(); ++physical_page, cs += 0x400) {
         writew86(mappable_phys_page++, cs); mappable_phys_page++;
         writew86(mappable_phys_page++, physical_page); mappable_phys_page++;
+#ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 PAGE 0x%X : %d", cs, physical_page); logMsg(tmp);
+#endif
     }
     return 0;
 }
@@ -772,7 +816,6 @@ uint16_t allocate_emm_raw_pages(uint16_t pages) {
 }
 
 void custom_on_board_emm() {
-    char tmp[90];
     uint16_t FN = CPU_AH;
     // sprintf(tmp, "LIM40 FN %Xh", FN); logMsg(tmp);
     switch(CPU_AH) { // EMM LIM 4.0
@@ -780,7 +823,9 @@ void custom_on_board_emm() {
     // memory manager is present and the hardware is working correctly.
     case 0x40: {
         CPU_AX = 0;
-        logMsg("LIM40 FN 40h status: 0");
+#ifdef EMS_DEBUG
+        logMsg("LIM40 FN 40h status: 0 (OK)");
+#endif
         zf = 0;
         return;
     }
@@ -788,7 +833,9 @@ void custom_on_board_emm() {
     // the page frame is located.
     case 0x41: {
         CPU_BX = emm_conventional_segment(); // page frame segment address
+#ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh -> 0x%X (page frame segment)", FN, CPU_BX); logMsg(tmp);
+#endif
         CPU_AX = 0;
         zf = 0;
         return;
@@ -798,7 +845,9 @@ void custom_on_board_emm() {
     case 0x42: {
         CPU_BX = unallocated_emm_pages();
         CPU_DX = total_emm_pages();
+#ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh -> %d free of %d EMM pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
+#endif
         CPU_AX = 0;
         zf = 0;
         return;
@@ -808,7 +857,9 @@ void custom_on_board_emm() {
     // these pages until the application deallocates them.
     case 0x43: {
         CPU_DX = allocate_emm_pages(CPU_BX, &CPU_AX);
+#ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh err: %Xh alloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
+#endif
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -820,8 +871,10 @@ void custom_on_board_emm() {
         // DX = emm_handle
         uint8_t AL = CPU_AL;
         CPU_AX = map_unmap_emm_page(CPU_AL, CPU_BX, CPU_DX);
+#ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh res: phys page %d was mapped to %d logical for %d EMM handler",
                       FN, AL, CPU_BX, CPU_DX); logMsg(tmp);
+#endif
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -829,7 +882,9 @@ void custom_on_board_emm() {
     case 0x45: {
         uint16_t emm_handle = CPU_DX;
         CPU_AX = deallocate_emm_pages(emm_handle);
+#ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh res: %Xh - EMM handler %d dealloc", FN, CPU_AX, emm_handle); logMsg(tmp);
+#endif
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -841,7 +896,9 @@ void custom_on_board_emm() {
                                       4  .  0
         */
         CPU_AL = 0b01000000; // 4.0
+#ifdef EMS_DEBUG
         logMsg("LIM40 FN 46h res: 4.0");
+#endif
         CPU_AH = 0; zf = 0;
         return;
     }
@@ -849,7 +906,9 @@ void custom_on_board_emm() {
     // expanded memory boards in an internal save area.
     case 0x47: {
         CPU_AX = save_emm_mapping(CPU_DX);
+#ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh res: %Xh (save mapping for %d)", FN, CPU_AX, CPU_DX); logMsg(tmp);
+#endif
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -859,7 +918,9 @@ void custom_on_board_emm() {
     // registers its EMM handle saved.
     case 0x48: {
         CPU_AX = restore_emm_mapping(CPU_DX);
+#ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh res: %Xh (restore mapping for %d)", FN, CPU_AX, CPU_DX); logMsg(tmp);
+#endif
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -867,7 +928,9 @@ void custom_on_board_emm() {
     // (including the operating system handle 0) in the system.
     case 0x4B: {
         CPU_BX = total_open_emm_handles();
+#ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh res: %Xh - total_emm_handlers", FN, CPU_BX); logMsg(tmp);
+#endif
         CPU_AX = 0; zf = 0;
         return;
     }
@@ -875,7 +938,9 @@ void custom_on_board_emm() {
     // a specific EMM handle.
     case 0x4C: {
         CPU_BX = get_emm_handle_pages(CPU_DX, &CPU_AX);
+#ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh handler: %d; res: %Xh; pages handled: %d", FN, CPU_DX, CPU_AX, CPU_BX); logMsg(tmp);
+#endif
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
@@ -885,7 +950,9 @@ void custom_on_board_emm() {
         // ES:DI = pointer to handle_page
         uint32_t addr32 = ((uint32_t)CPU_ES << 4) + CPU_DI;
         CPU_BX = get_all_emm_handle_pages(addr32);
+#ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh all_handlers: %d (open handles)", FN, CPU_BX); logMsg(tmp);
+#endif
         CPU_AX = 0; zf = 0;
         return;
     }
@@ -900,7 +967,9 @@ void custom_on_board_emm() {
             // ES:DI = dest_page_map
             uint32_t addr32 = ((uint32_t)CPU_ES << 4) + CPU_DI;
             get_emm_pages_map(addr32);
+#ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh emm pages: %Xh done", FN, CPU_AX); logMsg(tmp);
+#endif
             CPU_AX = 0; zf = 0;
             return;
         }
@@ -912,7 +981,9 @@ void custom_on_board_emm() {
             // DS:SI = source_page_map
             uint32_t addr32 = ((uint32_t)CPU_DS << 4) + CPU_SI;
             set_emm_pages_map(addr32);
+#ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh (save emm) done", FN); logMsg(tmp);
+#endif
             CPU_AX = 0; zf = 0;
             return;
         }
@@ -924,7 +995,9 @@ void custom_on_board_emm() {
             // DS:SI = source_page_map
             get_emm_pages_map(((uint32_t)CPU_ES << 4) + CPU_DI);
             set_emm_pages_map(((uint32_t)CPU_DS << 4) + CPU_SI);
+#ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh (get/save) done", FN); logMsg(tmp);
+#endif
             CPU_AX = 0; zf = 0;
             return;
         }
@@ -933,7 +1006,9 @@ void custom_on_board_emm() {
         // This subfunction doesn't require an EMM handle.
         case 0x03: {
             CPU_AX = get_emm_pages_map_size();
+#ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh emm pages size: %Xh", FN, CPU_AX); logMsg(tmp);
+#endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
@@ -947,14 +1022,18 @@ void custom_on_board_emm() {
             // DS:SI = partial_page_map
             // ES:DI = dest_array
             CPU_AX = get_partial_emm_page_map((CPU_DS << 4) + CPU_SI, (CPU_ES << 4) + CPU_DI);
+#ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh res: %Xh get_partial_emm_page_map (w/a)", FN, CPU_AH); logMsg(tmp);
+#endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
         case 0x01: {
             // DS:SI = source_array
             CPU_AX = set_partial_emm_page_map((CPU_DS << 4) + CPU_SI);
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh res: %Xh set_partial_emm_page_map (w/a)", FN, CPU_AH); logMsg(tmp);
+            #endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
@@ -964,7 +1043,9 @@ void custom_on_board_emm() {
         case 0x03: {
             // BX = number of pages in the partial array
             CPU_AX = get_emm_pages_map_size(); // W/A
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh res: %Xh get_emm_pages_map_size (w/a)", FN, CPU_AX); logMsg(tmp);
+            #endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
@@ -978,8 +1059,10 @@ void custom_on_board_emm() {
             uint16_t log_to_phys_map_len = CPU_CX;
             uint32_t log_to_phys_map = ((uint32_t)CPU_DS << 4) + CPU_SI;
             CPU_AX = map_unmap_emm_pages(handle, log_to_phys_map_len, log_to_phys_map);
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh res: %Xh map_unmap_emm_pages(%d, %d, %Xh)",
                     FN, CPU_AX, handle, log_to_phys_map_len, log_to_phys_map); logMsg(tmp);
+            #endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
@@ -989,8 +1072,10 @@ void custom_on_board_emm() {
             uint16_t log_to_segment_map_len = CPU_CX;
             uint32_t log_to_segment_map = ((uint32_t)CPU_DS << 4) + CPU_SI;
             CPU_AX = map_unmap_emm_seg_pages(handle, log_to_segment_map_len, log_to_segment_map);
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh res: %Xh map_unmap_emm_seg_pages(%d, %d, %Xh)",
                     FN, CPU_AX, handle, log_to_segment_map_len, log_to_segment_map); logMsg(tmp);
+            #endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
@@ -998,13 +1083,17 @@ void custom_on_board_emm() {
     // REALLOCATE PAGES
     case 0x51: {
         CPU_AX = reallocate_emm_pages(CPU_DX, CPU_BX);
+        #ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh err: %Xh realloc(%d pages); handler: %d", FN, CPU_AH, CPU_BX, CPU_DX); logMsg(tmp);
+        #endif
         if (CPU_AX) zf = 1; else zf = 0;
         return;
     }
     // Optional: set handler attributes
     case 0x52: {
+        #ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh err: 91h Optional: set handler attributes (not implemented)", FN); logMsg(tmp);
+        #endif
         CPU_AX = 0x9100; // not supported
         zf = 1;
         return;
@@ -1017,8 +1106,10 @@ void custom_on_board_emm() {
             uint16_t handle = CPU_DX;
             uint32_t handle_name = ((uint32_t)CPU_ES << 4) + CPU_DI;
             CPU_AX = get_handle_name(handle, handle_name);
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%d, %Xh)",
                     FN, CPU_AX, handle, handle_name); logMsg(tmp);
+            #endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
@@ -1027,8 +1118,9 @@ void custom_on_board_emm() {
             uint16_t handle = CPU_DX;
             uint32_t handle_name = ((uint32_t)CPU_DS << 4) + CPU_SI;
             CPU_AX = set_handle_name(handle, handle_name);
-            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%d, %Xh)",
-                    FN, CPU_AX, handle, handle_name); logMsg(tmp);
+            #ifdef EMS_DEBUG
+            sprintf(tmp, "LIM40 FN %Xh res: %Xh get_handle_name(%d, %Xh)", FN, CPU_AX, handle, handle_name); logMsg(tmp);
+            #endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
@@ -1040,7 +1132,9 @@ void custom_on_board_emm() {
         case 0x00: {
             uint32_t handle_dir_struct = ((uint32_t)CPU_ES << 4) + CPU_DI;
             CPU_AX = get_handle_dir(handle_dir_struct);
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh res: %Xh handle_dir_struct(%Xh)", FN, CPU_AX, handle_dir_struct); logMsg(tmp);
+            #endif
             if (CPU_AH) zf = 1; else zf = 0;
             return;
         }
@@ -1048,14 +1142,18 @@ void custom_on_board_emm() {
         case 0x01: {
             uint32_t handle_name = ((uint32_t)CPU_ES << 4) + CPU_DI;
             CPU_DX = lookup_handle_dir(handle_name , &CPU_AX);
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d lookup_handle_dir(%Xh)", FN, CPU_AH, CPU_DX, handle_name); logMsg(tmp);
+            #endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
         // GET TOTAL HANDLES
         case 0x02: {
             CPU_BX = MAX_EMM_HANDLERS;
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh MAX_EMM_HANDLERS: %d", FN, CPU_BX); logMsg(tmp);
+            #endif
             CPU_AX = 0; zf = 0;
             return;
         }
@@ -1067,8 +1165,10 @@ void custom_on_board_emm() {
         uint16_t handle = CPU_DX;
         uint32_t map_and_jump = ((uint32_t)CPU_DS << 4) + CPU_SI;
         CPU_AH = map_emm_and_jump(page_number_segment_selector, handle, map_and_jump);
+        #ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d page_number_segment_selector: %d (not implemented)",
                       FN, CPU_AH, CPU_DX, page_number_segment_selector); logMsg(tmp);
+        #endif
         if (CPU_AH) zf = 1; else zf = 0;
         return;
     }
@@ -1078,15 +1178,19 @@ void custom_on_board_emm() {
         uint16_t handle = CPU_DX;
         uint32_t map_and_call = ((uint32_t)CPU_DS << 4) + CPU_SI;
         CPU_AH = map_emm_and_call(page_number_segment_selector, handle, map_and_call);
+        #ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh res: %Xh handle: %d page_number_segment_selector: %d (not implemented)",
                       FN, CPU_AH, CPU_DX, page_number_segment_selector); logMsg(tmp);
+        #endif
         if (CPU_AH) zf = 1; else zf = 0;
         return;
     }
     // MOVE/EXCHANGE MEMORY REGION
     case 0x57: {
         CPU_AH = 0x86;
-        sprintf(tmp, "LIM40 FN %Xh MOVE/EXCHANGE MEMORY REGION (not implemented)", FN); logMsg(tmp);
+        
+        logMsg("LIM40 FN 57h MOVE/EXCHANGE MEMORY REGION (not implemented)");
+        
         if (CPU_AH) zf = 1; else zf = 0;
         return;
     }
@@ -1097,15 +1201,19 @@ void custom_on_board_emm() {
         case 0x00: {
             uint32_t mappable_phys_page = ((uint32_t)CPU_ES << 4) + CPU_DI;
             CPU_AX = get_mappable_physical_array(mappable_phys_page);
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh res: %Xh get_mappable_physical_array(%Xh)",
                     FN, CPU_AX, mappable_phys_page); logMsg(tmp);
+            #endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
         // GET MAPPABLE PHYSICAL ADDRESS ARRAY ENTRIES
         case 0x01: {
             CPU_CX = get_mappable_phys_pages();
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh get_mappable_phys_pages: %d", FN, CPU_CX); logMsg(tmp);
+            #endif
             CPU_AX = 0; zf = 0;
             return;
         }
@@ -1117,7 +1225,9 @@ void custom_on_board_emm() {
         case 0x00: {
             uint32_t hardware_info = ((uint32_t)CPU_ES << 4) + CPU_DI;
             get_hardvare_emm_info(hardware_info);
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh GET HARDWARE CONFIGURATION ARRAY", FN); logMsg(tmp);
+            #endif
             CPU_AX = 0; zf = 0;
             return;
         }
@@ -1125,7 +1235,9 @@ void custom_on_board_emm() {
         case 0x01: {
             CPU_BX = unallocated_emm_pages();
             CPU_DX = total_emm_pages();
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh %d of %d free pages", FN, CPU_BX, CPU_DX); logMsg(tmp);
+            #endif
             CPU_AX = 0; zf = 0;
             return;
         }
@@ -1136,39 +1248,52 @@ void custom_on_board_emm() {
         //  ALLOCATE STANDARD PAGES
         case 0x00: {
             CPU_AX = allocate_emm_pages_sys(CPU_BX, CPU_DX);
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh (%d, %d) allocate_emm_pages_sys res: %Xh", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
+            #endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
         //  ALLOCATE STANDARD/RAW
         case 0x01: {
             CPU_AX = allocate_emm_raw_pages(CPU_BX);
+            #ifdef EMS_DEBUG
             sprintf(tmp, "LIM40 FN %Xh (%d, %d) allocate_emm_raw_pages res: %Xh (not yet)", FN, CPU_BX, CPU_DX, CPU_AX); logMsg(tmp);
+            #endif
             if (CPU_AX) zf = 1; else zf = 0;
             return;
         }
     }
     case 0x5B: {
         CPU_AH = 0x86;
+        #ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh ALTERNATE MAP REGISTER SET (not implemented)", FN); logMsg(tmp);
+        #endif
         if (CPU_AH) zf = 1; else zf = 0;
         return;
     }
     case 0x5C: {
         CPU_AH = 0x00;
+        #ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh PREPARE EXPANDED MEMORY HARDWARE FOR WARM BOOT", FN); logMsg(tmp);
+        #endif
         // TODO: ensure it is not required
         zf = 0;
         return;
     }
     case 0x5D: {
         CPU_AH = 0x86;
+        #ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh ENABLE/DISABLE OS/E FUNCTION SET (not implemented)", FN); logMsg(tmp);
+        #endif
         if (CPU_AH) zf = 1; else zf = 0;
         return;
     }
     default:
+        #ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh (not implemented)", CPU_AX); logMsg(tmp);
+        #endif
+        break;
     }
 }
 

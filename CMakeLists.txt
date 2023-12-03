@@ -178,7 +178,7 @@ else ()
             # supports only for pico with 4 or more MB flashes
             PICO_FLASH_SIZE_BYTES=4194304
 
-            BOOT_DEBUG=1
+            #BOOT_DEBUG=1
             #BOOT_DEBUG_ACC=0xA0000
             
             # select onr of the folowing:
@@ -187,6 +187,7 @@ else ()
             #SWAP_BLOCK_4k
 
             EMS_DRIVER=1
+            #EMS_DEBUG=1
             XMS_DRIVER=1
             XMS_OVER_HMA_KB=0
             XMS_UMB=1

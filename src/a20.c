@@ -6,6 +6,9 @@
 
 static uint16_t a20_enable_count = 0;
 
+uint8_t hma_in_use_count = 0; // W/A DOS try to use it twice
+static bool xms_in_use = false; // XMS 3.0 requires to hook INT 15h only after first non-version XMS call
+
 // several applications expects, A20 line turn-on/off will take long time
 #define A20_DELAY_MS 10
 
@@ -14,15 +17,18 @@ void set_a20_global_enabled() {
     if (a20_enable_count == 0) a20_enable_count = 1;
     char tmp[40]; sprintf(tmp, "A20: GSETu %d", a20_enable_count); logMsg(tmp);
     sleep_ms(A20_DELAY_MS);
+    notify_a20_line_state_changed(true);
 }
+
 void set_a20_global_diabled() {
 #ifdef XMS_HMA
-    if (hma_in_use && a20_enable_count == 1) return;
+    if (hma_in_use_count > 1 && a20_enable_count == 1) return;
 #endif
     if (a20_enable_count)
         a20_enable_count--;
     char tmp[40]; sprintf(tmp, "A20: GSETd %d", a20_enable_count); logMsg(tmp);
     sleep_ms(A20_DELAY_MS);
+    notify_a20_line_state_changed(a20_enable_count > 0);
 }
 
 bool get_a20_enabled() {
@@ -34,12 +40,13 @@ void set_a20_enabled(bool v) {
     char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
     if (a20_enable_count == 1 && !v) {
 #ifdef XMS_HMA
-        if (hma_in_use && a20_enable_count == 1) return;
+        if (hma_in_use_count > 1 && a20_enable_count == 1) return;
 #endif
         a20_enable_count--;
     }
     if (v && !a20_enable_count) ++a20_enable_count;
     sleep_ms(A20_DELAY_MS);
+    notify_a20_line_state_changed(a20_enable_count > 0);
 }
 
 
@@ -399,9 +406,6 @@ INLINE uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
 }
 #endif
 
-bool hma_in_use = false;
-static bool xms_in_use = false; // XMS 3.0 requires to hook INT 15h only after first non-version XMS call
-
 bool INT_15h() {
     switch (CPU_AH) {
         case 0xDA:
@@ -520,7 +524,7 @@ uint8_t xms_fn() {
         switch(CPU_AH) {
 #ifdef XMS_HMA
         case 0x01: // XMS 01H: Request High Memory Area
-            if (hma_in_use) {
+            if (hma_in_use_count > 1) {
                 sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected - in use)", CPU_AH, CPU_DX);
                 CPU_AX = XMS_ERROR_CODE; // ERROR
                 CPU_BL = 0x91; // HMA is already in use
@@ -530,13 +534,13 @@ uint8_t xms_fn() {
                 CPU_BL = 0x82; // A20 is OFF
             } else {
                 sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (allocated)", CPU_AH, CPU_DX);
-                hma_in_use = true;
+                hma_in_use_count++;
                 CPU_AX = XMS_SUCCESS_CODE; // successful
                 CPU_BL = 0x00;
             }
             break;
         case 0x02: // XMS 02H: Release High Memory Area
-            hma_in_use = false;
+            hma_in_use_count = 0;
             sprintf(tmp, "XMS FN %02Xh: HMA requested to release", CPU_AH);
             CPU_AX = XMS_SUCCESS_CODE; // successful
             CPU_BL = 0x00;
@@ -704,7 +708,7 @@ void xmm_reboot() {
 // TODO: inti ports.c
     memset(portram, 0, sizeof(portram));
     port378, port379, port37A, port3D8, port3D9, port201 = 0; // port3DA ?>
-    hma_in_use = false;
+    hma_in_use_count = 0;
     xms_in_use = false;
     a20_enable_count = 0;
 #if XMS_OVER_HMA_KB

@@ -283,3 +283,5 @@ extern struct i8253_s {
 #define rgb1(b, g, r) r | (g<<8) | (b<<16);
 //r<<16) | (g << 8 ) | b )
 #endif //TINY8086_CPU8086_H
+
+void notify_a20_line_state_changed(bool v);

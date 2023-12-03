@@ -37,7 +37,7 @@ bool umb_in_use(uint32_t addr32);
 
 #ifdef XMS_HMA
  #define XMS_HMA_KB 64ul
- extern bool hma_in_use;
+ // extern bool hma_in_use;
 #else
  #define XMS_HMA_KB 0
 #endif

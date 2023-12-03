@@ -33,6 +33,11 @@ extern psram_spi_inst_t psram_spi;
 
 #endif
 
+static bool a20_line_open = false;
+void notify_a20_line_state_changed(bool v) {
+   a20_line_open = v;
+}
+
 uint8_t read86(uint32_t addr32);
 
 uint16_t readw86(uint32_t addr32);
@@ -147,9 +152,9 @@ void write86psram(uint32_t addr32, uint8_t value) {
 #endif
 #ifdef XMS_DRIVER
 #ifdef XMS_HMA
-    if ((addr32) >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
+    if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
-        if (get_a20_enabled()) {
+        if (a20_line_open) {
             // A20 line is ON
             psram_write8(&psram_spi, addr32, value);
             return;
@@ -205,9 +210,9 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
 #endif
 #ifdef XMS_DRIVER
 #ifdef XMS_HMA
-    if ((addr32) >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
+    if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
-        if (get_a20_enabled()) {
+        if (a20_line_open) {
             // A20 line is ON
             //char tmp[40]; sprintf(tmp, "HMAW %08Xh v: %02Xh", addr32, value); logMsg(tmp);
             ram_page_write(addr32, value);
@@ -301,9 +306,9 @@ INLINE void write86psram16(uint32_t addr32, uint16_t value) {
 #endif
 #ifdef XMS_DRIVER
 #ifdef XMS_HMA
-    if ((addr32) >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
+    if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
-        if (get_a20_enabled()) {
+        if (a20_line_open) {
             // A20 line is ON
             psram_write16(&psram_spi, addr32, value);
             return;
@@ -363,9 +368,9 @@ INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
 #endif
 #ifdef XMS_DRIVER
 #ifdef XMS_HMA
-    if ((addr32) >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
+    if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
-        if (get_a20_enabled()) {
+        if (a20_line_open) {
             // A20 line is ON
             //char tmp[40]; sprintf(tmp, "HMAW %08Xh v: %04Xh", addr32, value); logMsg(tmp);
             ram_page_write16(addr32, value);
@@ -532,7 +537,7 @@ INLINE uint8_t read86psram(uint32_t addr32) {
 #ifdef XMS_HMA
     if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
-        if (get_a20_enabled()) {
+        if (a20_line_open) {
             return psram_read8(&psram_spi, addr32);
         }
         return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
@@ -577,7 +582,7 @@ INLINE uint16_t read86psram16(uint32_t addr32) {
 #ifdef XMS_HMA
     if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
-        if (get_a20_enabled()) {
+        if (a20_line_open) {
             return psram_read16(&psram_spi, addr32);
         }
         return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
@@ -623,7 +628,7 @@ INLINE uint8_t read86sdcard(uint32_t addr32) {
 #ifdef XMS_HMA
     if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
-        if (get_a20_enabled()) {
+        if (a20_line_open) {
             //char tmp[40]; sprintf(tmp, "HMA: %08Xh v: %02Xh", addr32, ram_page_read(addr32)); logMsg(tmp);
             return ram_page_read(addr32);
         }
@@ -671,7 +676,7 @@ INLINE uint16_t read86sdcard16(uint32_t addr32) {
 #ifdef XMS_HMA
     if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
         // HMA
-        if (get_a20_enabled()) {
+        if (a20_line_open) {
             //char tmp[40]; sprintf(tmp, "HMA: %08Xh v: %04Xh", addr32, ram_page_read16(addr32)); logMsg(tmp);
             return ram_page_read16(addr32);
         }
