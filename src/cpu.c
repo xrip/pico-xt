@@ -36,7 +36,13 @@ extern psram_spi_inst_t psram_spi;
 static bool a20_line_open = false;
 
 void notify_a20_line_state_changed(bool v) {
+    if (v) logMsg("A20 ON");
+    else logMsg("A20 OFF'");
     a20_line_open = v;
+}
+
+bool is_a20_line_open() {
+    return a20_line_open;
 }
 
 uint8_t read86(uint32_t addr32);

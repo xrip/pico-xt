@@ -4,51 +4,8 @@
 
 #ifdef XMS_DRIVER
 
-static uint16_t a20_enable_count = 0;
-
 uint8_t hma_in_use_count = 0; // W/A DOS try to use it twice
 static bool xms_in_use = false; // XMS 3.0 requires to hook INT 15h only after first non-version XMS call
-
-// several applications expects, A20 line turn-on/off will take long time
-#define A20_DELAY_MS 10
-
-void set_a20_global_enabled() {
-    a20_enable_count++;
-    if (a20_enable_count == 0) a20_enable_count = 1;
-    // char tmp[40]; sprintf(tmp, "A20: GSETu %d", a20_enable_count); logMsg(tmp);
-    sleep_ms(A20_DELAY_MS);
-    notify_a20_line_state_changed(true);
-}
-
-void set_a20_global_diabled() {
-#ifdef XMS_HMA
-    if (hma_in_use_count > 1 && a20_enable_count == 1) return;
-#endif
-    if (a20_enable_count)
-        a20_enable_count--;
-    // char tmp[40]; sprintf(tmp, "A20: GSETd %d", a20_enable_count); logMsg(tmp);
-    sleep_ms(A20_DELAY_MS);
-    notify_a20_line_state_changed(a20_enable_count > 0);
-}
-
-bool get_a20_enabled() {
-    // char tmp[40]; sprintf(tmp, "A20: GET %d", a20_enable_count); logMsg(tmp);
-    return a20_enable_count > 0;
-}
-
-void set_a20_enabled(bool v) {
-    // char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
-    if (a20_enable_count == 1 && !v) {
-#ifdef XMS_HMA
-        if (hma_in_use_count > 1 && a20_enable_count == 1) return;
-#endif
-        a20_enable_count--;
-    }
-    if (v && !a20_enable_count) ++a20_enable_count;
-    sleep_ms(A20_DELAY_MS);
-    notify_a20_line_state_changed(a20_enable_count > 0);
-}
-
 
 void i15_87h(uint16_t words_to_move, uint32_t gdt_far) {
     uint16_t source_segment_szb = readw86(gdt_far + 0x10); // (2*CX-1) or grater
@@ -410,9 +367,6 @@ bool INT_2Fh() {
     switch (CPU_AX) {
         case 0x4300: {
             // logMsg("HIMEM.SYS (XMM) detection passed");
-            //if(a20_enable_count == 0) {
-            //    set_a20_global_enabled();
-            //}
             CPU_AL = 0x80;
             return true;
         }
@@ -451,19 +405,19 @@ bool INT_15h() {
         case 0x24:
             switch (CPU_AL) {
                 case 0x00:
-                    set_a20_enabled(true);
+                    notify_a20_line_state_changed(true);
                     cf = 0;
                     CPU_AH = 0;
                     logMsg("INT15! 2400 turn on A20_ENABLE_BIT");
                     return true;
                 case 0x01:
-                    set_a20_enabled(false);
+                    notify_a20_line_state_changed(false);
                     cf = 0;
                     CPU_AH = 0;
                     logMsg("INT15! 2401 turn off A20_ENABLE_BIT");
                     return true;
                 case 0x02:
-                    CPU_AL = get_a20_enabled();
+                    CPU_AL = is_a20_line_open();
                     cf = 0;
                     CPU_AH = 0; {
                         char tmp[80];
@@ -548,7 +502,7 @@ uint8_t xms_fn() {
                 sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected - in use)", CPU_AH, CPU_DX);
                 CPU_AX = XMS_ERROR_CODE; // ERROR
                 CPU_BL = 0x91; // HMA is already in use
-            } else if (get_a20_enabled()) {
+            } else if (!is_a20_line_open()) {
                 sprintf(tmp, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected - A20 is off)", CPU_AH, CPU_DX);
                 CPU_AX = XMS_ERROR_CODE; // ERROR
                 CPU_BL = 0x82; // A20 is OFF
@@ -567,31 +521,31 @@ uint8_t xms_fn() {
             break;
 #endif
         case 0x03: // XMS 03H: Global Enable A20
-            set_a20_global_enabled();
+            notify_a20_line_state_changed(true);
             sprintf(tmp, "XMS FN %02Xh: Global Enable A20", CPU_AH);
-            CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
+            CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
             CPU_BL = 0x00;
             break;
         case 0x05: // XMS 05H: Local Enable A20
-            set_a20_enabled(true);
+            notify_a20_line_state_changed(true);
             sprintf(tmp, "XMS FN %02Xh: Local Enable A20", CPU_AH);
-            CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
+            CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
             CPU_BL = 0x00;
             break;
         case 0x04: // XMS 04H: Global Disable A20
-            set_a20_global_diabled();
+            notify_a20_line_state_changed(false);
             sprintf(tmp, "XMS FN %02Xh: Global Disable A20", CPU_AH);
-            CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
+            CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
             CPU_BL = 0x00;
             break;
         case 0x06: // XMS 06H: Local Disable A20
-            set_a20_enabled(false);
+            notify_a20_line_state_changed(false);
             sprintf(tmp, "XMS FN %02Xh: Local Disable A20", CPU_AH);
-            CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
+            CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
             CPU_BL = 0x00;
             break;
         case 0x07: // XMS 07H: Query A20 State
-            CPU_AX = get_a20_enabled() ? 0x0001 : 0x0000;
+            CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
             sprintf(tmp, "XMS FN 07h: Query A20 status: %s", CPU_AX ? "ON" : "OFF");
             CPU_BL = 0x00;
             break;
@@ -727,7 +681,6 @@ void xmm_reboot() {
 #endif
     hma_in_use_count = 0;
     xms_in_use = false;
-    a20_enable_count = 0;
 #if XMS_OVER_HMA_KB
     memset(xmm_handles, 0, sizeof xmm_handles);
 #endif

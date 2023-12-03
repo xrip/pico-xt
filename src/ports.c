@@ -13,6 +13,7 @@ uint8_t crt_controller_idx, crt_controller[18];
 uint16_t port378, port379, port37A, port3D8, port3D9, port3DA, port201;
 
 void ports_reboot() {
+    notify_a20_line_state_changed(false);
     memset(portram, 0, sizeof(portram));
     port378, port379, port37A, port3D8, port3D9, port3DA, port201 = 0;
 }
@@ -84,10 +85,10 @@ void portout(uint16_t portnum, uint16_t value) {
         case PORT_A20:
             portram[portnum] = value;
             if (value & A20_ENABLE_BIT) {
-                set_a20_enabled(true);
+                notify_a20_line_state_changed(true);
             }
             else {
-                set_a20_enabled(false);
+                notify_a20_line_state_changed(false);
             }
             break;
 #endif
@@ -332,7 +333,7 @@ uint16_t portin(uint16_t portnum) {
             return portram[portnum];
 #ifdef XMS_DRIVER
         case PORT_A20:
-            return get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT);
+            return is_a20_line_open() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT);
 #endif
         /*case 0x201: // joystick
             return 0b11110000;*/
