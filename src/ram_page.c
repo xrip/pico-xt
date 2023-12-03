@@ -189,7 +189,7 @@ extern psram_spi_inst_t psram_spi;
 
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     if (PSRAM_AVAILABLE) {
-        psram_readpsram_read(&psram_spi, file_offset, dst, sz);
+        psram_read(&psram_spi, file_offset, dst, sz);
         return;
     }
     gpio_put(PICO_DEFAULT_LED_PIN, true);
