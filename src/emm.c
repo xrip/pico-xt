@@ -286,7 +286,8 @@ uint16_t map_unmap_emm_page(
         sprintf(tmp, "   %04d |     %02Xh |        %04Xh |         %04Xh |",
                       i, di->handler, di->logical_page, di->physical_page);
         logMsg(tmp);
-        if (di->handler == 0xFF) { // empty line
+        if (di->handler == emm_handle && di->physical_page == physical_page_number || // replace the page
+            di->handler == 0xFF) { // empty line
             di->physical_page = physical_page_number;
             di->logical_page = logical_page_number;
             di->handler = emm_handle;
@@ -322,21 +323,27 @@ uint16_t deallocate_emm_pages(uint16_t emm_handle) {
             }
         }
     }
-    logMsg("Handler | in use | pages | DEALLOCATE");
+    logMsg("EMM TBL | Handler | Logical page | Physical page | DEALLOCATE");
     for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         emm_record_t * di = &emm_desc_table[i];
-        sprintf(tmp, "    %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
+        sprintf(tmp, "   %04d |     %02Xh |        %04Xh |         %04Xh |",
+                     i, di->handler, di->logical_page, di->physical_page);
+        logMsg(tmp);
         if (di->handler == emm_handle) {
             // return 0x86 << 8; // The memory manager detected a save or restore page mapping context error.
             di->handler = 0xFF;
-            sprintf(tmp, "res %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
+            sprintf(tmp, "r  %04d |     %02Xh |        %04Xh |         %04Xh |",
+                          i, di->handler, di->logical_page, di->physical_page);
+            logMsg(tmp);
         }
     }
+    logMsg("Handler | in use | pages | DEALLOCATE");
+    sprintf(tmp, "    %03d |      %d | %05d |", emm_handle, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
     h->pages_acllocated = 0;
     if (emm_handle) {// do not mark zero handler as not in use
         h->handler_in_use = false;
-        logMsg("MARKED AS NOT MORE USED");
     }
+    sprintf(tmp, "res %03d |      %d | %05d |", emm_handle, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
     return 0;
 }
 
@@ -878,7 +885,7 @@ void custom_on_board_emm() {
         // ES:DI = pointer to handle_page
         uint32_t addr32 = ((uint32_t)CPU_ES << 4) + CPU_DI;
         CPU_BX = get_all_emm_handle_pages(addr32);
-        sprintf(tmp, "LIM40 FN %Xh all_handlers: %Xh (pages)", FN, CPU_BX); logMsg(tmp);
+        sprintf(tmp, "LIM40 FN %Xh all_handlers: %d (open handles)", FN, CPU_BX); logMsg(tmp);
         CPU_AX = 0; zf = 0;
         return;
     }

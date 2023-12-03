@@ -7,12 +7,12 @@
 static uint16_t a20_enable_count = 0;
 
 // several applications expects, A20 line turn-on/off will take long time
-#define A20_DELAY_MS 33
+#define A20_DELAY_MS 10
 
 void set_a20_global_enabled() {
     a20_enable_count++;
     if (a20_enable_count == 0) a20_enable_count = 1;
-    //char tmp[40]; sprintf(tmp, "A20: GSETu %d", a20_enable_count); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "A20: GSETu %d", a20_enable_count); logMsg(tmp);
     sleep_ms(A20_DELAY_MS);
 }
 void set_a20_global_diabled() {
@@ -21,17 +21,17 @@ void set_a20_global_diabled() {
 #endif
     if (a20_enable_count)
         a20_enable_count--;
-    //char tmp[40]; sprintf(tmp, "A20: GSETd %d", a20_enable_count); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "A20: GSETd %d", a20_enable_count); logMsg(tmp);
     sleep_ms(A20_DELAY_MS);
 }
 
 bool get_a20_enabled() {
-    //char tmp[40]; sprintf(tmp, "A20: GET %d", a20_enable_count); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "A20: GET %d", a20_enable_count); logMsg(tmp);
     return a20_enable_count > 0;
 }
 
 void set_a20_enabled(bool v) {
-    //char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
+    char tmp[40]; sprintf(tmp, "A20: SET %s", v ? "ON" : "OFF"); logMsg(tmp);
     if (a20_enable_count == 1 && !v) {
 #ifdef XMS_HMA
         if (hma_in_use && a20_enable_count == 1) return;
