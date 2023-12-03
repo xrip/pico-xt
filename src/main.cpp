@@ -224,11 +224,6 @@ int main() {
         SD_CARD_AVAILABLE = true;
     }
 
-    if (!PSRAM_AVAILABLE && SD_CARD_AVAILABLE && !init_vram()) {
-        logMsg((char *)"init_vram failed");
-        SD_CARD_AVAILABLE = false;
-    }
-
     if (!PSRAM_AVAILABLE && !SD_CARD_AVAILABLE) {
         logMsg((char *)"Mo PSRAM or SD CARD available. Only 160Kb RAM will be usable...");
         sleep_ms(3000);

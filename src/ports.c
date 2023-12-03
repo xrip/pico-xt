@@ -12,6 +12,11 @@ uint16_t portram[256];
 uint8_t crt_controller_idx, crt_controller[18];
 uint16_t port378, port379, port37A, port3D8, port3D9, port3DA, port201;
 
+void ports_reboot() {
+    memset(portram, 0, sizeof(portram));
+    port378, port379, port37A, port3D8, port3D9, port3DA, port201 = 0;
+}
+
 static uint8_t vga_palette_index = 0;
 static uint8_t vga_color_index = 0;
 static uint8_t dac_state = 0;
@@ -22,14 +27,6 @@ static uint16_t port3C4 = 0;
 static uint16_t port3C5 = 0;
 
 void portout(uint16_t portnum, uint16_t value) {
-    switch (portnum) {
-        case 0x92: {
-            char tmp[90];
-            sprintf(tmp, "PORT %Xh set %Xh", portnum, value);
-            logMsg(tmp);
-        }
-        break;
-    }
     //if (portnum == 0x80) {
     //    printf("Diagnostic port out: %04X\r\n", value);
     //}
@@ -83,6 +80,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x60:
             if (portnum < 256) portram[portnum] = value;
             break;
+#ifdef XMS_DRIVER
         case PORT_A20:
             portram[portnum] = value;
             if (value & A20_ENABLE_BIT) {
@@ -92,6 +90,7 @@ void portout(uint16_t portnum, uint16_t value) {
                 set_a20_enabled(false);
             }
             break;
+#endif
         case 0x64: // Passthrought all
 #if PICO_ON_DEVICE
             keyboard_send(value);
@@ -284,19 +283,6 @@ void portout(uint16_t portnum, uint16_t value) {
 
 uint16_t portin(uint16_t portnum) {
     switch (portnum) {
-        case PORT_A20: {
-            char tmp[90];
-            sprintf(
-                tmp,
-                "PORT %Xh get %Xh A20: %s", portnum,
-                get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT),
-                get_a20_enabled() ? "ON" : "OFF"
-            );
-            logMsg(tmp);
-        }
-        break;
-    }
-    switch (portnum) {
 #ifdef DMA_8237
         case 0x00:
         case 0x01:
@@ -344,8 +330,10 @@ uint16_t portin(uint16_t portnum) {
         case 0x61:
         case 0x64:
             return portram[portnum];
+#ifdef XMS_DRIVER
         case PORT_A20:
             return get_a20_enabled() ? (portram[portnum] | A20_ENABLE_BIT) : (portram[portnum] & !A20_ENABLE_BIT);
+#endif
         /*case 0x201: // joystick
             return 0b11110000;*/
         case 0x379:
@@ -405,7 +393,7 @@ uint16_t portin(uint16_t portnum) {
     }
 }
 
-__inline void portout16(uint16_t portnum, uint16_t value) {
+void portout16(uint16_t portnum, uint16_t value) {
 #ifdef DEBUG_PORT_TRAFFIC
     printf("IO: writing WORD port %Xh with data %04Xh\n", portnum, value);
 #endif
@@ -413,7 +401,7 @@ __inline void portout16(uint16_t portnum, uint16_t value) {
     portout(portnum + 1, (uint8_t)(value >> 8));
 }
 
-__inline uint16_t portin16(uint16_t portnum) {
+uint16_t portin16(uint16_t portnum) {
     uint16_t ret = (uint16_t)portin(portnum);
     ret |= ((uint16_t)portin(portnum + 1) << 8);
 #ifdef DEBUG_PORT_TRAFFIC
