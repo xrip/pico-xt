@@ -157,11 +157,14 @@ uint16_t total_emm_pages() {
     return TOTAL_EMM_PAGES;
 }
 
+static char tmp[80];
 uint16_t allocated_emm_pages() {
     uint16_t res = 0;
+    logMsg("Handler | in use | pages | ALLOCATED");
     for (int i = 0; i < MAX_EMM_HANDLERS; ++i) {
         emm_handler_t * h = &handlers[i];
         if (h->handler_in_use) {
+            sprintf(tmp, "    %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
             res += h->pages_acllocated;
         }
     }
@@ -192,12 +195,17 @@ uint16_t allocate_emm_pages(uint16_t pages, uint16_t *err) {
           the OS handle.  An application can use Function 21 to find out how
           many handles an EMM supports.
     */
+    logMsg("Handler | in use | pages | ALLOCATE");
     for (int i = 1; i < MAX_EMM_HANDLERS; ++i) {
         emm_handler_t * h = &handlers[i];
+        sprintf(tmp, "    %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated);
+        logMsg(tmp);
         if (!h->handler_in_use) {
             handler = i;
             h->handler_in_use = true;
             h->pages_acllocated = pages;
+            sprintf(tmp, "res %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated);
+            logMsg(tmp);
             break;
         }
     }
@@ -217,6 +225,9 @@ uint16_t reallocate_emm_pages(uint16_t handler, uint16_t pages) {
         return 0x87 << 8; // There aren't enough expanded memory pages present
     }
     if (handlers[handler].pages_acllocated == pages) {
+        sprintf(tmp, "reallocated %03d | %d | %05d |",
+                      handler, handlers[handler].handler_in_use, handlers[handler].pages_acllocated);
+        logMsg(tmp);
         return 0;
     }
     if (handlers[handler].pages_acllocated > pages) {
@@ -224,7 +235,13 @@ uint16_t reallocate_emm_pages(uint16_t handler, uint16_t pages) {
             return 0x88 << 8; // There aren't enough unallocated pages
         }
     }
+    sprintf(tmp, "reallocate  %03d | %d | %05d |",
+                  handler, handlers[handler].handler_in_use, handlers[handler].pages_acllocated);
+    logMsg(tmp);
     handlers[handler].pages_acllocated = pages;
+    sprintf(tmp, "reallocated %03d | %d | %05d |",
+                  handler, handlers[handler].handler_in_use, handlers[handler].pages_acllocated);
+    logMsg(tmp);
     return 0;
 }
 
@@ -237,39 +254,50 @@ uint16_t map_unmap_emm_page(
     uint16_t logical_page_number,
     uint16_t emm_handle
 ) {
-    uint32_t physical_page_lba = phisical_page_2_lba(physical_page_number);
-    if (physical_page_lba >= ((uint32_t)PHYSICAL_EMM_SEGMENT_END << 4)) { // TODO: ensure
-        return 0x88 << 8; // The physical page number is out of the range of allowable
-                          // physical pages.  The program can recover by attempting to
-                          // map into memory at a physical page which is within the
-                          // range of allowable physical pages.
+    if (physical_page_number > PHYSICAL_EMM_PAGES) {
+        return 0x8B00; // physical page is out of the range
     }
+    if (emm_handle >= MAX_EMM_HANDLERS || handlers[emm_handle].handler_in_use == 0) {
+        return 0x8300; // The memory manager couldn't find the EMM handle your program specified.
+    }
+    if (handlers[emm_handle].pages_acllocated < logical_page_number) {
+        return 0x8A00; // Logical page number is grater than allocated to the handle.
+    }
+    uint32_t physical_page_lba = phisical_page_2_lba(physical_page_number);
+    logMsg("EMM TBL | Handler | Logical page | Physical page | MAP-UNMAP");
     if (logical_page_number == 0xFFFF) { // if BX contains logical page number
                                          // FFFFh, the physical page will be unmapped
         for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
             emm_record_t * di = &emm_desc_table[i];
+            sprintf(tmp, "   %04d |     %02Xh |        %04Xh |         %04Xh |",
+                          i, di->handler, di->logical_page, di->physical_page);
+            logMsg(tmp);
             if (di->physical_page == physical_page_number && di->handler == emm_handle) {
                 di->handler = 0xFF;
+                sprintf(tmp, "r  %04d |     %02Xh |        %04Xh |         %04Xh |",
+                          i, di->handler, di->logical_page, di->physical_page);
+                logMsg(tmp);
             }
         }
         return 0;
     }
-    if (logical_page_number >= total_emm_pages()) {
-        return 0x8A << 8; // The logical page is out of the range of logical pages which
-                          // are allocated to the EMM handle. This status is also
-                          // returned if a program attempts map a logical page when no
-                          // logical pages are allocated to the handle.
-    }
     for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         emm_record_t * di = &emm_desc_table[i];
+        sprintf(tmp, "   %04d |     %02Xh |        %04Xh |         %04Xh |",
+                      i, di->handler, di->logical_page, di->physical_page);
+        logMsg(tmp);
         if (di->handler == 0xFF) { // empty line
             di->physical_page = physical_page_number;
             di->logical_page = logical_page_number;
             di->handler = emm_handle;
-            break;
+            sprintf(tmp, "r: %04d |     %02Xh |        %04Xh |         %04Xh |",
+                          i, di->handler, di->logical_page, di->physical_page);
+            logMsg(tmp);
+            return 0;
         }
     }
-    return 0;
+    // TODO: ensure what to do if we have no more slots to save mapping
+    return 0x8B00; // physical page is out of the range
 }
 
 uint16_t deallocate_emm_pages(uint16_t emm_handle) {
@@ -294,16 +322,21 @@ uint16_t deallocate_emm_pages(uint16_t emm_handle) {
             }
         }
     }
+    logMsg("Handler | in use | pages | DEALLOCATE");
     for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
         emm_record_t * di = &emm_desc_table[i];
+        sprintf(tmp, "    %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
         if (di->handler == emm_handle) {
             // return 0x86 << 8; // The memory manager detected a save or restore page mapping context error.
             di->handler = 0xFF;
+            sprintf(tmp, "res %03d |      %d | %05d |", i, h->handler_in_use, h->pages_acllocated); logMsg(tmp);
         }
     }
     h->pages_acllocated = 0;
-    if (emm_handle) // do not mark zero handler as not in use
+    if (emm_handle) {// do not mark zero handler as not in use
         h->handler_in_use = false;
+        logMsg("MARKED AS NOT MORE USED");
+    }
     return 0;
 }
 
@@ -325,7 +358,17 @@ uint16_t save_emm_mapping(uint16_t ext_handler) {
                           // not been saved.
     }
     to_save->ext_handler = ext_handler;
-    memcpy(to_save->table, emm_desc_table, sizeof emm_desc_table);
+    logMsg("EMM TBL | Handler | Logical page | Physical page | SAVE");
+    for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
+        emm_record_t* pd = &to_save->table[i];
+        const emm_record_t* ps = &emm_desc_table[i];
+        pd->handler = ps->handler;
+        pd->logical_page = ps->logical_page;
+        pd->physical_page = ps->physical_page;
+        sprintf(tmp, "   %04d |     %02Xh |        %04Xh |         %04Xh |",
+                      i, ps->handler, ps->logical_page, ps->physical_page);
+        logMsg(tmp);
+    }
     return 0;
 }
 
@@ -333,7 +376,17 @@ uint16_t restore_emm_mapping(uint16_t ext_handler) {
     for (int i = 0; i < MAX_SAVED_EMM_TABLES; ++i) {
         emm_saved_table_t * di = &emm_saved_tables[i];
         if (di->ext_handler == ext_handler) {
-            memcpy(emm_desc_table, di->table, sizeof emm_desc_table);
+            logMsg("EMM TBL | Handler | Logical page | Physical page | RESTORE");
+            for (int i = 0; i < PHYSICAL_EMM_PAGES; ++i) {
+                const emm_record_t* ps = &di->table[i];
+                emm_record_t* pd = &emm_desc_table[i];
+                pd->handler = ps->handler;
+                pd->logical_page = ps->logical_page;
+                pd->physical_page = ps->physical_page;
+                sprintf(tmp, "   %04d |     %02Xh |        %04Xh |         %04Xh |",
+                             i, ps->handler, ps->logical_page, ps->physical_page);
+                logMsg(tmp);
+            }
             memset(di->table, 0, sizeof emm_desc_table);
             di->ext_handler = 0;
             return 0;
@@ -365,11 +418,15 @@ uint16_t restore_emm_mapping(uint16_t ext_handler) {
                      pages allocated to the open EMM handle.
 */
 uint16_t get_all_emm_handle_pages(uint32_t addr32) {
+    logMsg("get_all_emm_handle_pages");
     uint16_t res = 0;
     for (int handler = 0; handler < MAX_EMM_HANDLERS; ++handler) {
         emm_handler_t * h = &handlers[handler];
         if (!h->handler_in_use)
             continue;
+        sprintf(tmp, "ALL EMM H: %03d | in use: %01d | pages: %04d |",
+                      handler, h->handler_in_use, h->pages_acllocated);
+        logMsg(tmp);
         ++res;
         writew86(addr32++, handler); addr32++;
         writew86(addr32++, h->pages_acllocated); addr32++;
@@ -378,6 +435,7 @@ uint16_t get_all_emm_handle_pages(uint32_t addr32) {
 }
 
 void get_emm_pages_map(uint32_t addr32) {
+    logMsg("set_emm_pages_map TODO");
     uint8_t * t = &emm_desc_table;
     for (int i = 0; i < sizeof emm_desc_table; ++i) {
         write86(addr32++, *t++);
@@ -385,6 +443,7 @@ void get_emm_pages_map(uint32_t addr32) {
 }
 
 void set_emm_pages_map(uint32_t addr32) {
+    logMsg("set_emm_pages_map TODO");
     uint8_t * t = &emm_desc_table;
     for (int i = 0; i < sizeof emm_desc_table; ++i) {
         *t++ = read86(addr32++);
@@ -392,6 +451,7 @@ void set_emm_pages_map(uint32_t addr32) {
 }
 
 uint16_t get_emm_pages_map_size() {
+    logMsg("get_emm_pages_map_size TODO");
     return sizeof emm_desc_table;
 }
 

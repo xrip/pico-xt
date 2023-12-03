@@ -178,7 +178,7 @@ else ()
             # supports only for pico with 4 or more MB flashes
             PICO_FLASH_SIZE_BYTES=4194304
 
-            #BOOT_DEBUG=1
+            BOOT_DEBUG=1
             #BOOT_DEBUG_ACC=0xA0000
             
             # select onr of the folowing:
