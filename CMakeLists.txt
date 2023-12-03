@@ -62,9 +62,9 @@ pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip/DnCraptor")
 pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
-if (!OVERCLOCKING)
+#if (!OVERCLOCKING)
 set(OVERCLOCKING 396)
-endif ()
+#endif ()
 
 
 if (PICO_PLATFORM STREQUAL "host")
@@ -186,8 +186,8 @@ else ()
             
             # select onr of the folowing:
             #SWAP_BLOCK_1k
-            SWAP_BLOCK_2k
-            #SWAP_BLOCK_4k
+            #SWAP_BLOCK_2k
+            SWAP_BLOCK_4k
 
             EMS_DRIVER=1
             #EMS_DEBUG=1
