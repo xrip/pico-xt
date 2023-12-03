@@ -311,6 +311,7 @@ typedef struct umb {
 
 static umb_t umb_blocks[UMB_BLOCKS] = {
     UMB_START_ADDRESS >> 4, 0x0800, false,
+    0xC800, 0x0800, false,
     0xE000, 0x0800, false,
     0xE800, 0x0800, false,
     0xF000, 0x0800, false,
@@ -546,7 +547,7 @@ uint8_t xms_fn() {
             break;
         case 0x07: // XMS 07H: Query A20 State
             CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
-            sprintf(tmp, "XMS FN 07h: Query A20 status: %s", CPU_AX ? "ON" : "OFF");
+            // sprintf(tmp, "XMS FN 07h: Query A20 status: %s", CPU_AX ? "ON" : "OFF");
             CPU_BL = 0x00;
             break;
         case 0x08: { // XMS 08H: Query Free Extended Memory

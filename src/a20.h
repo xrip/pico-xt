@@ -2,8 +2,8 @@
 #define PORT_A20 0x92
 #define A20_ENABLE_BIT 0x02
 #ifdef XMS_UMB
-#define UMB_START_ADDRESS 0xC8000ul
-#define UMB_BLOCKS 5
+#define UMB_START_ADDRESS 0xC0000ul
+#define UMB_BLOCKS 6
 #define RESERVED_XMS_KB (UMB_BLOCKS * 16 + 64)
 #else
 #define RESERVED_XMS_KB 0

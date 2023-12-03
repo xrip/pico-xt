@@ -36,8 +36,8 @@ extern psram_spi_inst_t psram_spi;
 static bool a20_line_open = false;
 
 void notify_a20_line_state_changed(bool v) {
-    if (v) logMsg("A20 ON");
-    else logMsg("A20 OFF'");
+    //if (v) logMsg("A20 ON");
+    //else logMsg("A20 OFF'");
     a20_line_open = v;
 }
 
@@ -556,6 +556,13 @@ INLINE uint16_t read86psram16(uint32_t addr32) {
         // Conventional
         return psram_read16(&psram_spi, addr32);
     }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        if (videomode >= 0x0D && ega_plane) {
+            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536);
+    }
 #ifdef EMS_DRIVER
     if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
         // EMS
@@ -601,6 +608,10 @@ INLINE uint8_t read86sdcard(uint32_t addr32) {
     if (addr32 < CONVENTIONAL_END) {
         // Conventional
         return ram_page_read(addr32);
+    }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        return read86video_ram(addr32);
     }
 #ifdef EMS_DRIVER
     if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
@@ -649,6 +660,13 @@ INLINE uint16_t read86sdcard16(uint32_t addr32) {
     if (addr32 < CONVENTIONAL_END) {
         // Conventional
         return ram_page_read16(addr32);
+    }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        if (videomode >= 0x0D && ega_plane) {
+            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536);
     }
 #ifdef EMS_DRIVER
     if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
@@ -720,13 +738,6 @@ uint16_t readw86(uint32_t addr32) {
         // not 16-bit address
         return ((uint16_t)read86(addr32) | (uint16_t)(read86(addr32 + 1) << 8));
     }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        if (videomode >= 0x0D && ega_plane) {
-            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
-        }
-        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536);
-    }
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         return read86psram16(addr32);
@@ -742,6 +753,13 @@ uint16_t readw86(uint32_t addr32) {
     if (addr32 < CONVENTIONAL_END) {
         // Conventional (no RAM in this space)
         return 0;
+    }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        if (videomode >= 0x0D && ega_plane) {
+            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
+        }
+        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536);
     }
     return read86rom16(addr32);
 }
