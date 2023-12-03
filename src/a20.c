@@ -410,9 +410,9 @@ bool INT_2Fh() {
     switch (CPU_AX) {
         case 0x4300: {
             // logMsg("HIMEM.SYS (XMM) detection passed");
-            if(a20_enable_count == 0) {
-                set_a20_global_enabled();
-            }
+            //if(a20_enable_count == 0) {
+            //    set_a20_global_enabled();
+            //}
             CPU_AL = 0x80;
             return true;
         }
