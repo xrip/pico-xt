@@ -114,7 +114,7 @@ void modregrm() {
 
 void write86(uint32_t addr32, uint8_t value);
 
-INLINE void writeVRAM(uint32_t addr32, uint16_t value) {
+static __inline void writeVRAM(uint32_t addr32, uint16_t value) {
     if (videomode >= 0x0D) {
         VIDEORAM[ega_plane * 16000 + addr32 - VIDEORAM_START32] = value; 
     }
@@ -244,6 +244,11 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
 #endif
 
 void write86(uint32_t addr32, uint8_t value) {
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        writeVRAM(addr32, value);
+        return;
+    }
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         write86psram(addr32, value);
@@ -256,11 +261,6 @@ void write86(uint32_t addr32, uint8_t value) {
 #endif
     if (addr32 < RAM_SIZE) {
         RAM[addr32] = value;
-        return;
-    }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        writeVRAM(addr32, value);
         return;
     }
     // { char tmp[40]; sprintf(tmp, "ADDR W: 0x%X not found", addr32); logMsg(tmp); }
