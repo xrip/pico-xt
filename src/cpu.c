@@ -1311,7 +1311,7 @@ INLINE void intcall86(uint8_t intnum) {
                 // Установить видеорежим
                     break;
                 case 0x10: //VGA DAC functions
-                    if (videomode != 0x13) return;
+                    if (videomode >= 0x0d) return;
                     printf("palette manipulation\r\n");
                     switch (CPU_AL) {
                         case 0x10: //set individual DAC register
@@ -1334,7 +1334,7 @@ INLINE void intcall86(uint8_t intnum) {
                     break;
                 case 0x12:
                     CPU_BH = 0 ;   // default BIOS setup (0=color; 1=monochrome)
-                              CPU_BL = 1;   //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
+                              CPU_BL = 10;   //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
                                     //(Note: if BL>4, then this is not an EGA BIOS)
                               CPU_CH = 0;    //feature bits (values of those RCA connectors)
                               CPU_CL = 0;   //switch settings
@@ -2311,11 +2311,11 @@ void exec86(uint32_t execloops) {
             savecs = CPU_CS;
             saveip = ip;
             // W/A-hack: last byte of interrupts table (actually should not be ever used as CS:IP)
-            if (CPU_CS == XMS_FN_CS && ip == XMS_FN_IP) {
+            /*if (CPU_CS == XMS_FN_CS && ip == XMS_FN_IP) {
                 // hook for XMS
                 opcode = xms_fn(); // always returns RET TODO: far/short ret?
             }
-            else {
+            else*/ {
                 opcode = getmem8(CPU_CS, ip);
             }
             StepIP(1);
