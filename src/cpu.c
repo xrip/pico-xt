@@ -506,7 +506,7 @@ INLINE uint16_t read86rom16(uint32_t addr32) {
     return 0;
 }
 
-INLINE uint8_t read86video_ram(uint32_t addr32) {
+__always_inline uint8_t read86video_ram(uint32_t addr32) {
     if(videomode >= 0x0D) 
         return VIDEORAM[addr32 - VIDEORAM_START32 + ega_plane * 16000];
     return VIDEORAM[addr32 - VIDEORAM_START32];
@@ -705,11 +705,7 @@ INLINE uint16_t read86sdcard16(uint32_t addr32) {
 #endif
 
 // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
-uint8_t read86(uint32_t addr32) {
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        return read86video_ram(addr32);
-    }
+uint8_t __time_critical_func(read86)(uint32_t addr32) {
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         return read86psram(addr32);
@@ -721,6 +717,10 @@ uint8_t read86(uint32_t addr32) {
     // no special features, cover all existing RAM
     if (addr32 < RAM_SIZE) {
         return RAM[addr32];
+    }
+    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
+        // video RAM range
+        return read86video_ram(addr32);
     }
     if (addr32 < CONVENTIONAL_END) {
         // Conventional (no RAM in this space)
