@@ -184,21 +184,7 @@ FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
     return result;
 }
 
-#include "psram_spi.h"
-extern psram_spi_inst_t psram_spi;
-
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
-    if (PSRAM_AVAILABLE) {
-        uint32_t processed = 0;
-        while (processed < sz) {
-            uint32_t step_size = sz - processed >= 16 ? 16 : sz;
-            psram_read(&psram_spi, file_offset, dst, step_size);
-            file_offset += step_size;
-            dst += step_size;
-            processed += step_size;
-        }
-        return;
-    }
     gpio_put(PICO_DEFAULT_LED_PIN, true);
   //  if (file_offset >= 0x100000) {
   //      sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset);
@@ -219,17 +205,6 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
 }
 
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
-    if (PSRAM_AVAILABLE) {
-        uint32_t processed = 0;
-        while (processed < sz) {
-            uint32_t step_size = sz - processed >= 16 ? 16 : sz;
-            psram_write(&psram_spi, file_offset, src, step_size);
-            file_offset += step_size;
-            src += step_size;
-            processed += step_size;
-        }
-        return;
-    }
     gpio_put(PICO_DEFAULT_LED_PIN, true);
    // if (file_offset >= 0x100000) {
    //     sprintf(tmp, "Flush pagefile 0x%X->0x%X", src, file_offset);
