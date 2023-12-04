@@ -239,6 +239,9 @@ void write86sdcard(uint32_t addr32, uint8_t value) {
 #endif
 
 void write86(uint32_t addr32, uint8_t value) {
+ //   switch(addr32 >> 15) {
+ //       case 0:
+  //  }
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
         writeVRAM(addr32, value);
@@ -318,11 +321,7 @@ INLINE void write86psram16(uint32_t addr32, uint16_t value) {
         return;
     }
 #endif
-#ifdef XMS_HMA
-    if ((addr32) >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#else
-    if ((addr32) >= HMA_START_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#endif
+    if ((addr32) >= BASE_XMS_ADDR && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         psram_write16(&psram_spi, addr32, value);
         return;
@@ -374,11 +373,7 @@ INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
         return;
     }
 #endif
-#ifdef XMS_HMA
-    if ((addr32) >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#else
-    if ((addr32) >= HMA_START_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#endif
+    if ((addr32) >= BASE_XMS_ADDR && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         ram_page_write16(addr32, value);
         return;
@@ -535,11 +530,7 @@ INLINE uint8_t read86psram(uint32_t addr32) {
         return psram_read8(&psram_spi, addr32);
     }
 #endif
-#ifdef XMS_HMA
-    if (addr32 >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#else
-    if (addr32 >= HMA_START_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#endif
+    if (addr32 >= BASE_XMS_ADDR && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         return psram_read8(&psram_spi, addr32);
     }
@@ -587,11 +578,7 @@ INLINE uint16_t read86psram16(uint32_t addr32) {
         return psram_read16(&psram_spi, addr32);
     }
 #endif
-#ifdef XMS_HMA
-    if (addr32 >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#else
-    if (addr32 >= HMA_START_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#endif
+    if (addr32 >= BASE_XMS_ADDR && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         return psram_read16(&psram_spi, addr32);
     }
@@ -639,11 +626,7 @@ INLINE uint8_t read86sdcard(uint32_t addr32) {
         return ram_page_read(addr32);
     }
 #endif
-#ifdef XMS_HMA
-    if (addr32 >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#else
-    if (addr32 >= HMA_START_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#endif
+    if (addr32 >= BASE_XMS_ADDR && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         return ram_page_read(addr32);
     }
@@ -694,11 +677,7 @@ INLINE uint16_t read86sdcard16(uint32_t addr32) {
         return ram_page_read16(addr32);
     }
 #endif
-#ifdef XMS_HMA
-    if (addr32 >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#else
-    if (addr32 >= HMA_START_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#endif
+    if (addr32 >= BASE_XMS_ADDR && addr32 < (ON_BOARD_RAM_KB << 10)) {
         // XMS
         return ram_page_read16(addr32);
     }
@@ -4559,5 +4538,19 @@ void exec86(uint32_t execloops) {
                 intcall86(6);
                 break;
         }
+    }
+}
+
+typedef void (*write_fn_ptr)(uint32_t, uint8_t);
+
+static write_fn_ptr write_funtions[256];
+
+static void write8direct(uint32_t addr32, uint8_t v) {
+    RAM[addr32] = v;
+}
+
+void init_cpu_addresses_map() {
+    for (uint8_t ba = 0; ba <= (CONVENTIONAL_END << 15); ++ba) {
+        write_funtions[ba] = &write8direct;
     }
 }
