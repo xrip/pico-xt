@@ -45,10 +45,6 @@ bool is_a20_line_open() {
     return a20_line_open;
 }
 
-uint8_t read86(uint32_t addr32);
-
-uint16_t readw86(uint32_t addr32);
-
 uint8_t opcode, segoverride, reptype, hdcount = 0, fdcount = 0, hltstate = 0;
 uint16_t segregs[4], ip, useseg, oldsp;
 uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm;
@@ -124,118 +120,6 @@ INLINE void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16
     *ptr = (uint8_t)(value >> 8);
 }
 
-#if PICO_ON_DEVICE
-
-INLINE void write86psram16(uint32_t addr32, uint16_t value) {
-    if (addr32 < RAM_SIZE) {
-        // First not mapable block of Conventional RAM
-        write16arr(RAM, 0, addr32, value);
-        return;
-    }
-    if (addr32 < CONVENTIONAL_END) {
-        // Conventional in swap
-        psram_write16(&psram_spi, addr32, value);
-        return;
-    }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        if (videomode >= 0x0D && ega_plane) {
-            addr32 += ega_plane * 16000; 
-        }
-        write16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % VIDEORAM_SIZE, value);
-        return;
-    }
-#ifdef EMS_DRIVER
-    if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
-        // EMS
-        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
-        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            psram_write16(&psram_spi, lba, value);
-            return;
-        }
-    }
-#endif
-#ifdef XMS_DRIVER
-#ifdef XMS_HMA
-    if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
-        // HMA
-        if (a20_line_open) {
-            // A20 line is ON
-            psram_write16(&psram_spi, addr32, value);
-            return;
-        }
-        writew86(addr32 - HMA_START_ADDRESS, value); // Rool back to low addressed
-        return;
-    }
-#endif
-#ifdef XMS_UMB
-    if (addr32 >= UMB_START_ADDRESS && addr32 < HMA_START_ADDRESS && umb_in_use(addr32)) {
-        // UMB
-        psram_write16(&psram_spi, addr32, value);
-        return;
-    }
-#endif
-    if ((addr32) >= BASE_XMS_ADDR && addr32 < (ON_BOARD_RAM_KB << 10)) {
-        // XMS
-        psram_write16(&psram_spi, addr32, value);
-        return;
-    }
-#endif
-}
-
-INLINE void write86sdcard16(uint32_t addr32, uint16_t value) {
-    if (addr32 < RAM_PAGE_SIZE) {
-        // First not mapable block of Conventional RAM
-        write16arr(RAM, 0, addr32, value);
-        return;
-    }
-    if (addr32 < CONVENTIONAL_END) {
-        // Conventional in swap
-        ram_page_write16(addr32, value);
-        return;
-    }
-
-#ifdef EMS_DRIVER
-    if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
-        // EMS
-        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
-        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            ram_page_write16(lba, value);
-            return;
-        }
-    }
-#endif
-#ifdef XMS_DRIVER
-#ifdef XMS_HMA
-    if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
-        // HMA
-        if (a20_line_open) {
-            // A20 line is ON
-            //char tmp[40]; sprintf(tmp, "HMAW %08Xh v: %04Xh", addr32, value); logMsg(tmp);
-            ram_page_write16(addr32, value);
-            return;
-        }
-        //char tmp[40]; sprintf(tmp, "conW %08Xh v: %04Xh", addr32, value); logMsg(tmp);
-        writew86(addr32 - HMA_START_ADDRESS, value); // Rool back to low addressed
-        return;
-    }
-#endif
-#ifdef XMS_UMB
-    if (addr32 >= UMB_START_ADDRESS && addr32 < HMA_START_ADDRESS && umb_in_use(addr32)) {
-        // UMB
-        ram_page_write16(addr32, value);
-        return;
-    }
-#endif
-    if ((addr32) >= BASE_XMS_ADDR && addr32 < (ON_BOARD_RAM_KB << 10)) {
-        // XMS
-        ram_page_write16(addr32, value);
-        return;
-    }
-#endif
-}
-#endif
-
 #ifdef HANDLE_REBOOT
 static bool reboot_exec = false;
 void reboot_detected() {
@@ -270,42 +154,6 @@ void reboot_detected() {
 #endif
 }
 #endif
-
-void writew86(uint32_t addr32, uint16_t value) {
-#ifdef HANDLE_REBOOT
-    if (addr32 == 0 && value == 0) {
-        // reboot hook
-        reboot_detected();
-    }
-#endif
-    if (addr32 & 0x00000001) {
-        // not 16-bit alligned
-        write86(addr32, (uint8_t)value);
-        write86(addr32 + 1, (uint8_t)(value >> 8));
-    }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        if (videomode >= 0x0D && ega_plane) {
-            addr32 += ega_plane * 16000;
-        }
-        write16arr(VIDEORAM, 0, (addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, value);
-        return;
-    }
-#if PICO_ON_DEVICE
-    if (PSRAM_AVAILABLE) {
-        write86psram16(addr32, value);
-        return;
-    }
-    if (SD_CARD_AVAILABLE) {
-        write86sdcard16(addr32, value);
-        return;
-    }
-#endif
-    if (addr32 < RAM_SIZE) {
-        write16arr(RAM, 0, addr32, value);
-        return;
-    }
-}
 
 static __inline uint8_t read86rom(uint32_t addr32) {
     if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
@@ -4523,47 +4371,161 @@ static void write8low_swap(uint32_t addr32, uint8_t v) {
     }
 }
 
+
+// type of 16-bit write function pointer
+typedef void (*write16_fn_ptr)(uint32_t, uint16_t);
+// array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
+static write16_fn_ptr write16_funtions[256] = { 0 };
+
+static void write16psram(uint32_t addr32, uint16_t v) {
+    psram_write16(&psram_spi, addr32, v);
+}
+
+static void write16dvideo(uint32_t addr32, uint16_t v) {
+    if (videomode >= 0x0D && ega_plane) {
+        addr32 += ega_plane * 16000; 
+    }
+    write16arr(VIDEORAM, 0, (addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, v);
+}
+
+static void write16umb_psram(uint32_t addr32, uint16_t v) {
+    if (umb_in_use(addr32)) {
+        psram_write16(&psram_spi, addr32, v);
+    }
+}
+
+static void write16umb_swap(uint32_t addr32, uint16_t v) {
+    if (umb_in_use(addr32)) {
+        ram_page_write16(addr32, v);
+    }
+}
+
+static void write16hma_psram(uint32_t addr32, uint16_t v) {
+    if (a20_line_open) {
+        // A20 line is ON
+        psram_write16(&psram_spi, addr32, v);
+        return;
+    }
+    writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
+}
+
+static void write16hma_swap(uint32_t addr32, uint16_t v) {
+    if (a20_line_open) {
+        // A20 line is ON
+        ram_page_write16(addr32, v);
+        return;
+    }
+    writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
+}
+
+static void write16emm_psram(uint32_t addr32, uint16_t v) {
+    uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+    if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
+        psram_write16(&psram_spi, lba, v);
+    }
+}
+
+static void write16emm_swap(uint32_t addr32, uint16_t v) {
+    uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+    if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
+        ram_page_write16(lba, v);
+    }
+}
+
+// This function is required to place into "empty" clots, to avoid null ptr functions
+static void write16nothing(uint32_t addr32, uint16_t v) {
+    // do nothing
+}
+
+static void write16low(uint32_t addr32, uint16_t v) {
+    if (addr32 < RAM_SIZE) {
+        write16arr(RAM, 0, addr32, v);
+    }
+}
+
+static void write16low_psram(uint32_t addr32, uint16_t v) {
+    if (addr32 < RAM_SIZE) {
+        write16arr(RAM, 0, addr32, v);
+    } else {
+        psram_write16(&psram_spi, addr32, v);
+    }
+}
+
+static void write16low_swap(uint32_t addr32, uint16_t v) {
+    if (addr32 < RAM_PAGE_SIZE) {
+        write16arr(RAM, 0, addr32, v);
+    } else {
+        ram_page_write16(addr32, v);
+    }
+}
+
 void init_cpu_addresses_map() {
     // just init all array positions to avoid hangs in gaps
-    uint8_t ba = 0; do { write_funtions[ba++] = write8nothing; } while (ba != 0);
+    uint8_t ba = 0; do {
+        write_funtions  [ba  ] = write8nothing;
+        write16_funtions[ba++] = write16nothing;
+    } while (ba != 0);
 #if PICO_ON_DEVICE
     // override for known pages
     for (uint8_t ba = SD_CARD_AVAILABLE ? (RAM_PAGE_SIZE >> 15) : (RAM_SIZE >> 15); ba <= (CONVENTIONAL_END >> 15); ++ba) {
-        write_funtions[ba] = PSRAM_AVAILABLE ? write8low_psram : (SD_CARD_AVAILABLE ? write8low_swap : write8low);
+        write_funtions  [ba] = PSRAM_AVAILABLE ? write8low_psram  : (SD_CARD_AVAILABLE ? write8low_swap  : write8low );
+        write16_funtions[ba] = PSRAM_AVAILABLE ? write16low_psram : (SD_CARD_AVAILABLE ? write16low_swap : write16low);
     }
     // CONVENTIONAL_END == VIDEORAM_START32
     for (uint8_t ba = (VIDEORAM_START32 >> 15); ba <= (VIDEORAM_END32 >> 15); ++ba) {
-        write_funtions[ba] = write8dvideo;
+        write_funtions  [ba] = write8dvideo ;
+        write16_funtions[ba] = write16dvideo;
     }
 #ifdef EMS_DRIVER
   #ifdef XMS_UMB
     // UMB_START_ADDRESS == VIDEORAM_END32
     for (uint8_t ba = (UMB_START_ADDRESS >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
-        write_funtions[ba] = PSRAM_AVAILABLE ? write8umb_psram : write8umb_swap;
+        write_funtions  [ba] = PSRAM_AVAILABLE ? write8umb_psram  : write8umb_swap ;
+        write16_funtions[ba] = PSRAM_AVAILABLE ? write16umb_psram : write16umb_swap;
     }
   #endif
   #ifdef XMS_HMA
     for (uint8_t ba = (HMA_START_ADDRESS >> 15); ba <= (BASE_XMS_ADDR >> 15); ++ba) {
-        write_funtions[ba] = PSRAM_AVAILABLE ? write8hma_psram : write8hma_swap;
+        write_funtions  [ba] = PSRAM_AVAILABLE ? write8hma_psram  : write8hma_swap ;
+        write16_funtions[ba] = PSRAM_AVAILABLE ? write16hma_psram : write16hma_swap;
     }
   #endif
     for (uint8_t ba = (BASE_XMS_ADDR >> 15); ba <= (ON_BOARD_RAM_KB >> 5); ++ba) {
-        write_funtions[ba] = PSRAM_AVAILABLE ? write8psram : ram_page_write;
+        write_funtions  [ba] = PSRAM_AVAILABLE ? write8psram  : ram_page_write  ;
+        write16_funtions[ba] = PSRAM_AVAILABLE ? write16psram : ram_page_write16;
     }
 #endif
 #ifdef EMS_DRIVER
     // override EMM window
     for (uint8_t ba = (PHYSICAL_EMM_SEGMENT >> 11); ba <= (PHYSICAL_EMM_SEGMENT_END >> 11); ++ba) {
-        write_funtions[ba] = PSRAM_AVAILABLE ? write8emm_psram : write8emm_swap;
+        write_funtions  [ba] = PSRAM_AVAILABLE ? write8emm_psram  : write8emm_swap ;
+        write16_funtions[ba] = PSRAM_AVAILABLE ? write16emm_psram : write16emm_swap;
     }
 #endif
 #else
     for (uint8_t ba = 0; ba <= (CONVENTIONAL_END >> 15); ++ba) {
-        write_funtions[ba] = write8low;
+        write_funtions  [ba] = write8low ;
+        write16_funtions[ba] = write16low;
     }
 #endif
 }
 
 void write86(uint32_t addr32, uint8_t v) {
     write_funtions[addr32 >> 15](addr32, v);
+}
+
+void writew86(uint32_t addr32, uint16_t v) {
+#ifdef HANDLE_REBOOT
+    if (addr32 == 0 && v == 0) {
+        // reboot hook
+        reboot_detected();
+    }
+#endif
+    if (addr32 & 0x00000001) {
+        // not 16-bit aligned - spit to 8-bit ops to avoid page boarders intersection
+        write86(addr32    , (uint8_t) v);
+        write86(addr32 + 1, (uint8_t)(v >> 8));
+    } else {
+        write16_funtions[addr32 >> 15](addr32, v);
+    }
 }
