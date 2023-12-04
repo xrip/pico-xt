@@ -76,7 +76,6 @@ __aligned(4096)
 #endif
 uint8_t VIDEORAM[VIDEORAM_SIZE];
 
-
 uint8_t oper1b, oper2b, res8, nestlev, addrbyte;
 uint16_t saveip, savecs, oper1, oper2, res16, disp16, temp16, dummy, stacksize, frametemp;
 uint32_t temp1, temp2, temp3, ea;
@@ -117,151 +116,6 @@ void modregrm() {
         default:
             disp16 = 0;
     }
-}
-
-void write86(uint32_t addr32, uint8_t value);
-
-static __inline void writeVRAM(uint32_t addr32, uint16_t value) {
-    if (videomode >= 0x0D && ega_plane) {
-        addr32 += ega_plane * 16000;
-    }
-    VIDEORAM[(addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = value;
-}
-
-#if PICO_ON_DEVICE
-void write86psram(uint32_t addr32, uint8_t value) {
-    if (addr32 < RAM_SIZE) {
-        // Conventional available
-        RAM[addr32] = value;
-        return;
-    }
-    if (addr32 < CONVENTIONAL_END) {
-        // Conventional in PSRAM
-        psram_write8(&psram_spi, addr32, value);
-        return;
-    }
-#ifdef EMS_DRIVER
-    if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
-        // EMS
-        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
-        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            psram_write8(&psram_spi, lba, value);
-            return;
-        }
-    }
-#endif
-#ifdef XMS_DRIVER
-#ifdef XMS_HMA
-    if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
-        // HMA
-        if (a20_line_open) {
-            // A20 line is ON
-            psram_write8(&psram_spi, addr32, value);
-            return;
-        }
-        write86(addr32 - HMA_START_ADDRESS, value); // Rool back to low addressed
-        return;
-    }
-#endif
-#ifdef XMS_UMB
-    if (addr32 >= UMB_START_ADDRESS && addr32 < HMA_START_ADDRESS && umb_in_use(addr32)) {
-        // UMB
-        psram_write8(&psram_spi, addr32, value);
-        return;
-    }
-#endif
-#ifdef XMS_HMA
-    if ((addr32) >= HMA_START_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#else
-    if ((addr32) >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#endif
-        // XMS
-        psram_write8(&psram_spi, addr32, value);
-        return;
-    }
-#endif
-}
-
-void write86sdcard(uint32_t addr32, uint8_t value) {
-    if (addr32 < RAM_PAGE_SIZE) {
-        // First not mapable block of Conventional RAM
-        RAM[addr32] = value;
-        return;
-    }
-    if (addr32 < CONVENTIONAL_END) {
-        // Conventional in swap
-        ram_page_write(addr32, value);
-        return;
-    }
-#ifdef EMS_DRIVER
-    if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
-        // EMS
-        uint32_t lba = get_logical_lba_for_physical_lba(addr32);
-        if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-            ram_page_write(lba, value);
-            return;
-        }
-    }
-#endif
-#ifdef XMS_DRIVER
-#ifdef XMS_HMA
-    if (addr32 >= HMA_START_ADDRESS && addr32 < OUT_OF_HMA_ADDRESS) {
-        // HMA
-        if (a20_line_open) {
-            // A20 line is ON
-            //char tmp[40]; sprintf(tmp, "HMAW %08Xh v: %02Xh", addr32, value); logMsg(tmp);
-            ram_page_write(addr32, value);
-            return;
-        }
-        //char tmp[40]; sprintf(tmp, "conW %08Xh v: %02Xh", addr32, value); logMsg(tmp);
-        write86(addr32 - HMA_START_ADDRESS, value); // Rool back to low addressed
-        return;
-    }
-#endif
-#ifdef XMS_UMB
-    if (addr32 >= UMB_START_ADDRESS && addr32 < HMA_START_ADDRESS && umb_in_use(addr32)) {
-        // UMB
-        ram_page_write(addr32, value);
-        return;
-    }
-#endif
-#ifdef XMS_HMA
-    if ((addr32) >= HMA_START_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#else
-    if ((addr32) >= OUT_OF_HMA_ADDRESS && addr32 < (ON_BOARD_RAM_KB << 10)) {
-#endif
-        // XMS
-        ram_page_write(addr32, value);
-        return;
-    }
-#endif
-}
-#endif
-
-void write86(uint32_t addr32, uint8_t value) {
- //   switch(addr32 >> 15) {
- //       case 0:
-  //  }
-    if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
-        // video RAM range
-        writeVRAM(addr32, value);
-        return;
-    }
-#if PICO_ON_DEVICE
-    if (PSRAM_AVAILABLE) {
-        write86psram(addr32, value);
-        return;
-    }
-    if (SD_CARD_AVAILABLE) {
-        write86sdcard(addr32, value);
-        return;
-    }
-#endif
-    if (addr32 < RAM_SIZE) {
-        RAM[addr32] = value;
-        return;
-    }
-    // { char tmp[40]; sprintf(tmp, "ADDR W: 0x%X not found", addr32); logMsg(tmp); }
 }
 
 INLINE void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16_t value) {
@@ -401,6 +255,12 @@ void reboot_detected() {
         for (uint32_t addr32 = (1ul << 20); addr32 < (2ul << 20); addr32 += 4) {
             psram_write32(&psram_spi, addr32, 0);
         }
+    }
+    init_cpu_addresses_map();
+
+    if (!PSRAM_AVAILABLE && !SD_CARD_AVAILABLE) {
+        logMsg((char *)"Mo PSRAM or SD CARD available. Only 150Kb RAM will be usable...");
+        sleep_ms(3000);
     }
 #ifdef EMS_DRIVER
     emm_reboot();
@@ -1184,6 +1044,7 @@ uint32_t BlinkTimer(uint32_t interval, void* name) {
 #endif
 
 void reset86() {
+    init_cpu_addresses_map();
 #if !PICO_ON_DEVICE
     SDL_AddTimer(timer_period / 1000, ClockTick, "timer");
     SDL_AddTimer(500, BlinkTimer, "blink");
@@ -4583,8 +4444,113 @@ static void write8direct(uint32_t addr32, uint8_t v) {
     RAM[addr32] = v;
 }
 
+static void write8psram(uint32_t addr32, uint8_t v) {
+    psram_write8(&psram_spi, addr32, v);
+}
+
+static void write8dvideo(uint32_t addr32, uint8_t v) {
+    if (videomode >= 0x0D && ega_plane) {
+        addr32 += ega_plane * 16000;
+    }
+    VIDEORAM[(addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = v;
+}
+
+static void write8umb_psram(uint32_t addr32, uint8_t v) {
+    if (umb_in_use(addr32)) {
+        psram_write8(&psram_spi, addr32, v);
+    }
+}
+
+static void write8umb_swap(uint32_t addr32, uint8_t v) {
+    if (umb_in_use(addr32)) {
+        ram_page_write(addr32, v);
+    }
+}
+
+static void write8hma_psram(uint32_t addr32, uint8_t v) {
+    if (a20_line_open) {
+        // A20 line is ON
+        psram_write8(&psram_spi, addr32, v);
+        return;
+    }
+    write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
+}
+
+static void write8hma_swap(uint32_t addr32, uint8_t v) {
+    if (a20_line_open) {
+        // A20 line is ON
+        ram_page_write(addr32, v);
+        return;
+    }
+    write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
+}
+
+static void write8emm_psram(uint32_t addr32, uint8_t v) {
+    uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+    if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
+        psram_write8(&psram_spi, lba, v);
+    }
+}
+
+static void write8emm_swap(uint32_t addr32, uint8_t v) {
+    uint32_t lba = get_logical_lba_for_physical_lba(addr32);
+    if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
+        ram_page_write(lba, v);
+    }
+}
+
+static void write8nothing(uint32_t addr32, uint8_t v) {
+    // write nothing
+}
+
 void init_cpu_addresses_map() {
-    for (uint8_t ba = 0; ba <= (CONVENTIONAL_END << 15); ++ba) {
+    // just init to avoid hangs in gaps
+    for (uint8_t ba = 0; ba <= 256; ++ba) {
+        write_funtions[ba] = &write8nothing;
+    }
+#if PICO_ON_DEVICE
+    // override for known pages
+    for (uint8_t ba = 0; ba <= SD_CARD_AVAILABLE ? (RAM_PAGE_SIZE >> 15) : (RAM_SIZE >> 15); ++ba) {
         write_funtions[ba] = &write8direct;
     }
+    for (uint8_t ba = SD_CARD_AVAILABLE ? (RAM_PAGE_SIZE >> 15) : (RAM_SIZE >> 15); ba <= (CONVENTIONAL_END >> 15); ++ba) {
+        write_funtions[ba] = PSRAM_AVAILABLE ? &write8psram : (SD_CARD_AVAILABLE ? &ram_page_write : &write8nothing);
+    }
+    // CONVENTIONAL_END == VIDEORAM_START32
+    for (uint8_t ba = (VIDEORAM_START32 >> 15); ba <= (VIDEORAM_END32 >> 15); ++ba) {
+        write_funtions[ba] = &write8dvideo;
+    }
+#ifdef EMS_DRIVER
+  #ifdef XMS_UMB
+    // UMB_START_ADDRESS == VIDEORAM_END32
+    for (uint8_t ba = (UMB_START_ADDRESS >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
+        write_funtions[ba] = PSRAM_AVAILABLE ? &write8umb_psram : &write8umb_swap;
+    }
+  #endif
+  #ifdef XMS_HMA
+    for (uint8_t ba = (HMA_START_ADDRESS >> 15); ba <= (BASE_XMS_ADDR >> 15); ++ba) {
+        write_funtions[ba] = PSRAM_AVAILABLE ? &write8hma_psram : &write8hma_swap;
+    }
+  #endif
+    for (uint8_t ba = (BASE_XMS_ADDR >> 15); ba <= (ON_BOARD_RAM_KB >> 5); ++ba) {
+        write_funtions[ba] = PSRAM_AVAILABLE ? &write8psram : &ram_page_write;
+    }
+#endif
+#ifdef EMS_DRIVER
+    // override EMM window
+    for (uint8_t ba = (PHYSICAL_EMM_SEGMENT >> 11); ba <= (PHYSICAL_EMM_SEGMENT_END >> 11); ++ba) {
+        write_funtions[ba] = PSRAM_AVAILABLE ? &write8emm_psram : &write8emm_swap;
+    }
+#endif
+#else
+    for (uint8_t ba = 0; ba <= (CONVENTIONAL_END >> 15); ++ba) {
+        write_funtions[ba] = &write8direct;
+    }
+#endif
+}
+
+char tmp[80];
+void write86(uint32_t addr32, uint8_t v) {
+    sprintf(tmp, "write: %02Xh to %08Xh", addr32, v); logMsg(tmp);
+    write_funtions[addr32 >> 15](addr32, v);
 }
