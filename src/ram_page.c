@@ -184,9 +184,6 @@ FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
     return result;
 }
 
-#include "psram_spi.h"
-extern psram_spi_inst_t psram_spi;
-
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
   //  if (file_offset >= 0x100000) {

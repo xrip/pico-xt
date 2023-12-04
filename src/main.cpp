@@ -141,7 +141,6 @@ static int RendererThread(void* ptr) {
 pwm_config config = pwm_get_default_config();
 
 psram_spi_inst_t psram_spi;
-psram_spi_inst_t* async_spi_inst;
 uint32_t overcloking_khz = OVERCLOCKING * 1000;
 
 
