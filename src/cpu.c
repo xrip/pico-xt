@@ -1272,7 +1272,7 @@ INLINE void writerm8(uint8_t rmval, uint8_t value) {
 
 uint8_t tandy_hack = 0;
 
-INLINE void intcall86(uint8_t intnum) {
+void intcall86(uint8_t intnum) {
     uint32_t tempcalc, memloc, n;
     switch (intnum) {
 #ifdef EMS_DRIVER
@@ -1409,14 +1409,14 @@ INLINE void intcall86(uint8_t intnum) {
                     break;
                 case 0x10: //VGA DAC functions
                     if (videomode < 0x0d) break;
-                    printf("palette manipulation %x\r\n", CPU_AX);
+                    //printf("palette manipulation %x\r\n", CPU_AX);
                     switch (CPU_AL) {
                         case 0x00: {
                             // set one palette register                   EGA/VGA
-                            const uint8_t b = (CPU_BH & 0b001 ? 1 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
-                            const uint8_t g = (CPU_BH & 0b010 ? 1 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
-                            const uint8_t r = (CPU_BH & 0b100 ? 1 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
-                            vga_palette[CPU_BL] = rgb(r * 127, g * 127, b * 127);
+                            const uint8_t b = (CPU_BH & 0b001 ? 2 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
+                            const uint8_t g = (CPU_BH & 0b010 ? 2 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
+                            const uint8_t r = (CPU_BH & 0b100 ? 2 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
+                            vga_palette[CPU_BL] = rgb(r * 85, g * 85, b * 85);
 #if PICO_ON_DEVICE
                             graphics_set_palette(CPU_BL, vga_palette[CPU_BL]);
 #endif
@@ -1427,10 +1427,10 @@ INLINE void intcall86(uint8_t intnum) {
                             memloc = CPU_ES * 16 + CPU_DX;
                             for (n = 0; n < 17; n++) {
                                 uint8_t color = read86(memloc++);
-                                const uint8_t b = (color & 0b001 ? 1 : 0) + (color & 0b111000 ? 1 : 0);
-                                const uint8_t g = (color & 0b010 ? 1 : 0) + (color & 0b111000 ? 1 : 0);
-                                const uint8_t r = (color & 0b100 ? 1 : 0) + (color & 0b111000 ? 1 : 0);
-                                vga_palette[n] = rgb(r * 127, g * 127, b * 127);
+                                const uint8_t b = (color & 0b001 ? 2 : 0) + (color & 0b111000 ? 1 : 0);
+                                const uint8_t g = (color & 0b010 ? 2 : 0) + (color & 0b111000 ? 1 : 0);
+                                const uint8_t r = (color & 0b100 ? 2 : 0) + (color & 0b111000 ? 1 : 0);
+                                vga_palette[n] = rgb(r * 85, g * 85, b * 85);
 #if PICO_ON_DEVICE
                             graphics_set_palette(n, vga_palette[n]);
 #endif
@@ -1456,9 +1456,8 @@ INLINE void intcall86(uint8_t intnum) {
                     }
                     return;
                 /*case 0x12:
-                  break;
                     CPU_BH = 0; // default BIOS setup (0=color; 1=monochrome)
-                    CPU_BL = 0; //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
+                    CPU_BL = 3; //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
                 //(Note: if BL>4, then this is not an EGA BIOS)
                     CPU_CH = 0; //feature bits (values of those RCA connectors)
                     CPU_CL = 0; //switch settings
@@ -1466,7 +1465,6 @@ INLINE void intcall86(uint8_t intnum) {
                 case 0x1A: //get display combination code (ps, vga/mcga)
                     CPU_AL = 0x1A;
                     CPU_BL = 0x08;
-                    CPU_BH = 0x00;
                     return;
                 /*
                                 case 0x1A: //get display combination code (ps, vga/mcga)
