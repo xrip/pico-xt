@@ -9,7 +9,7 @@
 #define VIDEORAM_END32 0xC0000ul
 
 //#define VIDEORAM_SIZE (VIDEORAM_END32 - VIDEORAM_START32)
-#define VIDEORAM_SIZE 64 << 10
+#define VIDEORAM_SIZE (64 << 10)
 
 // --- select only one of 'em
 #ifdef SWAP_BLOCK_1k

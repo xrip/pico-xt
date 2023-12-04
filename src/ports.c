@@ -26,6 +26,8 @@ static uint8_t latchReadRGB = 0, latchReadPal = 0;
 uint8_t ega_plane = 0;
 static uint16_t port3C4 = 0;
 static uint16_t port3C5 = 0;
+static uint8_t port3C0 = 0xff;
+static bool port3C0_flipflop = false;
 
 void portout(uint16_t portnum, uint16_t value) {
     //if (portnum == 0x80) {
@@ -117,23 +119,39 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x389:
             outadlib(portnum, value);
             break;
+        case 0x3C0:
+            ///printf("EGA control register 3c0 0x%x\r\n", value);
+            if (port3C0_flipflop && port3C4 <= 0xf) {
+                printf("3c0 COLOR %i 0x%x\r\n", port3C4, value);
+                const uint8_t b = (value & 0b001 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
+                const uint8_t g = (value & 0b010 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
+                const uint8_t r = (value & 0b100 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
+                vga_palette[port3C4] = rgb(r * 85, g * 85, b * 85);
+            }
+            port3C4 = value;
+            port3C0_flipflop ^= true;
+
+            break;
         case 0x3C4: //sequence controller index
             // TODO: implement other EGA sequences
-            port3C4 =  value & 255;
+            port3C4 = value & 255;
             break;
         case 0x3C5: //sequence controller data
             // TODO: Это грязный хак, сделать нормально
             port3C5 = value & 255;
             if ((port3C4 & 0x1F) == 0x02) {
                 switch (value) {
-                    case 0x01: ega_plane = 0; break;
-                    case 0x02: ega_plane = 1; break;
-                    case 0x04: ega_plane = 2; break;
-                    case 0x08: ega_plane = 3; break;
+                    case 0x01: ega_plane = 0;
+                        break;
+                    case 0x02: ega_plane = 1;
+                        break;
+                    case 0x04: ega_plane = 2;
+                        break;
+                    case 0x08: ega_plane = 3;
+                        break;
                     default:
                         ega_plane = 0;
                 }
-
             }
             break;
         case 0x3C7: //color index register (read operations)
@@ -189,7 +207,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3D8: // CGA Mode control register
             // https://www.seasip.info/VintagePC/cga.html
             port3D8 = value;
-            if (videomode == 13) return;
+            if (videomode >= 0xd) return;
         // third cga palette (black/red/cyan/white)
             if (videomode == 5 && (port3D8 >> 2) & 1) {
                 logMsg("the unofficial Mode 5 palette, accessed by disabling ColorBurst\n");
@@ -227,7 +245,7 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
         case 0x3D9:
             port3D9 = value;
-            if (videomode == 13) return;
+            if (videomode >= 0xd) return;
             uint8_t bg_color = value & 0xf;
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;
@@ -247,25 +265,28 @@ void portout(uint16_t portnum, uint16_t value) {
         //setVGA_color_palette(0, cga_palette[0]);
 #endif
             break;
-        case 0x3DA:
+        case 0x3DA: // EGA control register
+            printf("Tandy control register 3dA 0x%x\r\n", value);
             break;
         case 0x3DE: // tandy register
+            printf("Tandy control register 3dE 0x%x\r\n", value);
             break;
         case 0x3DF: // tandy CRT/Processor Page Register
-            /*
-            CRT/Processor Page Register
-            This 8-bit (write-only) register is addressed at 3DF. The descriptions below are
-            of the register functions:
-            Bit	Description
-            0	CRT Page 0
-            1	CRT Page 1
-            2	CRT Page 2
-            3	Processor Page 0
-            4	Processor Page 1
-            5	Processor Page 2
-            6	Video Address Mode 0
-            7	Video Address Mode 1
-            */
+            printf("Tandy control register 3df 0x%x\r\n", value);
+        /*
+        CRT/Processor Page Register
+        This 8-bit (write-only) register is addressed at 3DF. The descriptions below are
+        of the register functions:
+        Bit	Description
+        0	CRT Page 0
+        1	CRT Page 1
+        2	CRT Page 2
+        3	Processor Page 0
+        4	Processor Page 1
+        5	Processor Page 2
+        6	Video Address Mode 0
+        7	Video Address Mode 1
+        */
             break;
         case 0x3F8:
         case 0x3F9:
@@ -343,10 +364,12 @@ uint16_t portin(uint16_t portnum) {
         case 0x388: // adlib
         case 0x389:
             return inadlib(portnum);
+        case 0x3C0:
+            return port3C4;
         case 0x3C4: //sequence controller index
             // https://wiki.osdev.org/VGA_Hardware#Port_0x3C0
-                // https://files.osdev.org/mirrors/geezer/osd/graphics/modes.c
-                    // https://vtda.org/books/Computing/Programming/EGA-VGA-ProgrammersReferenceGuide2ndEd_BradleyDyckKliewer.pdf
+            // https://files.osdev.org/mirrors/geezer/osd/graphics/modes.c
+            // https://vtda.org/books/Computing/Programming/EGA-VGA-ProgrammersReferenceGuide2ndEd_BradleyDyckKliewer.pdf
             // TODO: implement other EGA sequences
             return port3C4;
         case 0x3C5:
