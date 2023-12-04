@@ -4,12 +4,7 @@
 #pragma once
 #ifndef TINY8086_CPU8086_H
 #define TINY8086_CPU8086_H
-#if PICO_ON_DEVICE
-//#define INLINE __always_inline
 #define INLINE static
-#else
-#define INLINE __forceinline
-#endif
 
 // Settings for max 8MB 0f PSRAM
 #define TOTAL_VIRTUAL_MEMORY_KBS (8ul << 10)
