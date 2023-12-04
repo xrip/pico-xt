@@ -4436,13 +4436,10 @@ void exec86(uint32_t execloops) {
     }
 }
 
+// type of 8-bit write function pointer
 typedef void (*write_fn_ptr)(uint32_t, uint8_t);
-
-static write_fn_ptr write_funtions[256];
-
-static void write8direct(uint32_t addr32, uint8_t v) {
-    RAM[addr32] = v;
-}
+// array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
+static write_fn_ptr write_funtions[256] = { 0 };
 
 static void write8psram(uint32_t addr32, uint8_t v) {
     psram_write8(&psram_spi, addr32, v);
@@ -4499,58 +4496,74 @@ static void write8emm_swap(uint32_t addr32, uint8_t v) {
     }
 }
 
+// This function is required to place into "empty" clots, to avoid null ptr functions
 static void write8nothing(uint32_t addr32, uint8_t v) {
-    // write nothing
+    // do nothing
+}
+
+static void write8low(uint32_t addr32, uint8_t v) {
+    if (addr32 < RAM_SIZE) {
+        RAM[addr32] = v;
+    }
+}
+
+static void write8low_psram(uint32_t addr32, uint8_t v) {
+    if (addr32 < RAM_SIZE) {
+        RAM[addr32] = v;
+    } else {
+        psram_write8(&psram_spi, addr32, v);
+    }
+}
+
+static void write8low_swap(uint32_t addr32, uint8_t v) {
+    if (addr32 < RAM_PAGE_SIZE) {
+        RAM[addr32] = v;
+    } else {
+        ram_page_write(addr32, v);
+    }
 }
 
 void init_cpu_addresses_map() {
-    // just init to avoid hangs in gaps
-    for (uint8_t ba = 0; ba <= 256; ++ba) {
-        write_funtions[ba] = &write8nothing;
-    }
+    // just init all array positions to avoid hangs in gaps
+    uint8_t ba = 0; do { write_funtions[ba++] = write8nothing; } while (ba != 0);
 #if PICO_ON_DEVICE
     // override for known pages
-    for (uint8_t ba = 0; ba <= SD_CARD_AVAILABLE ? (RAM_PAGE_SIZE >> 15) : (RAM_SIZE >> 15); ++ba) {
-        write_funtions[ba] = &write8direct;
-    }
     for (uint8_t ba = SD_CARD_AVAILABLE ? (RAM_PAGE_SIZE >> 15) : (RAM_SIZE >> 15); ba <= (CONVENTIONAL_END >> 15); ++ba) {
-        write_funtions[ba] = PSRAM_AVAILABLE ? &write8psram : (SD_CARD_AVAILABLE ? &ram_page_write : &write8nothing);
+        write_funtions[ba] = PSRAM_AVAILABLE ? write8low_psram : (SD_CARD_AVAILABLE ? write8low_swap : write8low);
     }
     // CONVENTIONAL_END == VIDEORAM_START32
     for (uint8_t ba = (VIDEORAM_START32 >> 15); ba <= (VIDEORAM_END32 >> 15); ++ba) {
-        write_funtions[ba] = &write8dvideo;
+        write_funtions[ba] = write8dvideo;
     }
 #ifdef EMS_DRIVER
   #ifdef XMS_UMB
     // UMB_START_ADDRESS == VIDEORAM_END32
     for (uint8_t ba = (UMB_START_ADDRESS >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
-        write_funtions[ba] = PSRAM_AVAILABLE ? &write8umb_psram : &write8umb_swap;
+        write_funtions[ba] = PSRAM_AVAILABLE ? write8umb_psram : write8umb_swap;
     }
   #endif
   #ifdef XMS_HMA
     for (uint8_t ba = (HMA_START_ADDRESS >> 15); ba <= (BASE_XMS_ADDR >> 15); ++ba) {
-        write_funtions[ba] = PSRAM_AVAILABLE ? &write8hma_psram : &write8hma_swap;
+        write_funtions[ba] = PSRAM_AVAILABLE ? write8hma_psram : write8hma_swap;
     }
   #endif
     for (uint8_t ba = (BASE_XMS_ADDR >> 15); ba <= (ON_BOARD_RAM_KB >> 5); ++ba) {
-        write_funtions[ba] = PSRAM_AVAILABLE ? &write8psram : &ram_page_write;
+        write_funtions[ba] = PSRAM_AVAILABLE ? write8psram : ram_page_write;
     }
 #endif
 #ifdef EMS_DRIVER
     // override EMM window
     for (uint8_t ba = (PHYSICAL_EMM_SEGMENT >> 11); ba <= (PHYSICAL_EMM_SEGMENT_END >> 11); ++ba) {
-        write_funtions[ba] = PSRAM_AVAILABLE ? &write8emm_psram : &write8emm_swap;
+        write_funtions[ba] = PSRAM_AVAILABLE ? write8emm_psram : write8emm_swap;
     }
 #endif
 #else
     for (uint8_t ba = 0; ba <= (CONVENTIONAL_END >> 15); ++ba) {
-        write_funtions[ba] = &write8direct;
+        write_funtions[ba] = write8low;
     }
 #endif
 }
 
-char tmp[80];
 void write86(uint32_t addr32, uint8_t v) {
-    sprintf(tmp, "write: %02Xh to %08Xh", addr32, v); logMsg(tmp);
     write_funtions[addr32 >> 15](addr32, v);
 }
