@@ -125,7 +125,7 @@ const uint32_t cga_composite_palette[3][16] = {
     }
 };
 
-const uint32_t tandy_palette[16] = {
+uint32_t tandy_palette[16] = {
     0x000000, // Black
     0x0000AA, // Dark Blue
     0x00AA00, // Dark Green

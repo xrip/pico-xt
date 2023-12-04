@@ -73,7 +73,7 @@ void __time_critical_func(render_core)() {
 
     PWM_init_pin(ZX_AY_PWM_PIN0);
     PWM_init_pin(ZX_AY_PWM_PIN1);
-    static const int sound_frequency = 22050;
+    static const int sound_frequency = 8000;
     if (!add_repeating_timer_us(-1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
         logMsg("Failed to add timer");
         sleep_ms(3000);
@@ -603,7 +603,7 @@ int main() {
                 }
             }
         }
-        else if (mode == 66 || mode == 8 || mode == 64) {
+        else if (mode == 66 || mode == 64) {
             // composite / tandy 160x200
             uint32_t intensity = mode == 66 ? 0 : 1 + cga_intensity;
             uint32_t* pix = pixels;
@@ -620,6 +620,26 @@ int main() {
                     *pix++ = cga_composite_palette[intensity][curpixel];
                     *pix++ = cga_composite_palette[intensity][curpixel];
                     *pix++ = cga_composite_palette[intensity][curpixel];
+                }
+            }
+        }
+        if (mode == 8) {
+            // composite / tandy 160x200
+            uint32_t intensity = 0;
+            uint32_t* pix = pixels;
+            for (int y = 0; y < 200; y++) {
+                for (int x = 0; x < 160; x++) {
+                    uint32_t vidptr = /*0xB8000 + */((y >> 1) * 80) + ((y & 1) * 8192) + x;
+                    uint32_t curpixel = (vidramptr[vidptr] >> 4) & 15;
+                    *pix++ = tandy_palette[curpixel];
+                    *pix++ = tandy_palette[curpixel];
+                    *pix++ = tandy_palette[curpixel];
+                    *pix++ = tandy_palette[curpixel];
+                    curpixel = (vidramptr[vidptr]) & 15;
+                    *pix++ = tandy_palette[curpixel];
+                    *pix++ = tandy_palette[curpixel];
+                    *pix++ = tandy_palette[curpixel];
+                    *pix++ = tandy_palette[curpixel];
                 }
             }
         }
@@ -709,7 +729,7 @@ int main() {
                     *pix++ = vga_palette[(pixel >> 0) & 1];
                 }
             }
-        } else if (mode >= 0x0d && mode < 0x13) {
+        } else if (mode == 0x0d) {
             uint32_t* pix = pixels;
             vidramptr = VIDEORAM;
             const uint32_t planesize = 16000;
@@ -718,6 +738,25 @@ int main() {
                     uint32_t divx = x>>1;
                     uint32_t divy = y>>1;
                     uint32_t vidptr = divy*40 + (divx>>3);
+                    int x1 = 7 - (divx & 7);
+                    uint32_t color = (vidramptr[vidptr] >> x1) & 1;
+                    color |= ( ( (vidramptr[planesize + vidptr] >> x1) & 1) << 1);
+                    color |= ( ( (vidramptr[planesize*2 + vidptr] >> x1) & 1) << 2);
+                    color |= ( ( (vidramptr[planesize*3 + vidptr] >> x1) & 1) << 3);
+                    //prestretch[y][x] = color;
+                    *pix++ = vga_palette[color];;
+                }
+                // pix += pia.tail;
+            }
+        } else if (mode == 0x0e) {
+            uint32_t* pix = pixels;
+            vidramptr = VIDEORAM;
+            const uint32_t planesize = 16000;
+            for (int y = 0; y < 400; y++) {
+                for (int x = 0; x < 640; x++) {
+                    uint32_t divx = x;
+                    uint32_t divy = y>>1;
+                    uint32_t vidptr = divy*80 + (divx>>3);
                     int x1 = 7 - (divx & 7);
                     uint32_t color = (vidramptr[vidptr] >> x1) & 1;
                     color |= ( ( (vidramptr[planesize + vidptr] >> x1) & 1) << 1);
