@@ -9,10 +9,14 @@
 // Settings for max 8MB 0f PSRAM
 #define TOTAL_VIRTUAL_MEMORY_KBS (8ul << 10)
 
+#ifdef XMS_DRIVER
 #if XMS_OVER_HMA_KB
 #define ON_BOARD_RAM_KB (1024ul + XMS_OVER_HMA_KB + XMS_HMA_KB + RESERVED_XMS_KB)
 #else
 #define ON_BOARD_RAM_KB (1024ul + XMS_HMA_KB + RESERVED_XMS_KB)
+#endif
+#else
+#define ON_BOARD_RAM_KB 1024ul
 #endif
 
 #define BASE_X86_KB 1024ul
