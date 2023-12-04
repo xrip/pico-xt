@@ -73,7 +73,7 @@ void __time_critical_func(render_core)() {
 
     PWM_init_pin(ZX_AY_PWM_PIN0);
     PWM_init_pin(ZX_AY_PWM_PIN1);
-    static const int sound_frequency = 8000;
+    static const int sound_frequency = 22050;
     if (!add_repeating_timer_us(-1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
         logMsg("Failed to add timer");
         sleep_ms(3000);
