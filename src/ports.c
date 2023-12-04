@@ -120,7 +120,7 @@ void portout(uint16_t portnum, uint16_t value) {
             outadlib(portnum, value);
             break;
         case 0x3C0:
-            //printf("EGA control register 3c0 0x%x\r\n", value);
+            ///printf("EGA control register 3c0 0x%x\r\n", value);
             if (port3C0_flipflop && port3C4 <= 0xf) {
                 printf("3c0 COLOR %i 0x%x\r\n", port3C4, value);
                 const uint8_t b = (value & 0b001 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
@@ -245,7 +245,7 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
         case 0x3D9:
             port3D9 = value;
-            if (videomode == 13) return;
+            if (videomode >= 0xd) return;
             uint8_t bg_color = value & 0xf;
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;
@@ -266,8 +266,10 @@ void portout(uint16_t portnum, uint16_t value) {
 #endif
             break;
         case 0x3DA: // EGA control register
+            printf("Tandy control register 3dA 0x%x\r\n", value);
             break;
         case 0x3DE: // tandy register
+            printf("Tandy control register 3dE 0x%x\r\n", value);
             break;
         case 0x3DF: // tandy CRT/Processor Page Register
             printf("Tandy control register 3df 0x%x\r\n", value);

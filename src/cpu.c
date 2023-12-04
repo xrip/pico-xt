@@ -1412,15 +1412,20 @@ void intcall86(uint8_t intnum) {
                 // Установить видеорежим
                     break;
                 case 0x10: //VGA DAC functions
-                    if (videomode < 0x0d) break;
-                    //printf("palette manipulation %x\r\n", CPU_AX);
+                    //printf("palette manipulation %x %x\r\n", CPU_AX, CPU_BX);
+                if (videomode < 0x08) break;
                     switch (CPU_AL) {
                         case 0x00: {
                             // set one palette register                   EGA/VGA
                             const uint8_t b = (CPU_BH & 0b001 ? 2 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
                             const uint8_t g = (CPU_BH & 0b010 ? 2 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
                             const uint8_t r = (CPU_BH & 0b100 ? 2 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
-                            vga_palette[CPU_BL] = rgb(r * 85, g * 85, b * 85);
+// TODO: Вообще нужно разные палитры?
+                            if (videomode > 9) {
+                                vga_palette[CPU_BL] = rgb(r * 85, g * 85, b * 85);
+                            } else {
+                                tandy_palette[CPU_BL] = rgb(r * 85, g * 85, b * 85);
+                            }
 #if PICO_ON_DEVICE
                             graphics_set_palette(CPU_BL, vga_palette[CPU_BL]);
 #endif
