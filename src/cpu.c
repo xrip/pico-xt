@@ -125,7 +125,7 @@ static __inline void writeVRAM(uint32_t addr32, uint16_t value) {
     if (videomode >= 0x0D && ega_plane) {
         addr32 += ega_plane * 16000;
     }
-    VIDEORAM[(addr32 - VIDEORAM_START32) % 65536] = value;
+    VIDEORAM[(addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = value;
 }
 
 #if PICO_ON_DEVICE
@@ -283,9 +283,9 @@ INLINE void write86psram16(uint32_t addr32, uint16_t value) {
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
         if (videomode >= 0x0D && ega_plane) {
-            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
+            addr32 += ega_plane * 16000; 
         }
-        write16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536, value);
+        write16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % VIDEORAM_SIZE, value);
         return;
     }
 #ifdef EMS_DRIVER
@@ -431,9 +431,9 @@ void writew86(uint32_t addr32, uint16_t value) {
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
         if (videomode >= 0x0D && ega_plane) {
-            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
+            addr32 += ega_plane * 16000;
         }
-        write16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536, value);
+        write16arr(VIDEORAM, 0, (addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, value);
         return;
     }
 #if PICO_ON_DEVICE
@@ -490,11 +490,12 @@ INLINE uint16_t read86rom16(uint32_t addr32) {
     }
     return 0;
 }
+
 uint8_t read86video_ram(uint32_t addr32) {
     if (videomode >= 0x0D && ega_plane) {
         addr32 += ega_plane * 16000;
     }
-    return VIDEORAM[(addr32 - VIDEORAM_START32) % 65536];
+    return VIDEORAM[(addr32 - VIDEORAM_START32) % VIDEORAM_SIZE];
 }
 
 #if PICO_ON_DEVICE
@@ -558,9 +559,9 @@ INLINE uint16_t read86psram16(uint32_t addr32) {
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
         if (videomode >= 0x0D && ega_plane) {
-            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
+            addr32 += ega_plane * 16000; 
         }
-        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536);
+        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % VIDEORAM_SIZE);
     }
 #ifdef EMS_DRIVER
     if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
@@ -663,9 +664,9 @@ INLINE uint16_t read86sdcard16(uint32_t addr32) {
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
         if (videomode >= 0x0D && ega_plane) {
-            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
+            addr32 += ega_plane * 16000; 
         }
-        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536);
+        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % VIDEORAM_SIZE);
     }
 #ifdef EMS_DRIVER
     if (addr32 >= (PHYSICAL_EMM_SEGMENT << 4) && addr32 < (PHYSICAL_EMM_SEGMENT_END << 4)) {
@@ -755,9 +756,9 @@ uint16_t readw86(uint32_t addr32) {
     if (addr32 >= VIDEORAM_START32 && addr32 < VIDEORAM_END32) {
         // video RAM range
         if (videomode >= 0x0D && ega_plane) {
-            addr32 += ega_plane * 16000; /// 32000 = 320x200x16
+            addr32 += ega_plane * 16000;
         }
-        return read16arr(VIDEORAM, 0, (addr32-VIDEORAM_START32) % 65536);
+        return read16arr(VIDEORAM, 0, (addr32 - VIDEORAM_START32) % VIDEORAM_SIZE);
     }
     return read86rom16(addr32);
 }
@@ -1407,16 +1408,42 @@ INLINE void intcall86(uint8_t intnum) {
                 // Установить видеорежим
                     break;
                 case 0x10: //VGA DAC functions
-                    if (videomode >= 0x0d) return;
-                    printf("palette manipulation\r\n");
+                    if (videomode < 0x0d) break;
+                    printf("palette manipulation %x\r\n", CPU_AX);
                     switch (CPU_AL) {
+                        case 0x00: {
+                            // set one palette register                   EGA/VGA
+                            const uint8_t b = (CPU_BH & 0b001 ? 1 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
+                            const uint8_t g = (CPU_BH & 0b010 ? 1 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
+                            const uint8_t r = (CPU_BH & 0b100 ? 1 : 0) + (CPU_BH & 0b111000 ? 1 : 0);
+                            vga_palette[CPU_BL] = rgb(r * 127, g * 127, b * 127);
+#if PICO_ON_DEVICE
+                            graphics_set_palette(CPU_BL, vga_palette[CPU_BL]);
+#endif
+
+                            return;
+                        }
+                        case 0x02: // set all palette registers & border color   EGA/VGA
+                            memloc = CPU_ES * 16 + CPU_DX;
+                            for (n = 0; n < 17; n++) {
+                                uint8_t color = read86(memloc++);
+                                const uint8_t b = (color & 0b001 ? 1 : 0) + (color & 0b111000 ? 1 : 0);
+                                const uint8_t g = (color & 0b010 ? 1 : 0) + (color & 0b111000 ? 1 : 0);
+                                const uint8_t r = (color & 0b100 ? 1 : 0) + (color & 0b111000 ? 1 : 0);
+                                vga_palette[n] = rgb(r * 127, g * 127, b * 127);
+#if PICO_ON_DEVICE
+                            graphics_set_palette(n, vga_palette[n]);
+#endif
+                            }
+                            return;
+                        // set one DAC color register                     VGA
                         case 0x10: //set individual DAC register
                             vga_palette[CPU_BX] = rgb((CPU_DH & 63) << 2, (CPU_CH & 63) << 2, (CPU_CL & 63) << 2);
 #if PICO_ON_DEVICE
                         graphics_set_palette(CPU_BX, vga_palette[CPU_BX]);
 #endif
-                            break;
-                        case 0x12: //set block of DAC registers
+                            return;
+                        case 0x12: // set block of DAC color registers               VGA
                             memloc = CPU_ES * 16 + CPU_DX;
                             for (n = CPU_BX; n < (uint32_t)(CPU_BX + CPU_CX); n++) {
                                 vga_palette[n] = rgb(read86(memloc) << 2, read86(memloc + 1) << 2,
@@ -1427,7 +1454,7 @@ INLINE void intcall86(uint8_t intnum) {
                                 memloc += 3;
                             }
                     }
-                    break;
+                    return;
                 /*case 0x12:
                   break;
                     CPU_BH = 0; // default BIOS setup (0=color; 1=monochrome)
