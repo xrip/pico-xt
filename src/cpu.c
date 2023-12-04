@@ -709,6 +709,10 @@ INLINE uint16_t read86sdcard16(uint32_t addr32) {
 #endif
 // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 uint8_t read86(uint32_t addr32) {
+    /*if (addr32 == 0xFC000) {
+        // TANDY graphics hack
+        return 0x21;
+    }*/
 #if PICO_ON_DEVICE
     if (PSRAM_AVAILABLE) {
         return read86psram(addr32);
