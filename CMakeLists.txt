@@ -63,7 +63,7 @@ pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
 #if (!OVERCLOCKING)
-set(OVERCLOCKING 408)
+set(OVERCLOCKING 416)
 #endif ()
 
 

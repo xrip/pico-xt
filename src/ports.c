@@ -215,9 +215,7 @@ void portout(uint16_t portnum, uint16_t value) {
             logMsg(tmp);
 
 #if PICO_ON_DEVICE
-            if (value >> 4 == 0) {
-                graphics_set_palette(0, value != 0xf ? cga_palette[value & 0xf] : 0);
-            }
+            graphics_set_palette(0, bg_color != 0xf ? cga_palette[bg_color] : 0);
 
             if ((videomode == 6 && (port3D8 & 0x0f) == 0b1010) || videomode >= 8) {
                 break;
@@ -228,16 +226,18 @@ void portout(uint16_t portnum, uint16_t value) {
             }
         //setVGA_color_palette(0, cga_palette[0]);
 #else
-        const uint8_t b = (value & 0b001 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
-        const uint8_t g = (value & 0b010 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
-        const uint8_t r = (value & 0b100 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
-        if (value >> 4 == 0 && value != 0xf) {
-            cga_composite_palette[0][0] = rgb(r * 85, g * 85, b * 85);
+
+        if (bg_color != 0xf) {
+            cga_composite_palette[0][0] = cga_palette[bg_color];
+            tandy_palette[0] = cga_palette[bg_color];
+            printf("setting cga color\r\n");
         } else {
             cga_composite_palette[0][0] = 0;
+            tandy_palette[0] = 0;
         }
-            //cga_composite_palette[0][0] = cga_palette[bg_color];
-            printf("setting color\r\n");
+
+           //cga_composite_palette[0][0] = cga_palette[bg_color];
+
 #endif
             break;
         case 0x3D8: // CGA Mode control register
