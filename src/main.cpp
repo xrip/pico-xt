@@ -36,6 +36,7 @@ SDL_Surface* screen;
 
 bool PSRAM_AVAILABLE = false;
 bool SD_CARD_AVAILABLE = false;
+uint32_t DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
 bool runing = true;
 
 #if PICO_ON_DEVICE
@@ -214,6 +215,7 @@ int main() {
     psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.6, true);
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
     PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
+    DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
 
     FRESULT result = f_mount(&fs, "", 1);
     if (result != FR_OK) {
@@ -222,6 +224,7 @@ int main() {
         logMsg(tmp);
     } else {
         SD_CARD_AVAILABLE = true;
+        DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
     }
 
     if (!PSRAM_AVAILABLE && !SD_CARD_AVAILABLE) {
