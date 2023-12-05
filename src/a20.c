@@ -34,7 +34,7 @@ typedef struct xmm_handle {
 } xmm_handle_t;
 
 #if XMS_OVER_HMA_KB
-#define MAX_XMM_HANDLES 15
+#define MAX_XMM_HANDLES 15 // TODO: 60 ??
 static xmm_handle_t xmm_handles[MAX_XMM_HANDLES] = { 0 };
 #endif
 
