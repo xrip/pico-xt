@@ -189,7 +189,7 @@ else ()
             SWAP_BLOCK_2k
             #SWAP_BLOCK_4k
 
-            EMS_DRIVER=1
+            #EMS_DRIVER=1
             #EMS_DEBUG=1
 
             XMS_DRIVER=1

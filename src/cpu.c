@@ -4366,7 +4366,7 @@ void init_cpu_addresses_map() {
         read_funtions   [ba] = read8video  ;
         read16_funtions [ba] = read16video ;
     }
-#ifdef EMS_DRIVER
+#ifdef XMS_DRIVER
   #ifdef XMS_UMB
     // UMB_START_ADDRESS == VIDEORAM_END32
     for (uint8_t ba = (UMB_START_ADDRESS >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
