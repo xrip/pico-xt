@@ -4453,6 +4453,21 @@ void init_cpu_addresses_map() {
         read_funtions   [ba] = PSRAM_AVAILABLE ? read8psram   : ram_page_read   ;
         read16_funtions [ba] = PSRAM_AVAILABLE ? read16psram  : ram_page_read16 ;
     }
+#else
+    for (uint8_t ba = (VIDEORAM_END32 >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
+        read_funtions   [ba] = read86rom;
+        read16_funtions [ba] = read86rom16;
+    }
+    for (uint8_t ba = (VIDEORAM_END32 >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
+        read_funtions   [ba] = read86rom;
+        read16_funtions [ba] = read86rom16;
+    }
+    for (uint8_t ba = (HMA_START_ADDRESS >> 15); ba <= (BASE_XMS_ADDR >> 15); ++ba) {
+        write_funtions  [ba] = write8nohma ;
+        write16_funtions[ba] = write16nohma;
+        read_funtions   [ba] = read8nohma  ;
+        read16_funtions [ba] = read16nohma ;
+    }
 #endif
 #ifdef EMS_DRIVER
     // override EMM window
