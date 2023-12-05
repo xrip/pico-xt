@@ -1276,7 +1276,7 @@ INLINE void writerm8(uint8_t rmval, uint8_t value) {
 
 uint8_t tandy_hack = 0;
 
-void intcall86(uint8_t intnum) {
+static void intcall86(uint8_t intnum) {
     uint32_t tempcalc, memloc, n;
     switch (intnum) {
 #ifdef EMS_DRIVER
@@ -1423,12 +1423,16 @@ void intcall86(uint8_t intnum) {
 // TODO: Вообще нужно разные палитры?
                             if (videomode > 9) {
                                 vga_palette[CPU_BL] = rgb(r * 85, g * 85, b * 85);
+#if PICO_ON_DEVICE
+                                graphics_set_palette(CPU_BL, vga_palette[CPU_BL]);
+#endif
                             } else {
                                 tandy_palette[CPU_BL] = rgb(r * 85, g * 85, b * 85);
-                            }
 #if PICO_ON_DEVICE
-                            graphics_set_palette(CPU_BL, vga_palette[CPU_BL]);
+                                graphics_set_palette(CPU_BL, tandy_palette[CPU_BL]);
 #endif
+                            }
+
 
                             return;
                         }
