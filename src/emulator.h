@@ -63,6 +63,7 @@ extern uint8_t RAM[RAM_SIZE];
 extern uint8_t VIDEORAM[VIDEORAM_SIZE];
 extern bool PSRAM_AVAILABLE;
 extern bool SD_CARD_AVAILABLE;
+extern uint32_t DIRECT_RAM_BORDER;
 
 void init_cpu_addresses_map();
 
