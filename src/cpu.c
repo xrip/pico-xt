@@ -4404,15 +4404,16 @@ void init_cpu_addresses_map() {
 #ifdef XMS_DRIVER
   #ifdef XMS_UMB
     // UMB_START_ADDRESS == VIDEORAM_END32
-    for (uint8_t ba = (UMB_START_ADDRESS >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
+    for (uint8_t ba = (VIDEORAM_END32 >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
         write_funtions  [ba] = PSRAM_AVAILABLE ? write8umb_psram  : write8umb_swap ;
         write16_funtions[ba] = PSRAM_AVAILABLE ? write16umb_psram : write16umb_swap;
         read_funtions   [ba] = PSRAM_AVAILABLE ? read8umb_psram   : read8umb_swap  ;
         read16_funtions [ba] = PSRAM_AVAILABLE ? read16umb_psram  : read16umb_swap  ;
     }
   #else
-    for (uint8_t ba = (UMB_START_ADDRESS >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
+    for (uint8_t ba = (VIDEORAM_END32 >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
         read_funtions   [ba] = read86rom;
+        read16_funtions [ba] = read86rom16;
     }
   #endif
   #ifdef XMS_HMA
