@@ -200,7 +200,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #EMS_DRIVER=1
         #EMS_DEBUG=1
 
-        XMS_DRIVER=1
+        #XMS_DRIVER=1
         #XMS_OVER_HMA_KB=1024
         #XMS_UMB=1
         #XMS_HMA=1
