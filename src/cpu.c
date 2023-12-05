@@ -4052,6 +4052,10 @@ static void write8hma_psram(uint32_t addr32, uint8_t v) {
     write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
 }
 
+static void write8nohma(uint32_t addr32, uint8_t v) {
+    write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
+}
+
 static void write8hma_swap(uint32_t addr32, uint8_t v) {
     if (a20_line_open) {
         // A20 line is ON
@@ -4143,6 +4147,10 @@ static void write16hma_psram(uint32_t addr32, uint16_t v) {
         psram_write16(&psram_spi, addr32, v);
         return;
     }
+    writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
+}
+
+static void write16nohma(uint32_t addr32, uint16_t v) {
     writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
 }
 
@@ -4253,6 +4261,10 @@ uint8_t read8hma_psram(uint32_t addr32) {
     return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
 
+uint8_t read8nohma(uint32_t addr32) {
+    return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
+}
+
 uint8_t read8hma_swap(uint32_t addr32) {
     if (a20_line_open) {
         return ram_page_read(addr32);
@@ -4351,6 +4363,10 @@ uint16_t read16hma_psram(uint32_t addr32) {
     return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
 
+uint16_t read16nohma(uint32_t addr32) {
+    return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
+}
+
 uint16_t read16hma_swap(uint32_t addr32) {
     if (a20_line_open) {
         return ram_page_read16(addr32);
@@ -4401,18 +4417,19 @@ void init_cpu_addresses_map() {
         read_funtions   [ba] = read8video  ;
         read16_funtions [ba] = read16video ;
     }
-#ifdef EMS_DRIVER
+#ifdef XMS_DRIVER
   #ifdef XMS_UMB
     // UMB_START_ADDRESS == VIDEORAM_END32
-    for (uint8_t ba = (UMB_START_ADDRESS >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
+    for (uint8_t ba = (VIDEORAM_END32 >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
         write_funtions  [ba] = PSRAM_AVAILABLE ? write8umb_psram  : write8umb_swap ;
         write16_funtions[ba] = PSRAM_AVAILABLE ? write16umb_psram : write16umb_swap;
         read_funtions   [ba] = PSRAM_AVAILABLE ? read8umb_psram   : read8umb_swap  ;
         read16_funtions [ba] = PSRAM_AVAILABLE ? read16umb_psram  : read16umb_swap  ;
     }
   #else
-    for (uint8_t ba = (UMB_START_ADDRESS >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
+    for (uint8_t ba = (VIDEORAM_END32 >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
         read_funtions   [ba] = read86rom;
+        read16_funtions [ba] = read86rom16;
     }
   #endif
   #ifdef XMS_HMA
@@ -4422,12 +4439,34 @@ void init_cpu_addresses_map() {
         read_funtions   [ba] = PSRAM_AVAILABLE ? read8hma_psram   : read8hma_swap  ;
         read16_funtions [ba] = PSRAM_AVAILABLE ? read16hma_psram  : read16hma_swap ;
     }
+  #else
+    for (uint8_t ba = (HMA_START_ADDRESS >> 15); ba <= (BASE_XMS_ADDR >> 15); ++ba) {
+        write_funtions  [ba] = write8nohma ;
+        write16_funtions[ba] = write16nohma;
+        read_funtions   [ba] = read8nohma  ;
+        read16_funtions [ba] = read16nohma ;
+    }
   #endif
     for (uint8_t ba = (BASE_XMS_ADDR >> 15); ba <= (ON_BOARD_RAM_KB >> 5); ++ba) {
         write_funtions  [ba] = PSRAM_AVAILABLE ? write8psram  : ram_page_write  ;
         write16_funtions[ba] = PSRAM_AVAILABLE ? write16psram : ram_page_write16;
         read_funtions   [ba] = PSRAM_AVAILABLE ? read8psram   : ram_page_read   ;
         read16_funtions [ba] = PSRAM_AVAILABLE ? read16psram  : ram_page_read16 ;
+    }
+#else
+    for (uint8_t ba = (VIDEORAM_END32 >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
+        read_funtions   [ba] = read86rom;
+        read16_funtions [ba] = read86rom16;
+    }
+    for (uint8_t ba = (VIDEORAM_END32 >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
+        read_funtions   [ba] = read86rom;
+        read16_funtions [ba] = read86rom16;
+    }
+    for (uint8_t ba = (HMA_START_ADDRESS >> 15); ba <= (BASE_XMS_ADDR >> 15); ++ba) {
+        write_funtions  [ba] = write8nohma ;
+        write16_funtions[ba] = write16nohma;
+        read_funtions   [ba] = read8nohma  ;
+        read16_funtions [ba] = read16nohma ;
     }
 #endif
 #ifdef EMS_DRIVER

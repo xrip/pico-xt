@@ -10,17 +10,9 @@
 #endif
 
 #define HMA_START_ADDRESS 0x100000ul
-#ifdef XMS_DRIVER
-#ifdef XMS_HMA
 #define OUT_OF_HMA_ADDRESS 0x10FFF0ul
 #define BASE_XMS_HANLES_SEG 0x11000ul
 #define BASE_XMS_ADDR 0x110000ul
-#else
-#define OUT_OF_HMA_ADDRESS 0x100000ul
-#define BASE_XMS_HANLES_SEG 0x10000ul
-#define BASE_XMS_ADDR 0x100000ul
-#endif
-#endif
 
 // TODO:
 #if XMS_OVER_HMA_KB
