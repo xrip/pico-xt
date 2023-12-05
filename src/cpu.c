@@ -4052,6 +4052,10 @@ static void write8hma_psram(uint32_t addr32, uint8_t v) {
     write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
 }
 
+static void write8nohma(uint32_t addr32, uint8_t v) {
+    write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
+}
+
 static void write8hma_swap(uint32_t addr32, uint8_t v) {
     if (a20_line_open) {
         // A20 line is ON
@@ -4143,6 +4147,10 @@ static void write16hma_psram(uint32_t addr32, uint16_t v) {
         psram_write16(&psram_spi, addr32, v);
         return;
     }
+    writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
+}
+
+static void write16nohma(uint32_t addr32, uint16_t v) {
     writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
 }
 
@@ -4253,6 +4261,10 @@ uint8_t read8hma_psram(uint32_t addr32) {
     return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
 
+uint8_t read8nohma(uint32_t addr32) {
+    return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
+}
+
 uint8_t read8hma_swap(uint32_t addr32) {
     if (a20_line_open) {
         return ram_page_read(addr32);
@@ -4351,6 +4363,10 @@ uint16_t read16hma_psram(uint32_t addr32) {
     return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
 
+uint16_t read16nohma(uint32_t addr32) {
+    return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
+}
+
 uint16_t read16hma_swap(uint32_t addr32) {
     if (a20_line_open) {
         return ram_page_read16(addr32);
@@ -4422,6 +4438,13 @@ void init_cpu_addresses_map() {
         write16_funtions[ba] = PSRAM_AVAILABLE ? write16hma_psram : write16hma_swap;
         read_funtions   [ba] = PSRAM_AVAILABLE ? read8hma_psram   : read8hma_swap  ;
         read16_funtions [ba] = PSRAM_AVAILABLE ? read16hma_psram  : read16hma_swap ;
+    }
+  #else
+    for (uint8_t ba = (HMA_START_ADDRESS >> 15); ba <= (BASE_XMS_ADDR >> 15); ++ba) {
+        write_funtions  [ba] = write8nohma ;
+        write16_funtions[ba] = write16nohma;
+        read_funtions   [ba] = read8nohma  ;
+        read16_funtions [ba] = read16nohma ;
     }
   #endif
     for (uint8_t ba = (BASE_XMS_ADDR >> 15); ba <= (ON_BOARD_RAM_KB >> 5); ++ba) {
