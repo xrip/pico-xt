@@ -63,7 +63,7 @@ pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
 #if (!OVERCLOCKING)
-set(OVERCLOCKING 416)
+set(OVERCLOCKING 408)
 #endif ()
 
 
@@ -76,9 +76,7 @@ if (PICO_PLATFORM STREQUAL "host")
         file(COPY ${Dependency} DESTINATION ${OUTPUT_DIR})
     endforeach ()
     add_link_options(-Wl,--gc-sections)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE
-            SWAP_BLOCK_4k
-    )
+
 else ()
     if (OVERCLOCKING)
         set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}-${OVERCLOCKING}MHz")
@@ -149,59 +147,6 @@ else ()
         )
     endif ()
 
-    target_compile_definitions(${PROJECT_NAME} PRIVATE
-            PICO_HEAP_SIZE=0
-            USE_ZONE_FOR_MALLOC=1
-
-            PICO_DEFAULT_UART_RX_PIN=-1
-            PICO_DEFAULT_UART_TX_PIN=0
-
-            # SDCARD
-            SDCARD_PIN_SPI0_CS=5
-            SDCARD_PIN_SPI0_SCK=2
-            SDCARD_PIN_SPI0_MOSI=3
-            SDCARD_PIN_SPI0_MISO=4
-
-            # NES Gamepad
-            USE_NESPAD
-            NES_GPIO_CLK=14
-            NES_GPIO_DATA=16
-            NES_GPIO_LAT=15
-
-            PSRAM
-            # PSRAM_MUTEX=1
-            PSRAM_SPINLOCK=1
-            PSRAM_ASYNC=1
-
-            PSRAM_PIN_CS=18
-            PSRAM_PIN_SCK=19
-            PSRAM_PIN_MOSI=20
-            PSRAM_PIN_MISO=21
-
-            # supports only for pico with 4 or more MB flashes
-            PICO_FLASH_SIZE_BYTES=4194304
-
-            #BOOT_DEBUG=1
-            #BOOT_DEBUG_ACC=0xA0000
-            
-            # select onr of the folowing:
-            #SWAP_BLOCK_1k
-            SWAP_BLOCK_2k
-            #SWAP_BLOCK_4k
-
-            #EMS_DRIVER=1
-            #EMS_DEBUG=1
-
-            XMS_DRIVER=1
-            #XMS_OVER_HMA_KB=1024
-            XMS_UMB=1
-            XMS_HMA=1
-            HANDLE_REBOOT
-
-            #ROM_DRIVE_B=1
-
-            DMA_8237
-    )
 
     #[[    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                 COMMAND picotool info ${OUTPUT_DIR}/$<TARGET_PROPERTY:OUTPUT_NAME>.uf2 &&
@@ -211,6 +156,61 @@ else ()
         )]]
 
 endif ()
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+        PICO_HEAP_SIZE=0
+        USE_ZONE_FOR_MALLOC=1
+
+        PICO_DEFAULT_UART_RX_PIN=-1
+        PICO_DEFAULT_UART_TX_PIN=0
+
+        # SDCARD
+        SDCARD_PIN_SPI0_CS=5
+        SDCARD_PIN_SPI0_SCK=2
+        SDCARD_PIN_SPI0_MOSI=3
+        SDCARD_PIN_SPI0_MISO=4
+
+        # NES Gamepad
+        USE_NESPAD
+        NES_GPIO_CLK=14
+        NES_GPIO_DATA=16
+        NES_GPIO_LAT=15
+
+        PSRAM
+        # PSRAM_MUTEX=1
+        PSRAM_SPINLOCK=1
+        PSRAM_ASYNC=1
+
+        PSRAM_PIN_CS=18
+        PSRAM_PIN_SCK=19
+        PSRAM_PIN_MOSI=20
+        PSRAM_PIN_MISO=21
+
+        # supports only for pico with 4 or more MB flashes
+        PICO_FLASH_SIZE_BYTES=4194304
+
+        #BOOT_DEBUG=1
+        #BOOT_DEBUG_ACC=0xA0000
+
+        # select onr of the folowing:
+        #SWAP_BLOCK_1k
+        SWAP_BLOCK_2k
+        #SWAP_BLOCK_4k
+
+        EMS_DRIVER=1
+        #EMS_DEBUG=1
+
+        XMS_DRIVER=1
+        #XMS_OVER_HMA_KB=1024
+        XMS_UMB=1
+        XMS_HMA=1
+        HANDLE_REBOOT
+
+        #ROM_DRIVE_B=1
+
+        DMA_8237
+)
+
 
 pico_enable_stdio_uart(${PROJECT_NAME} 0)
 pico_enable_stdio_usb(${PROJECT_NAME} 0)

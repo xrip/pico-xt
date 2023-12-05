@@ -31,6 +31,37 @@ extern psram_spi_inst_t psram_spi;
 
 #include "SDL2/SDL.h"
 
+
+// PSRAM and pages mock
+uint8_t EXTRAM[EXT_RAM_SIZE];
+void * psram_spi;
+#define psram_read8(a, addr32) EXTRAM[addr32]
+#define psram_read16(a, addr32) (uint16_t)EXTRAM[addr32]
+
+#define psram_write8(a, addr32, value) EXTRAM[addr32] = value
+#define psram_write16(a, addr32, value) EXTRAM[addr32] = value & 0xFF; \
+EXTRAM[addr32] = value >> 8;
+
+#define psram_write32(a, addr32, value)
+
+
+uint8_t ram_page_read(uint32_t addr32) {
+    return EXTRAM[addr32];
+}
+uint16_t ram_page_read16(uint32_t addr32) {
+    return (EXTRAM[addr32] + EXTRAM[addr32+1] << 8);
+}
+
+void ram_page_write(uint32_t addr32, uint8_t value) {
+    EXTRAM[addr32] = value;
+}
+void ram_page_write16(uint32_t addr32, uint16_t value) {
+    EXTRAM[addr32] = value & 0xFF;
+    EXTRAM[addr32] = value >> 8;
+}
+
+#define init_vram() 1
+
 #endif
 
 static bool a20_line_open = false;
@@ -139,7 +170,7 @@ void reboot_detected() {
 
     if (!PSRAM_AVAILABLE && !SD_CARD_AVAILABLE) {
         logMsg((char *)"Mo PSRAM or SD CARD available. Only 150Kb RAM will be usable...");
-        sleep_ms(3000);
+        //sleep_ms(3000);
     }
 #ifdef EMS_DRIVER
     emm_reboot();
@@ -660,7 +691,7 @@ INLINE void writerm8(uint8_t rmval, uint8_t value) {
 
 uint8_t tandy_hack = 0;
 
-void intcall86(uint8_t intnum) {
+static void intcall86(uint8_t intnum) {
     uint32_t tempcalc, memloc, n;
     switch (intnum) {
 #ifdef EMS_DRIVER
@@ -807,12 +838,16 @@ void intcall86(uint8_t intnum) {
 // TODO: Вообще нужно разные палитры?
                             if (videomode > 9) {
                                 vga_palette[CPU_BL] = rgb(r * 85, g * 85, b * 85);
+#if PICO_ON_DEVICE
+                                graphics_set_palette(CPU_BL, vga_palette[CPU_BL]);
+#endif
                             } else {
                                 tandy_palette[CPU_BL] = rgb(r * 85, g * 85, b * 85);
-                            }
 #if PICO_ON_DEVICE
-                            graphics_set_palette(CPU_BL, vga_palette[CPU_BL]);
+                                graphics_set_palette(CPU_BL, tandy_palette[CPU_BL]);
 #endif
+                            }
+
 
                             return;
                         }
@@ -848,7 +883,7 @@ void intcall86(uint8_t intnum) {
                             }
                     }
                     return;
-                /*case 0x12:
+                /*case 0x12: // VIDEO - ALTERNATE FUNCTION SELECT (PS, EGA, VGA, MCGA) - GET EGA INFO
                     CPU_BH = 0; // default BIOS setup (0=color; 1=monochrome)
                     CPU_BL = 3; //mem size code (0=64K; 1=128K; 2=192K; 3=256K)
                 //(Note: if BL>4, then this is not an EGA BIOS)
@@ -4351,7 +4386,7 @@ void init_cpu_addresses_map() {
         read_funtions   [ba] = read8nothng   ;
         read16_funtions [ba] = read16nothng  ;
     } while (++ba);
-#if PICO_ON_DEVICE
+#if  1 //PICO_ON_DEVICE
     // override for known pages
     for (uint8_t ba = 0; ba <= (CONVENTIONAL_END >> 15); ++ba) {
         write_funtions  [ba] = PSRAM_AVAILABLE ? write8low_psram  : (SD_CARD_AVAILABLE ? write8low_swap  : write8low   );
@@ -4434,6 +4469,8 @@ void writew86(uint32_t addr32, uint16_t v) {
 
 // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 uint8_t read86(uint32_t addr32) {
+    // Не удаляй плиз коммент
+    //if (addr32 == 0xFC000) { return 0x21; };
     if (addr32 < DIRECT_RAM_BORDER) { // performance improvement (W/A)
         return RAM[addr32];
     }
