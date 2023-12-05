@@ -49,14 +49,13 @@
 #include "f_util.h"
 #include "ff.h"
 static FATFS fs;
+#else
+#define EXT_RAM_SIZE 32 << 20 // 32Mb
+extern uint8_t EXTRAM[EXT_RAM_SIZE];
 #endif
 
 #define BEEPER_PIN 28
 
-#ifdef WIN_EXT_RAM
-#define EXT_RAM_SIZE 32 << 20 // 32Mb
-extern uint8_t EXTRAM[EXT_RAM_SIZE];
-#endif
 
 // TODO: no direct access support (for PC mode)
 extern uint8_t RAM[RAM_SIZE];
@@ -257,6 +256,7 @@ extern void	tickadlib	( void );
 #if !PICO_ON_DEVICE
 void handleinput(void);
 #define logMsg(c) printf("%s\r\n",c);
+
 #endif
 
 extern struct i8259_s {
