@@ -182,7 +182,7 @@ void portout(uint16_t portnum, uint16_t value) {
                     color |= value;
                     vga_palette[vga_palette_index] = color << 2;
 #if PICO_ON_DEVICE
-                graphics_set_palette(vga_palette_index, vga_palette[vga_palette_index]);
+                    graphics_set_palette(vga_palette_index, vga_palette[vga_palette_index]);
 #endif
                 //printf("RGB#%i %x\r\n", vga_palette_index, vga_palette[vga_palette_index]);
                     vga_palette_index++;
@@ -203,6 +203,42 @@ void portout(uint16_t portnum, uint16_t value) {
                 //setcursor(((uint16_t)crt_controller[0x0E] << 8) | crt_controller[0x0F]);
             }
 
+            break;
+        case 0x3D9:
+            port3D9 = value;
+        // if (videomode >= 0xd) return;
+            uint8_t bg_color = value & 0xf;
+            cga_colorset = value >> 5 & 1;
+            cga_intensity = value >> 4 & 1;
+            char tmp[80];
+            sprintf(tmp, "colorset %i, int %i value  %x", cga_colorset, cga_intensity, value);
+            logMsg(tmp);
+
+#if PICO_ON_DEVICE
+            graphics_set_palette(0, bg_color != 0xf ? cga_palette[bg_color] : 0);
+
+            if ((videomode == 6 && (port3D8 & 0x0f) == 0b1010) || videomode >= 8) {
+                break;
+            }
+
+            for (int i = 1; i < 4; i++) {
+                graphics_set_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
+            }
+        //setVGA_color_palette(0, cga_palette[0]);
+#else
+
+        if (bg_color != 0xf) {
+            cga_composite_palette[0][0] = cga_palette[bg_color];
+            tandy_palette[0] = cga_palette[bg_color];
+            printf("setting cga color\r\n");
+        } else {
+            cga_composite_palette[0][0] = 0;
+            tandy_palette[0] = 0;
+        }
+
+           //cga_composite_palette[0][0] = cga_palette[bg_color];
+
+#endif
             break;
         case 0x3D8: // CGA Mode control register
             // https://www.seasip.info/VintagePC/cga.html
@@ -235,35 +271,13 @@ void portout(uint16_t portnum, uint16_t value) {
                 printf("160x200x16");
 #if PICO_ON_DEVICE
                 for (int i = 0; i < 16; i++) {
-                    graphics_set_palette(i, cga_composite_palette[videomode == 6 ? 0 : 1 + cga_intensity][i]);
+                    graphics_set_palette(i, cga_composite_palette[0][i]);
                 }
                 graphics_set_mode(CGA_160x200x16);
 #else
                 videomode = videomode == 4 ? 64 : 66;
 #endif
             }
-            break;
-        case 0x3D9:
-            port3D9 = value;
-            if (videomode >= 0xd) return;
-            uint8_t bg_color = value & 0xf;
-            cga_colorset = value >> 5 & 1;
-            cga_intensity = value >> 4 & 1;
-            char tmp[80];
-            sprintf(tmp, "colorset %i, int %i", cga_colorset, cga_intensity);
-            logMsg(tmp);
-#if PICO_ON_DEVICE
-            graphics_set_palette(0, cga_palette[bg_color]);
-            if ((videomode == 6 && (port3D8 & 0x0f) == 0b1010) || videomode >= 8) {
-                break;
-            }
-
-
-            for (int i = 1; i < 4; i++) {
-                graphics_set_palette(i, cga_palette[cga_gfxpal[cga_intensity][cga_colorset][i]]);
-            }
-        //setVGA_color_palette(0, cga_palette[0]);
-#endif
             break;
         case 0x3DA: // EGA control register
             printf("Tandy control register 3dA 0x%x\r\n", value);

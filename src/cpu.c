@@ -1035,6 +1035,7 @@ static void intcall86(uint8_t intnum) {
             if (1 == insertdisk(0, 0, NULL, "fdd0.img")) {
                 //insertdisk(0, fdd0_sz(), fdd0_rom(), NULL);
             }
+        insertdisk(1, 0, NULL, "fdd1.img");
         //insertdisk(1, fdd1_sz(), fdd1_rom(), NULL);
             insertdisk(128, 0, NULL, "hdd.img");
 #endif
