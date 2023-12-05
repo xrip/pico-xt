@@ -110,15 +110,16 @@ void portout(uint16_t portnum, uint16_t value) {
             }
 #endif
             break;
+#ifdef SOUND_SYSTEM
         case 0x378:
         case 0x37A:
             outsoundsource(portnum, value);
             break;
-
         case 0x388: // adlib
         case 0x389:
             outadlib(portnum, value);
             break;
+#endif
         case 0x3C0:
             ///printf("EGA control register 3c0 0x%x\r\n", value);
             if (port3C0_flipflop && port3C4 <= 0xf) {
@@ -372,12 +373,13 @@ uint16_t portin(uint16_t portnum) {
 #endif
         /*case 0x201: // joystick
             return 0b11110000;*/
+#ifdef SOUND_SYSTEM
         case 0x379:
             return insoundsource(portnum);
-
         case 0x388: // adlib
         case 0x389:
             return inadlib(portnum);
+#endif
         case 0x3C0:
             return port3C4;
         case 0x3C4: //sequence controller index

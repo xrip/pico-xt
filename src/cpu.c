@@ -4448,6 +4448,7 @@ void init_cpu_addresses_map() {
         read16_funtions [ba] = read16nohma ;
     }
   #endif
+  char tmp[80];
     for (uint8_t ba = (BASE_XMS_ADDR >> 15); ba <= (ON_BOARD_RAM_KB >> 5); ++ba) {
         write_funtions  [ba] = PSRAM_AVAILABLE ? write8psram  : ram_page_write  ;
         write16_funtions[ba] = PSRAM_AVAILABLE ? write16psram : ram_page_write16;
