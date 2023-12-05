@@ -64,7 +64,7 @@ const uint8_t cga_gfxpal[3][2][4] = {
     },
 };
 
-const uint32_t cga_composite_palette[3][16] = {
+uint32_t cga_composite_palette[3][16] = {
     //R, G, B
     // 640x200 Color Composite
     {

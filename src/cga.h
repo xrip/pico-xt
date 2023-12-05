@@ -15,7 +15,7 @@ extern const uint8_t cga_gfxpal[3][2][4];
 extern const uint32_t cga_palette[16];
 extern const uint32_t cga_grayscale_palette[16];
 extern uint32_t vga_palette[256];
-extern const uint32_t cga_composite_palette[3][16];
+extern uint32_t cga_composite_palette[3][16];
 extern uint32_t tandy_palette[16];
 
 #define CURSOR_X RAM[0x450]
