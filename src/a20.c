@@ -34,7 +34,7 @@ typedef struct xmm_handle {
 } xmm_handle_t;
 
 #if XMS_OVER_HMA_KB
-#define MAX_XMM_HANDLES 60
+#define MAX_XMM_HANDLES 15
 static xmm_handle_t xmm_handles[MAX_XMM_HANDLES] = { 0 };
 #endif
 
@@ -315,7 +315,7 @@ static umb_t umb_blocks[UMB_BLOCKS] = {
     0xE000, 0x0800, false,
     0xE800, 0x0800, false,
     0xF000, 0x0800, false,
-    0xF800, 0x0600, false
+   // 0xF800, 0x0600, false
 };
 
 bool umb_in_use(uint32_t addr32) {
