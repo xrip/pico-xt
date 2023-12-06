@@ -51,7 +51,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x0D:
         case 0x0E:
         case 0x0F:
-
+        //
         case 0x80:
         case 0x81:
         case 0x82:
@@ -126,7 +126,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x22c:
         case 0x22d:
         case 0x22e:
-        case 0x22f:
+        //case 0x22f:
             outBlaster(portnum, value);
             break;
 #ifdef SOUND_SYSTEM
@@ -356,6 +356,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x0D:
         case 0x0E:
         case 0x0F:
+
         case 0x80:
         case 0x81:
         case 0x82:
@@ -414,7 +415,6 @@ uint16_t portin(uint16_t portnum) {
         case 0x22c:
         case 0x22d:
         case 0x22e:
-        case 0x22f:
             return inBlaster(portnum);
         case 0x3C0:
             return port3C4;
