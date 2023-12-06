@@ -4065,7 +4065,7 @@ static void write8hma_swap(uint32_t addr32, uint8_t v) {
     }
     write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
 }
-
+#ifdef EMS_DRIVER
 static void write8emm_psram(uint32_t addr32, uint8_t v) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
@@ -4079,7 +4079,7 @@ static void write8emm_swap(uint32_t addr32, uint8_t v) {
         ram_page_write(lba, v);
     }
 }
-
+#endif
 // This function is required to place into "empty" clots, to avoid null ptr functions
 static void write8nothing(uint32_t addr32, uint8_t v) {
     // do nothing
@@ -4129,7 +4129,8 @@ static void write16video(uint32_t addr32, uint16_t v) {
     }
     write16arr(VIDEORAM, 0, (addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, v);
 }
-
+#ifdef XMS_DRIVER
+#ifdef XMS_UMB
 static void write16umb_psram(uint32_t addr32, uint16_t v) {
     if (umb_in_use(addr32)) {
         psram_write16(&psram_spi, addr32, v);
@@ -4141,7 +4142,8 @@ static void write16umb_swap(uint32_t addr32, uint16_t v) {
         ram_page_write16(addr32, v);
     }
 }
-
+#endif
+#endif
 static void write16hma_psram(uint32_t addr32, uint16_t v) {
     if (a20_line_open) {
         // A20 line is ON
@@ -4163,7 +4165,7 @@ static void write16hma_swap(uint32_t addr32, uint16_t v) {
     }
     writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
 }
-
+#ifdef EMS_DRIVER
 static void write16emm_psram(uint32_t addr32, uint16_t v) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
@@ -4177,7 +4179,7 @@ static void write16emm_swap(uint32_t addr32, uint16_t v) {
         ram_page_write16(lba, v);
     }
 }
-
+#endif
 // This function is required to place into "empty" clots, to avoid null ptr functions
 static void write16nothing(uint32_t addr32, uint16_t v) {
     // do nothing
@@ -4241,6 +4243,8 @@ INLINE uint8_t read86rom(uint32_t addr32) {
     return 0;
 }
 
+#ifdef XMS_DRIVER
+#ifdef XMS_UMB
 uint8_t read8umb_psram(uint32_t addr32) {
     if (umb_in_use(addr32)) {
         return psram_read8(&psram_spi, addr32);
@@ -4254,7 +4258,8 @@ uint8_t read8umb_swap(uint32_t addr32) {
     }
     return read86rom(addr32);
 }
-
+#endif
+#endif
 uint8_t read8hma_psram(uint32_t addr32) {
     if (a20_line_open) {
         return psram_read8(&psram_spi, addr32);
@@ -4276,7 +4281,7 @@ uint8_t read8hma_swap(uint32_t addr32) {
 uint8_t read8psram(uint32_t addr32) {
     return psram_read8(&psram_spi, addr32);
 }
-
+#ifdef EMS_DRIVER
 uint8_t read8emm_psram(uint32_t addr32) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
@@ -4292,7 +4297,7 @@ uint8_t read8emm_swap(uint32_t addr32) {
     }
     return read86rom(addr32);
 }
-
+#endif
 // type of 16-bit read function pointer
 typedef uint16_t (*read16_fn_ptr)(uint32_t);
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
@@ -4342,7 +4347,8 @@ INLINE uint16_t read86rom16(uint32_t addr32) {
     }
     return 0;
 }
-
+#ifdef XMS_DRIVER
+#ifdef XMS_UMB
 uint16_t read16umb_psram(uint32_t addr32) {
     if (umb_in_use(addr32)) {
         return psram_read16(&psram_spi, addr32);
@@ -4356,7 +4362,8 @@ uint16_t read16umb_swap(uint32_t addr32) {
     }
     return read86rom16(addr32);
 }
-
+#endif
+#endif
 uint16_t read16hma_psram(uint32_t addr32) {
     if (a20_line_open) {
         return psram_read16(&psram_spi, addr32);
@@ -4378,7 +4385,7 @@ uint16_t read16hma_swap(uint32_t addr32) {
 uint16_t read16psram(uint32_t addr32) {
     return psram_read16(&psram_spi, addr32);
 }
-
+#ifdef EMS_DRIVER
 uint16_t read16emm_psram(uint32_t addr32) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
@@ -4394,6 +4401,7 @@ uint16_t read16emm_swap(uint32_t addr32) {
     }
     return read86rom16(addr32);
 }
+#endif
 
 void init_cpu_addresses_map() {
     // just init all array positions to avoid hangs in gaps
