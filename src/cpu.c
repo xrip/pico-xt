@@ -25,7 +25,6 @@
 #include "ps2.h"
 #include "vga.h"
 #include "psram_spi.h"
-extern psram_spi_inst_t psram_spi;
 
 #else
 
@@ -161,10 +160,7 @@ void reboot_detected() {
         DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
     }
     if (PSRAM_AVAILABLE) {
-        logMsg("PSRAM cleanup"); // TODO: block mode, ensure diapason
-        for (uint32_t addr32 = (1ul << 20); addr32 < (2ul << 20); addr32 += 4) {
-            psram_write32(&psram_spi, addr32, 0);
-        }
+        psram_cleanup();
     }
     init_cpu_addresses_map();
 
@@ -4021,10 +4017,6 @@ typedef void (*write_fn_ptr)(uint32_t, uint8_t);
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static write_fn_ptr write_funtions[256] = { 0 };
 
-static void write8psram(uint32_t addr32, uint8_t v) {
-    psram_write8(&psram_spi, addr32, v);
-}
-
 static void write8video(uint32_t addr32, uint8_t v) {
     if (videomode >= 0x0D && ega_plane) {
         addr32 += ega_plane * 16000;
@@ -4034,7 +4026,7 @@ static void write8video(uint32_t addr32, uint8_t v) {
 
 static void write8umb_psram(uint32_t addr32, uint8_t v) {
     if (umb_in_use(addr32)) {
-        psram_write8(&psram_spi, addr32, v);
+        write8psram(addr32, v);
     }
 }
 
@@ -4047,7 +4039,7 @@ static void write8umb_swap(uint32_t addr32, uint8_t v) {
 static void write8hma_psram(uint32_t addr32, uint8_t v) {
     if (a20_line_open) {
         // A20 line is ON
-        psram_write8(&psram_spi, addr32, v);
+        write8psram(addr32, v);
         return;
     }
     write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
@@ -4069,7 +4061,7 @@ static void write8hma_swap(uint32_t addr32, uint8_t v) {
 static void write8emm_psram(uint32_t addr32, uint8_t v) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-        psram_write8(&psram_spi, lba, v);
+        write8psram(lba, v);
     }
 }
 
@@ -4095,7 +4087,7 @@ static void write8low_psram(uint32_t addr32, uint8_t v) {
     if (addr32 < RAM_SIZE) {
         RAM[addr32] = v;
     } else {
-        psram_write8(&psram_spi, addr32, v);
+        write8psram(addr32, v);
     }
 }
 
@@ -4119,10 +4111,6 @@ INLINE void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16
     *ptr = (uint8_t)(value >> 8);
 }
 
-static void write16psram(uint32_t addr32, uint16_t v) {
-    psram_write16(&psram_spi, addr32, v);
-}
-
 static void write16video(uint32_t addr32, uint16_t v) {
     if (videomode >= 0x0D && ega_plane) {
         addr32 += ega_plane * 16000; 
@@ -4133,7 +4121,7 @@ static void write16video(uint32_t addr32, uint16_t v) {
 #ifdef XMS_UMB
 static void write16umb_psram(uint32_t addr32, uint16_t v) {
     if (umb_in_use(addr32)) {
-        psram_write16(&psram_spi, addr32, v);
+        write16psram(addr32, v);
     }
 }
 
@@ -4147,7 +4135,7 @@ static void write16umb_swap(uint32_t addr32, uint16_t v) {
 static void write16hma_psram(uint32_t addr32, uint16_t v) {
     if (a20_line_open) {
         // A20 line is ON
-        psram_write16(&psram_spi, addr32, v);
+        write16psram(addr32, v);
         return;
     }
     writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
@@ -4169,7 +4157,7 @@ static void write16hma_swap(uint32_t addr32, uint16_t v) {
 static void write16emm_psram(uint32_t addr32, uint16_t v) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-        psram_write16(&psram_spi, lba, v);
+        write16psram(lba, v);
     }
 }
 
@@ -4195,7 +4183,7 @@ static void write16low_psram(uint32_t addr32, uint16_t v) {
     if (addr32 < RAM_SIZE) {
         write16arr(RAM, 0, addr32, v);
     } else {
-        psram_write16(&psram_spi, addr32, v);
+        write16psram(addr32, v);
     }
 }
 
@@ -4214,10 +4202,6 @@ static read_fn_ptr read_funtions[256] = { 0 };
 
 uint8_t read8nothng(uint32_t addr32) {
     return 0;
-}
-
-uint8_t read8low_psram(uint32_t addr32) {
-    return psram_read8(&psram_spi, addr32);
 }
 
 uint8_t read8video(uint32_t addr32) {
@@ -4247,7 +4231,7 @@ INLINE uint8_t read86rom(uint32_t addr32) {
 #ifdef XMS_UMB
 uint8_t read8umb_psram(uint32_t addr32) {
     if (umb_in_use(addr32)) {
-        return psram_read8(&psram_spi, addr32);
+        return read8psram(addr32);
     }
     return read86rom(addr32);
 }
@@ -4262,7 +4246,7 @@ uint8_t read8umb_swap(uint32_t addr32) {
 #endif
 uint8_t read8hma_psram(uint32_t addr32) {
     if (a20_line_open) {
-        return psram_read8(&psram_spi, addr32);
+        return read8psram(addr32);
     }
     return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
@@ -4278,14 +4262,11 @@ uint8_t read8hma_swap(uint32_t addr32) {
     return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
 
-uint8_t read8psram(uint32_t addr32) {
-    return psram_read8(&psram_spi, addr32);
-}
 #ifdef EMS_DRIVER
 uint8_t read8emm_psram(uint32_t addr32) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-        return psram_read8(&psram_spi, lba);
+        return read8psram(lba);
     }
     return read86rom(addr32);
 }
@@ -4303,12 +4284,8 @@ typedef uint16_t (*read16_fn_ptr)(uint32_t);
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static read16_fn_ptr read16_funtions[256] = { 0 };
 
-uint16_t read16nothng(uint32_t addr32) {
+static uint16_t read16nothng(uint32_t addr32) {
     return 0;
-}
-
-uint16_t read16low_psram(uint32_t addr32) {
-    return psram_read16(&psram_spi, addr32);
 }
 
 static __inline uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
@@ -4351,7 +4328,7 @@ INLINE uint16_t read86rom16(uint32_t addr32) {
 #ifdef XMS_UMB
 uint16_t read16umb_psram(uint32_t addr32) {
     if (umb_in_use(addr32)) {
-        return psram_read16(&psram_spi, addr32);
+        return read16psram(addr32);
     }
     return read86rom16(addr32);
 }
@@ -4366,7 +4343,7 @@ uint16_t read16umb_swap(uint32_t addr32) {
 #endif
 uint16_t read16hma_psram(uint32_t addr32) {
     if (a20_line_open) {
-        return psram_read16(&psram_spi, addr32);
+        return read16psram(addr32);
     }
     return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
@@ -4382,14 +4359,11 @@ uint16_t read16hma_swap(uint32_t addr32) {
     return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
 
-uint16_t read16psram(uint32_t addr32) {
-    return psram_read16(&psram_spi, addr32);
-}
 #ifdef EMS_DRIVER
 uint16_t read16emm_psram(uint32_t addr32) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-        return psram_read16(&psram_spi, lba);
+        return read16psram(lba);
     }
     return read86rom16(addr32);
 }
@@ -4416,8 +4390,8 @@ void init_cpu_addresses_map() {
     for (uint8_t ba = 0; ba <= (CONVENTIONAL_END >> 15); ++ba) {
         write_funtions  [ba] = PSRAM_AVAILABLE ? write8low_psram  : (SD_CARD_AVAILABLE ? write8low_swap  : write8low   );
         write16_funtions[ba] = PSRAM_AVAILABLE ? write16low_psram : (SD_CARD_AVAILABLE ? write16low_swap : write16low  );
-        read_funtions   [ba] = PSRAM_AVAILABLE ? read8low_psram   : (SD_CARD_AVAILABLE ? ram_page_read   : read8nothng );
-        read16_funtions [ba] = PSRAM_AVAILABLE ? read16low_psram  : (SD_CARD_AVAILABLE ? ram_page_read16 : read16nothng);
+        read_funtions   [ba] = PSRAM_AVAILABLE ? read8psram       : (SD_CARD_AVAILABLE ? ram_page_read   : read8nothng );
+        read16_funtions [ba] = PSRAM_AVAILABLE ? read16psram      : (SD_CARD_AVAILABLE ? ram_page_read16 : read16nothng);
     }
     // CONVENTIONAL_END == VIDEORAM_START32
     for (uint8_t ba = (VIDEORAM_START32 >> 15); ba <= (VIDEORAM_END32 >> 15); ++ba) {
