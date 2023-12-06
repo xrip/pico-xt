@@ -22,7 +22,7 @@
    the Sound Blaster emulation functions rely on this! */
 
 #include "emulator.h"
-//#define DEBUG_DMA 1
+#define DEBUG_DMA 1
 
 #ifdef DMA_8237
 

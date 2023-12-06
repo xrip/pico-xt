@@ -56,8 +56,10 @@ void PWM_init_pin(uint pinN){
 
 bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
     uint8_t sound_tick = 0;
+
     int16_t out = adlibgensample() >> 3;
-    out += tickssource() >> 1;
+    tickBlaster();
+    out += getBlasterSample();
 
     //if (out) {
         pwm_set_gpio_level(ZX_AY_PWM_PIN0,(uint8_t)((uint16_t)out+128)); // Право
@@ -169,8 +171,11 @@ __inline static void if_overclock() {
 #endif
 
 static void fill_audio(void* udata, uint8_t* stream, int len) {
-    int16_t out = adlibgensample() >> 4;
-    out += tickssource() >> 1;
+    // int16_t out = adlibgensample() >> 4;
+    // out += tickssource() >> 1;
+    tickBlaster();
+    int16_t out = adlibgensample() >> 3;
+    out += getBlasterSample();
     *stream = (uint8_t)((uint16_t)out + 128);
     //memcpy(stream, &out, len);
 }
@@ -213,7 +218,7 @@ int main() {
     graphics_set_mode(TEXTMODE_80x30);
 
     // TODO: сделать нормально
-    psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.6, true);
+    psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.8, true);
     psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
     PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
     DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);

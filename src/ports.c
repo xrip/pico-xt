@@ -51,6 +51,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x0D:
         case 0x0E:
         case 0x0F:
+
         case 0x80:
         case 0x81:
         case 0x82:
@@ -110,11 +111,29 @@ void portout(uint16_t portnum, uint16_t value) {
             }
 #endif
             break;
-#ifdef SOUND_SYSTEM
-        case 0x378:
-        case 0x37A:
-            outsoundsource(portnum, value);
+        case 0x220:
+        case 0x221:
+        case 0x222:
+        case 0x223:
+        case 0x224:
+        case 0x225:
+        case 0x226:
+        case 0x227:
+        case 0x228:
+        case 0x229:
+        case 0x22a:
+        case 0x22b:
+        case 0x22c:
+        case 0x22d:
+        case 0x22e:
+        case 0x22f:
+            outBlaster(portnum, value);
             break;
+#ifdef SOUND_SYSTEM
+        //case 0x378:
+        //case 0x37A:
+//            outsoundsource(portnum, value);
+//            break;
         case 0x388: // adlib
         case 0x389:
             outadlib(portnum, value);
@@ -374,12 +393,29 @@ uint16_t portin(uint16_t portnum) {
         /*case 0x201: // joystick
             return 0b11110000;*/
 #ifdef SOUND_SYSTEM
-        case 0x379:
-            return insoundsource(portnum);
+        //case 0x379:
+//            return insoundsource(portnum);
         case 0x388: // adlib
         case 0x389:
             return inadlib(portnum);
 #endif
+        case 0x220:
+        case 0x221:
+        case 0x222:
+        case 0x223:
+        case 0x224:
+        case 0x225:
+        case 0x226:
+        case 0x227:
+        case 0x228:
+        case 0x229:
+        case 0x22a:
+        case 0x22b:
+        case 0x22c:
+        case 0x22d:
+        case 0x22e:
+        case 0x22f:
+            return inBlaster(portnum);
         case 0x3C0:
             return port3C4;
         case 0x3C4: //sequence controller index
