@@ -4124,7 +4124,7 @@ typedef void (*write16_fn_ptr)(uint32_t, uint16_t);
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static write16_fn_ptr write16_funtions[256] = { 0 };
 
-INLINE void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16_t value) {
+static inline void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16_t value) {
     register uint8_t* ptr = arr - base_addr + addr32;
     *ptr++ = (uint8_t)value;
     *ptr = (uint8_t)(value >> 8);
