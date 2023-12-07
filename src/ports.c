@@ -143,11 +143,11 @@ void portout(uint16_t portnum, uint16_t value) {
             port3C5 = value & 255;
             if ((port3C4 & 0x1F) == 0x02) {
                 switch (value) {
-                    case 0x02: ega_plane_offset = ega_plane_size * 1;
+                    case 0x02: ega_plane_offset = (ega_plane_size * 1);
                         break;
-                    case 0x04: ega_plane_offset = ega_plane_size * 2;
+                    case 0x04: ega_plane_offset = (ega_plane_size * 2);
                         break;
-                    case 0x08: ega_plane_offset = ega_plane_size * 3;
+                    case 0x08: ega_plane_offset = (ega_plane_size * 3);
                         break;
                     default:
                         ega_plane_offset = 0;
