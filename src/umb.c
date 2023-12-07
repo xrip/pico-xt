@@ -1,3 +1,4 @@
+#include "emulator.h"
 #include "umb.h"
 
 #ifdef XMS_UMB
@@ -27,9 +28,24 @@ void init_umb() {
 }
 
 extern bool PSRAM_AVAILABLE;
-#include "psram_spi.h"
 #include "ram_page.h"
+#if !PICO_ON_DEVICE
+static uint8_t read8psram(uint32_t addr32) {
+    return EXTRAM[addr32];
+}
 
+static uint16_t read16psram(uint32_t addr32) {
+    return (EXTRAM[addr32] + EXTRAM[addr32+1] << 8);
+}
+
+static void write8psram(uint32_t addr32, uint8_t value) {
+    EXTRAM[addr32] = value;
+}
+static void write16psram(uint32_t addr32, uint16_t value) {
+    EXTRAM[addr32] = value & 0xFF;
+    EXTRAM[addr32] = value >> 8;
+}
+#endif
 uint16_t umb_allocate(uint16_t* psz, uint16_t* err) {
     for (int i = 0; i < UMB_BLOCKS; ++i) {
         umb_t *p = &umb_blocks[i];
