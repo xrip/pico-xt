@@ -825,7 +825,7 @@ static void intcall86(uint8_t intnum) {
                         for (int i = 0; i < 256; i++) {
                             graphics_set_palette(i, vga_palette[i]);
                         }
-                        graphics_set_mode(EGA_320x200x16);
+                        graphics_set_mode(EGA_320x200x16x4);
                         //port3D8 = port3D8 & 0xFE;
                         break;
                         case 0x13:
