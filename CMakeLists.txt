@@ -162,7 +162,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         USE_ZONE_FOR_MALLOC=1
 
         PICO_DEFAULT_UART_RX_PIN=-1
-        PICO_DEFAULT_UART_TX_PIN=17
+        PICO_DEFAULT_UART_TX_PIN=0
 
         # SDCARD
         SDCARD_PIN_SPI0_CS=5
@@ -197,13 +197,13 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         SWAP_BLOCK_2k
         #SWAP_BLOCK_4k
 
-        EMS_DRIVER=1
-        #EMS_DEBUG=1
-
-        XMS_DRIVER=1
-        XMS_OVER_HMA_KB=3072
-        XMS_UMB=1
-        XMS_HMA=1
+#        EMS_DRIVER=1
+#        #EMS_DEBUG=1
+#
+#        XMS_DRIVER=1
+#        XMS_OVER_HMA_KB=3072
+#        XMS_UMB=1
+#        XMS_HMA=1
         HANDLE_REBOOT
 
         #SOUND_SYSTEM
