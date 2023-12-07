@@ -144,7 +144,6 @@ static int RendererThread(void* ptr) {
 #if PICO_ON_DEVICE
 pwm_config config = pwm_get_default_config();
 
-psram_spi_inst_t psram_spi;
 uint32_t overcloking_khz = OVERCLOCKING * 1000;
 
 
@@ -217,10 +216,7 @@ int main() {
 
     graphics_set_mode(TEXTMODE_80x30);
 
-    // TODO: сделать нормально
-    psram_spi = psram_spi_init_clkdiv(pio0, -1, 1.8, true);
-    psram_write32(&psram_spi, 0x313373, 0xDEADBEEF);
-    PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
+    init_psram();
     DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
 
     FRESULT result = f_mount(&fs, "", 1);

@@ -23,7 +23,8 @@ static uint8_t vga_color_index = 0;
 static uint8_t dac_state = 0;
 static uint8_t latchReadRGB = 0, latchReadPal = 0;
 
-uint8_t ega_plane = 0;
+#define ega_plane_size 16000
+uint16_t ega_plane_offset = 0;
 static uint16_t port3C4 = 0;
 static uint16_t port3C5 = 0;
 static uint8_t port3C0 = 0xff;
@@ -161,16 +162,14 @@ void portout(uint16_t portnum, uint16_t value) {
             port3C5 = value & 255;
             if ((port3C4 & 0x1F) == 0x02) {
                 switch (value) {
-                    case 0x01: ega_plane = 0;
+                    case 0x02: ega_plane_offset = ega_plane_size * 1;
                         break;
-                    case 0x02: ega_plane = 1;
+                    case 0x04: ega_plane_offset = ega_plane_size * 2;
                         break;
-                    case 0x04: ega_plane = 2;
-                        break;
-                    case 0x08: ega_plane = 3;
+                    case 0x08: ega_plane_offset = ega_plane_size * 3;
                         break;
                     default:
-                        ega_plane = 0;
+                        ega_plane_offset = 0;
                 }
             }
             break;
@@ -226,7 +225,7 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
         case 0x3D9:
             port3D9 = value;
-        // if (videomode >= 0xd) return;
+            if (videomode >= 0xd) return;
             uint8_t bg_color = value & 0xf;
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;

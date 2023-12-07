@@ -25,7 +25,6 @@
 #include "ps2.h"
 #include "vga.h"
 #include "psram_spi.h"
-extern psram_spi_inst_t psram_spi;
 
 #else
 
@@ -38,6 +37,7 @@ void * psram_spi;
 #define psram_read8(a, addr32) EXTRAM[addr32]
 #define psram_read16(a, addr32) (uint16_t)EXTRAM[addr32]
 
+
 #define psram_write8(a, addr32, value) EXTRAM[addr32] = value
 #define psram_write16(a, addr32, value) EXTRAM[addr32] = value & 0xFF; \
 EXTRAM[addr32] = value >> 8;
@@ -48,19 +48,38 @@ EXTRAM[addr32] = value >> 8;
 uint8_t ram_page_read(uint32_t addr32) {
     return EXTRAM[addr32];
 }
+
+uint8_t read8psram(uint32_t addr32) {
+    return EXTRAM[addr32];
+}
+
 uint16_t ram_page_read16(uint32_t addr32) {
+    return (EXTRAM[addr32] + EXTRAM[addr32+1] << 8);
+}
+
+uint16_t read16psram(uint32_t addr32) {
     return (EXTRAM[addr32] + EXTRAM[addr32+1] << 8);
 }
 
 void ram_page_write(uint32_t addr32, uint8_t value) {
     EXTRAM[addr32] = value;
 }
+
+void write8psram(uint32_t addr32, uint8_t value) {
+    EXTRAM[addr32] = value;
+}
 void ram_page_write16(uint32_t addr32, uint16_t value) {
     EXTRAM[addr32] = value & 0xFF;
     EXTRAM[addr32] = value >> 8;
 }
+void write16psram(uint32_t addr32, uint16_t value) {
+    EXTRAM[addr32] = value & 0xFF;
+    EXTRAM[addr32] = value >> 8;
+}
+
 
 #define init_vram() 1
+#define psram_cleanup() 1
 
 #endif
 
@@ -95,18 +114,17 @@ static const uint8_t parity[0x100] = {
     0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
 };
 #if PICO_ON_DEVICE
-__aligned(4096)
+// __aligned(4096)
 #endif
 uint8_t RAM[RAM_SIZE];
 #if PICO_ON_DEVICE
-__aligned(4096)
+//__aligned(4096)
 #endif
 uint8_t VIDEORAM[VIDEORAM_SIZE];
 
 uint8_t oper1b, oper2b, res8, nestlev, addrbyte;
 uint16_t saveip, savecs, oper1, oper2, res16, disp16, temp16, dummy, stacksize, frametemp;
 uint32_t temp1, temp2, temp3, ea;
-uint64_t totalexec;
 
 union _bytewordregs_ regs;
 
@@ -161,10 +179,7 @@ void reboot_detected() {
         DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
     }
     if (PSRAM_AVAILABLE) {
-        logMsg("PSRAM cleanup"); // TODO: block mode, ensure diapason
-        for (uint32_t addr32 = (1ul << 20); addr32 < (2ul << 20); addr32 += 4) {
-            psram_write32(&psram_spi, addr32, 0);
-        }
+        psram_cleanup();
     }
     init_cpu_addresses_map();
 
@@ -734,7 +749,7 @@ static void intcall86(uint8_t intnum) {
                 //if (videomode >= 8) CPU_AL = 4;
 
                 // FIXME!!
-                    ega_plane = 0;
+                    ega_plane_offset = 0;
                     RAM[0x449] = CPU_AL;
                     RAM[0x44A] = (uint8_t)videomode <= 2 ? 40 : 80;
                     RAM[0x44B] = 0;
@@ -902,16 +917,16 @@ static void intcall86(uint8_t intnum) {
                                     break;
 
                                 case 0x01:                            // show cursor
-                                    if (regs.byteregs[regch] == 0x32) {
+                                    if (CPU_CH == 0x32) {
                                         curshow = false;
                                         break;
                                     }
-                                    else if ((regs.byteregs[regch] == 0x06) && (regs.byteregs[regcl] == 0x07)) {
+                                    else if ((CPU_CH == 0x06) && (CPU_CL == 0x07)) {
                                         CURSOR_ASCII = 95;
                                         curshow = true;
                                         break;
                                     }
-                                    else if ((regs.byteregs[regch] == 0x00) && (regs.byteregs[regcl] == 0x07)) {
+                                    else if ((CPU_CH == 0x00) && (CPU_CL == 0x07)) {
                                         CURSOR_ASCII = 219;
                                         curshow = true;
                                     }
@@ -1316,7 +1331,7 @@ INLINE void op_div8(uint16_t valdiv, uint8_t divisor) {
         return;
     }
 
-    regs.byteregs[regah] = valdiv % (uint16_t)divisor;
+    CPU_AH = valdiv % (uint16_t)divisor;
     CPU_AL = valdiv / (uint16_t)divisor;
 }
 
@@ -1349,7 +1364,7 @@ INLINE void op_idiv8(uint16_t valdiv, uint8_t divisor) {
         d2 = (~d2 + 1) & 0xff;
     }
 
-    regs.byteregs[regah] = (uint8_t)d2;
+    CPU_AH = (uint8_t)d2;
     CPU_AL = (uint8_t)d1;
 }
 
@@ -1382,7 +1397,7 @@ INLINE void op_grp3_8() {
             temp1 = (uint32_t)oper1b * (uint32_t)CPU_AL;
             CPU_AX = temp1 & 0xFFFF;
             flag_szp8((uint8_t)temp1);
-            if (regs.byteregs[regah]) {
+            if (CPU_AH) {
                 cf = 1;
                 of = 1;
             }
@@ -1406,7 +1421,7 @@ INLINE void op_grp3_8() {
 
             temp3 = (temp1 * temp2) & 0xFFFF;
             CPU_AX = temp3 & 0xFFFF;
-            if (regs.byteregs[regah]) {
+            if (CPU_AH) {
                 cf = 1;
                 of = 1;
             }
@@ -1835,7 +1850,6 @@ void exec86(uint32_t execloops) {
     //counterticks = (uint64_t) ( (double) timerfreq / (double) 65536.0);
     //tickssource();
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
-        //if ((totalexec & 256) == 0)
         if (trap_toggle) {
             intcall86(1);
         }
@@ -1849,7 +1863,7 @@ void exec86(uint32_t execloops) {
         reptype = 0;
         segoverride = 0;
         useseg = CPU_DS;
-        docontinue = 0;
+        uint8_t docontinue = 0;
         firstip = ip;
         /*
                 if ((CPU_CS == 0xF000) && (ip == 0xE066)) {
@@ -1912,8 +1926,6 @@ void exec86(uint32_t execloops) {
                     break;
             }
         }
-
-        totalexec++;
 
         switch (opcode) {
             case 0x0: /* 00 ADD Eb Gb */
@@ -2028,9 +2040,11 @@ void exec86(uint32_t execloops) {
                 push(CPU_CS);
                 break;
 
+            /*
             case 0xF: //0F POP CS only the 8086/8088 does this.
                 CPU_CS = pop();
                 break;
+                */
 
             case 0x10: /* 10 ADC Eb Gb */
                 modregrm();
@@ -2347,8 +2361,7 @@ void exec86(uint32_t execloops) {
 
             case 0x37: /* 37 AAA ASCII */
                 if (((CPU_AL & 0xF) > 9) || (af == 1)) {
-                    CPU_AL = CPU_AL + 6;
-                    regs.byteregs[regah] = regs.byteregs[regah] + 1;
+                    CPU_AX = CPU_AX + 0x106;
                     af = 1;
                     cf = 1;
                 }
@@ -2404,8 +2417,8 @@ void exec86(uint32_t execloops) {
 
             case 0x3F: /* 3F AAS ASCII */
                 if (((CPU_AL & 0xF) > 9) || (af == 1)) {
-                    CPU_AL = CPU_AL - 6;
-                    regs.byteregs[regah] = regs.byteregs[regah] - 1;
+                    CPU_AX = CPU_AX - 6;
+                    CPU_AH = CPU_AH - 1;
                     af = 1;
                     cf = 1;
                 }
@@ -2695,7 +2708,7 @@ void exec86(uint32_t execloops) {
                 break;
 
             case 0x6A: /* 6A PUSH Ib (80186+) */
-                push(getmem8(CPU_CS, ip));
+                push((uint16_t)getmem8(CPU_CS, ip));
                 StepIP(1);
                 break;
 
@@ -2729,7 +2742,7 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                putmem8(useseg, CPU_SI, portin(CPU_DX));
+                putmem8(CPU_ES, CPU_DI, portin( CPU_DX));
                 if (df) {
                     CPU_SI = CPU_SI - 1;
                     CPU_DI = CPU_DI - 1;
@@ -2743,7 +2756,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -2757,7 +2769,7 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                putmem16(useseg, CPU_SI, portin16(CPU_DX));
+                putmem16(CPU_ES, CPU_DI, portin16( CPU_DX));
                 if (df) {
                     CPU_SI = CPU_SI - 2;
                     CPU_DI = CPU_DI - 2;
@@ -2771,7 +2783,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -2799,7 +2810,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -2827,7 +2837,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3167,15 +3176,15 @@ void exec86(uint32_t execloops) {
 
             case 0x98: /* 98 CBW */
                 if ((CPU_AL & 0x80) == 0x80) {
-                    regs.byteregs[regah] = 0xFF;
+                    CPU_AH = 0xFF;
                 }
                 else {
-                    regs.byteregs[regah] = 0;
+                    CPU_AH = 0;
                 }
                 break;
 
             case 0x99: /* 99 CWD */
-                if ((regs.byteregs[regah] & 0x80) == 0x80) {
+                if ((CPU_AH & 0x80) == 0x80) {
                     CPU_DX = 0xFFFF;
                 }
                 else {
@@ -3207,11 +3216,11 @@ void exec86(uint32_t execloops) {
                 break;
 
             case 0x9E: /* 9E SAHF */
-                decodeflagsword((makeflagsword() & 0xFF00) | regs.byteregs[regah]);
+                decodeflagsword((makeflagsword() & 0xFF00) | CPU_AH);
                 break;
 
             case 0x9F: /* 9F LAHF */
-                regs.byteregs[regah] = makeflagsword() & 0xFF;
+                CPU_AH = makeflagsword() & 0xFF;
                 break;
 
             case 0xA0: /* A0 MOV CPU_AL Ob */
@@ -3254,7 +3263,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3282,7 +3290,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3319,7 +3326,6 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3357,7 +3363,6 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3397,7 +3402,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3423,7 +3427,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3449,7 +3452,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3476,7 +3478,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3511,7 +3512,6 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3542,11 +3542,10 @@ void exec86(uint32_t execloops) {
                 if ((reptype == 1) && !zf) {
                     break;
                 }
-                else if ((reptype == 2) & (zf == 1)) {
+                else if ((reptype == 2) && (zf == 1)) {
                     break;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3560,38 +3559,38 @@ void exec86(uint32_t execloops) {
                 StepIP(1);
                 break;
 
-            case 0xB1: /* B1 MOV regs.byteregs[regcl] Ib */
-                regs.byteregs[regcl] = getmem8(CPU_CS, ip);
+            case 0xB1: /* B1 MOV CPU_CL Ib */
+                CPU_CL = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
-            case 0xB2: /* B2 MOV regs.byteregs[regdl] Ib */
-                regs.byteregs[regdl] = getmem8(CPU_CS, ip);
+            case 0xB2: /* B2 MOV CPU_DL Ib */
+                CPU_DL = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
-            case 0xB3: /* B3 MOV regs.byteregs[regbl] Ib */
-                regs.byteregs[regbl] = getmem8(CPU_CS, ip);
+            case 0xB3: /* B3 MOV CPU_BL Ib */
+                CPU_BL = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
-            case 0xB4: /* B4 MOV regs.byteregs[regah] Ib */
-                regs.byteregs[regah] = getmem8(CPU_CS, ip);
+            case 0xB4: /* B4 MOV CPU_AH Ib */
+                CPU_AH = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
-            case 0xB5: /* B5 MOV regs.byteregs[regch] Ib */
-                regs.byteregs[regch] = getmem8(CPU_CS, ip);
+            case 0xB5: /* B5 MOV CPU_CH Ib */
+                CPU_CH = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
-            case 0xB6: /* B6 MOV regs.byteregs[regdh] Ib */
-                regs.byteregs[regdh] = getmem8(CPU_CS, ip);
+            case 0xB6: /* B6 MOV CPU_DH Ib */
+                CPU_DH = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
-            case 0xB7: /* B7 MOV regs.byteregs[regbh] Ib */
-                regs.byteregs[regbh] = getmem8(CPU_CS, ip);
+            case 0xB7: /* B7 MOV CPU_BH Ib */
+                CPU_BH = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
@@ -3699,12 +3698,12 @@ void exec86(uint32_t execloops) {
                 push(CPU_BP);
                 frametemp = CPU_SP;
                 if (nestlev) {
-                    for (temp16 = 1; temp16 < nestlev; temp16++) {
+                    for (temp16 = 1; temp16 < nestlev; ++temp16) {
                         CPU_BP = CPU_BP - 2;
                         push(CPU_BP);
                     }
 
-                    push(CPU_SP);
+                    push(frametemp);
                 }
 
                 CPU_BP = frametemp;
@@ -3767,16 +3766,16 @@ void exec86(uint32_t execloops) {
                 writerm16(rm, op_grp2_16(1));
                 break;
 
-            case 0xD2: /* D2 GRP2 Eb regs.byteregs[regcl] */
+            case 0xD2: /* D2 GRP2 Eb CPU_CL */
                 modregrm();
                 oper1b = readrm8(rm);
-                writerm8(rm, op_grp2_8(regs.byteregs[regcl]));
+                writerm8(rm, op_grp2_8(CPU_CL));
                 break;
 
-            case 0xD3: /* D3 GRP2 Ev regs.byteregs[regcl] */
+            case 0xD3: /* D3 GRP2 Ev CPU_CL */
                 modregrm();
                 oper1 = readrm16(rm);
-                writerm16(rm, op_grp2_16(regs.byteregs[regcl]));
+                writerm16(rm, op_grp2_16(CPU_CL));
                 break;
 
             case 0xD4: /* D4 AAM I0 */
@@ -3787,7 +3786,7 @@ void exec86(uint32_t execloops) {
                     break;
                 } /* division by zero */
 
-                regs.byteregs[regah] = (CPU_AL / oper1) & 255;
+                CPU_AH = (CPU_AL / oper1) & 255;
                 CPU_AL = (CPU_AL % oper1) & 255;
                 flag_szp16(CPU_AX);
                 break;
@@ -3795,9 +3794,9 @@ void exec86(uint32_t execloops) {
             case 0xD5: /* D5 AAD I0 */
                 oper1 = getmem8(CPU_CS, ip);
                 StepIP(1);
-                CPU_AL = (regs.byteregs[regah] * oper1 + CPU_AL) & 255;
-                regs.byteregs[regah] = 0;
-                flag_szp16(regs.byteregs[regah] * oper1 + CPU_AL);
+                CPU_AL = (CPU_AH * oper1 + CPU_AL) & 255;
+                CPU_AH = 0;
+                flag_szp16(CPU_AH * oper1 + CPU_AL);
                 sf = 0;
                 break;
 
@@ -4011,7 +4010,8 @@ void exec86(uint32_t execloops) {
                 break;
 
             default:
-                intcall86(6);
+
+                //intcall86(6);
                 break;
         }
     }
@@ -4022,20 +4022,14 @@ typedef void (*write_fn_ptr)(uint32_t, uint8_t);
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static write_fn_ptr write_funtions[256] = { 0 };
 
-static void write8psram(uint32_t addr32, uint8_t v) {
-    psram_write8(&psram_spi, addr32, v);
+static inline void write8video(uint32_t addr32, uint8_t v) {
+    VIDEORAM[(ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = v;
 }
-
-static void write8video(uint32_t addr32, uint8_t v) {
-    if (videomode >= 0x0D && ega_plane) {
-        addr32 += ega_plane * 16000;
-    }
-    VIDEORAM[(addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = v;
-}
-
+#ifdef XMS_UMB
 static void write8umb_psram(uint32_t addr32, uint8_t v) {
     if (umb_in_use(addr32)) {
-        psram_write8(&psram_spi, addr32, v);
+        //char tmp[80]; sprintf(tmp, "UMB W8 %08X <- %02X", addr32, v); logMsg(tmp);
+        write8psram(addr32, v);
     }
 }
 
@@ -4044,11 +4038,11 @@ static void write8umb_swap(uint32_t addr32, uint8_t v) {
         ram_page_write(addr32, v);
     }
 }
-
+#endif
 static void write8hma_psram(uint32_t addr32, uint8_t v) {
     if (a20_line_open) {
         // A20 line is ON
-        psram_write8(&psram_spi, addr32, v);
+        write8psram(addr32, v);
         return;
     }
     write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
@@ -4070,7 +4064,7 @@ static void write8hma_swap(uint32_t addr32, uint8_t v) {
 static void write8emm_psram(uint32_t addr32, uint8_t v) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-        psram_write8(&psram_spi, lba, v);
+        write8psram(lba, v);
     }
 }
 
@@ -4096,7 +4090,7 @@ static void write8low_psram(uint32_t addr32, uint8_t v) {
     if (addr32 < RAM_SIZE) {
         RAM[addr32] = v;
     } else {
-        psram_write8(&psram_spi, addr32, v);
+        write8psram(addr32, v);
     }
 }
 
@@ -4114,27 +4108,21 @@ typedef void (*write16_fn_ptr)(uint32_t, uint16_t);
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static write16_fn_ptr write16_funtions[256] = { 0 };
 
-INLINE void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16_t value) {
+static inline void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16_t value) {
     register uint8_t* ptr = arr - base_addr + addr32;
     *ptr++ = (uint8_t)value;
     *ptr = (uint8_t)(value >> 8);
 }
 
-static void write16psram(uint32_t addr32, uint16_t v) {
-    psram_write16(&psram_spi, addr32, v);
-}
-
-static void write16video(uint32_t addr32, uint16_t v) {
-    if (videomode >= 0x0D && ega_plane) {
-        addr32 += ega_plane * 16000; 
-    }
-    write16arr(VIDEORAM, 0, (addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, v);
+static inline void write16video(uint32_t addr32, uint16_t v) {
+    write16arr(VIDEORAM, 0, (ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, v);
 }
 #ifdef XMS_DRIVER
 #ifdef XMS_UMB
 static void write16umb_psram(uint32_t addr32, uint16_t v) {
     if (umb_in_use(addr32)) {
-        psram_write16(&psram_spi, addr32, v);
+        //char tmp[80]; sprintf(tmp, "UMB W16 %08X <- %04X", addr32, v); logMsg(tmp);
+        write16psram(addr32, v);
     }
 }
 
@@ -4148,7 +4136,7 @@ static void write16umb_swap(uint32_t addr32, uint16_t v) {
 static void write16hma_psram(uint32_t addr32, uint16_t v) {
     if (a20_line_open) {
         // A20 line is ON
-        psram_write16(&psram_spi, addr32, v);
+        write16psram(addr32, v);
         return;
     }
     writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
@@ -4170,7 +4158,7 @@ static void write16hma_swap(uint32_t addr32, uint16_t v) {
 static void write16emm_psram(uint32_t addr32, uint16_t v) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-        psram_write16(&psram_spi, lba, v);
+        write16psram(lba, v);
     }
 }
 
@@ -4196,7 +4184,7 @@ static void write16low_psram(uint32_t addr32, uint16_t v) {
     if (addr32 < RAM_SIZE) {
         write16arr(RAM, 0, addr32, v);
     } else {
-        psram_write16(&psram_spi, addr32, v);
+        write16psram(addr32, v);
     }
 }
 
@@ -4217,18 +4205,11 @@ uint8_t read8nothng(uint32_t addr32) {
     return 0;
 }
 
-uint8_t read8low_psram(uint32_t addr32) {
-    return psram_read8(&psram_spi, addr32);
+static inline uint8_t read8video(uint32_t addr32) {
+    return VIDEORAM[(ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE];
 }
 
-uint8_t read8video(uint32_t addr32) {
-    if (videomode >= 0x0D && ega_plane) {
-        addr32 += ega_plane * 16000;
-    }
-    return VIDEORAM[(addr32 - VIDEORAM_START32) % VIDEORAM_SIZE];
-}
-
-INLINE uint8_t read86rom(uint32_t addr32) {
+static inline uint8_t read86rom(uint32_t addr32) {
     if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
         // BIOS ROM range
         return BIOS[addr32 - 0xFE000UL];
@@ -4248,7 +4229,9 @@ INLINE uint8_t read86rom(uint32_t addr32) {
 #ifdef XMS_UMB
 uint8_t read8umb_psram(uint32_t addr32) {
     if (umb_in_use(addr32)) {
-        return psram_read8(&psram_spi, addr32);
+        uint8_t v = read8psram(addr32);
+        //char tmp[80]; sprintf(tmp, "UMB R8 %08X -> %02X", addr32, v); logMsg(tmp);
+        return v;
     }
     return read86rom(addr32);
 }
@@ -4263,7 +4246,7 @@ uint8_t read8umb_swap(uint32_t addr32) {
 #endif
 uint8_t read8hma_psram(uint32_t addr32) {
     if (a20_line_open) {
-        return psram_read8(&psram_spi, addr32);
+        return read8psram(addr32);
     }
     return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
@@ -4279,14 +4262,11 @@ uint8_t read8hma_swap(uint32_t addr32) {
     return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
 
-uint8_t read8psram(uint32_t addr32) {
-    return psram_read8(&psram_spi, addr32);
-}
 #ifdef EMS_DRIVER
 uint8_t read8emm_psram(uint32_t addr32) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-        return psram_read8(&psram_spi, lba);
+        return read8psram(lba);
     }
     return read86rom(addr32);
 }
@@ -4304,12 +4284,8 @@ typedef uint16_t (*read16_fn_ptr)(uint32_t);
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static read16_fn_ptr read16_funtions[256] = { 0 };
 
-uint16_t read16nothng(uint32_t addr32) {
+static uint16_t read16nothng(uint32_t addr32) {
     return 0;
-}
-
-uint16_t read16low_psram(uint32_t addr32) {
-    return psram_read16(&psram_spi, addr32);
 }
 
 static __inline uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
@@ -4326,14 +4302,11 @@ static __inline uint16_t read16arr0(uint8_t* arr, uint32_t addr32) {
     return b1 | (b0 << 8);
 }
 
-uint16_t read16video(uint32_t addr32) {
-    if (videomode >= 0x0D && ega_plane) {
-        addr32 += ega_plane * 16000;
-    }
-    return read16arr0(VIDEORAM, (addr32 - VIDEORAM_START32) % VIDEORAM_SIZE);
+static inline uint16_t read16video(uint32_t addr32) {
+    return read16arr0(VIDEORAM, (ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE);
 }
 
-INLINE uint16_t read86rom16(uint32_t addr32) {
+static inline uint16_t read86rom16(uint32_t addr32) {
     if (addr32 >= 0xFE000UL && addr32 <= 0xFFFFFUL) {
         // BIOS ROM range
         return read16arr(BIOS, 0xFE000UL, addr32);
@@ -4352,14 +4325,16 @@ INLINE uint16_t read86rom16(uint32_t addr32) {
 #ifdef XMS_UMB
 uint16_t read16umb_psram(uint32_t addr32) {
     if (umb_in_use(addr32)) {
-        return psram_read16(&psram_spi, addr32);
+        return read16psram(addr32);
     }
     return read86rom16(addr32);
 }
 
 uint16_t read16umb_swap(uint32_t addr32) {
     if (umb_in_use(addr32)) {
-        return ram_page_read16(addr32);
+        uint16_t v = ram_page_read16(addr32);
+        //char tmp[80]; sprintf(tmp, "UMB R16 %08X -> %04X", addr32, v); logMsg(tmp);
+        return v;
     }
     return read86rom16(addr32);
 }
@@ -4367,7 +4342,7 @@ uint16_t read16umb_swap(uint32_t addr32) {
 #endif
 uint16_t read16hma_psram(uint32_t addr32) {
     if (a20_line_open) {
-        return psram_read16(&psram_spi, addr32);
+        return read16psram(addr32);
     }
     return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
@@ -4383,14 +4358,11 @@ uint16_t read16hma_swap(uint32_t addr32) {
     return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
 
-uint16_t read16psram(uint32_t addr32) {
-    return psram_read16(&psram_spi, addr32);
-}
 #ifdef EMS_DRIVER
 uint16_t read16emm_psram(uint32_t addr32) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
     if (lba >= (EMM_LBA_SHIFT_KB << 10)) {
-        return psram_read16(&psram_spi, lba);
+        return read16psram(lba);
     }
     return read86rom16(addr32);
 }
@@ -4417,8 +4389,8 @@ void init_cpu_addresses_map() {
     for (uint8_t ba = 0; ba <= (CONVENTIONAL_END >> 15); ++ba) {
         write_funtions  [ba] = PSRAM_AVAILABLE ? write8low_psram  : (SD_CARD_AVAILABLE ? write8low_swap  : write8low   );
         write16_funtions[ba] = PSRAM_AVAILABLE ? write16low_psram : (SD_CARD_AVAILABLE ? write16low_swap : write16low  );
-        read_funtions   [ba] = PSRAM_AVAILABLE ? read8low_psram   : (SD_CARD_AVAILABLE ? ram_page_read   : read8nothng );
-        read16_funtions [ba] = PSRAM_AVAILABLE ? read16low_psram  : (SD_CARD_AVAILABLE ? ram_page_read16 : read16nothng);
+        read_funtions   [ba] = PSRAM_AVAILABLE ? read8psram       : (SD_CARD_AVAILABLE ? ram_page_read   : read8nothng );
+        read16_funtions [ba] = PSRAM_AVAILABLE ? read16psram      : (SD_CARD_AVAILABLE ? ram_page_read16 : read16nothng);
     }
     // CONVENTIONAL_END == VIDEORAM_START32
     for (uint8_t ba = (VIDEORAM_START32 >> 15); ba <= (VIDEORAM_END32 >> 15); ++ba) {

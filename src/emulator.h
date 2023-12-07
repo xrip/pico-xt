@@ -11,9 +11,9 @@
 
 #ifdef XMS_DRIVER
 #if XMS_OVER_HMA_KB
-#define ON_BOARD_RAM_KB (1024ul + XMS_OVER_HMA_KB + RESERVED_XMS_KB)
+#define ON_BOARD_RAM_KB (1024ul + XMS_OVER_HMA_KB)
 #else
-#define ON_BOARD_RAM_KB (1024ul + RESERVED_XMS_KB)
+#define ON_BOARD_RAM_KB (4ul << 10)
 #endif
 #else
 #define ON_BOARD_RAM_KB 1024ul
@@ -23,7 +23,8 @@
 #define TOTAL_XMM_KB (ON_BOARD_RAM_KB - BASE_X86_KB)
 
 #ifdef EMS_DRIVER
-#define TOTAL_EMM_KB (TOTAL_VIRTUAL_MEMORY_KBS - ON_BOARD_RAM_KB)
+//#define TOTAL_EMM_KB (TOTAL_VIRTUAL_MEMORY_KBS - ON_BOARD_RAM_KB)
+#define TOTAL_EMM_KB (4ul << 10)
 #else
 #define TOTAL_EMM_KB 0
 #endif
@@ -93,7 +94,7 @@ extern uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm
 extern uint8_t videomode;
 extern uint8_t speakerenabled;
 extern int timer_period;
-extern uint8_t ega_plane;
+extern uint16_t ega_plane_offset;
 
 #if PICO_ON_DEVICE
 extern pwm_config config;
