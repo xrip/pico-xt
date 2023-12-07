@@ -300,3 +300,4 @@ typedef uint8_t (*read_fn_ptr)(uint32_t);
 typedef uint16_t (*read16_fn_ptr)(uint32_t);
 // replace RAM mapping access function
 void update_segment_map(uint16_t seg, write_fn_ptr p8w, write16_fn_ptr p16w, read_fn_ptr p8r, read16_fn_ptr p16r);
+
