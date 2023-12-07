@@ -19,6 +19,8 @@
 
 #include "emulator.h"
 
+#define CPU_V20
+
 #if PICO_ON_DEVICE
 
 #include "pico/time.h"
@@ -1841,15 +1843,2415 @@ void handleinput(void) {
 extern void ps2poll();
 
 #endif
+static uint32_t loopcount;
+static uint16_t firstip;
+uint8_t reg;
 
+static inline void opcode00 (void) {
+  // 00 ADD Eb Gb
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = getreg8 (reg);
+  op_add8();
+  writerm8 (rm, res8);
+}
+static inline void opcode01 (void) {
+  // 01 ADD Ev Gv
+  modregrm();
+  oper1 = readrm16 (rm);
+  oper2 = getreg16 (reg);
+  op_add16();
+  writerm16 (rm, res16);
+}
+static inline void opcode02 (void) {
+  // 02 ADD Gb Eb
+  modregrm();
+  oper1b = getreg8 (reg);
+  oper2b = readrm8 (rm);
+  op_add8();
+  putreg8 (reg, res8);
+}
+static inline void opcode03 (void) {
+  // 03 ADD Gv Ev
+  modregrm();
+  oper1 = getreg16 (reg);
+  oper2 = readrm16 (rm);
+  op_add16();
+  putreg16 (reg, res16);
+}
+static inline void opcode04 (void) {
+  // 04 ADD CPU_AL Ib
+  oper1b = CPU_AL;
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  op_add8();
+  CPU_AL = res8;
+}
+static inline void opcode05 (void) {
+  // 05 ADD eAX Iv
+  oper1 = (getreg16 (regax) );
+  oper2 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  op_add16();
+  putreg16 (regax, res16);
+}
+static inline void opcode06 (void) {
+  // 06 PUSH segregs[reges]
+  push (segregs[reges]);
+}
+static inline void opcode07 (void) {
+  // 07 POP segregs[reges]
+  segregs[reges] = pop();
+}
+static inline void opcode08 (void) {
+  // 08 OR Eb Gb
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = getreg8 (reg);
+  op_or8();
+  writerm8 (rm, res8);
+}
+static inline void opcode09 (void) {
+  // 09 OR Ev Gv
+  modregrm();
+  oper1 = readrm16 (rm);
+  oper2 = getreg16 (reg);
+  op_or16();
+  writerm16 (rm, res16);
+}
+static inline void opcode0A (void) {
+  // 0A OR Gb Eb
+  modregrm();
+  oper1b = getreg8 (reg);
+  oper2b = readrm8 (rm);
+  op_or8();
+  putreg8 (reg, res8);
+}
+static inline void opcode0B (void) {
+  // 0B OR Gv Ev
+  modregrm();
+  oper1 = getreg16 (reg);
+  oper2 = readrm16 (rm);
+  op_or16();
+  if ( (oper1 == 0xF802) && (oper2 == 0xF802) ) {
+    sf = 0; // cheap hack to make Wolf 3D think we're a 286 so it plays
+  }
+  putreg16 (reg, res16);
+}
+static inline void opcode0C (void) {
+  // 0C OR CPU_AL Ib
+  oper1b = CPU_AL;
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  op_or8();
+  CPU_AL = res8;
+}
+static inline void opcode0D (void) {
+  // 0D OR eAX Iv
+  oper1 = getreg16 (regax);
+  oper2 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  op_or16();
+  putreg16 (regax, res16);
+}
+static inline void opcode0E (void) {
+  // 0E PUSH segregs[regcs]
+  push (segregs[regcs]);
+}
+static inline void opcode0F (void) {
+  //0F POP CS
+#ifndef CPU_V20
+  segregs[regcs] = pop();
+#endif
+}
+static inline void opcode10 (void) {
+  // 10 ADC Eb Gb
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = getreg8 (reg);
+  op_adc8();
+  writerm8 (rm, res8);
+}
+static inline void opcode11 (void) {
+  // 11 ADC Ev Gv
+  modregrm();
+  oper1 = readrm16 (rm);
+  oper2 = getreg16 (reg);
+  op_adc16();
+  writerm16 (rm, res16);
+}
+static inline void opcode12 (void) {
+  // 12 ADC Gb Eb
+  modregrm();
+  oper1b = getreg8 (reg);
+  oper2b = readrm8 (rm);
+  op_adc8();
+  putreg8 (reg, res8);
+}
+static inline void opcode13 (void) {
+  // 13 ADC Gv Ev
+  modregrm();
+  oper1 = getreg16 (reg);
+  oper2 = readrm16 (rm);
+  op_adc16();
+  putreg16 (reg, res16);
+}
+static inline void opcode14 (void) {
+  // 14 ADC CPU_AL Ib
+  oper1b = CPU_AL;
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  op_adc8();
+  CPU_AL = res8;
+}
+static inline void opcode15 (void) {
+  //15 ADC eAX Iv
+  oper1 = getreg16 (regax);
+  oper2 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  op_adc16();
+  putreg16 (regax, res16);
+}
+static inline void opcode16 (void) {
+  // 16 PUSH segregs[regss]
+  push (segregs[regss]);
+}
+static inline void opcode17 (void) {
+  // 17 POP segregs[regss]
+  segregs[regss] = pop();
+}
+static inline void opcode18 (void) {
+  // 18 SBB Eb Gb
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = getreg8 (reg);
+  op_sbb8();
+  writerm8 (rm, res8);
+}
+static inline void opcode19 (void) {
+  // 19 SBB Ev Gv
+  modregrm();
+  oper1 = readrm16 (rm);
+  oper2 = getreg16 (reg);
+  op_sbb16();
+  writerm16 (rm, res16);
+}
+static inline void opcode1A (void) {
+  // 1A SBB Gb Eb
+  modregrm();
+  oper1b = getreg8 (reg);
+  oper2b = readrm8 (rm);
+  op_sbb8();
+  putreg8 (reg, res8);
+}
+static inline void opcode1B (void) {
+  // 1B SBB Gv Ev
+  modregrm();
+  oper1 = getreg16 (reg);
+  oper2 = readrm16 (rm);
+  op_sbb16();
+  putreg16 (reg, res16);
+}
+static inline void opcode1C (void) {
+  // 1C SBB CPU_AL Ib
+  oper1b = CPU_AL;
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  op_sbb8();
+  CPU_AL = res8;
+}
+static inline void opcode1D (void) {
+  // 1D SBB eAX Iv
+  oper1 = getreg16 (regax);
+  oper2 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  op_sbb16();
+  putreg16 (regax, res16);
+}
+static inline void opcode1E (void) {
+  // 1E PUSH segregs[regds]
+  push (segregs[regds]);
+}
+static inline void opcode1F (void) {
+  // 1F POP segregs[regds]
+  segregs[regds] = pop();
+}
+static inline void opcode20 (void) {
+  // 20 AND Eb Gb
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = getreg8 (reg);
+  op_and8();
+  writerm8 (rm, res8);
+}
+static inline void opcode21 (void) {
+  // 21 AND Ev Gv
+  modregrm();
+  oper1 = readrm16 (rm);
+  oper2 = getreg16 (reg);
+  op_and16();
+  writerm16 (rm, res16);
+}
+static inline void opcode22 (void) {
+  // 22 AND Gb Eb
+  modregrm();
+  oper1b = getreg8 (reg);
+  oper2b = readrm8 (rm);
+  op_and8();
+  putreg8 (reg, res8);
+}
+static inline void opcode23 (void) {
+  // 23 AND Gv Ev
+  modregrm();
+  oper1 = getreg16 (reg);
+  oper2 = readrm16 (rm);
+  op_and16();
+  putreg16 (reg, res16);
+}
+static inline void opcode24 (void) {
+  // 24 AND CPU_AL Ib
+  oper1b = CPU_AL;
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  op_and8();
+  CPU_AL = res8;
+}
+static inline void opcode25 (void) {
+  // 25 AND eAX Iv
+  oper1 = getreg16 (regax);
+  oper2 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  op_and16();
+  putreg16 (regax, res16);
+}
+static inline void opcode27 (void) {
+  // 27 DAA
+  if ( ( (CPU_AL & 0xF) > 9) || (af == 1) ) {
+    oper1 = CPU_AL + 6;
+    CPU_AL = oper1 & 255;
+    if (oper1 & 0xFF00) {
+      cf = 1;
+    } else {
+      cf = 0;
+    }
+    af = 1;
+  } else {
+    af = 0;
+  }
+
+  if ( ( (CPU_AL & 0xF0) > 0x90) || (cf == 1) ) {
+    CPU_AL = CPU_AL + 0x60;
+    cf = 1;
+  } else {
+    cf = 0;
+  }
+
+  CPU_AL = CPU_AL & 255;
+  flag_szp8 (CPU_AL);
+}
+static inline void opcode28 (void) {
+  // 28 SUB Eb Gb
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = getreg8 (reg);
+  op_sub8();
+  writerm8 (rm, res8);
+}
+static inline void opcode29 (void) {
+  // 29 SUB Ev Gv
+  modregrm();
+  oper1 = readrm16 (rm);
+  oper2 = getreg16 (reg);
+  op_sub16();
+  writerm16 (rm, res16);
+}
+static inline void opcode2A (void) {
+  // 2A SUB Gb Eb
+  modregrm();
+  oper1b = getreg8 (reg);
+  oper2b = readrm8 (rm);
+  op_sub8();
+  putreg8 (reg, res8);
+}
+static inline void opcode2B (void) {
+  // 2B SUB Gv Ev
+  modregrm();
+  oper1 = getreg16 (reg);
+  oper2 = readrm16 (rm);
+  op_sub16();
+  putreg16 (reg, res16);
+}
+static inline void opcode2C (void) {
+  // 2C SUB CPU_AL Ib
+  oper1b = CPU_AL;
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  op_sub8();
+  CPU_AL = res8;
+}
+static inline void opcode2D (void) {
+  // 2D SUB eAX Iv
+  oper1 = getreg16 (regax);
+  oper2 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  op_sub16();
+  putreg16 (regax, res16);
+}
+static inline void opcode2F (void) {
+  // 2F DAS
+  if ( ( (CPU_AL & 15) > 9) || (af == 1) ) {
+    oper1 = CPU_AL - 6;
+    CPU_AL = oper1 & 255;
+    if (oper1 & 0xFF00) {
+      cf = 1;
+    } else {
+      cf = 0;
+    }
+    af = 1;
+  } else {
+    af = 0;
+  }
+  if ( ( (CPU_AL & 0xF0) > 0x90) || (cf == 1) ) {
+    CPU_AL = CPU_AL - 0x60;
+    cf = 1;
+  } else {
+    cf = 0;
+  }
+  flag_szp8 (CPU_AL);
+}
+static inline void opcode30 (void) {
+  // 30 XOR Eb Gb
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = getreg8 (reg);
+  op_xor8();
+  writerm8 (rm, res8);
+}
+static inline void opcode31 (void) {
+  // 31 XOR Ev Gv
+  modregrm();
+  oper1 = readrm16 (rm);
+  oper2 = getreg16 (reg);
+  op_xor16();
+  writerm16 (rm, res16);
+}
+static inline void opcode32 (void) {
+  // 32 XOR Gb Eb
+  modregrm();
+  oper1b = getreg8 (reg);
+  oper2b = readrm8 (rm);
+  op_xor8();
+  putreg8 (reg, res8);
+}
+static inline void opcode33 (void) {
+  // 33 XOR Gv Ev
+  modregrm();
+  oper1 = getreg16 (reg);
+  oper2 = readrm16 (rm);
+  op_xor16();
+  putreg16 (reg, res16);
+}
+static inline void opcode34 (void) {
+  // 34 XOR CPU_AL Ib
+  oper1b = CPU_AL;
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  op_xor8();
+  CPU_AL = res8;
+}
+static inline void opcode35 (void) {
+  // 35 XOR eAX Iv
+  oper1 = getreg16 (regax);
+  oper2 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  op_xor16();
+  putreg16 (regax, res16);
+}
+static inline void opcode37 (void) {
+  // 37 AAA ASCII
+  if ( ( (CPU_AL & 0xF) > 9) || (af == 1) ) {
+    CPU_AL = CPU_AL + 6;
+    CPU_AH = CPU_AH + 1;
+    af = 1;
+    cf = 1;
+  } else {
+    af = 0;
+    cf = 0;
+  }
+  CPU_AL = CPU_AL & 0xF;
+}
+static inline void opcode38 (void) {
+  // 38 CMP Eb Gb
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = getreg8 (reg);
+  flag_sub8 (oper1b, oper2b);
+}
+static inline void opcode39 (void) {
+  // 39 CMP Ev Gv
+  modregrm();
+  oper1 = readrm16 (rm);
+  oper2 = getreg16 (reg);
+  flag_sub16 (oper1, oper2);
+}
+static inline void opcode3A (void) {
+  // 3A CMP Gb Eb
+  modregrm();
+  oper1b = getreg8 (reg);
+  oper2b = readrm8 (rm);
+  flag_sub8 (oper1b, oper2b);
+}
+static inline void opcode3B (void) {
+  // 3B CMP Gv Ev
+  modregrm();
+  oper1 = getreg16 (reg);
+  oper2 = readrm16 (rm);
+  flag_sub16 (oper1, oper2);
+}
+static inline void opcode3C (void) {
+  // 3C CMP CPU_AL Ib
+  oper1b = CPU_AL;
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  flag_sub8 (oper1b, oper2b);
+}
+static inline void opcode3D (void) {
+  // 3D CMP eAX Iv
+  oper1 = getreg16 (regax);
+  oper2 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  flag_sub16 (oper1, oper2);
+}
+static inline void opcode3F (void) {
+  // 3F AAS ASCII
+  if ( ( (CPU_AL & 0xF) > 9) || (af == 1) ) {
+    CPU_AL = CPU_AL - 6;
+    CPU_AH = CPU_AH - 1;
+    af = 1;
+    cf = 1;
+  } else {
+    af = 0;
+    cf = 0;
+  }
+  CPU_AL = CPU_AL & 0xF;
+}
+static inline void opcode40 (void) {
+  // 40 INC eAX
+  oldcf = cf;
+  oper1 = getreg16 (regax);
+  oper2 = 1;
+  op_add16();
+  cf = oldcf;
+  putreg16 (regax, res16);
+}
+static inline void opcode41 (void) {
+  // 41 INC eCX
+  oldcf = cf;
+  oper1 = getreg16 (regcx);
+  oper2 = 1;
+  op_add16();
+  cf = oldcf;
+  putreg16 (regcx, res16);
+}
+static inline void opcode42 (void) {
+  // 42 INC eDX
+  oldcf = cf;
+  oper1 = getreg16 (regdx);
+  oper2 = 1;
+  op_add16();
+  cf = oldcf;
+  putreg16 (regdx, res16);
+}
+static inline void opcode43 (void) {
+  // 43 INC eBX
+  oldcf = cf;
+  oper1 = getreg16 (regbx);
+  oper2 = 1;
+  op_add16();
+  cf = oldcf;
+  putreg16 (regbx, res16);
+}
+static inline void opcode44 (void) {
+  // 44 INC eSP
+  oldcf = cf;
+  oper1 = getreg16 (regsp);
+  oper2 = 1;
+  op_add16();
+  cf = oldcf;
+  putreg16 (regsp, res16);
+}
+static inline void opcode45 (void) {
+  // 45 INC eBP
+  oldcf = cf;
+  oper1 = getreg16 (regbp);
+  oper2 = 1;
+  op_add16();
+  cf = oldcf;
+  putreg16 (regbp, res16);
+}
+static inline void opcode46 (void) {
+  // 46 INC eSI
+  oldcf = cf;
+  oper1 = getreg16 (regsi);
+  oper2 = 1;
+  op_add16();
+  cf = oldcf;
+  putreg16 (regsi, res16);
+}
+static inline void opcode47 (void) {
+  // 47 INC eDI
+  oldcf = cf;
+  oper1 = getreg16 (regdi);
+  oper2 = 1;
+  op_add16();
+  cf = oldcf;
+  putreg16 (regdi, res16);
+}
+static inline void opcode48 (void) {
+  // 48 DEC eAX *
+  oldcf = cf;
+  oper1 = getreg16 (regax);
+  oper2 = 1;
+  op_sub16();
+  cf = oldcf;
+  putreg16 (regax, res16);
+}
+static inline void opcode49 (void) {
+  // 49 DEC eCX
+  oldcf = cf;
+  oper1 = getreg16 (regcx);
+  oper2 = 1;
+  op_sub16();
+  cf = oldcf;
+  putreg16 (regcx, res16);
+}
+static inline void opcode4A (void) {
+  // 4A DEC eDX
+  oldcf = cf;
+  oper1 = getreg16 (regdx);
+  oper2 = 1;
+  op_sub16();
+  cf = oldcf;
+  putreg16 (regdx, res16);
+}
+static inline void opcode4B (void) {
+  // 4B DEC eBX
+  oldcf = cf;
+  oper1 = getreg16 (regbx);
+  oper2 = 1;
+  op_sub16();
+  cf = oldcf;
+  putreg16 (regbx, res16);
+}
+static inline void opcode4C (void) {
+  // 4C DEC eSP
+  oldcf = cf;
+  oper1 = getreg16 (regsp);
+  oper2 = 1;
+  op_sub16();
+  cf = oldcf;
+  putreg16 (regsp, res16);
+}
+static inline void opcode4D (void) {
+  // 4D DEC eBP
+  oldcf = cf;
+  oper1 = getreg16 (regbp);
+  oper2 = 1;
+  op_sub16();
+  cf = oldcf;
+  putreg16 (regbp, res16);
+}
+static inline void opcode4E (void) {
+  // 4E DEC eSI
+  oldcf = cf;
+  oper1 = getreg16 (regsi);
+  oper2 = 1;
+  op_sub16();
+  cf = oldcf;
+  putreg16 (regsi, res16);
+}
+static inline void opcode4F (void) {
+  // 4F DEC eDI
+  oldcf = cf;
+  oper1 = getreg16 (regdi);
+  oper2 = 1;
+  op_sub16();
+  cf = oldcf;
+  putreg16 (regdi, res16);
+}
+static inline void opcode50 (void) {
+  // 50 PUSH eAX
+  push (getreg16 (regax) );
+}
+static inline void opcode51 (void) {
+  // 51 PUSH eCX
+  push (getreg16 (regcx) );
+}
+static inline void opcode52 (void) {
+  // 52 PUSH eDX
+  push (getreg16 (regdx) );
+}
+static inline void opcode53 (void) {
+  // 53 PUSH eBX
+  push (getreg16 (regbx) );
+}
+static inline void opcode54 (void) {
+  // 54 PUSH eSP
+  push (getreg16 (regsp) - 2);
+}
+static inline void opcode55 (void) {
+  // 55 PUSH eBP
+  push (getreg16 (regbp) );
+}
+static inline void opcode56 (void) {
+  // 56 PUSH eSI
+  push (getreg16 (regsi) );
+}
+static inline void opcode57 (void) {
+  // 57 PUSH eDI
+  push (getreg16 (regdi) );
+}
+static inline void opcode58 (void) {
+  // 58 POP eAX
+  putreg16 (regax, pop() );
+}
+static inline void opcode59 (void) {
+  // 59 POP eCX
+  putreg16 (regcx, pop() );
+}
+static inline void opcode5A (void) {
+  // 5A POP eDX
+  putreg16 (regdx, pop() );
+}
+static inline void opcode5B (void) {
+  // 5B POP eBX
+  putreg16 (regbx, pop() );
+}
+static inline void opcode5C (void) {
+  // 5C POP eSP
+  putreg16 (regsp, pop() );
+}
+static inline void opcode5D (void) {
+  // 5D POP eBP
+  putreg16 (regbp, pop() );
+}
+static inline void opcode5E (void) {
+  // 5E POP eSI
+  putreg16 (regsi, pop() );
+}
+static inline void opcode5F (void) {
+  // 5F POP eDI
+  putreg16 (regdi, pop() );
+}
+
+#ifdef CPU_V20
+static inline void opcode60 (void) {
+  // 60 PUSHA (80186+)
+  oldsp = getreg16 (regsp);
+  push (getreg16 (regax) );
+  push (getreg16 (regcx) );
+  push (getreg16 (regdx) );
+  push (getreg16 (regbx) );
+  push (oldsp);
+  push (getreg16 (regbp) );
+  push (getreg16 (regsi) );
+  push (getreg16 (regdi) );
+}
+static inline void opcode61 (void) {
+  // 61 POPA (80186+)
+  putreg16 (regdi, pop() );
+  putreg16 (regsi, pop() );
+  putreg16 (regbp, pop() );
+  dummy = pop();
+  putreg16 (regbx, pop() );
+  putreg16 (regdx, pop() );
+  putreg16 (regcx, pop() );
+  putreg16 (regax, pop() );
+}
+static inline void opcode62 (void) {
+  // 62 BOUND Gv, Ev (80186+)
+  modregrm();
+  getea (rm);
+  if (signext32 (getreg16 (reg) ) < signext32 ( getmem16 (ea >> 4, ea & 15) ) ) {
+    intcall86 (5); //bounds check exception
+  } else {
+    ea += 2;
+    if (signext32 (getreg16 (reg) ) > signext32 ( getmem16 (ea >> 4, ea & 15) ) ) {
+      intcall86(5); //bounds check exception
+    }
+  }
+}
+static inline void opcode68 (void) {
+  // 68 PUSH Iv (80186+)
+  push (getmem16 (segregs[regcs], ip) );
+  StepIP (2);
+}
+static inline void opcode69 (void) {
+  // 69 IMUL Gv Ev Iv (80186+)
+  modregrm();
+  temp1 = readrm16 (rm);
+  temp2 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  if ( (temp1 & 0x8000L) == 0x8000L) {
+    temp1 = temp1 | 0xFFFF0000L;
+  }
+  if ( (temp2 & 0x8000L) == 0x8000L) {
+    temp2 = temp2 | 0xFFFF0000L;
+  }
+  temp3 = temp1 * temp2;
+  putreg16 (reg, temp3 & 0xFFFFL);
+  if (temp3 & 0xFFFF0000L) {
+    cf = 1;
+    of = 1;
+  } else {
+    cf = 0;
+    of = 0;
+  }
+}
+static inline void opcode6A (void) {
+  // 6A PUSH Ib (80186+)
+  push (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+}
+static inline void opcode6B (void) {
+  // 6B IMUL Gv Eb Ib (80186+)
+  modregrm();
+  temp1 = readrm16 (rm);
+  temp2 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if ( (temp1 & 0x8000L) == 0x8000L) {
+    temp1 = temp1 | 0xFFFF0000L;
+  }
+  if ( (temp2 & 0x8000L) == 0x8000L) {
+    temp2 = temp2 | 0xFFFF0000L;
+  }
+  temp3 = temp1 * temp2;
+  putreg16 (reg, temp3 & 0xFFFFL);
+  if (temp3 & 0xFFFF0000L) {
+    cf = 1;
+    of = 1;
+  } else {
+    cf = 0;
+    of = 0;
+  }
+}
+static inline void opcode6C (void) {
+  // 6E INSB
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+
+  putmem8 (useseg, getreg16 (regsi) , portin (CPU_DX) );
+  if (df) {
+    putreg16 (regsi, getreg16 (regsi) - 1);
+    putreg16 (regdi, getreg16 (regdi) - 1);
+  } else {
+    putreg16 (regsi, getreg16 (regsi) + 1);
+    putreg16 (regdi, getreg16 (regdi) + 1);
+  }
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+static inline void opcode6D (void) {
+  // 6F INSW
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+  putmem16 (useseg, getreg16 (regsi) , portin16 (CPU_DX) );
+  if (df) {
+    putreg16 (regsi, getreg16 (regsi) - 2);
+    putreg16 (regdi, getreg16 (regdi) - 2);
+  } else {
+    putreg16 (regsi, getreg16 (regsi) + 2);
+    putreg16 (regdi, getreg16 (regdi) + 2);
+  }
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+static inline void opcode6E (void) {
+  // 6E OUTSB
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+  portout (CPU_DX, getmem8 (useseg, getreg16 (regsi) ) );
+  if (df) {
+    putreg16 (regsi, getreg16 (regsi) - 1);
+    putreg16 (regdi, getreg16 (regdi) - 1);
+  } else {
+    putreg16 (regsi, getreg16 (regsi) + 1);
+    putreg16 (regdi, getreg16 (regdi) + 1);
+  }
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+static inline void opcode6F (void) {
+  // 6F OUTSW
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+  portout16 (CPU_DX, getmem16 (useseg, getreg16 (regsi) ) );
+  if (df) {
+    putreg16 (regsi, getreg16 (regsi) - 2);
+    putreg16 (regdi, getreg16 (regdi) - 2);
+  } else {
+    putreg16 (regsi, getreg16 (regsi) + 2);
+    putreg16 (regdi, getreg16 (regdi) + 2);
+  }
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+#endif
+static inline void opcode70 (void) {
+  // 70 JO Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (of) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode71 (void) {
+  // 71 JNO Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (!of) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode72 (void) {
+  // 72 JB Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (cf) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode73 (void) {
+  // 73 JNB Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (!cf) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode74 (void) {
+  // 74 JZ Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (zf) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode75 (void) {
+  // 75 JNZ Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (!zf) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode76 (void) {
+  // 76 JBE Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (cf || zf) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode77 (void) {
+  // 77 JA Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (!cf && !zf) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode78 (void) {
+  // 78 JS Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (sf) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode79 (void) {
+  // 79 JNS Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (!sf) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode7A (void) {
+  // 7A JPE Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (pf) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode7B (void) {
+  // 7B JPO Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (!pf) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode7C (void) {
+  // 7C JL Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (sf != of) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode7D (void) {
+  // 7D JGE Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (sf == of) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode7E (void) {
+  // 7E JLE Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if ( (sf != of) || zf) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode7F (void) {
+    // 7F JG Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (!zf && (sf == of) ) {
+    ip = ip + temp16;
+  }
+}
+static inline void opcode80 (void) {
+  // 80/82 GRP1 Eb Ib
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  switch (reg) {
+    case 0:
+      op_add8();
+      break;
+    case 1:
+      op_or8();
+      break;
+    case 2:
+      op_adc8();
+      break;
+    case 3:
+      op_sbb8();
+      break;
+    case 4:
+      op_and8();
+      break;
+    case 5:
+      op_sub8();
+      break;
+    case 6:
+      op_xor8();
+      break;
+    case 7:
+      flag_sub8 (oper1b, oper2b);
+      break;
+    default:
+      break;  // to avoid compiler warnings
+  }
+  if (reg < 7) {
+    writerm8 (rm, res8);
+  }
+}
+static inline void opcode82 (void) {
+  // 80/82 GRP1 Eb Ib
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  switch (reg) {
+    case 0:
+      op_add8();
+      break;
+    case 1:
+      op_or8();
+      break;
+    case 2:
+      op_adc8();
+      break;
+    case 3:
+      op_sbb8();
+      break;
+    case 4:
+      op_and8();
+      break;
+    case 5:
+      op_sub8();
+      break;
+    case 6:
+      op_xor8();
+      break;
+    case 7:
+      flag_sub8 (oper1b, oper2b);
+      break;
+    default:
+      break;  // to avoid compiler warnings
+  }
+
+  if (reg < 7) {
+    writerm8 (rm, res8);
+  }
+}
+static inline void opcode81 (void) {
+  // 81 GRP1 Ev Iv
+  modregrm();
+  oper1 = readrm16 (rm);
+  if (opcode == 0x81) {
+    oper2 = getmem16 (segregs[regcs], ip);
+    StepIP (2);
+  } else {
+    oper2 = signext (getmem8 (segregs[regcs], ip) );
+    StepIP (1);
+  }
+  switch (reg) {
+    case 0:
+      op_add16();
+      break;
+    case 1:
+      op_or16();
+      break;
+    case 2:
+      op_adc16();
+      break;
+    case 3:
+      op_sbb16();
+      break;
+    case 4:
+      op_and16();
+      break;
+    case 5:
+      op_sub16();
+      break;
+    case 6:
+      op_xor16();
+      break;
+    case 7:
+      flag_sub16 (oper1, oper2);
+      break;
+    default:
+      break;  // to avoid compiler warnings */
+  }
+  if (reg < 7) {
+    writerm16 (rm, res16);
+  }
+}
+static inline void opcode83 (void) {
+  // 83 GRP1 Ev Ib
+  modregrm();
+  oper1 = readrm16 (rm);
+  if (opcode == 0x81) {
+    oper2 = getmem16 (segregs[regcs], ip);
+    StepIP (2);
+  } else {
+    oper2 = signext (getmem8 (segregs[regcs], ip) );
+    StepIP (1);
+  }
+  switch (reg) {
+    case 0:
+      op_add16();
+      break;
+    case 1:
+      op_or16();
+      break;
+    case 2:
+      op_adc16();
+      break;
+    case 3:
+      op_sbb16();
+      break;
+    case 4:
+      op_and16();
+      break;
+    case 5:
+      op_sub16();
+      break;
+    case 6:
+      op_xor16();
+      break;
+    case 7:
+      flag_sub16 (oper1, oper2);
+      break;
+    default:
+      break;  // to avoid compiler warnings
+  }
+  if (reg < 7) {
+    writerm16 (rm, res16);
+  }
+}
+static inline void opcode84 (void) {
+  // 84 TEST Gb Eb
+  modregrm();
+  oper1b = getreg8 (reg);
+  oper2b = readrm8 (rm);
+  flag_log8 (oper1b & oper2b);
+}
+static inline void opcode85 (void) {
+  // 85 TEST Gv Ev
+  modregrm();
+  oper1 = getreg16 (reg);
+  oper2 = readrm16 (rm);
+  flag_log16 (oper1 & oper2);
+}
+static inline void opcode86 (void) {
+  // 86 XCHG Gb Eb
+  modregrm();
+  oper1b = getreg8 (reg);
+  putreg8 (reg, readrm8 (rm) );
+  writerm8 (rm, oper1b);
+}
+static inline void opcode87 (void) {
+  // 87 XCHG Gv Ev
+  modregrm();
+  oper1 = getreg16 (reg);
+  putreg16 (reg, readrm16 (rm) );
+  writerm16 (rm, oper1);
+}
+static inline void opcode88 (void) {
+  // 88 MOV Eb Gb
+  modregrm();
+  writerm8 (rm, getreg8 (reg) );
+}
+
+static inline void opcode89 (void) {
+  // 89 MOV Ev Gv
+  modregrm();
+  writerm16 (rm, getreg16 (reg) );
+}
+
+static inline void opcode8A (void) {
+  // 8A MOV Gb Eb
+  modregrm();
+  putreg8 (reg, readrm8 (rm) );
+}
+
+static inline void opcode8B (void) {
+  // 8B MOV Gv Ev
+  modregrm();
+  putreg16 (reg, readrm16 (rm) );
+}
+
+static inline void opcode8C (void) {
+  // 8C MOV Ew Sw
+  modregrm();
+  writerm16 (rm, getsegreg (reg) );
+}
+
+static inline void opcode8D (void) {
+  // 8D LEA Gv M
+  modregrm();
+  getea (rm);
+  putreg16 (reg, ea - segbase (useseg) );
+}
+
+static inline void opcode8E (void) {
+  // 8E MOV Sw Ew
+  modregrm();
+  putsegreg (reg, readrm16 (rm) );
+}
+
+static inline void opcode8F (void) {
+  // 8F POP Ev
+  modregrm();
+  writerm16 (rm, pop() );
+}
+
+static inline void opcode90 (void) {
+  // 90 NOP
+}
+
+static inline void opcode91 (void) {
+  // 91 XCHG eCX eAX
+  oper1 = getreg16 (regcx);
+  putreg16 (regcx, getreg16 (regax) );
+  putreg16 (regax, oper1);
+}
+
+static inline void opcode92 (void) {
+  // 92 XCHG eDX eAX
+  oper1 = getreg16 (regdx);
+  putreg16 (regdx, getreg16 (regax) );
+  putreg16 (regax, oper1);
+}
+
+static inline void opcode93 (void) {
+  // 93 XCHG eBX eAX
+  oper1 = getreg16 (regbx);
+  putreg16 (regbx, getreg16 (regax) );
+  putreg16 (regax, oper1);
+}
+
+static inline void opcode94 (void) {
+  // 94 XCHG eSP eAX
+  oper1 = getreg16 (regsp);
+  putreg16 (regsp, getreg16 (regax) );
+  putreg16 (regax, oper1);
+}
+
+static inline void opcode95 (void) {
+  // 95 XCHG eBP eAX
+  oper1 = getreg16 (regbp);
+  putreg16 (regbp, getreg16 (regax) );
+  putreg16 (regax, oper1);
+}
+
+static inline void opcode96 (void) {
+  // 96 XCHG eSI eAX
+  oper1 = getreg16 (regsi);
+  putreg16 (regsi, getreg16 (regax) );
+  putreg16 (regax, oper1);
+}
+
+static inline void opcode97 (void) {
+  // 97 XCHG eDI eAX
+  oper1 = getreg16 (regdi);
+  putreg16 (regdi, getreg16 (regax) );
+  putreg16 (regax, oper1);
+}
+
+static inline void opcode98 (void) {
+  // 98 CBW
+  if ( (CPU_AL & 0x80) == 0x80) {
+    CPU_AH = 0xFF;
+  } else {
+    CPU_AH = 0;
+  }
+}
+
+static inline void opcode99 (void) {
+  // 99 CWD
+  if ( (CPU_AH & 0x80) == 0x80) {
+    putreg16 (regdx, 0xFFFF);
+  } else {
+    putreg16 (regdx, 0);
+  }
+}
+
+static inline void opcode9A (void) {
+  // 9A CALL Ap
+  oper1 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  oper2 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  push (segregs[regcs]);
+  push (ip);
+  ip = oper1;
+  segregs[regcs] = oper2;
+}
+
+static inline void opcode9B (void) {
+  // 9B WAIT
+}
+
+static inline void opcode9C (void) {
+  // 9C PUSHF
+  push (makeflagsword() | 0xF800);
+}
+
+static inline void opcode9D (void) {
+  // 9D POPF
+  temp16 = pop();
+  decodeflagsword (temp16);
+}
+
+static inline void opcode9E (void) {
+  // 9E SAHF
+  decodeflagsword ( (makeflagsword() & 0xFF00) | CPU_AH);
+}
+
+static inline void opcode9F (void) {
+  // 9F LAHF
+  CPU_AH = makeflagsword() & 0xFF;
+}
+
+static inline void opcodeA0 (void) {
+  // A0 MOV CPU_AL Ob
+  CPU_AL = getmem8 (useseg, getmem16 (segregs[regcs], ip) );
+  StepIP (2);
+}
+
+static inline void opcodeA1 (void) {
+  // A1 MOV eAX Ov
+  oper1 = getmem16 (useseg, getmem16 (segregs[regcs], ip) );
+  StepIP (2);
+  putreg16 (regax, oper1);
+}
+
+static inline void opcodeA2 (void) {
+  // A2 MOV Ob CPU_AL
+  putmem8 (useseg, getmem16 (segregs[regcs], ip), CPU_AL);
+  StepIP (2);
+}
+
+static inline void opcodeA3 (void) {
+  // A3 MOV Ov eAX
+  putmem16 (useseg, getmem16 (segregs[regcs], ip), getreg16 (regax) );
+  StepIP (2);
+}
+
+static inline void opcodeA4 (void) {
+  // A4 MOVSB
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+  putmem8 (segregs[reges], getreg16 (regdi), getmem8 (useseg, getreg16 (regsi) ) );
+  if (df) {
+    putreg16 (regsi, getreg16 (regsi) - 1);
+    putreg16 (regdi, getreg16 (regdi) - 1);
+  } else {
+    putreg16 (regsi, getreg16 (regsi) + 1);
+    putreg16 (regdi, getreg16 (regdi) + 1);
+  }
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+
+static inline void opcodeA5 (void) {
+  // A5 MOVSW
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+
+  putmem16 (segregs[reges], getreg16 (regdi), getmem16 (useseg, getreg16 (regsi) ) );
+  if (df) {
+    putreg16 (regsi, getreg16 (regsi) - 2);
+    putreg16 (regdi, getreg16 (regdi) - 2);
+  } else {
+    putreg16 (regsi, getreg16 (regsi) + 2);
+    putreg16 (regdi, getreg16 (regdi) + 2);
+   }
+
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+
+static inline void opcodeA6 (void) {
+  // A6 CMPSB
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+
+  oper1b = getmem8 (useseg, getreg16 (regsi) );
+  oper2b = getmem8 (segregs[reges], getreg16 (regdi) );
+  if (df) {
+    putreg16 (regsi, getreg16 (regsi) - 1);
+    putreg16 (regdi, getreg16 (regdi) - 1);
+  } else {
+    putreg16 (regsi, getreg16 (regsi) + 1);
+    putreg16 (regdi, getreg16 (regdi) + 1);
+  }
+  flag_sub8 (oper1b, oper2b);
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+  if ( (reptype == 1) && !zf) {
+    return;
+  } else if ( (reptype == 2) && (zf == 1) ) {
+    return;
+  }
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+
+static inline void opcodeA7 (void) {
+  // A7 CMPSW
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+  oper1 = getmem16 (useseg, getreg16 (regsi) );
+  oper2 = getmem16 (segregs[reges], getreg16 (regdi) );
+  if (df) {
+    putreg16 (regsi, getreg16 (regsi) - 2);
+    putreg16 (regdi, getreg16 (regdi) - 2);
+  } else {
+    putreg16 (regsi, getreg16 (regsi) + 2);
+    putreg16 (regdi, getreg16 (regdi) + 2);
+  }
+  flag_sub16 (oper1, oper2);
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+
+  if ( (reptype == 1) && !zf) {
+    return;
+  }
+
+  if ( (reptype == 2) && (zf == 1) ) {
+    return;
+  }
+
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+
+static inline void opcodeA8 (void) {
+  // A8 TEST CPU_AL Ib
+  oper1b = CPU_AL;
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  flag_log8 (oper1b & oper2b);
+}
+
+static inline void opcodeA9 (void) {
+  // A9 TEST eAX Iv
+  oper1 = getreg16 (regax);
+  oper2 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  flag_log16 (oper1 & oper2);
+}
+
+static inline void opcodeAA (void) {
+  // AA STOSB
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+  putmem8 (segregs[reges], getreg16 (regdi), CPU_AL);
+  if (df) {
+    putreg16 (regdi, getreg16 (regdi) - 1);
+  } else {
+    putreg16 (regdi, getreg16 (regdi) + 1);
+  }
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+
+static inline void opcodeAB (void) {
+  // AB STOSW
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+  putmem16 (segregs[reges], getreg16 (regdi), getreg16 (regax) );
+  if (df) {
+    putreg16 (regdi, getreg16 (regdi) - 2);
+  } else {
+    putreg16 (regdi, getreg16 (regdi) + 2);
+  }
+
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+
+static inline void opcodeAC (void) {
+  // AC LODSB
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+  CPU_AL = getmem8 (useseg, getreg16 (regsi) );
+  if (df) {
+    putreg16 (regsi, getreg16 (regsi) - 1);
+  } else {
+    putreg16 (regsi, getreg16 (regsi) + 1);
+  }
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+
+static inline void opcodeAD (void) {
+  // AD LODSW
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+  oper1 = getmem16 (useseg, getreg16 (regsi) );
+  putreg16 (regax, oper1);
+  if (df) {
+    putreg16 (regsi, getreg16 (regsi) - 2);
+  } else {
+    putreg16 (regsi, getreg16 (regsi) + 2);
+  }
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+
+  ip = firstip;
+}
+
+static inline void opcodeAE (void) {
+  // AE SCASB
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+  oper1b = getmem8 (segregs[reges], getreg16 (regdi) );
+  oper2b = CPU_AL;
+  flag_sub8 (oper1b, oper2b);
+  if (df) {
+    putreg16 (regdi, getreg16 (regdi) - 1);
+  } else {
+    putreg16 (regdi, getreg16 (regdi) + 1);
+  }
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+  if ( (reptype == 1) && !zf) {
+    return;
+  } else if ( (reptype == 2) && (zf == 1) ) {
+    return;
+  }
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+      return;
+  }
+  ip = firstip;
+}
+
+static inline void opcodeAF (void) {
+  // AF SCASW
+  if (reptype && (getreg16 (regcx) == 0) ) {
+    return;
+  }
+  oper1 = getmem16 (segregs[reges], getreg16 (regdi) );
+  oper2 = getreg16 (regax);
+  flag_sub16 (oper1, oper2);
+  if (df) {
+    putreg16 (regdi, getreg16 (regdi) - 2);
+  } else {
+    putreg16 (regdi, getreg16 (regdi) + 2);
+  }
+  if (reptype) {
+    putreg16 (regcx, getreg16 (regcx) - 1);
+  }
+  if ( (reptype == 1) && !zf) {
+    return;
+  } else if ( (reptype == 2) & (zf == 1) ) {
+    return;
+  }
+  totalexec++;
+  loopcount++;
+  if (!reptype) {
+    return;
+  }
+  ip = firstip;
+}
+
+static inline void opcodeB0 (void) {
+  // B0 MOV CPU_AL Ib
+  CPU_AL = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+}
+
+static inline void opcodeB1 (void) {
+  // B1 MOV CPU_CL Ib
+  CPU_CL = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+}
+
+static inline void opcodeB2 (void) {
+  // B2 MOV CPU_DL Ib
+  CPU_DL = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+}
+
+static inline void opcodeB3 (void) {
+  // B3 MOV CPU_BL Ib
+  CPU_BL = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+}
+
+static inline void opcodeB4 (void) {
+  // B4 MOV CPU_AH Ib
+  CPU_AH = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+}
+
+static inline void opcodeB5 (void) {
+  // B5 MOV CPU_CH Ib
+  CPU_CH = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+}
+
+static inline void opcodeB6 (void) {
+  // B6 MOV CPU_DH Ib
+  CPU_DH = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+}
+
+static inline void opcodeB7 (void) {
+  // B7 MOV CPU_BH Ib
+  CPU_BH = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+}
+
+static inline void opcodeB8 (void) {
+  // B8 MOV eAX Iv
+  oper1 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  putreg16 (regax, oper1);
+}
+
+static inline void opcodeB9 (void) {
+  // B9 MOV eCX Iv
+  oper1 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  putreg16 (regcx, oper1);
+}
+
+static inline void opcodeBA (void) {
+  // BA MOV eDX Iv
+  oper1 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  putreg16 (regdx, oper1);
+}
+
+static inline void opcodeBB (void) {
+  // BB MOV eBX Iv
+  oper1 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  putreg16 (regbx, oper1);
+}
+
+static inline void opcodeBC (void) {
+  // BC MOV eSP Iv
+  putreg16 (regsp, getmem16 (segregs[regcs], ip) );
+  StepIP (2);
+}
+
+static inline void opcodeBD (void) {
+  // BD MOV eBP Iv
+  putreg16 (regbp, getmem16 (segregs[regcs], ip) );
+  StepIP (2);
+}
+
+static inline void opcodeBE (void) {
+  // BE MOV eSI Iv
+  putreg16 (regsi, getmem16 (segregs[regcs], ip) );
+  StepIP (2);
+}
+
+static inline void opcodeBF (void) {
+  // BF MOV eDI Iv
+  putreg16 (regdi, getmem16 (segregs[regcs], ip) );
+  StepIP (2);
+}
+
+static inline void opcodeC0 (void) {
+  // C0 GRP2 byte imm8 (80186+)
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  writerm8 (rm, op_grp2_8 (oper2b) );
+}
+
+static inline void opcodeC1 (void) {
+  // C1 GRP2 word imm8 (80186+)
+  modregrm();
+  oper1 = readrm16 (rm);
+  oper2 = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  writerm16 (rm, op_grp2_16 ( (uint8_t) oper2) );
+}
+
+static inline void opcodeC2 (void) {
+  // C2 RET Iw
+  oper1 = getmem16 (segregs[regcs], ip);
+  ip = pop();
+  putreg16 (regsp, getreg16 (regsp) + oper1);
+}
+
+static inline void opcodeC3 (void) {
+  // C3 RET
+  ip = pop();
+}
+
+static inline void opcodeC4 (void) {
+  // C4 LES Gv Mp
+  modregrm();
+  getea (rm);
+  putreg16 (reg, read86 (ea) + read86 (ea + 1) * 256);
+  segregs[reges] = read86 (ea + 2) + read86 (ea + 3) * 256;
+}
+
+static inline void opcodeC5 (void) {
+  // C5 LDS Gv Mp
+  modregrm();
+  getea (rm);
+  putreg16 (reg, read86 (ea) + read86 (ea + 1) * 256);
+  segregs[regds] = read86 (ea + 2) + read86 (ea + 3) * 256;
+}
+
+static inline void opcodeC6 (void) {
+  // C6 MOV Eb Ib
+  modregrm();
+  writerm8 (rm, getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+}
+
+static inline void opcodeC7 (void) {
+  // C7 MOV Ev Iv
+  modregrm();
+  writerm16 (rm, getmem16 (segregs[regcs], ip) );
+  StepIP (2);
+}
+
+static inline void opcodeC8 (void) {
+  // C8 ENTER (80186+)
+  stacksize = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  nestlev = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  push (getreg16 (regbp) );
+  frametemp = getreg16 (regsp);
+  if (nestlev) {
+    for (temp16 = 1; temp16 < nestlev; temp16++) {
+      putreg16 (regbp, getreg16 (regbp) - 2);
+      push (getreg16 (regbp) );
+    }
+    push (getreg16 (regsp) );
+  }
+  putreg16 (regbp, frametemp);
+  putreg16 (regsp, getreg16 (regbp) - stacksize);
+}
+
+static inline void opcodeC9 (void) {
+  // C9 LEAVE (80186+)
+  putreg16 (regsp, getreg16 (regbp) );
+  putreg16 (regbp, pop() );
+}
+
+static inline void opcodeCA (void) {
+  // CA RETF Iw
+  oper1 = getmem16 (segregs[regcs], ip);
+  ip = pop();
+  segregs[regcs] = pop();
+  putreg16 (regsp, getreg16 (regsp) + oper1);
+}
+
+static inline void opcodeCB (void) {
+  // CB RETF
+  ip = pop();;
+  segregs[regcs] = pop();
+}
+
+static inline void opcodeCC (void) {
+  // CC INT 3
+  intcall86 (3);
+}
+
+static inline void opcodeCD (void) {
+  // CD INT Ib
+  oper1b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  intcall86 (oper1b);
+}
+
+static inline void opcodeCE (void) {
+  // CE INTO
+  if (of) {
+    intcall86 (4);
+  }
+}
+
+static inline void opcodeCF (void) {
+  // CF IRET
+  ip = pop();
+  segregs[regcs] = pop();
+  decodeflagsword (pop() );
+   // if (net.enabled) net.canrecv = 1;
+
+}
+
+static inline void opcodeD0 (void) {
+  // D0 GRP2 Eb 1
+  modregrm();
+  oper1b = readrm8 (rm);
+  writerm8 (rm, op_grp2_8 (1) );
+}
+
+static inline void opcodeD1 (void) {
+  // D1 GRP2 Ev 1
+  modregrm();
+  oper1 = readrm16 (rm);
+  writerm16 (rm, op_grp2_16 (1) );
+}
+
+static inline void opcodeD2 (void) {
+  // D2 GRP2 Eb CPU_CL
+  modregrm();
+  oper1b = readrm8 (rm);
+  writerm8 (rm, op_grp2_8 (CPU_CL) );
+}
+
+static inline void opcodeD3 (void) {
+  // D3 GRP2 Ev CPU_CL
+  modregrm();
+  oper1 = readrm16 (rm);
+  writerm16 (rm, op_grp2_16 (CPU_CL) );
+}
+
+static inline void opcodeD4 (void) {
+  // D4 AAM I0
+  oper1 = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  if (!oper1) {
+    intcall86 (0);
+      return;
+  } // division by zero
+
+  CPU_AH = (CPU_AL / oper1) & 255;
+  CPU_AL = (CPU_AL % oper1) & 255;
+  flag_szp16 (getreg16 (regax) );
+}
+
+static inline void opcodeD5 (void) {
+  // D5 AAD I0
+  oper1 = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  CPU_AL = (CPU_AH * oper1 + CPU_AL) & 255;
+  CPU_AH = 0;
+  flag_szp16 (CPU_AH * oper1 + CPU_AL);
+  sf = 0;
+}
+
+static inline void opcodeD6 (void) {
+  // D6 XLAT on V20/V30, SALC on 8086/8088
+#ifndef CPU_V20
+  CPU_AL = cf ? 0xFF : 0x00;
+#endif
+}
+
+static inline void opcodeD7 (void) {
+  // D7 XLAT
+  CPU_AL = read86(useseg * 16 + (CPU_BX) + CPU_AL);
+}
+
+static inline void opcodeD8 (void) {
+  // escape to x87 FPU (unsupported)
+  modregrm();
+}
+static inline void opcodeD9 (void) {
+  // escape to x87 FPU (unsupported)
+  modregrm();
+}
+static inline void opcodeDA (void) {
+  // escape to x87 FPU (unsupported)
+  modregrm();
+}
+static inline void opcodeDB (void) {
+  // escape to x87 FPU (unsupported)
+  modregrm();
+}
+static inline void opcodeDC (void) {
+  // escape to x87 FPU (unsupported)
+  modregrm();
+}
+static inline void opcodeDD (void) {
+  // escape to x87 FPU (unsupported)
+  modregrm();
+}
+static inline void opcodeDE (void) {
+  // escape to x87 FPU (unsupported)
+  modregrm();
+}
+static inline void opcodeDF (void) {
+  // escape to x87 FPU (unsupported)
+  modregrm();
+}
+
+static inline void opcodeE0 (void) {
+  // E0 LOOPNZ Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  putreg16 (regcx, getreg16 (regcx) - 1);
+  if ( (getreg16 (regcx) ) && !zf) {
+    ip = ip + temp16;
+  }
+}
+
+static inline void opcodeE1 (void) {
+  // E1 LOOPZ Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  putreg16 (regcx, (getreg16 (regcx) ) - 1);
+  if ( (getreg16 (regcx) ) && (zf == 1) ) {
+    ip = ip + temp16;
+  }
+}
+
+static inline void opcodeE2 (void) {
+  // E2 LOOP Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  putreg16 (regcx, (getreg16 (regcx) ) - 1);
+  if (getreg16 (regcx) ) {
+    ip = ip + temp16;
+  }
+}
+
+static inline void opcodeE3 (void) {
+  // E3 JCXZ Jb
+  temp16 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  if (! (getreg16 (regcx) ) ) {
+    ip = ip + temp16;
+  }
+}
+
+static inline void opcodeE4 (void) {
+  // E4 IN CPU_AL Ib
+  oper1b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  CPU_AL = (uint8_t) portin (oper1b);
+}
+
+static inline void opcodeE5 (void) {
+  // E5 IN eAX Ib
+  oper1b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  putreg16 (regax, portin16 (oper1b) );
+}
+
+static inline void opcodeE6 (void) {
+  // E6 OUT Ib CPU_AL
+  oper1b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  portout (oper1b, CPU_AL);
+}
+
+static inline void opcodeE7 (void) {
+  // E7 OUT Ib eAX
+  oper1b = getmem8 (segregs[regcs], ip);
+  StepIP (1);
+  portout16 (oper1b, (getreg16 (regax) ) );
+}
+
+static inline void opcodeE8 (void) {
+  // E8 CALL Jv
+  oper1 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  push (ip);
+  ip = ip + oper1;
+}
+
+static inline void opcodeE9 (void) {
+  // E9 JMP Jv
+  oper1 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  ip = ip + oper1;
+}
+
+static inline void opcodeEA (void) {
+  // EA JMP Ap
+  oper1 = getmem16 (segregs[regcs], ip);
+  StepIP (2);
+  oper2 = getmem16 (segregs[regcs], ip);
+  ip = oper1;
+  segregs[regcs] = oper2;
+}
+
+static inline void opcodeEB (void) {
+  // EB JMP Jb
+  oper1 = signext (getmem8 (segregs[regcs], ip) );
+  StepIP (1);
+  ip = ip + oper1;
+}
+
+static inline void opcodeEC (void) {
+  // EC IN CPU_AL regdx
+  oper1 = (getreg16 (regdx) );
+  CPU_AL = (uint8_t) portin (oper1);
+}
+
+static inline void opcodeED (void) {
+  // ED IN eAX regdx
+  oper1 = (getreg16 (regdx) );
+  putreg16 (regax, portin16 (oper1) );
+}
+
+static inline void opcodeEE (void) {
+  // EE OUT regdx CPU_AL
+  oper1 = (getreg16 (regdx) );
+  portout (oper1, CPU_AL);
+}
+
+static inline void opcodeEF (void) {
+  // EF OUT regdx eAX
+  oper1 = (getreg16 (regdx) );
+  portout16 (oper1, (getreg16 (regax) ) );
+}
+
+static inline void opcodeF0 (void) {
+  // F0 LOCK
+}
+
+static inline void opcodeF4 (void) {
+  // F4 HLT
+  ip--;
+}
+
+static inline void opcodeF5 (void) {
+  // F5 CMC
+  if (!cf) {
+      cf = 1;
+  } else {
+    cf = 0;
+  }
+}
+
+static inline void opcodeF6 (void) {
+  // F6 GRP3a Eb
+  modregrm();
+  oper1b = readrm8 (rm);
+  op_grp3_8();
+  if ( (reg > 1) && (reg < 4) ) {
+    writerm8 (rm, res8);
+  }
+}
+
+static inline void opcodeF7 (void) {
+  // F7 GRP3b Ev
+  modregrm();
+  oper1 = readrm16 (rm);
+  op_grp3_16();
+  if ( (reg > 1) && (reg < 4) ) {
+    writerm16 (rm, res16);
+  }
+}
+
+static inline void opcodeF8 (void) {
+  // F8 CLC
+  cf = 0;
+}
+
+static inline void opcodeF9 (void) {
+  // F9 STC
+  cf = 1;
+}
+
+static inline void opcodeFA (void) {
+  // FA CLI
+  ifl = 0;
+}
+
+static inline void opcodeFB (void) {
+  // FB STI
+  ifl = 1;
+}
+
+static inline void opcodeFC (void) {
+  // FC CLD
+  df = 0;
+}
+
+static inline void opcodeFD (void) {
+  // FD STD
+  df = 1;
+}
+
+static inline void opcodeFE (void) {
+  // FE GRP4 Eb
+  modregrm();
+  oper1b = readrm8 (rm);
+  oper2b = 1;
+  if (!reg) {
+    tempcf = cf;
+    res8 = oper1b + oper2b;
+    flag_add8 (oper1b, oper2b);
+    cf = tempcf;
+    writerm8 (rm, res8);
+  } else {
+    tempcf = cf;
+    res8 = oper1b - oper2b;
+    flag_sub8 (oper1b, oper2b);
+    cf = tempcf;
+    writerm8 (rm, res8);
+  }
+}
+
+static inline void opcodeFF (void) {
+  // FF GRP5 Ev
+  modregrm();
+  oper1 = readrm16 (rm);
+  op_grp5();
+}
+
+#ifndef CPU_V20
+static inline void opcode60 (void) {  //unknown
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode61 (void) {  //unknown
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode62 (void) {  //unknown
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode68 (void) {  //unknown
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode69 (void) {  //unknown
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode6A (void) {  //unknown
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode6B (void) {  //unknown
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode6C (void) {  //unknown
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode6D (void) {  //unknown
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode6E (void) {  //unknown
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode6F (void) {  //unknown
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+#endif
+
+static inline void opcode26 (void) {  //unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode2E (void) {  ///unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode36 (void) {  ///unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode3E (void) {  ///unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode63 (void) {  ///unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode64 (void) {  ///unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode65 (void) {  ///unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode66 (void) {  ///unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcode67 (void) {  ///unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcodeF1 (void) {  ///unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcodeF2 (void) {  ///unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+static inline void opcodeF3 (void) {  ///unknown
+#ifdef CPU_V20
+  intcall86 (6);  // trip invalid opcode exception (this occurs on the 80186+, 8086/8088 CPUs treat them as NOPs.
+                  // technically they aren't exactly like NOPs in most cases, but for our pursoses, that's accurate enough.
+#endif
+#if DEBUG > 0
+    printf ("Illegal opcode: %02X @ %04X:%04X\n", opcode, savecs, saveip);
+#endif
+}
+
+typedef void (*Handler)(void);    // A pointer to a handler function
+static Handler jump_table[256] = {
+  opcode00,opcode01,opcode02,opcode03,opcode04,opcode05,opcode06,opcode07,opcode08,opcode09,opcode0A,opcode0B,opcode0C,opcode0D,opcode0E,opcode0F,
+  opcode10,opcode11,opcode12,opcode13,opcode14,opcode15,opcode16,opcode17,opcode18,opcode19,opcode1A,opcode1B,opcode1C,opcode1D,opcode1E,opcode1F,
+  opcode20,opcode21,opcode22,opcode23,opcode24,opcode25,opcode26,opcode27,opcode28,opcode29,opcode2A,opcode2B,opcode2C,opcode2D,opcode2E,opcode2F,
+  opcode30,opcode31,opcode32,opcode33,opcode34,opcode35,opcode36,opcode37,opcode38,opcode39,opcode3A,opcode3B,opcode3C,opcode3D,opcode3E,opcode3F,
+  opcode40,opcode41,opcode42,opcode43,opcode44,opcode45,opcode46,opcode47,opcode48,opcode49,opcode4A,opcode4B,opcode4C,opcode4D,opcode4E,opcode4F,
+  opcode50,opcode51,opcode52,opcode53,opcode54,opcode55,opcode56,opcode57,opcode58,opcode59,opcode5A,opcode5B,opcode5C,opcode5D,opcode5E,opcode5F,
+  opcode60,opcode61,opcode62,opcode63,opcode64,opcode65,opcode66,opcode67,opcode68,opcode69,opcode6A,opcode6B,opcode6C,opcode6D,opcode6E,opcode6F,
+  opcode70,opcode71,opcode72,opcode73,opcode74,opcode75,opcode76,opcode77,opcode78,opcode79,opcode7A,opcode7B,opcode7C,opcode7D,opcode7E,opcode7F,
+  opcode80,opcode81,opcode82,opcode83,opcode84,opcode85,opcode86,opcode87,opcode88,opcode89,opcode8A,opcode8B,opcode8C,opcode8D,opcode8E,opcode8F,
+  opcode90,opcode91,opcode92,opcode93,opcode94,opcode95,opcode96,opcode97,opcode98,opcode99,opcode9A,opcode9B,opcode9C,opcode9D,opcode9E,opcode9F,
+  opcodeA0,opcodeA1,opcodeA2,opcodeA3,opcodeA4,opcodeA5,opcodeA6,opcodeA7,opcodeA8,opcodeA9,opcodeAA,opcodeAB,opcodeAC,opcodeAD,opcodeAE,opcodeAF,
+  opcodeB0,opcodeB1,opcodeB2,opcodeB3,opcodeB4,opcodeB5,opcodeB6,opcodeB7,opcodeB8,opcodeB9,opcodeBA,opcodeBB,opcodeBC,opcodeBD,opcodeBE,opcodeBF,
+  opcodeC0,opcodeC1,opcodeC2,opcodeC3,opcodeC4,opcodeC5,opcodeC6,opcodeC7,opcodeC8,opcodeC9,opcodeCA,opcodeCB,opcodeCC,opcodeCD,opcodeCE,opcodeCF,
+  opcodeD0,opcodeD1,opcodeD2,opcodeD3,opcodeD4,opcodeD5,opcodeD6,opcodeD7,opcodeD8,opcodeD9,opcodeDA,opcodeDB,opcodeDC,opcodeDD,opcodeDE,opcodeDF,
+  opcodeE0,opcodeE1,opcodeE2,opcodeE3,opcodeE4,opcodeE5,opcodeE6,opcodeE7,opcodeE8,opcodeE9,opcodeEA,opcodeEB,opcodeEC,opcodeED,opcodeEE,opcodeEF,
+  opcodeF0,opcodeF1,opcodeF2,opcodeF3,opcodeF4,opcodeF5,opcodeF6,opcodeF7,opcodeF8,opcodeF9,opcodeFA,opcodeFB,opcodeFC,opcodeFD,opcodeFE,opcodeFF
+};
+
+void DOOPCODE(uint8_t opcode) {
+  jump_table[opcode]();
+}
 void exec86(uint32_t execloops) {
     uint8_t docontinue;
-    static uint16_t firstip;
     static uint16_t trap_toggle = 0;
 
     //counterticks = (uint64_t) ( (double) timerfreq / (double) 65536.0);
     //tickssource();
-    for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
+    for (loopcount = 0; loopcount < execloops; loopcount++) {
         //if ((totalexec & 256) == 0)
         if (trap_toggle) {
             intcall86(1);
@@ -1930,6 +4332,8 @@ void exec86(uint32_t execloops) {
 
         totalexec++;
 
+        jump_table[opcode]();
+#if 0
         switch (opcode) {
             case 0x0: /* 00 ADD Eb Gb */
                 modregrm();
@@ -4030,6 +6434,7 @@ void exec86(uint32_t execloops) {
                 intcall86(6);
                 break;
         }
+#endif
     }
 }
 
