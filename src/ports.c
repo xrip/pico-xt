@@ -25,6 +25,7 @@ static uint8_t latchReadRGB = 0, latchReadPal = 0;
 
 #define ega_plane_size 16000
 uint16_t ega_plane_offset = 0;
+bool vga_planar_mode = false;
 static uint16_t port3C4 = 0;
 static uint16_t port3C5 = 0;
 static uint8_t port3C0 = 0xff;
@@ -152,6 +153,9 @@ void portout(uint16_t portnum, uint16_t value) {
                     default:
                         ega_plane_offset = 0;
                 }
+            }
+            if (port3C4 == 0x04) {
+                vga_planar_mode = port3C5 & 6;
             }
             break;
         case 0x3C7: //color index register (read operations)

@@ -95,6 +95,7 @@ extern uint8_t videomode;
 extern uint8_t speakerenabled;
 extern int timer_period;
 extern uint16_t ega_plane_offset;
+extern bool vga_planar_mode;
 
 #if PICO_ON_DEVICE
 extern pwm_config config;
