@@ -4043,9 +4043,10 @@ static void write8video(uint32_t addr32, uint8_t v) {
     }
     VIDEORAM[(addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = v;
 }
-
+#ifdef XMS_UMB
 static void write8umb_psram(uint32_t addr32, uint8_t v) {
     if (umb_in_use(addr32)) {
+        //char tmp[80]; sprintf(tmp, "UMB W8 %08X <- %02X", addr32, v); logMsg(tmp);
         write8psram(addr32, v);
     }
 }
@@ -4055,7 +4056,7 @@ static void write8umb_swap(uint32_t addr32, uint8_t v) {
         ram_page_write(addr32, v);
     }
 }
-
+#endif
 static void write8hma_psram(uint32_t addr32, uint8_t v) {
     if (a20_line_open) {
         // A20 line is ON
@@ -4141,6 +4142,7 @@ static void write16video(uint32_t addr32, uint16_t v) {
 #ifdef XMS_UMB
 static void write16umb_psram(uint32_t addr32, uint16_t v) {
     if (umb_in_use(addr32)) {
+        //char tmp[80]; sprintf(tmp, "UMB W16 %08X <- %04X", addr32, v); logMsg(tmp);
         write16psram(addr32, v);
     }
 }
@@ -4251,7 +4253,9 @@ INLINE uint8_t read86rom(uint32_t addr32) {
 #ifdef XMS_UMB
 uint8_t read8umb_psram(uint32_t addr32) {
     if (umb_in_use(addr32)) {
-        return read8psram(addr32);
+        uint8_t v = read8psram(addr32);
+        //char tmp[80]; sprintf(tmp, "UMB R8 %08X -> %02X", addr32, v); logMsg(tmp);
+        return v;
     }
     return read86rom(addr32);
 }
@@ -4355,7 +4359,9 @@ uint16_t read16umb_psram(uint32_t addr32) {
 
 uint16_t read16umb_swap(uint32_t addr32) {
     if (umb_in_use(addr32)) {
-        return ram_page_read16(addr32);
+        uint16_t v = ram_page_read16(addr32);
+        //char tmp[80]; sprintf(tmp, "UMB R16 %08X -> %04X", addr32, v); logMsg(tmp);
+        return v;
     }
     return read86rom16(addr32);
 }
