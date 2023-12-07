@@ -18,6 +18,7 @@
 */
 
 #include "emulator.h"
+#include "ram.h"
 
 #if PICO_ON_DEVICE
 
@@ -4232,20 +4233,6 @@ static uint16_t read16nothng(uint32_t addr32) {
     return 0;
 }
 
-static __inline uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
-    arr += addr32 - base_addr;
-    register uint16_t b1 = *arr++;
-    register uint16_t b0 = *arr;
-    return b1 | (b0 << 8);
-}
-
-static __inline uint16_t read16arr0(uint8_t* arr, uint32_t addr32) {
-    arr += addr32;
-    register uint16_t b1 = *arr++;
-    register uint16_t b0 = *arr;
-    return b1 | (b0 << 8);
-}
-
 static inline uint16_t read16video(uint32_t addr32) {
     return read16arr0(VIDEORAM, (ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE);
 }
@@ -4434,3 +4421,7 @@ uint16_t readw86(uint32_t addr32) {
     }
     return read16_funtions[addr32 >> 15](addr32);
 }
+
+uint8_t* pBIOS() { return BIOS; }
+uint8_t* pBASICL() { return BASICL; }
+uint8_t* pBASICH() { return BASICH; }

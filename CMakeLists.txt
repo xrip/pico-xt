@@ -201,7 +201,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 #        #EMS_DEBUG=1
 #
         XMS_DRIVER=1
-        XMS_OVER_HMA_KB=3072
+        XMS_OVER_HMA_KB=1024
         XMS_UMB=1
         XMS_HMA=1
         HANDLE_REBOOT
