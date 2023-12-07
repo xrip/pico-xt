@@ -826,15 +826,15 @@ static void intcall86(uint8_t intnum) {
                         for (int i = 0; i < 256; i++) {
                             graphics_set_palette(i, vga_palette[i]);
                         }
-                        graphics_set_mode(EGA_320x200x16);
-                        //port3D8 = port3D8 & 0xFE;
+                        graphics_set_mode(EGA_320x200x16x4);
+                        port3D8 = port3D8 & 0xFE;
                         break;
                         case 0x13:
                             graphics_set_buffer(VIDEORAM, 320, 200);
                             for (int i = 0; i < 256; i++) {
                                 graphics_set_palette(i, vga_palette[i]);
                             }
-                            graphics_set_mode(VGA_320x200x256);
+                            graphics_set_mode(vga_planar_mode ? VGA_320x200x256x4 : VGA_320x200x256);
                             port3D8 = port3D8 & 0xFE;
                             break;
                     }
