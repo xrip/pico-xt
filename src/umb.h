@@ -18,4 +18,6 @@ void init_umb();
 bool umb_in_use(uint32_t addr32);
 uint16_t umb_allocate(uint16_t* psz, uint16_t* err);
 uint16_t umb_deallocate(uint16_t* seg, uint16_t* err);
+uint8_t read8umb_psram(uint32_t addr32);
+uint8_t read8umb_swap(uint32_t addr32);
 #endif

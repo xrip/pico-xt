@@ -4016,28 +4016,13 @@ void exec86(uint32_t execloops) {
     }
 }
 
-// type of 8-bit write function pointer
-typedef void (*write_fn_ptr)(uint32_t, uint8_t);
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static write_fn_ptr write_funtions[256] = { 0 };
 
 static inline void write8video(uint32_t addr32, uint8_t v) {
     VIDEORAM[(ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = v;
 }
-#ifdef XMS_UMB
-static void write8umb_psram(uint32_t addr32, uint8_t v) {
-    if (umb_in_use(addr32)) {
-        //char tmp[80]; sprintf(tmp, "UMB W8 %08X <- %02X", addr32, v); logMsg(tmp);
-        write8psram(addr32, v);
-    }
-}
 
-static void write8umb_swap(uint32_t addr32, uint8_t v) {
-    if (umb_in_use(addr32)) {
-        ram_page_write(addr32, v);
-    }
-}
-#endif
 static void write8hma_psram(uint32_t addr32, uint8_t v) {
     if (a20_line_open) {
         // A20 line is ON
@@ -4101,9 +4086,6 @@ static void write8low_swap(uint32_t addr32, uint8_t v) {
     }
 }
 
-
-// type of 16-bit write function pointer
-typedef void (*write16_fn_ptr)(uint32_t, uint16_t);
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static write16_fn_ptr write16_funtions[256] = { 0 };
 
@@ -4116,22 +4098,7 @@ static inline void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32,
 static inline void write16video(uint32_t addr32, uint16_t v) {
     write16arr(VIDEORAM, 0, (ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, v);
 }
-#ifdef XMS_DRIVER
-#ifdef XMS_UMB
-static void write16umb_psram(uint32_t addr32, uint16_t v) {
-    if (umb_in_use(addr32)) {
-        //char tmp[80]; sprintf(tmp, "UMB W16 %08X <- %04X", addr32, v); logMsg(tmp);
-        write16psram(addr32, v);
-    }
-}
 
-static void write16umb_swap(uint32_t addr32, uint16_t v) {
-    if (umb_in_use(addr32)) {
-        ram_page_write16(addr32, v);
-    }
-}
-#endif
-#endif
 static void write16hma_psram(uint32_t addr32, uint16_t v) {
     if (a20_line_open) {
         // A20 line is ON
@@ -4195,8 +4162,6 @@ static void write16low_swap(uint32_t addr32, uint16_t v) {
     }
 }
 
-// type of 8-bit read function pointer
-typedef uint8_t (*read_fn_ptr)(uint32_t);
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static read_fn_ptr read_funtions[256] = { 0 };
 
@@ -4224,25 +4189,6 @@ static inline uint8_t read86rom(uint32_t addr32) {
     return 0;
 }
 
-#ifdef XMS_DRIVER
-#ifdef XMS_UMB
-uint8_t read8umb_psram(uint32_t addr32) {
-    if (umb_in_use(addr32)) {
-        uint8_t v = read8psram(addr32);
-        //char tmp[80]; sprintf(tmp, "UMB R8 %08X -> %02X", addr32, v); logMsg(tmp);
-        return v;
-    }
-    return read86rom(addr32);
-}
-
-uint8_t read8umb_swap(uint32_t addr32) {
-    if (umb_in_use(addr32)) {
-        return ram_page_read(addr32);
-    }
-    return read86rom(addr32);
-}
-#endif
-#endif
 uint8_t read8hma_psram(uint32_t addr32) {
     if (a20_line_open) {
         return read8psram(addr32);
@@ -4278,8 +4224,7 @@ uint8_t read8emm_swap(uint32_t addr32) {
     return read86rom(addr32);
 }
 #endif
-// type of 16-bit read function pointer
-typedef uint16_t (*read16_fn_ptr)(uint32_t);
+
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static read16_fn_ptr read16_funtions[256] = { 0 };
 
@@ -4320,25 +4265,7 @@ static inline uint16_t read86rom16(uint32_t addr32) {
     }
     return 0;
 }
-#ifdef XMS_DRIVER
-#ifdef XMS_UMB
-uint16_t read16umb_psram(uint32_t addr32) {
-    if (umb_in_use(addr32)) {
-        return read16psram(addr32);
-    }
-    return read86rom16(addr32);
-}
 
-uint16_t read16umb_swap(uint32_t addr32) {
-    if (umb_in_use(addr32)) {
-        uint16_t v = ram_page_read16(addr32);
-        //char tmp[80]; sprintf(tmp, "UMB R16 %08X -> %04X", addr32, v); logMsg(tmp);
-        return v;
-    }
-    return read86rom16(addr32);
-}
-#endif
-#endif
 uint16_t read16hma_psram(uint32_t addr32) {
     if (a20_line_open) {
         return read16psram(addr32);
@@ -4398,21 +4325,12 @@ void init_cpu_addresses_map() {
         read_funtions   [ba] = read8video  ;
         read16_funtions [ba] = read16video ;
     }
-#ifdef XMS_DRIVER
-  #ifdef XMS_UMB
-    // UMB_START_ADDRESS == VIDEORAM_END32
-    for (uint8_t ba = (VIDEORAM_END32 >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
-        write_funtions  [ba] = PSRAM_AVAILABLE ? write8umb_psram  : write8umb_swap ;
-        write16_funtions[ba] = PSRAM_AVAILABLE ? write16umb_psram : write16umb_swap;
-        read_funtions   [ba] = PSRAM_AVAILABLE ? read8umb_psram   : read8umb_swap  ;
-        read16_funtions [ba] = PSRAM_AVAILABLE ? read16umb_psram  : read16umb_swap  ;
-    }
-  #else
+    // ROM
     for (uint8_t ba = (VIDEORAM_END32 >> 15); ba <= (HMA_START_ADDRESS >> 15); ++ba) {
         read_funtions   [ba] = read86rom;
         read16_funtions [ba] = read86rom16;
     }
-  #endif
+#ifdef XMS_DRIVER
   #ifdef XMS_HMA
     for (uint8_t ba = (HMA_START_ADDRESS >> 15); ba <= (BASE_XMS_ADDR >> 15); ++ba) {
         write_funtions  [ba] = PSRAM_AVAILABLE ? write8hma_psram  : write8hma_swap ;
@@ -4466,6 +4384,14 @@ void init_cpu_addresses_map() {
         write16_funtions[ba] = write16low;
     }
 #endif
+}
+
+void update_segment_map(uint16_t seg, write_fn_ptr p8w, write16_fn_ptr p16w, read_fn_ptr p8r, read16_fn_ptr p16r) {
+    uint8_t ba = (seg >> 11);
+    write_funtions  [ba] = p8w  ? p8w  : write8nothing ;
+    write16_funtions[ba] = p16w ? p16w : write16nothing;
+    read_funtions   [ba] = p8r  ? p8r  : read86rom     ;
+    read16_funtions [ba] = p16r ? p16r : read86rom16   ;
 }
 
 void write86(uint32_t addr32, uint8_t v) {
