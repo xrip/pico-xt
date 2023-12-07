@@ -162,7 +162,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         USE_ZONE_FOR_MALLOC=1
 
         PICO_DEFAULT_UART_RX_PIN=-1
-        PICO_DEFAULT_UART_TX_PIN=0
+        PICO_DEFAULT_UART_TX_PIN=17
 
         # SDCARD
         SDCARD_PIN_SPI0_CS=5
@@ -210,7 +210,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
         #ROM_DRIVE_B=1
 
-        DMA_8237
+        #DMA_8237
 )
 
 
