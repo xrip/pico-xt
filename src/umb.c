@@ -1,4 +1,27 @@
 #include "umb.h"
+#include "ram_page.h"
+#include "ram.h"
+
+#if PICO_ON_DEVICE
+  #include "psram_spi.h"
+#else
+static uint8_t read8psram(uint32_t addr32) {
+    return EXTRAM[addr32];
+}
+
+static uint16_t read16psram(uint32_t addr32) {
+    return (EXTRAM[addr32] + EXTRAM[addr32+1] << 8);
+}
+
+static void write8psram(uint32_t addr32, uint8_t value) {
+    EXTRAM[addr32] = value;
+}
+static void write16psram(uint32_t addr32, uint16_t value) {
+    EXTRAM[addr32] = value & 0xFF;
+    EXTRAM[addr32] = value >> 8;
+}
+#endif
+extern bool PSRAM_AVAILABLE;
 
 #ifdef XMS_UMB
 typedef struct umb {
@@ -26,11 +49,6 @@ void init_umb() {
         }
     }
 }
-
-extern bool PSRAM_AVAILABLE;
-#include "psram_spi.h"
-#include "ram_page.h"
-#include "ram.h"
 
 static void write8umb_psram(uint32_t addr32, uint8_t v) {
     if (addr32 <= 0xFE000UL) {
@@ -167,5 +185,4 @@ uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
     *err = XMS_ERROR_CODE;
     return 0x00B2; // invalid seg
 }
-
 #endif
