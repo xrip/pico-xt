@@ -21,25 +21,27 @@ void init_umb() {
         umb_t *p = &umb_blocks[i];
         if(p->allocated) {
             p->allocated = false;
+            update_segment_map(p->seg, 0, 0, 0, 0);
         }
     }
 }
 
-bool umb_in_use(uint32_t addr32) {
-    uint16_t paragraph = addr32 >> 4;
-    for (int i = 0; i < UMB_BLOCKS; ++i) {
-        umb_t *p = &umb_blocks[i];
-        if(p->allocated && p->seg <= paragraph && p->seg + p->sz > paragraph)
-            return true;
-    }
-    return false;
-}
+extern bool PSRAM_AVAILABLE;
+#include "psram_spi.h"
+#include "ram_page.h"
 
 uint16_t umb_allocate(uint16_t* psz, uint16_t* err) {
     for (int i = 0; i < UMB_BLOCKS; ++i) {
         umb_t *p = &umb_blocks[i];
         if(!p->allocated && p->sz >= *psz) {
             p->allocated = true;
+            update_segment_map(
+                p->seg,
+                PSRAM_AVAILABLE ? write8psram  : ram_page_write  ,
+                PSRAM_AVAILABLE ? write16psram : ram_page_write16,
+                PSRAM_AVAILABLE ? read8psram   : ram_page_read   ,
+                PSRAM_AVAILABLE ? read16psram  : ram_page_read16
+            );
             *psz = p->sz;
             *err = XMS_SUCCESS_CODE;
             return p->seg;
@@ -62,6 +64,7 @@ uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
         umb_t *p = &umb_blocks[i];
         if(p->allocated && p->seg >= *seg) {
             p->allocated = false;
+            update_segment_map(p->seg, 0, 0, 0, 0);
             *err = XMS_SUCCESS_CODE;
             return 0x0000;
         }
@@ -69,4 +72,5 @@ uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
     *err = XMS_ERROR_CODE;
     return 0x00B2; // invalid seg
 }
+
 #endif

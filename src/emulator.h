@@ -290,3 +290,13 @@ extern struct i8253_s {
 void notify_a20_line_state_changed(bool v);
 bool is_a20_line_open();
 void ports_reboot();
+// type of 8-bit write function pointer
+typedef void (*write_fn_ptr)(uint32_t, uint8_t);
+// type of 16-bit write function pointer
+typedef void (*write16_fn_ptr)(uint32_t, uint16_t);
+// type of 8-bit read function pointer
+typedef uint8_t (*read_fn_ptr)(uint32_t);
+// type of 16-bit read function pointer
+typedef uint16_t (*read16_fn_ptr)(uint32_t);
+// replace RAM mapping access function
+void update_segment_map(uint16_t seg, write_fn_ptr p8w, write16_fn_ptr p16w, read_fn_ptr p8r, read16_fn_ptr p16r);
