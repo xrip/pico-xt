@@ -1331,7 +1331,7 @@ INLINE void op_div8(uint16_t valdiv, uint8_t divisor) {
         return;
     }
 
-    regs.byteregs[regah] = valdiv % (uint16_t)divisor;
+    CPU_AH = valdiv % (uint16_t)divisor;
     CPU_AL = valdiv / (uint16_t)divisor;
 }
 
@@ -1364,7 +1364,7 @@ INLINE void op_idiv8(uint16_t valdiv, uint8_t divisor) {
         d2 = (~d2 + 1) & 0xff;
     }
 
-    regs.byteregs[regah] = (uint8_t)d2;
+    CPU_AH = (uint8_t)d2;
     CPU_AL = (uint8_t)d1;
 }
 
@@ -1397,7 +1397,7 @@ INLINE void op_grp3_8() {
             temp1 = (uint32_t)oper1b * (uint32_t)CPU_AL;
             CPU_AX = temp1 & 0xFFFF;
             flag_szp8((uint8_t)temp1);
-            if (regs.byteregs[regah]) {
+            if (CPU_AH) {
                 cf = 1;
                 of = 1;
             }
@@ -1421,7 +1421,7 @@ INLINE void op_grp3_8() {
 
             temp3 = (temp1 * temp2) & 0xFFFF;
             CPU_AX = temp3 & 0xFFFF;
-            if (regs.byteregs[regah]) {
+            if (CPU_AH) {
                 cf = 1;
                 of = 1;
             }
@@ -2365,7 +2365,7 @@ void exec86(uint32_t execloops) {
             case 0x37: /* 37 AAA ASCII */
                 if (((CPU_AL & 0xF) > 9) || (af == 1)) {
                     CPU_AL = CPU_AL + 6;
-                    regs.byteregs[regah] = regs.byteregs[regah] + 1;
+                    CPU_AH = CPU_AH + 1;
                     af = 1;
                     cf = 1;
                 }
@@ -2422,7 +2422,7 @@ void exec86(uint32_t execloops) {
             case 0x3F: /* 3F AAS ASCII */
                 if (((CPU_AL & 0xF) > 9) || (af == 1)) {
                     CPU_AL = CPU_AL - 6;
-                    regs.byteregs[regah] = regs.byteregs[regah] - 1;
+                    CPU_AH = CPU_AH - 1;
                     af = 1;
                     cf = 1;
                 }
@@ -3184,15 +3184,15 @@ void exec86(uint32_t execloops) {
 
             case 0x98: /* 98 CBW */
                 if ((CPU_AL & 0x80) == 0x80) {
-                    regs.byteregs[regah] = 0xFF;
+                    CPU_AH = 0xFF;
                 }
                 else {
-                    regs.byteregs[regah] = 0;
+                    CPU_AH = 0;
                 }
                 break;
 
             case 0x99: /* 99 CWD */
-                if ((regs.byteregs[regah] & 0x80) == 0x80) {
+                if ((CPU_AH & 0x80) == 0x80) {
                     CPU_DX = 0xFFFF;
                 }
                 else {
@@ -3224,11 +3224,11 @@ void exec86(uint32_t execloops) {
                 break;
 
             case 0x9E: /* 9E SAHF */
-                decodeflagsword((makeflagsword() & 0xFF00) | regs.byteregs[regah]);
+                decodeflagsword((makeflagsword() & 0xFF00) | CPU_AH);
                 break;
 
             case 0x9F: /* 9F LAHF */
-                regs.byteregs[regah] = makeflagsword() & 0xFF;
+                CPU_AH = makeflagsword() & 0xFF;
                 break;
 
             case 0xA0: /* A0 MOV CPU_AL Ob */
@@ -3592,8 +3592,8 @@ void exec86(uint32_t execloops) {
                 StepIP(1);
                 break;
 
-            case 0xB4: /* B4 MOV regs.byteregs[regah] Ib */
-                regs.byteregs[regah] = getmem8(CPU_CS, ip);
+            case 0xB4: /* B4 MOV CPU_AH Ib */
+                CPU_AH = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
@@ -3804,7 +3804,7 @@ void exec86(uint32_t execloops) {
                     break;
                 } /* division by zero */
 
-                regs.byteregs[regah] = (CPU_AL / oper1) & 255;
+                CPU_AH = (CPU_AL / oper1) & 255;
                 CPU_AL = (CPU_AL % oper1) & 255;
                 flag_szp16(CPU_AX);
                 break;
@@ -3812,9 +3812,9 @@ void exec86(uint32_t execloops) {
             case 0xD5: /* D5 AAD I0 */
                 oper1 = getmem8(CPU_CS, ip);
                 StepIP(1);
-                CPU_AL = (regs.byteregs[regah] * oper1 + CPU_AL) & 255;
-                regs.byteregs[regah] = 0;
-                flag_szp16(regs.byteregs[regah] * oper1 + CPU_AL);
+                CPU_AL = (CPU_AH * oper1 + CPU_AL) & 255;
+                CPU_AH = 0;
+                flag_szp16(CPU_AH * oper1 + CPU_AL);
                 sf = 0;
                 break;
 
