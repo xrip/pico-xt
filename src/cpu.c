@@ -749,7 +749,7 @@ static void intcall86(uint8_t intnum) {
                 //if (videomode >= 8) CPU_AL = 4;
 
                 // FIXME!!
-                    ega_plane = 0;
+                    ega_plane_offset = 0;
                     RAM[0x449] = CPU_AL;
                     RAM[0x44A] = (uint8_t)videomode <= 2 ? 40 : 80;
                     RAM[0x44B] = 0;
@@ -4026,6 +4026,7 @@ void exec86(uint32_t execloops) {
                 break;
 
             default:
+
                 intcall86(6);
                 break;
         }
@@ -4037,11 +4038,8 @@ typedef void (*write_fn_ptr)(uint32_t, uint8_t);
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static write_fn_ptr write_funtions[256] = { 0 };
 
-static void write8video(uint32_t addr32, uint8_t v) {
-    if (videomode >= 0x0D && ega_plane) {
-        addr32 += ega_plane * 16000;
-    }
-    VIDEORAM[(addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = v;
+static inline void write8video(uint32_t addr32, uint8_t v) {
+    VIDEORAM[(ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = v;
 }
 #ifdef XMS_UMB
 static void write8umb_psram(uint32_t addr32, uint8_t v) {
@@ -4132,11 +4130,8 @@ INLINE void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16
     *ptr = (uint8_t)(value >> 8);
 }
 
-static void write16video(uint32_t addr32, uint16_t v) {
-    if (videomode >= 0x0D && ega_plane) {
-        addr32 += ega_plane * 16000; 
-    }
-    write16arr(VIDEORAM, 0, (addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, v);
+static inline void write16video(uint32_t addr32, uint16_t v) {
+    write16arr(VIDEORAM, 0, (ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, v);
 }
 #ifdef XMS_DRIVER
 #ifdef XMS_UMB
@@ -4226,14 +4221,11 @@ uint8_t read8nothng(uint32_t addr32) {
     return 0;
 }
 
-uint8_t read8video(uint32_t addr32) {
-    if (videomode >= 0x0D && ega_plane) {
-        addr32 += ega_plane * 16000;
-    }
-    return VIDEORAM[(addr32 - VIDEORAM_START32) % VIDEORAM_SIZE];
+static inline uint8_t read8video(uint32_t addr32) {
+    return VIDEORAM[(ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE];
 }
 
-INLINE uint8_t read86rom(uint32_t addr32) {
+static inline uint8_t read86rom(uint32_t addr32) {
     if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
         // BIOS ROM range
         return BIOS[addr32 - 0xFE000UL];
@@ -4326,14 +4318,11 @@ static __inline uint16_t read16arr0(uint8_t* arr, uint32_t addr32) {
     return b1 | (b0 << 8);
 }
 
-uint16_t read16video(uint32_t addr32) {
-    if (videomode >= 0x0D && ega_plane) {
-        addr32 += ega_plane * 16000;
-    }
-    return read16arr0(VIDEORAM, (addr32 - VIDEORAM_START32) % VIDEORAM_SIZE);
+static inline uint16_t read16video(uint32_t addr32) {
+    return read16arr0(VIDEORAM, (ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE);
 }
 
-INLINE uint16_t read86rom16(uint32_t addr32) {
+static inline uint16_t read86rom16(uint32_t addr32) {
     if (addr32 >= 0xFE000UL && addr32 <= 0xFFFFFUL) {
         // BIOS ROM range
         return read16arr(BIOS, 0xFE000UL, addr32);

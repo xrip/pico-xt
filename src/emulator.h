@@ -94,7 +94,7 @@ extern uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm
 extern uint8_t videomode;
 extern uint8_t speakerenabled;
 extern int timer_period;
-extern uint8_t ega_plane;
+extern uint16_t ega_plane_offset;
 
 #if PICO_ON_DEVICE
 extern pwm_config config;
