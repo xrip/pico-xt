@@ -114,11 +114,11 @@ static const uint8_t parity[0x100] = {
     0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
 };
 #if PICO_ON_DEVICE
-__aligned(4096)
+// __aligned(4096)
 #endif
 uint8_t RAM[RAM_SIZE];
 #if PICO_ON_DEVICE
-__aligned(4096)
+//__aligned(4096)
 #endif
 uint8_t VIDEORAM[VIDEORAM_SIZE];
 
@@ -2043,9 +2043,11 @@ void exec86(uint32_t execloops) {
                 push(CPU_CS);
                 break;
 
+            /*
             case 0xF: //0F POP CS only the 8086/8088 does this.
                 CPU_CS = pop();
                 break;
+                */
 
             case 0x10: /* 10 ADC Eb Gb */
                 modregrm();
@@ -2710,7 +2712,7 @@ void exec86(uint32_t execloops) {
                 break;
 
             case 0x6A: /* 6A PUSH Ib (80186+) */
-                push(getmem8(CPU_CS, ip));
+                push((uint16_t)getmem8(CPU_CS, ip));
                 StepIP(1);
                 break;
 
@@ -2744,7 +2746,7 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                putmem8(useseg, CPU_SI, portin(CPU_DX));
+                putmem8(useseg, CPU_DI, portin(CPU_DX));
                 if (df) {
                     CPU_SI = CPU_SI - 1;
                     CPU_DI = CPU_DI - 1;
@@ -2772,7 +2774,7 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                putmem16(useseg, CPU_SI, portin16(CPU_DX));
+                putmem16(useseg, CPU_DI, portin16(CPU_DX));
                 if (df) {
                     CPU_SI = CPU_SI - 2;
                     CPU_DI = CPU_DI - 2;
@@ -3557,7 +3559,7 @@ void exec86(uint32_t execloops) {
                 if ((reptype == 1) && !zf) {
                     break;
                 }
-                else if ((reptype == 2) & (zf == 1)) {
+                else if ((reptype == 2) && (zf == 1)) {
                     break;
                 }
 
@@ -3714,12 +3716,12 @@ void exec86(uint32_t execloops) {
                 push(CPU_BP);
                 frametemp = CPU_SP;
                 if (nestlev) {
-                    for (temp16 = 1; temp16 < nestlev; temp16++) {
+                    for (temp16 = 1; temp16 < nestlev; ++temp16) {
                         CPU_BP = CPU_BP - 2;
                         push(CPU_BP);
                     }
 
-                    push(CPU_SP);
+                    push(frametemp);
                 }
 
                 CPU_BP = frametemp;
@@ -4027,7 +4029,7 @@ void exec86(uint32_t execloops) {
 
             default:
 
-                intcall86(6);
+                //intcall86(6);
                 break;
         }
     }
