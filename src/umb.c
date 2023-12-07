@@ -36,7 +36,7 @@ static umb_t umb_blocks[UMB_BLOCKS] = {
     0xE000, 0x0800, false,
     0xE800, 0x0800, false,
     0xF000, 0x0800, false,
-    0xF800, 0x0600, false // 24k before BIOS
+   // 0xF800, 0x0600, false // 24k before BIOS
     // TODO: over BASIC
 };
 
