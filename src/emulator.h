@@ -50,9 +50,6 @@
 #include "f_util.h"
 #include "ff.h"
 static FATFS fs;
-#else
-#define EXT_RAM_SIZE 32 << 20 // 32Mb
-extern uint8_t EXTRAM[EXT_RAM_SIZE];
 #endif
 
 #define BEEPER_PIN 28

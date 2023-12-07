@@ -2,27 +2,6 @@
 #include "ram_page.h"
 #include "ram.h"
 
-#if PICO_ON_DEVICE
-  #include "psram_spi.h"
-#else
-static uint8_t read8psram(uint32_t addr32) {
-    return EXTRAM[addr32];
-}
-
-static uint16_t read16psram(uint32_t addr32) {
-    return (EXTRAM[addr32] + EXTRAM[addr32+1] << 8);
-}
-
-static void write8psram(uint32_t addr32, uint8_t value) {
-    EXTRAM[addr32] = value;
-}
-static void write16psram(uint32_t addr32, uint16_t value) {
-    EXTRAM[addr32] = value & 0xFF;
-    EXTRAM[addr32] = value >> 8;
-}
-#endif
-extern bool PSRAM_AVAILABLE;
-
 #ifdef XMS_UMB
 typedef struct umb {
     uint16_t seg;

@@ -19,6 +19,7 @@
 
 #include "emulator.h"
 #include "ram.h"
+#include "hma.h"
 
 #if PICO_ON_DEVICE
 
@@ -35,61 +36,17 @@
 // PSRAM and pages mock
 uint8_t EXTRAM[EXT_RAM_SIZE];
 void * psram_spi;
-#define psram_read8(a, addr32) EXTRAM[addr32]
-#define psram_read16(a, addr32) (uint16_t)EXTRAM[addr32]
-
-
-#define psram_write8(a, addr32, value) EXTRAM[addr32] = value
-#define psram_write16(a, addr32, value) EXTRAM[addr32] = value & 0xFF; \
-EXTRAM[addr32] = value >> 8;
-
-#define psram_write32(a, addr32, value)
-
-
-uint8_t ram_page_read(uint32_t addr32) {
-    return EXTRAM[addr32];
-}
-
-uint8_t read8psram(uint32_t addr32) {
-    return EXTRAM[addr32];
-}
-
-uint16_t ram_page_read16(uint32_t addr32) {
-    return (EXTRAM[addr32] + EXTRAM[addr32+1] << 8);
-}
-
-uint16_t read16psram(uint32_t addr32) {
-    return (EXTRAM[addr32] + EXTRAM[addr32+1] << 8);
-}
-
-void ram_page_write(uint32_t addr32, uint8_t value) {
-    EXTRAM[addr32] = value;
-}
-
-void write8psram(uint32_t addr32, uint8_t value) {
-    EXTRAM[addr32] = value;
-}
-void ram_page_write16(uint32_t addr32, uint16_t value) {
-    EXTRAM[addr32] = value & 0xFF;
-    EXTRAM[addr32] = value >> 8;
-}
-void write16psram(uint32_t addr32, uint16_t value) {
-    EXTRAM[addr32] = value & 0xFF;
-    EXTRAM[addr32] = value >> 8;
-}
-
-
-#define init_vram() 1
-#define psram_cleanup() 1
-
 #endif
 
 static bool a20_line_open = false;
 
 void notify_a20_line_state_changed(bool v) {
-    //if (v) logMsg("A20 ON");
-    //else logMsg("A20 OFF'");
     a20_line_open = v;
+    if (v) {
+        map_hma_ram_pages();
+    } else {
+        unmap_hma_ram_pages();
+    }
 }
 
 bool is_a20_line_open() {
@@ -4024,27 +3981,6 @@ static inline void write8video(uint32_t addr32, uint8_t v) {
     VIDEORAM[(ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = v;
 }
 
-static void write8hma_psram(uint32_t addr32, uint8_t v) {
-    if (a20_line_open) {
-        // A20 line is ON
-        write8psram(addr32, v);
-        return;
-    }
-    write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
-}
-
-static void write8nohma(uint32_t addr32, uint8_t v) {
-    write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
-}
-
-static void write8hma_swap(uint32_t addr32, uint8_t v) {
-    if (a20_line_open) {
-        // A20 line is ON
-        ram_page_write(addr32, v);
-        return;
-    }
-    write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
-}
 #ifdef EMS_DRIVER
 static void write8emm_psram(uint32_t addr32, uint8_t v) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -4100,27 +4036,6 @@ static inline void write16video(uint32_t addr32, uint16_t v) {
     write16arr(VIDEORAM, 0, (ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, v);
 }
 
-static void write16hma_psram(uint32_t addr32, uint16_t v) {
-    if (a20_line_open) {
-        // A20 line is ON
-        write16psram(addr32, v);
-        return;
-    }
-    writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
-}
-
-static void write16nohma(uint32_t addr32, uint16_t v) {
-    writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
-}
-
-static void write16hma_swap(uint32_t addr32, uint16_t v) {
-    if (a20_line_open) {
-        // A20 line is ON
-        ram_page_write16(addr32, v);
-        return;
-    }
-    writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
-}
 #ifdef EMS_DRIVER
 static void write16emm_psram(uint32_t addr32, uint16_t v) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -4190,24 +4105,6 @@ static inline uint8_t read86rom(uint32_t addr32) {
     return 0;
 }
 
-uint8_t read8hma_psram(uint32_t addr32) {
-    if (a20_line_open) {
-        return read8psram(addr32);
-    }
-    return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
-}
-
-uint8_t read8nohma(uint32_t addr32) {
-    return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
-}
-
-uint8_t read8hma_swap(uint32_t addr32) {
-    if (a20_line_open) {
-        return ram_page_read(addr32);
-    }
-    return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
-}
-
 #ifdef EMS_DRIVER
 uint8_t read8emm_psram(uint32_t addr32) {
     uint32_t lba = get_logical_lba_for_physical_lba(addr32);
@@ -4253,21 +4150,19 @@ static inline uint16_t read86rom16(uint32_t addr32) {
     return 0;
 }
 
-uint16_t read16hma_psram(uint32_t addr32) {
-    if (a20_line_open) {
-        return read16psram(addr32);
-    }
-    return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
+static void write8nohma(uint32_t addr32, uint8_t v) {
+    write86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
+}
+
+static void write16nohma(uint32_t addr32, uint16_t v) {
+    writew86(addr32 - HMA_START_ADDRESS, v); // Rool back to low addressed
+}
+
+uint8_t read8nohma(uint32_t addr32) {
+    return read86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
 
 uint16_t read16nohma(uint32_t addr32) {
-    return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
-}
-
-uint16_t read16hma_swap(uint32_t addr32) {
-    if (a20_line_open) {
-        return ram_page_read16(addr32);
-    }
     return readw86(addr32 - HMA_START_ADDRESS); // FFFF:0010 -> 0000:0000 rolling address space for case A20 is turned off
 }
 
@@ -4318,22 +4213,6 @@ void init_cpu_addresses_map() {
         read16_funtions [ba] = read86rom16;
     }
 #ifdef XMS_DRIVER
-  #ifdef XMS_HMA
-    for (uint8_t ba = (HMA_START_ADDRESS >> 15); ba <= (BASE_XMS_ADDR >> 15); ++ba) {
-        write_funtions  [ba] = PSRAM_AVAILABLE ? write8hma_psram  : write8hma_swap ;
-        write16_funtions[ba] = PSRAM_AVAILABLE ? write16hma_psram : write16hma_swap;
-        read_funtions   [ba] = PSRAM_AVAILABLE ? read8hma_psram   : read8hma_swap  ;
-        read16_funtions [ba] = PSRAM_AVAILABLE ? read16hma_psram  : read16hma_swap ;
-    }
-  #else
-    for (uint8_t ba = (HMA_START_ADDRESS >> 15); ba <= (BASE_XMS_ADDR >> 15); ++ba) {
-        write_funtions  [ba] = write8nohma ;
-        write16_funtions[ba] = write16nohma;
-        read_funtions   [ba] = read8nohma  ;
-        read16_funtions [ba] = read16nohma ;
-    }
-  #endif
-  char tmp[80];
     for (uint8_t ba = (BASE_XMS_ADDR >> 15); ba <= (ON_BOARD_RAM_KB >> 5); ++ba) {
         write_funtions  [ba] = PSRAM_AVAILABLE ? write8psram  : ram_page_write  ;
         write16_funtions[ba] = PSRAM_AVAILABLE ? write16psram : ram_page_write16;
@@ -4349,13 +4228,13 @@ void init_cpu_addresses_map() {
         read_funtions   [ba] = read86rom;
         read16_funtions [ba] = read86rom16;
     }
+#endif
     for (uint8_t ba = (HMA_START_ADDRESS >> 15); ba <= (BASE_XMS_ADDR >> 15); ++ba) {
         write_funtions  [ba] = write8nohma ;
         write16_funtions[ba] = write16nohma;
         read_funtions   [ba] = read8nohma  ;
         read16_funtions [ba] = read16nohma ;
     }
-#endif
 #ifdef EMS_DRIVER
     // override EMM window
     for (uint8_t ba = (PHYSICAL_EMM_SEGMENT >> 11); ba <= (PHYSICAL_EMM_SEGMENT_END >> 11); ++ba) {
@@ -4379,6 +4258,13 @@ void update_segment_map(uint16_t seg, write_fn_ptr p8w, write16_fn_ptr p16w, rea
     write16_funtions[ba] = p16w ? p16w : write16nothing;
     read_funtions   [ba] = p8r  ? p8r  : read86rom     ;
     read16_funtions [ba] = p16r ? p16r : read86rom16   ;
+}
+
+void update_segment_map_hma(uint8_t ba, write_fn_ptr p8w, write16_fn_ptr p16w, read_fn_ptr p8r, read16_fn_ptr p16r) {
+    write_funtions  [ba] = p8w  ? p8w  : write8nohma ;
+    write16_funtions[ba] = p16w ? p16w : write16nohma;
+    read_funtions   [ba] = p8r  ? p8r  : read8nohma  ;
+    read16_funtions [ba] = p16r ? p16r : read16nohma ;
 }
 
 void write86(uint32_t addr32, uint8_t v) {
