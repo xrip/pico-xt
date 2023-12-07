@@ -186,7 +186,7 @@ int main() {
     set_sys_clock_khz(270000, true);
 #endif
 
-    stdio_init_all();
+    //stdio_init_all();
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -243,7 +243,7 @@ int main() {
                                             screen->format->Rmask, screen->format->Gmask, screen->format->Bmask,
                                             screen->format->Amask);
     auto* pixels = (unsigned int *)drawsurface->pixels;
-
+#if SOUND_SYSTEM
     static SDL_AudioSpec wanted;
     wanted.freq = 8000;
     wanted.format = AUDIO_U8;
@@ -256,6 +256,8 @@ int main() {
         printf("Error: %s\n", SDL_GetError());
     }
     SDL_PauseAudio(0);
+
+#endif
     if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
         fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
         return -1;
