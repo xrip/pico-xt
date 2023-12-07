@@ -7,6 +7,8 @@
 uint8_t hma_in_use_count = 0; // W/A DOS try to use it twice
 static bool xms_in_use = false; // XMS 3.0 requires to hook INT 15h only after first non-version XMS call
 
+static char tmp[80];
+
 void i15_87h(uint16_t words_to_move, uint32_t gdt_far) {
     uint16_t source_segment_szb = readw86(gdt_far + 0x10); // (2*CX-1) or grater
     uint32_t linear_source_addr24 = read86(gdt_far + 0x14);; // 24 bit addrss of source
@@ -16,7 +18,7 @@ void i15_87h(uint16_t words_to_move, uint32_t gdt_far) {
     uint32_t linear_dest_addr24 = read86(gdt_far + 0x1C); // 24 bit addrss of source
     linear_dest_addr24 = (linear_dest_addr24 << 8) + readw86(gdt_far + 0x1B);
     linear_dest_addr24 = (linear_dest_addr24 << 8) + readw86(gdt_far + 0x1A);
-    char tmp[80]; sprintf(tmp, "INT15h FN 87h words_to_move: %d src: %Xh (%d) dst: %Xh (%d)",
+    sprintf(tmp, "INT15h FN 87h words_to_move: %d src: %Xh (%d) dst: %Xh (%d)",
                                 words_to_move,
                                 linear_source_addr24, source_segment_szb,
                                 linear_dest_addr24, dest_segment_szb); logMsg(tmp);
@@ -71,11 +73,10 @@ INLINE uint16_t handle2seg(uint16_t handle) {
 
 INLINE uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
 #if XMS_OVER_HMA_KB
-    // char tmp[80];
     uint32_t w0 = readw86(tbl_addr++); tbl_addr++;
     uint32_t w1 = readw86(tbl_addr++); tbl_addr++;
     uint32_t len = (w1 << 16) | w0; // bytes to transfer
-    // sprintf(tmp, "XMS FN 0Bh LEN:%08Xh = %d (%dK)", len, len, len >> 10); logMsg(tmp);
+    sprintf(tmp, "XMS FN 0Bh LEN:%08Xh = %d (%dK)", len, len, len >> 10); logMsg(tmp);
     
     uint16_t s_h = readw86(tbl_addr++); tbl_addr++; // handle of source
     if (s_h > MAX_XMM_HANDLES) {
@@ -90,8 +91,8 @@ INLINE uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
     uint32_t s_o = s_h == 0 ?
         ((s1 << 4) + s0) :
         ((s1 << 16) | s0) + (shs << 4); // source offset
-    // if (s_h == 0) { sprintf(tmp, "XMS FN 0Bh Src addr32:%08Xh [%04X:%04X]", s_o, s1, s0); logMsg(tmp); }
-    // else { sprintf(tmp, "XMS FN 0Bh Src addr32:%08Xh (%d)", s_o, s_h); logMsg(tmp); }
+    if (s_h == 0) { sprintf(tmp, "XMS FN 0Bh Src addr32:%08Xh [%04X:%04X]", s_o, s1, s0); logMsg(tmp); }
+    else { sprintf(tmp, "XMS FN 0Bh Src addr32:%08Xh (%d)", s_o, s_h); logMsg(tmp); }
     
     uint16_t d_h = readw86(tbl_addr++); tbl_addr++; // handle of destination
     if (d_h > MAX_XMM_HANDLES) {
@@ -106,8 +107,8 @@ INLINE uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
     uint32_t d_o = d_h == 0 ?
         ((d1 << 4) + d0) :
         ((d1 << 16) | d0) + (dhs << 4); // destination offset
-    // if (d_h == 0) { sprintf(tmp, "XMS FN 0Bh Dst addr32:%08Xh [%04X:%04X]", d_o, d1, d0); logMsg(tmp); }
-    // else { sprintf(tmp, "XMS FN 0Bh Dst addr32:%08Xh (%d)", d_o, d_h); logMsg(tmp); }
+    if (d_h == 0) { sprintf(tmp, "XMS FN 0Bh Dst addr32:%08Xh [%04X:%04X]", d_o, d1, d0); logMsg(tmp); }
+    else { sprintf(tmp, "XMS FN 0Bh Dst addr32:%08Xh (%d)", d_o, d_h); logMsg(tmp); }
 
     for (uint32_t s_i = 0; s_o < len; s_o += 2, d_o += 2) { // TODO: block move
         uint16_t d = readw86(s_o);
@@ -173,7 +174,7 @@ INLINE uint16_t get_handle_feets(uint16_t kbs) {
 #if XMS_OVER_HMA_KB
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
         xmm_handle_t *ph = &xmm_handles[i];
-        // sprintf(tmp, "get_handle_feets(%d) H:%d SZ:%d LC:%d", kbs, ph->handle, ph->sz_kb, ph->locks_cnt); logMsg(tmp);
+        sprintf(tmp, "get_handle_feets(%d) H:%d SZ:%d LC:%d", kbs, ph->handle, ph->sz_kb, ph->locks_cnt); logMsg(tmp);
         if (ph->handle) { // allocated
             continue;
         }
@@ -299,80 +300,15 @@ INLINE uint8_t deallocate_xmm_page(uint16_t h) {
 #endif
 }
 
-#define XMS_ERROR_CODE   0x0000
-#define XMS_SUCCESS_CODE 0x0001
-
-#ifdef XMS_UMB
-typedef struct umb {
-    uint16_t seg;
-    uint16_t sz; // paragraphs
-    bool allocated;
-} umb_t;
-
-static umb_t umb_blocks[UMB_BLOCKS] = {
-    UMB_START_ADDRESS >> 4, 0x0800, false,
-    0xC800, 0x0800, false,
-    0xE000, 0x0800, false,
-    0xE800, 0x0800, false,
-    0xF000, 0x0800, false,
-   // 0xF800, 0x0600, false
-};
-
-bool umb_in_use(uint32_t addr32) {
-    uint16_t paragraph = addr32 >> 4;
-    for (int i = 0; i < UMB_BLOCKS; ++i) {
-        umb_t *p = &umb_blocks[i];
-        if(p->allocated && p->seg <= paragraph && p->seg + p->sz > paragraph)
-            return true;
-    }
-    return false;
-}
-
-INLINE uint16_t umb_allocate(uint16_t* psz, uint16_t* err) {
-    for (int i = 0; i < UMB_BLOCKS; ++i) {
-        umb_t *p = &umb_blocks[i];
-        if(!p->allocated && p->sz >= *psz) {
-            p->allocated = true;
-            *psz = p->sz;
-            *err = XMS_SUCCESS_CODE;
-            return p->seg;
-        }
-    }
-    uint16_t max_sz = 0;
-    for (int i = 0; i < UMB_BLOCKS; ++i) {
-        umb_t *p = &umb_blocks[i];
-        if(!p->allocated && p->sz > max_sz) {
-            max_sz = p->sz;
-        }
-    }
-    *psz = max_sz;
-    *err = XMS_ERROR_CODE;
-    return max_sz ? 0x00B0 /*smaller exists*/ : 0x00B1; // no UMB available
-}
-
-INLINE uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
-    for (int i = 0; i < UMB_BLOCKS; ++i) {
-        umb_t *p = &umb_blocks[i];
-        if(p->allocated && p->seg >= *seg) {
-            p->allocated = false;
-            *err = XMS_SUCCESS_CODE;
-            return 0x0000;
-        }
-    }
-    *err = XMS_ERROR_CODE;
-    return 0x00B2; // invalid seg
-}
-#endif
-
 bool INT_2Fh() {
     switch (CPU_AX) {
         case 0x4300: {
-            // logMsg("HIMEM.SYS (XMM) detection passed");
+            logMsg("HIMEM.SYS (XMM) detection passed");
             CPU_AL = 0x80;
             return true;
         }
         case 0x4310: {
-            // logMsg("HIMEM.SYS (XMM) Entry Address: 0000:03FF"); // W/A
+            logMsg("HIMEM.SYS (XMM) Entry Address: 0000:03FF"); // W/A
             CPU_ES = XMS_FN_CS; // 
             CPU_BX = XMS_FN_IP; // 
             return true;
@@ -420,20 +356,14 @@ bool INT_15h() {
                 case 0x02:
                     CPU_AL = is_a20_line_open();
                     cf = 0;
-                    CPU_AH = 0; {
-                        char tmp[80];
-                        sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL);
-                        logMsg(tmp);
-                    }
+                    CPU_AH = 0;
+                    sprintf(tmp, "INT15! 2402 AL: 0x%X (A20 line)", CPU_AL); logMsg(tmp);
                     return true;
                 case 0x03:
                     CPU_BX = 0b11;
                     CPU_AH = 0;
-                    cf = 0; {
-                        char tmp[80];
-                        sprintf(tmp, "INT15! 2403 BX: %xh", CPU_BX);
-                        logMsg(tmp);
-                    }
+                    cf = 0;
+                    sprintf(tmp, "INT15! 2403 BX: %xh", CPU_BX); logMsg(tmp);
                     return true;
             }
             break;
@@ -476,7 +406,7 @@ bool INT_15h() {
             }
             return false;
         default: {
-            // char tmp[80]; sprintf(tmp, "INT 15h CPU_AH: 0x%X; CPU_AL: 0x%X", CPU_AH, CPU_AL); logMsg(tmp);
+            // sprintf(tmp, "INT 15h CPU_AH: 0x%X; CPU_AL: 0x%X", CPU_AH, CPU_AL); logMsg(tmp);
         }
     }
     return false;
@@ -547,7 +477,7 @@ uint8_t xms_fn() {
             break;
         case 0x07: // XMS 07H: Query A20 State
             CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
-            // sprintf(tmp, "XMS FN 07h: Query A20 status: %s", CPU_AX ? "ON" : "OFF");
+            sprintf(tmp, "XMS FN 07h: Query A20 status: %s", CPU_AX ? "ON" : "OFF");
             CPU_BL = 0x00;
             break;
         case 0x08: { // XMS 08H: Query Free Extended Memory
@@ -581,7 +511,7 @@ uint8_t xms_fn() {
             break;
         }
         case 0x0B:
-            sprintf(tmp, "XMS FN 0Bh: Move Extended Memory Block: TBL %04X:%04X", CPU_DS, CPU_SI);
+            sprintf(tmp, "XMS FN 0Bh: Move Extended Memory Block: TBL %04X:%04X", CPU_DS, CPU_SI); logMsg(tmp);
             CPU_BL = move_ext_mem_block(((uint32_t)CPU_DS << 4) + CPU_SI);
             if (CPU_BL > 0x80) {
                 sprintf(tmp, "XMS FN 0Bh: Move Extended Memory Block failed... BL: %02X", CPU_BL);
@@ -673,12 +603,7 @@ uint8_t xms_fn() {
 
 void xmm_reboot() {
 #ifdef XMS_UMB
-    for (int i = 0; i < UMB_BLOCKS; ++i) {
-        umb_t *p = &umb_blocks[i];
-        if(p->allocated) {
-            p->allocated = false;
-        }
-    }
+    init_umb();
 #endif
     hma_in_use_count = 0;
     xms_in_use = false;
