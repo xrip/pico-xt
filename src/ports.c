@@ -6,7 +6,6 @@
 #include "ps2.h"
 #include "vga.h"
 #include "nespad.h"
-
 #endif
 uint16_t portram[256];
 uint8_t crt_controller_idx, crt_controller[18];
@@ -157,6 +156,11 @@ void portout(uint16_t portnum, uint16_t value) {
             }
             if (port3C4 == 0x04) {
                 vga_planar_mode = port3C5 & 6;
+#if PICO_ON_DEVICE
+                if (vga_planar_mode && videomode == 0x13) {
+                    graphics_set_mode(VGA_320x200x256x4);
+                }
+#endif
             }
             break;
         case 0x3C7: //color index register (read operations)
