@@ -125,7 +125,6 @@ uint8_t VIDEORAM[VIDEORAM_SIZE];
 uint8_t oper1b, oper2b, res8, nestlev, addrbyte;
 uint16_t saveip, savecs, oper1, oper2, res16, disp16, temp16, dummy, stacksize, frametemp;
 uint32_t temp1, temp2, temp3, ea;
-uint64_t totalexec;
 
 union _bytewordregs_ regs;
 
@@ -917,16 +916,16 @@ static void intcall86(uint8_t intnum) {
                                     break;
 
                                 case 0x01:                            // show cursor
-                                    if (regs.byteregs[regch] == 0x32) {
+                                    if (CPU_CH == 0x32) {
                                         curshow = false;
                                         break;
                                     }
-                                    else if ((regs.byteregs[regch] == 0x06) && (regs.byteregs[regcl] == 0x07)) {
+                                    else if ((CPU_CH == 0x06) && (CPU_CL == 0x07)) {
                                         CURSOR_ASCII = 95;
                                         curshow = true;
                                         break;
                                     }
-                                    else if ((regs.byteregs[regch] == 0x00) && (regs.byteregs[regcl] == 0x07)) {
+                                    else if ((CPU_CH == 0x00) && (CPU_CL == 0x07)) {
                                         CURSOR_ASCII = 219;
                                         curshow = true;
                                     }
@@ -1850,7 +1849,6 @@ void exec86(uint32_t execloops) {
     //counterticks = (uint64_t) ( (double) timerfreq / (double) 65536.0);
     //tickssource();
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
-        //if ((totalexec & 256) == 0)
         if (trap_toggle) {
             intcall86(1);
         }
@@ -1864,7 +1862,7 @@ void exec86(uint32_t execloops) {
         reptype = 0;
         segoverride = 0;
         useseg = CPU_DS;
-        docontinue = 0;
+        uint8_t docontinue = 0;
         firstip = ip;
         /*
                 if ((CPU_CS == 0xF000) && (ip == 0xE066)) {
@@ -1927,8 +1925,6 @@ void exec86(uint32_t execloops) {
                     break;
             }
         }
-
-        totalexec++;
 
         switch (opcode) {
             case 0x0: /* 00 ADD Eb Gb */
@@ -2364,8 +2360,7 @@ void exec86(uint32_t execloops) {
 
             case 0x37: /* 37 AAA ASCII */
                 if (((CPU_AL & 0xF) > 9) || (af == 1)) {
-                    CPU_AL = CPU_AL + 6;
-                    CPU_AH = CPU_AH + 1;
+                    CPU_AX = CPU_AX + 0x106;
                     af = 1;
                     cf = 1;
                 }
@@ -2421,7 +2416,7 @@ void exec86(uint32_t execloops) {
 
             case 0x3F: /* 3F AAS ASCII */
                 if (((CPU_AL & 0xF) > 9) || (af == 1)) {
-                    CPU_AL = CPU_AL - 6;
+                    CPU_AX = CPU_AX - 6;
                     CPU_AH = CPU_AH - 1;
                     af = 1;
                     cf = 1;
@@ -2746,7 +2741,7 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                putmem8(useseg, CPU_DI, portin(CPU_DX));
+                putmem8(CPU_ES, CPU_DI, portin( CPU_DX));
                 if (df) {
                     CPU_SI = CPU_SI - 1;
                     CPU_DI = CPU_DI - 1;
@@ -2760,7 +2755,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -2774,7 +2768,7 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                putmem16(useseg, CPU_DI, portin16(CPU_DX));
+                putmem16(CPU_ES, CPU_DI, portin16( CPU_DX));
                 if (df) {
                     CPU_SI = CPU_SI - 2;
                     CPU_DI = CPU_DI - 2;
@@ -2788,7 +2782,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -2816,7 +2809,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -2844,7 +2836,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3271,7 +3262,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3299,7 +3289,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3336,7 +3325,6 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3374,7 +3362,6 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3414,7 +3401,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3440,7 +3426,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3466,7 +3451,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3493,7 +3477,6 @@ void exec86(uint32_t execloops) {
                     CPU_CX = CPU_CX - 1;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3528,7 +3511,6 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3563,7 +3545,6 @@ void exec86(uint32_t execloops) {
                     break;
                 }
 
-                totalexec++;
                 loopcount++;
                 if (!reptype) {
                     break;
@@ -3577,18 +3558,18 @@ void exec86(uint32_t execloops) {
                 StepIP(1);
                 break;
 
-            case 0xB1: /* B1 MOV regs.byteregs[regcl] Ib */
-                regs.byteregs[regcl] = getmem8(CPU_CS, ip);
+            case 0xB1: /* B1 MOV CPU_CL Ib */
+                CPU_CL = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
-            case 0xB2: /* B2 MOV regs.byteregs[regdl] Ib */
-                regs.byteregs[regdl] = getmem8(CPU_CS, ip);
+            case 0xB2: /* B2 MOV CPU_DL Ib */
+                CPU_DL = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
-            case 0xB3: /* B3 MOV regs.byteregs[regbl] Ib */
-                regs.byteregs[regbl] = getmem8(CPU_CS, ip);
+            case 0xB3: /* B3 MOV CPU_BL Ib */
+                CPU_BL = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
@@ -3597,18 +3578,18 @@ void exec86(uint32_t execloops) {
                 StepIP(1);
                 break;
 
-            case 0xB5: /* B5 MOV regs.byteregs[regch] Ib */
-                regs.byteregs[regch] = getmem8(CPU_CS, ip);
+            case 0xB5: /* B5 MOV CPU_CH Ib */
+                CPU_CH = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
-            case 0xB6: /* B6 MOV regs.byteregs[regdh] Ib */
-                regs.byteregs[regdh] = getmem8(CPU_CS, ip);
+            case 0xB6: /* B6 MOV CPU_DH Ib */
+                CPU_DH = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
-            case 0xB7: /* B7 MOV regs.byteregs[regbh] Ib */
-                regs.byteregs[regbh] = getmem8(CPU_CS, ip);
+            case 0xB7: /* B7 MOV CPU_BH Ib */
+                CPU_BH = getmem8(CPU_CS, ip);
                 StepIP(1);
                 break;
 
@@ -3784,16 +3765,16 @@ void exec86(uint32_t execloops) {
                 writerm16(rm, op_grp2_16(1));
                 break;
 
-            case 0xD2: /* D2 GRP2 Eb regs.byteregs[regcl] */
+            case 0xD2: /* D2 GRP2 Eb CPU_CL */
                 modregrm();
                 oper1b = readrm8(rm);
-                writerm8(rm, op_grp2_8(regs.byteregs[regcl]));
+                writerm8(rm, op_grp2_8(CPU_CL));
                 break;
 
-            case 0xD3: /* D3 GRP2 Ev regs.byteregs[regcl] */
+            case 0xD3: /* D3 GRP2 Ev CPU_CL */
                 modregrm();
                 oper1 = readrm16(rm);
-                writerm16(rm, op_grp2_16(regs.byteregs[regcl]));
+                writerm16(rm, op_grp2_16(CPU_CL));
                 break;
 
             case 0xD4: /* D4 AAM I0 */
