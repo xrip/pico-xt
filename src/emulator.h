@@ -6,8 +6,8 @@
 #define TINY8086_CPU8086_H
 #define INLINE static
 
-// Settings for max 8MB 0f PSRAM
-#define TOTAL_VIRTUAL_MEMORY_KBS (8ul << 10)
+// Settings for max 4MB 0f PSRAM
+#define TOTAL_VIRTUAL_MEMORY_KBS (4ul << 10)
 
 #ifdef XMS_DRIVER
 #if XMS_OVER_HMA_KB
@@ -24,7 +24,7 @@
 
 #ifdef EMS_DRIVER
 //#define TOTAL_EMM_KB (TOTAL_VIRTUAL_MEMORY_KBS - ON_BOARD_RAM_KB)
-#define TOTAL_EMM_KB (4ul << 10)
+#define TOTAL_EMM_KB (2ul << 10)
 #else
 #define TOTAL_EMM_KB 0
 #endif
@@ -94,7 +94,7 @@ extern uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm
 extern uint8_t videomode;
 extern uint8_t speakerenabled;
 extern int timer_period;
-extern uint16_t ega_plane_offset;
+extern uint32_t ega_plane_offset;
 
 #if PICO_ON_DEVICE
 extern pwm_config config;

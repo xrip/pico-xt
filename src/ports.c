@@ -24,7 +24,7 @@ static uint8_t dac_state = 0;
 static uint8_t latchReadRGB = 0, latchReadPal = 0;
 
 #define ega_plane_size 16000
-uint16_t ega_plane_offset = 0;
+uint32_t ega_plane_offset = 0;
 static uint16_t port3C4 = 0;
 static uint16_t port3C5 = 0;
 static uint8_t port3C0 = 0xff;

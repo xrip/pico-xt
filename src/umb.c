@@ -10,9 +10,9 @@ typedef struct umb {
 static umb_t umb_blocks[UMB_BLOCKS] = {
     UMB_START_ADDRESS >> 4, 0x0800, false,
     0xC800, 0x0800, false,
- //   0xE000, 0x0800, false, // TODO: Adjust UMB issues
- //   0xE800, 0x0800, false,
- //   0xF000, 0x0800, false
+    0xE000, 0x0800, false,
+    0xE800, 0x0800, false,
+    0xF000, 0x0800, false
    // 0xF800, 0x0600, false
 };
 
