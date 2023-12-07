@@ -826,7 +826,7 @@ static void intcall86(uint8_t intnum) {
                             graphics_set_palette(i, vga_palette[i]);
                         }
                         graphics_set_mode(EGA_320x200x16x4);
-                        //port3D8 = port3D8 & 0xFE;
+                        port3D8 = port3D8 & 0xFE;
                         break;
                         case 0x13:
                             graphics_set_buffer(VIDEORAM, 320, 200);
