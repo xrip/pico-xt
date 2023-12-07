@@ -45,6 +45,8 @@ static void write16psram(uint32_t addr32, uint16_t value) {
     EXTRAM[addr32] = value & 0xFF;
     EXTRAM[addr32] = value >> 8;
 }
+#else
+#include "psram_spi.h"
 #endif
 uint16_t umb_allocate(uint16_t* psz, uint16_t* err) {
     for (int i = 0; i < UMB_BLOCKS; ++i) {
