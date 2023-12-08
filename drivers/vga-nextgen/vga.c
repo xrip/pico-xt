@@ -321,7 +321,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
             }
             break;
         case VGA_320x200x256x4:
-            input_buffer_8bit = input_buffer + y * (320 / 4);
+            input_buffer_8bit = input_buffer + y * (width / 4);
             for (int x = width / 2; x--;) {
                 //*output_buffer_16bit++=current_palette[*input_buffer_8bit++];
                 *output_buffer_16bit++ = current_palette[*input_buffer_8bit];

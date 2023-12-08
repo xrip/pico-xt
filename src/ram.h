@@ -1,4 +1,5 @@
 #pragma once
+
 // type of 8-bit write function pointer
 typedef void (*write_fn_ptr)(uint32_t, uint8_t);
 // type of 16-bit write function pointer
@@ -43,19 +44,19 @@ EXTRAM[addr32] = value >> 8;
 
 #define psram_write32(a, addr32, value)
 
-uint8_t ram_page_read(uint32_t addr32) {
+static uint8_t ram_page_read(uint32_t addr32) {
     return EXTRAM[addr32];
 }
 
-uint16_t ram_page_read16(uint32_t addr32) {
+static uint16_t ram_page_read16(uint32_t addr32) {
     return (EXTRAM[addr32] + EXTRAM[addr32+1] << 8);
 }
 
-void ram_page_write(uint32_t addr32, uint8_t value) {
+static void ram_page_write(uint32_t addr32, uint8_t value) {
     EXTRAM[addr32] = value;
 }
 
-void ram_page_write16(uint32_t addr32, uint16_t value) {
+static inline void ram_page_write16(uint32_t addr32, uint16_t value) {
     EXTRAM[addr32] = value & 0xFF;
     EXTRAM[addr32] = value >> 8;
 }
