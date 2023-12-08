@@ -15,6 +15,10 @@ volatile bool manager_started = false;
 static char line[81];
 static char pathA[256] = { "C:\\" };
 static char pathB[256] = { "\\XT" };
+static volatile bool left_panel_make_active = true;
+static bool left_panel_is_selected = true;
+static int left_panel_selected_file = 0;
+static int right_panel_selected_file = 0;
 
 static void draw_window() {
     line[80] = 0;
@@ -110,16 +114,47 @@ void fill_right() {
     FILINFO fileInfo;
     int y = 1;
     const int x = 41;
-    sprintf(line, ".."); draw_text(line, x, y++, 7, 1);
+    sprintf(line, "..");
+    for(int l = strlen(line); l < 38; ++l) {
+        line[l] = ' ';
+    }
+    line[38] = 0;
+    draw_text(line, x, y++, 7, right_panel_selected_file == y ? 11 : 1);
+
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y < 28) {
-       sprintf(line, fileInfo.fname); draw_text(line, x, y++, 7, 1);
+        sprintf(line, fileInfo.fname);
+        for(int l = strlen(line); l < 38; ++l) {
+           line[l] = ' ';
+        }
+        line[38] = 0;
+        draw_text(line, x, y++, 7, right_panel_selected_file == y ? 11 : 1);
     }
     f_closedir(&dir);
 }
 
-void work_cycle() {
+static void select_right_panel() {
+    left_panel_is_selected = false;
+    if (left_panel_selected_file == 0) left_panel_selected_file = 1;
+    fill_right();
+    fill_left();
+}
+
+static void select_left_panel() {
+    left_panel_is_selected = true;
+    if (right_panel_selected_file == 0) right_panel_selected_file = 1;
+    fill_right();
+    fill_left();
+}
+
+static void work_cycle() {
     while(1) {
         bottom_line();
+        if (left_panel_is_selected && !left_panel_make_active) {
+            select_right_panel();
+        }
+        if (!left_panel_is_selected && left_panel_make_active) {
+            select_left_panel();
+        }
         sleep_ms(200);
     }
     
@@ -186,6 +221,7 @@ bool handleScancode(uint32_t ps2scancode) { // core 1
         tabPressed = true;
         break;
       case 0x8F:
+        if (manager_started) left_panel_make_active = !left_panel_make_active; // TODO: combinations?
         tabPressed = false;
         break;
       default: {
