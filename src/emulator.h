@@ -54,7 +54,7 @@ static FATFS fs;
 
 #define BEEPER_PIN 28
 
-
+#define VGA_plane_size 16000
 // TODO: no direct access support (for PC mode)
 extern uint8_t RAM[RAM_SIZE];
 extern uint8_t VIDEORAM[VIDEORAM_SIZE];
