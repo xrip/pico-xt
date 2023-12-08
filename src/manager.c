@@ -10,6 +10,7 @@ static volatile bool ctrlPressed = false;
 static volatile bool altPressed = false;
 static volatile bool tabPressed = false;
 
+bool already_swapped_fdds = false;
 volatile bool manager_started = false;
 
 static char line[81];
@@ -252,7 +253,6 @@ void if_usb() {
     }
 }
 
-static bool already_swapped_fdds = false;
 static void swap_drive_message() {
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
