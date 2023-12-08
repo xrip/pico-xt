@@ -294,7 +294,7 @@ void if_usb() {
     }
 }
 
-static bool already_swapped_fdds = false;
+bool already_swapped_fdds = false;
 static void swap_drive_message() {
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
