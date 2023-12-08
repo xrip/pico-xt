@@ -20,6 +20,7 @@ static volatile bool left_panel_make_active = true;
 static bool left_panel_is_selected = true;
 static int left_panel_selected_file = 1;
 static int right_panel_selected_file = 1;
+static volatile uint32_t lastScanCode = 0;
 
 static void draw_window() {
     line[80] = 0;
@@ -32,10 +33,10 @@ static void draw_window() {
     line[79] = 0xBB; // ╗
     draw_text(line, 0, 0, 7, 1);
     // TODO: center, actual drive/path
-    sprintf(line, " SD: ");
+    sprintf(line, " SD:%s ", pathA);
     draw_text(line, 16, 0, 7, 1);
 
-    sprintf(line, " SD:\\XT ");
+    sprintf(line, " SD:%s ", pathB);
     draw_text(line, 57, 0, 7, 1);
 
     memset(line, ' ', 80);
@@ -43,7 +44,7 @@ static void draw_window() {
     line[39] = 0xBA;
     line[40] = 0xBA;
     line[79] = 0xBA;
-    for (int y = 1; y < 28; ++y) {
+    for (int y = 1; y < 27; ++y) {
         draw_text(line, 0, y, 7, 1);
     }
 
@@ -54,12 +55,15 @@ static void draw_window() {
     line[39] = 0xBC; // ╝
     line[40] = 0xC8; // ╚
     line[79] = 0xBC; // ╝
-    draw_text(line, 0, 28, 7, 1);
+    draw_text(line, 0, 27, 7, 1);
 }
 
 void bottom_line() {
     sprintf(line, "1       2       3       4       5       6       7       8       9       10      ");
     draw_text(line, 0, 29, 7, 0);
+    
+    memset(line, ' ', 80); line[0] = '>';
+    draw_text(line, 0, 28, 7, 0); // status line ?
 
     if (altPressed) {
         sprintf(line, " Left "); draw_text(line,  1, 29, 0, 3);
@@ -117,7 +121,8 @@ void fill_left() {
             line[l] = ' ';
         }
         line[38] = 0;
-        draw_text(line, x, y++, 7, right_panel_selected_file == y ? 3 : 1);
+        int bgc = left_panel_is_selected && right_panel_selected_file == y ? 11 : 1;
+        draw_text(line, x, y++, 7, bgc);
     }
 
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y < 28) {
@@ -126,7 +131,8 @@ void fill_left() {
            line[l] = ' ';
         }
         line[38] = 0;
-        draw_text(line, x, y++, 7, left_panel_selected_file == y ? 3 : 1);
+        int bgc = left_panel_is_selected && right_panel_selected_file == y ? 11 : 1;
+        draw_text(line, x, y++, 7, bgc);
     }
     f_closedir(&dir);
 }
@@ -151,7 +157,8 @@ void fill_right() {
             line[l] = ' ';
         }
         line[38] = 0;
-        draw_text(line, x, y++, 7, right_panel_selected_file == y ? 3 : 1);
+        int bgc = !left_panel_is_selected && right_panel_selected_file == y ? 11 : 1;
+        draw_text(line, x, y++, 7, bgc);
     }
 
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y < 28) {
@@ -160,7 +167,8 @@ void fill_right() {
            line[l] = ' ';
         }
         line[38] = 0;
-        draw_text(line, x, y++, 7, right_panel_selected_file == y ? 3 : 1);
+        int bgc = !left_panel_is_selected && right_panel_selected_file == y ? 11 : 1;
+        draw_text(line, x, y++, 7, bgc);
     }
     f_closedir(&dir);
 }
@@ -186,6 +194,21 @@ static void work_cycle() {
         if (!left_panel_is_selected && left_panel_make_active) {
             select_left_panel();
         }
+        switch(lastScanCode) {
+          case 0xD0: // down
+            if (left_panel_is_selected) left_panel_selected_file++;
+            else right_panel_selected_file++;
+            break;
+          case 0xC8: // up
+            if (left_panel_is_selected) left_panel_selected_file--;
+            else right_panel_selected_file--;
+            break;
+          case 0xCB: // left
+            break;
+          case 0xCD: // right
+            break;
+        }
+        lastScanCode = 0;
         sleep_ms(200);
     }
     
@@ -211,6 +234,7 @@ void start_manager() {
 }
 
 bool handleScancode(uint32_t ps2scancode) { // core 1
+    lastScanCode = ps2scancode;
     switch (ps2scancode) {
       case 0x38:
         altPressed = true;
