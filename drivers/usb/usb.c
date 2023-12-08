@@ -293,7 +293,30 @@ void if_usb() {
         graphics_set_mode(ret);
     }
 }
+
 static bool already_swapped_fdds = false;
+static void swap_drive_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    set_start_debug_line(0);
+    clrScr(1);
+    for(int i = 0; i < 10; i++) {
+        logMsg("");
+    }
+    if (already_swapped_fdds) {
+        logMsg("                      Swap FDD0 and FDD1 drive images"); logMsg("");
+        logMsg("          To return images back, press Ctrl + Tab + Backspace");
+    } else {
+        logMsg("                    Swap FDD0 and FDD1 drive images back");
+    }
+    sleep_ms(3000);
+    set_start_debug_line(25);
+    restore_video_ram();
+    if (ret == TEXTMODE_80x30) {
+        clrScr(1);
+    }
+    graphics_set_mode(ret);
+}
 void if_swap_drives() {
     if (usbStarted) {
         return;
@@ -303,10 +326,12 @@ void if_swap_drives() {
             insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
             insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
             already_swapped_fdds = false;
+            swap_drive_message();
             return;
         }
         insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
         insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
         already_swapped_fdds = true;
+        swap_drive_message();
     }
 }
