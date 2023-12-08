@@ -123,7 +123,7 @@ uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
         umb_t *p = &umb_blocks[i];
         if(p->allocated && p->seg >= *seg) {
             p->allocated = false;
-            update_segment_map(p->seg, 0, 0, 0, 0);
+         //   update_segment_map(p->seg, 0, 0, 0, 0);
             *err = XMS_SUCCESS_CODE;
             return 0x0000;
         }

@@ -476,7 +476,8 @@ uint8_t xms_fn() {
             break;
         case 0x07: // XMS 07H: Query A20 State
             CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
-            sprintf(tmp, "XMS FN 07h: Query A20 status: %s", CPU_AX ? "ON" : "OFF");
+            //sprintf(tmp, "XMS FN 07h: Query A20 status: %s", CPU_AX ? "ON" : "OFF");
+            tmp[0] = 0;
             CPU_BL = 0x00;
             break;
         case 0x08: { // XMS 08H: Query Free Extended Memory
@@ -596,7 +597,9 @@ uint8_t xms_fn() {
             CPU_BL = 0x80; // Function not implemented
         }
     }
-    logMsg(tmp);
+    if (strlen(tmp)) {
+        logMsg(tmp);
+    }
     return 0xCB /* CB RETF */;
 }
 
