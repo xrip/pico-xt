@@ -533,13 +533,17 @@ void set_start_debug_line(int _start_debug_line) {
 void logFile(char* msg);
 #endif
 
+extern volatile bool manager_started;
 void logMsg(char* msg) {
+    if (get_core_num() != 0) { // TODO:
+        return;
+    }
 #if BOOT_DEBUG
     { char tmp[85]; sprintf(tmp, "%s\n", msg); logFile(tmp); }
 #else
     printf("%s\n", msg);
 #endif
-    if (graphics_mode != TEXTMODE_80x30) {
+    if (graphics_mode != TEXTMODE_80x30 || manager_started) {
         // log in text mode only
         return;
     }
