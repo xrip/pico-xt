@@ -12,8 +12,11 @@ static volatile bool tabPressed = false;
 
 volatile bool manager_started = false;
 
+static char line[81];
+static char pathA[256] = { "C:\\" };
+static char pathB[256] = { "\\XT" };
+
 static void draw_window() {
-    char line[81];
     line[80] = 0;
     for(int i = 1; i < 79; ++i) {
         line[i] = 0xCD; // ═
@@ -27,7 +30,7 @@ static void draw_window() {
     sprintf(line, " C:\\ ");
     draw_text(line, 16, 0, 7, 1);
 
-    sprintf(line, " SD:\\ ");
+    sprintf(line, " SD:\\XT ");
     draw_text(line, 57, 0, 7, 1);
 
     memset(line, ' ', 80);
@@ -47,7 +50,9 @@ static void draw_window() {
     line[40] = 0xC8; // ╚
     line[79] = 0xBC; // ╝
     draw_text(line, 0, 28, 7, 1);
+}
 
+void bottom_line() {
     sprintf(line, "1       2       3       4       5       6       7       8       9       10      ");
     draw_text(line, 0, 29, 7, 0);
 
@@ -62,6 +67,17 @@ static void draw_window() {
         sprintf(line, " Del  "); draw_text(line, 57, 29, 0, 3);
         sprintf(line, " Swap "); draw_text(line, 65, 29, 0, 3);
         sprintf(line, " USB ");  draw_text(line, 74, 29, 0, 3);
+    } else if (ctrlPressed) {
+        sprintf(line, "Eject "); draw_text(line,  1, 29, 0, 3);
+        sprintf(line, " Menu "); draw_text(line,  9, 29, 0, 3);
+        sprintf(line, " View "); draw_text(line, 17, 29, 0, 3);
+        sprintf(line, " Edit "); draw_text(line, 25, 29, 0, 3);
+        sprintf(line, " Copy "); draw_text(line, 33, 29, 0, 3);
+        sprintf(line, " Move "); draw_text(line, 41, 29, 0, 3);
+        sprintf(line, " Dir  "); draw_text(line, 49, 29, 0, 3);
+        sprintf(line, " Del  "); draw_text(line, 57, 29, 0, 3);
+        sprintf(line, " UpMn "); draw_text(line, 65, 29, 0, 3);
+        sprintf(line, " USB ");  draw_text(line, 74, 29, 0, 3);
     } else {
         sprintf(line, " Help "); draw_text(line,  1, 29, 0, 3);
         sprintf(line, " Menu "); draw_text(line,  9, 29, 0, 3);
@@ -71,15 +87,40 @@ static void draw_window() {
         sprintf(line, " Move "); draw_text(line, 41, 29, 0, 3);
         sprintf(line, " Dir  "); draw_text(line, 49, 29, 0, 3);
         sprintf(line, " Del  "); draw_text(line, 57, 29, 0, 3);
-        sprintf(line, " Swap "); draw_text(line, 65, 29, 0, 3);
+        sprintf(line, " UpMn "); draw_text(line, 65, 29, 0, 3);
         sprintf(line, " USB ");  draw_text(line, 74, 29, 0, 3);
     }
 }
 
+void fill_left() {
+
+}
+
+void fill_right() {
+    FIL file;
+    if (f_stat(pathB, &file) != FR_OK/* || !(file.fattrib & AM_DIR)*/) { // TODO:
+        // TODO: Error dialog
+        return;
+    }
+    DIR dir;
+    if (f_opendir(&dir, pathB) != FR_OK) {
+        // TODO: Error dialog
+        return;
+    }
+    FILINFO fileInfo;
+    int y = 1;
+    const int x = 41;
+    sprintf(line, ".."); draw_text(line, x, y++, 7, 1);
+    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y < 28) {
+       sprintf(line, fileInfo.fname); draw_text(line, x, y++, 7, 1);
+    }
+    f_closedir(&dir);
+}
+
 void work_cycle() {
     while(1) {
+        bottom_line();
         sleep_ms(200);
-        draw_window();
     }
     
     //in_flash_drive();
@@ -90,6 +131,8 @@ void start_manager() {
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
     set_start_debug_line(30);
     draw_window();
+    fill_left();
+    fill_right();
 
     work_cycle();
     
