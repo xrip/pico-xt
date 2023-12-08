@@ -27,7 +27,7 @@
 #include "ps2.h"
 #include "vga.h"
 #include "psram_spi.h"
-
+extern bool already_swapped_fdds;
 #else
 
 #include "SDL2/SDL.h"
@@ -999,8 +999,13 @@ static void intcall86(uint8_t intnum) {
 
         case 0x19:
 #if PICO_ON_DEVICE
-            insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-            insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+            if (already_swapped_fdds) {
+                insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
+                insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+            } else {
+                insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
+                insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+            }
             insertdisk(128, 0, NULL, "\\XT\\hdd.img");
             keyboard_send(0xFF);
 #else
