@@ -74,6 +74,7 @@ static uint16_t* txt_palette_fast = NULL;
 //static uint16_t txt_palette_fast[256*4];
 
 enum graphics_mode_t graphics_mode;
+extern volatile bool manager_started;
 
 void __not_in_flash_func(dma_handler_VGA)() {
     dma_hw->ints0 = 1u << dma_chan_ctrl;
@@ -150,7 +151,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
                 //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                 uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
 
-                if (cursor_blink_state &&
+                if (cursor_blink_state && !manager_started &&
                     (screen_line / 16 == CURSOR_Y && x == CURSOR_X && glyph_line >= 11 && glyph_line <= 13)) {
                     *output_buffer_16bit++ = color[3];
                     *output_buffer_16bit++ = color[3];
@@ -501,7 +502,7 @@ void clrScr(uint8_t color) {
 };
 
 void draw_text(char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    if ((y < 0) | (y >= text_buffer_height)) return;
+  /*if ((y < 0) | (y >= text_buffer_height)) return;
     if (x >= text_buffer_width) return;
     int len = strlen(string);
     if (x < 0) {
@@ -512,8 +513,8 @@ void draw_text(char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
         else {
             return;
         }
-    }
-    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * y + x;
+    }*/
+    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * y + 2 * x;
     for (int xi = x; xi < text_buffer_width * 2; xi++) {
         if (!(*string)) break;
         *t_buf++ = *string++;
@@ -535,9 +536,6 @@ void logFile(char* msg);
 
 extern volatile bool manager_started;
 void logMsg(char* msg) {
-    if (get_core_num() != 0) { // TODO:
-        return;
-    }
 #if BOOT_DEBUG
     { char tmp[85]; sprintf(tmp, "%s\n", msg); logFile(tmp); }
 #else

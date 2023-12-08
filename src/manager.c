@@ -1,47 +1,99 @@
 #include "manager.h"
+#include "emulator.h"
 #include "vga.h"
 
+static volatile bool backspacePressed = false;
+static volatile bool enterPressed = false;
+static volatile bool plusPressed = false;
+static volatile bool minusPressed = false;
+static volatile bool ctrlPressed = false;
+static volatile bool altPressed = false;
+static volatile bool tabPressed = false;
+
+volatile bool manager_started = false;
+
 static void draw_window() {
-    char line[80];
-    for(int i = 1; i < 78; ++i) {
+    char line[81];
+    line[80] = 0;
+    for(int i = 1; i < 79; ++i) {
         line[i] = 0xCD; // ═
     }
     line[0]  = 0xC9; // ╔
-    line[40] = 0xC9; // ╔
     line[39] = 0xBB; // ╗
+    line[40] = 0xC9; // ╔
     line[79] = 0xBB; // ╗
     draw_text(line, 0, 0, 7, 1);
-    
-    line[0]  = 0xC8; // ╚
-    line[39] = 0xBC; // ╝
-    line[40] = 0xC8; // ╚
-    line[79] = 0xBC; // ╝
-    draw_text(line, 0, 28, 7, 1);
+    // TODO: center, actual drive/path
+    sprintf(line, " C:\\ ");
+    draw_text(line, 16, 0, 7, 1);
+
+    sprintf(line, " SD:\\ ");
+    draw_text(line, 57, 0, 7, 1);
 
     memset(line, ' ', 80);
     line[0]  = 0xBA;
     line[39] = 0xBA;
     line[40] = 0xBA;
     line[79] = 0xBA;
-    for (int y = 0; y < 28; ++y) {
+    for (int y = 1; y < 28; ++y) {
         draw_text(line, 0, y, 7, 1);
     }
 
-    // TODO:
+    for(int i = 1; i < 79; ++i) {
+        line[i] = 0xCD; // ═
+    }
+    line[0]  = 0xC8; // ╚
+    line[39] = 0xBC; // ╝
+    line[40] = 0xC8; // ╚
+    line[79] = 0xBC; // ╝
+    draw_text(line, 0, 28, 7, 1);
+
+    sprintf(line, "1       2       3       4       5       6       7       8       9       10      ");
+    draw_text(line, 0, 29, 7, 0);
+
+    if (altPressed) {
+        sprintf(line, " Left "); draw_text(line,  1, 29, 0, 3);
+        sprintf(line, "Right "); draw_text(line,  9, 29, 0, 3);
+        sprintf(line, " View "); draw_text(line, 17, 29, 0, 3);
+        sprintf(line, " Edit "); draw_text(line, 25, 29, 0, 3);
+        sprintf(line, " Copy "); draw_text(line, 33, 29, 0, 3);
+        sprintf(line, " Move "); draw_text(line, 41, 29, 0, 3);
+        sprintf(line, " Find "); draw_text(line, 49, 29, 0, 3);
+        sprintf(line, " Del  "); draw_text(line, 57, 29, 0, 3);
+        sprintf(line, " Swap "); draw_text(line, 65, 29, 0, 3);
+        sprintf(line, " USB ");  draw_text(line, 74, 29, 0, 3);
+    } else {
+        sprintf(line, " Help "); draw_text(line,  1, 29, 0, 3);
+        sprintf(line, " Menu "); draw_text(line,  9, 29, 0, 3);
+        sprintf(line, " View "); draw_text(line, 17, 29, 0, 3);
+        sprintf(line, " Edit "); draw_text(line, 25, 29, 0, 3);
+        sprintf(line, " Copy "); draw_text(line, 33, 29, 0, 3);
+        sprintf(line, " Move "); draw_text(line, 41, 29, 0, 3);
+        sprintf(line, " Dir  "); draw_text(line, 49, 29, 0, 3);
+        sprintf(line, " Del  "); draw_text(line, 57, 29, 0, 3);
+        sprintf(line, " Swap "); draw_text(line, 65, 29, 0, 3);
+        sprintf(line, " USB ");  draw_text(line, 74, 29, 0, 3);
+    }
 }
 
 void work_cycle() {
-
-    in_flash_drive();
+    while(1) {
+        sleep_ms(200);
+        draw_window();
+    }
+    
+    //in_flash_drive();
 }
 
 void start_manager() {
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    set_start_debug_line(30);
     draw_window();
 
     work_cycle();
-
+    
+    set_start_debug_line(25);
     restore_video_ram();
     if (ret == TEXTMODE_80x30) {
         clrScr(1);
@@ -49,16 +101,14 @@ void start_manager() {
     graphics_set_mode(ret);
 }
 
-
-static volatile bool backspacePressed = false;
-static volatile bool enterPressed = false;
-static volatile bool plusPressed = false;
-static volatile bool minusPressed = false;
-static volatile bool ctrlPressed = false;
-static volatile bool tabPressed = false;
-
-void handleScancode(uint32_t ps2scancode) {
+bool handleScancode(uint32_t ps2scancode) { // core 1
     switch (ps2scancode) {
+      case 0x38:
+        altPressed = true;
+        break;
+      case 0xB8:
+        altPressed = false;
+        break;
       case 0x0E:
         backspacePressed = true;
         break;
@@ -95,13 +145,14 @@ void handleScancode(uint32_t ps2scancode) {
       case 0x8F:
         tabPressed = false;
         break;
+      default: {
+     //   char tmp[40];
+      //  sprintf(tmp, "Scan code: %02X", ps2scancode);
+      //  draw_text(tmp, 0, 0, 0, 3);
+      }
     }
+    return manager_started;
 }
-
-#include "emulator.h"
-volatile bool manager_started = false;
-
-#include "vga.h"
 
 int overclock() {
   if (tabPressed && ctrlPressed) {
@@ -117,7 +168,6 @@ void if_usb() {
     }
     if (backspacePressed && enterPressed) {
         manager_started = true;
-        sleep_ms(200);
         start_manager();
         manager_started = false;
     }
