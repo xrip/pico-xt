@@ -4,10 +4,10 @@
 
 #ifdef XMS_UMB
   #define UMB_START_ADDRESS 0xC0000ul
-  #define UMB_BLOCKS 5
+  #define UMB_BLOCKS 6
   #ifdef XMS_HMA
-    // #define RESERVED_XMS_KB (5 * 32 + 24 /*0x6000*/ + 64 /*HMA*/)
-    #define RESERVED_XMS_KB (5 * 32 + 64 /*HMA*/)
+    #define RESERVED_XMS_KB (5 * 32 + 24 /*0x6000*/ + 64 /*HMA*/)
+    // #define RESERVED_XMS_KB (5 * 32 + 64 /*HMA*/)
   #else
     #define RESERVED_XMS_KB (UMB_BLOCKS * 32)
   #endif
