@@ -14,12 +14,12 @@ bool already_swapped_fdds = false;
 volatile bool manager_started = false;
 
 static char line[81];
-static char pathA[256] = { "C:\\" };
+static char pathA[256] = { "\\XT" };
 static char pathB[256] = { "\\XT" };
 static volatile bool left_panel_make_active = true;
 static bool left_panel_is_selected = true;
-static int left_panel_selected_file = 0;
-static int right_panel_selected_file = 0;
+static int left_panel_selected_file = 1;
+static int right_panel_selected_file = 1;
 
 static void draw_window() {
     line[80] = 0;
@@ -32,7 +32,7 @@ static void draw_window() {
     line[79] = 0xBB; // ╗
     draw_text(line, 0, 0, 7, 1);
     // TODO: center, actual drive/path
-    sprintf(line, " C:\\ ");
+    sprintf(line, " SD: ");
     draw_text(line, 16, 0, 7, 1);
 
     sprintf(line, " SD:\\XT ");
@@ -98,7 +98,37 @@ void bottom_line() {
 }
 
 void fill_left() {
+    FIL file;
+    if (f_stat(pathA, &file) != FR_OK/* || !(file.fattrib & AM_DIR)*/) { // TODO:
+        // TODO: Error dialog
+        return;
+    }
+    DIR dir;
+    if (f_opendir(&dir, pathA) != FR_OK) {
+        // TODO: Error dialog
+        return;
+    }
+    FILINFO fileInfo;
+    int y = 1;
+    const int x = 1;
+    if (strlen(pathA) > 1) {
+        sprintf(line, "..");
+        for(int l = strlen(line); l < 38; ++l) {
+            line[l] = ' ';
+        }
+        line[38] = 0;
+        draw_text(line, x, y++, 7, right_panel_selected_file == y ? 3 : 1);
+    }
 
+    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y < 28) {
+        sprintf(line, fileInfo.fname);
+        for(int l = strlen(line); l < 38; ++l) {
+           line[l] = ' ';
+        }
+        line[38] = 0;
+        draw_text(line, x, y++, 7, left_panel_selected_file == y ? 3 : 1);
+    }
+    f_closedir(&dir);
 }
 
 void fill_right() {
@@ -115,12 +145,14 @@ void fill_right() {
     FILINFO fileInfo;
     int y = 1;
     const int x = 41;
-    sprintf(line, "..");
-    for(int l = strlen(line); l < 38; ++l) {
-        line[l] = ' ';
+    if (strlen(pathB) > 1) {
+        sprintf(line, "..");
+        for(int l = strlen(line); l < 38; ++l) {
+            line[l] = ' ';
+        }
+        line[38] = 0;
+        draw_text(line, x, y++, 7, right_panel_selected_file == y ? 3 : 1);
     }
-    line[38] = 0;
-    draw_text(line, x, y++, 7, right_panel_selected_file == y ? 11 : 1);
 
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y < 28) {
         sprintf(line, fileInfo.fname);
@@ -128,21 +160,19 @@ void fill_right() {
            line[l] = ' ';
         }
         line[38] = 0;
-        draw_text(line, x, y++, 7, right_panel_selected_file == y ? 11 : 1);
+        draw_text(line, x, y++, 7, right_panel_selected_file == y ? 3 : 1);
     }
     f_closedir(&dir);
 }
 
 static void select_right_panel() {
     left_panel_is_selected = false;
-    if (left_panel_selected_file == 0) left_panel_selected_file = 1;
     fill_right();
     fill_left();
 }
 
 static void select_left_panel() {
     left_panel_is_selected = true;
-    if (right_panel_selected_file == 0) right_panel_selected_file = 1;
     fill_right();
     fill_left();
 }
@@ -226,9 +256,9 @@ bool handleScancode(uint32_t ps2scancode) { // core 1
         tabPressed = false;
         break;
       default: {
-     //   char tmp[40];
-      //  sprintf(tmp, "Scan code: %02X", ps2scancode);
-      //  draw_text(tmp, 0, 0, 0, 3);
+        char tmp[40];
+        sprintf(tmp, "Scan code: %02X", ps2scancode);
+        draw_text(tmp, 0, 0, 0, 3);
       }
     }
     return manager_started;
