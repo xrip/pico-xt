@@ -500,7 +500,7 @@ void clrScr(uint8_t color) {
     current_line = start_debug_line;
 };
 
-void draw_text2(char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
+void draw_text(char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
     if ((y < 0) | (y >= text_buffer_height)) return;
     if (x >= text_buffer_width) return;
     int len = strlen(string);
@@ -557,30 +557,8 @@ void logMsg(char* msg) {
             *(t_buf++) = 1 << 4;
         }
     }
-    draw_text2(msg, 0, current_line++, 7, 1);
+    draw_text(msg, 0, current_line++, 7, 1);
 }
-
-void draw_text(char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    if ((y < 0) | (y >= text_buffer_height)) return;
-    int len = strlen(string);
-    if (x < 0) {
-        if ((len + x) > 0) {
-            string += -x;
-            x = 0;
-        }
-        else {
-            return;
-        }
-    }
-    if (x >= text_buffer_width) return;
-    uint8_t* t_buf = text_buffer + ((text_buffer_width * 2) * y) + x;
-    //uint8_t* t_buf_c=text_buf+(text_buf_width*y)+x+1;
-    for (int xi = x; xi < text_buffer_width * 2; xi++) {
-        if (!(*string)) break;
-        *t_buf++ = *string++;
-        *t_buf++ = (bgcolor << 4) | (color & 0xF);
-    }
-};
 
 void graphics_set_bgcolor(uint32_t color888) {
     uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
@@ -722,3 +700,37 @@ void graphics_init() {
     irq_set_enabled(VGA_DMA_IRQ, true);
     dma_start_channel_mask((1u << dma_chan));
 };
+
+#include "emulator.h"
+static const char* path = "\\XT\\video.ram";
+static FATFS fs;
+static FIL file;
+bool save_video_ram() {
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    FRESULT result = f_open(&file, path, FA_WRITE | FA_CREATE_ALWAYS);
+    if (result != FR_OK) {
+        return false;
+    }
+    UINT bw;
+    result = f_write(&file, VIDEORAM, sizeof(VIDEORAM), &bw);
+    if (result != FR_OK) {
+        return false;
+    }
+    f_close(&file);
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+    return true;
+}
+bool restore_video_ram() {
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    FRESULT result = f_open(&file, path, FA_READ);
+    if (result == FR_OK) {
+      UINT bw;
+      result = f_read(&file, VIDEORAM, sizeof(VIDEORAM), &bw);
+      if (result != FR_OK) {
+        return false;
+      }
+    }
+    f_close(&file);
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+    return true;
+}

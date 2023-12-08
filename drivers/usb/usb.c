@@ -225,39 +225,7 @@ void handleScancode(uint32_t ps2scancode) {
 }
 
 #include "emulator.h"
-static volatile bool usbStarted = false;
-static const char* path = "\\XT\\video.ram";
-static FATFS fs;
-static FIL file;
-static bool save_video_ram() {
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-    FRESULT result = f_open(&file, path, FA_WRITE | FA_CREATE_ALWAYS);
-    if (result != FR_OK) {
-        return false;
-    }
-    UINT bw;
-    result = f_write(&file, VIDEORAM, sizeof(VIDEORAM), &bw);
-    if (result != FR_OK) {
-        return false;
-    }
-    f_close(&file);
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-    return true;
-}
-static bool restore_video_ram() {
-    gpio_put(PICO_DEFAULT_LED_PIN, true);
-    FRESULT result = f_open(&file, path, FA_READ);
-    if (result == FR_OK) {
-      UINT bw;
-      result = f_read(&file, VIDEORAM, sizeof(VIDEORAM), &bw);
-      if (result != FR_OK) {
-        return false;
-      }
-    }
-    f_close(&file);
-    gpio_put(PICO_DEFAULT_LED_PIN, false);
-    return true;
-}
+static volatile bool manager_started = false;
 
 #include "vga.h"
 
@@ -269,28 +237,16 @@ int overclock() {
   return 0;
 }
 
+#include "manager.h"
+
 void if_usb() {
-    if (usbStarted) {
+    if (manager_started) {
         return;
     }
     if (backspacePressed && enterPressed) {
-        usbStarted = true;
-        save_video_ram();
-        enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-        set_start_debug_line(0);
-        clrScr(1);
-        logMsg("");
-        logMsg("                      You are in USB mode now.");
-        logMsg("  To return back to PC/XT emulation, just eject an USB-drive from your PC...");
-        logMsg("");
-        in_flash_drive();
-        set_start_debug_line(25);
-        restore_video_ram();
-        if (ret == TEXTMODE_80x30) {
-          clrScr(1);
-        }
-        usbStarted = false;
-        graphics_set_mode(ret);
+        manager_started = true;
+        start_manager();
+        manager_started = false;
     }
 }
 
@@ -317,8 +273,8 @@ static void swap_drive_message() {
     }
     graphics_set_mode(ret);
 }
-void if_swap_drives() {
-    if (usbStarted) {
+void if_swap_drives() { // TODO: move to the manager
+    if (manager_started) {
         return;
     }
     if (backspacePressed && tabPressed && ctrlPressed) {

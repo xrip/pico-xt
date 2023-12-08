@@ -3967,7 +3967,7 @@ void exec86(uint32_t execloops) {
                 break;
 
             default:
-
+                { char tmp[40]; sprintf(tmp, "Unexpected opcode: %02Xh ignored", opcode); logMsg(tmp); }
                 //intcall86(6);
                 break;
         }
