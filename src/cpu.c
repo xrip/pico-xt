@@ -707,6 +707,7 @@ static void intcall86(uint8_t intnum) {
 
                 // FIXME!!
                     ega_plane_offset = 0;
+                    vga_planar_mode = false;
                     RAM[0x449] = CPU_AL;
                     RAM[0x44A] = (uint8_t)videomode <= 2 ? 40 : 80;
                     RAM[0x44B] = 0;
