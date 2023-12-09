@@ -30,7 +30,6 @@ static uint8_t latchReadRGB = 0, latchReadPal = 0;
 uint32_t ega_plane_offset = 0;
 bool vga_planar_mode = false;
 
-static uint16_t VGA_SC_value = 0;
 static bool flip3C0 = false;
 
 void portout(uint16_t portnum, uint16_t value) {
@@ -168,8 +167,9 @@ void portout(uint16_t portnum, uint16_t value) {
                 }
             }
             if (VGA_SC_index == 0x04) {
-                vga_planar_mode = (VGA_SC_value & 6) == 0;
-#if PICO_ON_DEVICE
+                vga_planar_mode = (value & 6) ? true : false;
+#if  1
+                //PICO_ON_DEVICE
                 if (vga_planar_mode && videomode == 0x13) {
                     graphics_set_mode(VGA_320x200x256x4);
                 } else {
@@ -220,6 +220,8 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3CE:
             VGA_GC_index = value & 255;
         break;
+        // https://frolov-lib.ru/books/bsp.old/v03/ch7.htm
+        // https://swag.outpostbbs.net/EGAVGA/0222.PAS.html
         case 0x3CF:
             VGA_GC[VGA_GC_index]= value & 255;
         case 0x3D4:
@@ -420,8 +422,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x3C4: // Sequencer Address Register (read/write)
             return VGA_SC_index;
         case 0x3C5:
-            if (VGA_SC_index == 0x02) return VGA_SC_value;
-            return 0xFF;
+            return VGA_SC[VGA_SC_index];
         case 0x3C7: //DAC state
             return dac_state;
         case 0x3C8: //palette index
