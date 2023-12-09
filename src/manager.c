@@ -83,47 +83,80 @@ static void draw_window() {
     draw_text(line, 0, PANEL_LAST_Y, FOREGROUND_FIELD_COLOR, BACKGROUND_FIELD_COLOR);
 }
 
-void bottom_line() {
-    sprintf(line, "1       2       3       4       5       6       7       8       9       10      ");
-    draw_text(line, 0, F_BTN_Y_POS, FOREGROUND_F1_10_COLOR, BACKGROUND_F1_10_COLOR);
-    
-    memset(line, ' ', 80); line[0] = '>';
-    draw_text(line, 0, CMD_Y_POS, FOREGROUND_CMD_COLOR, BACKGROUND_CMD_COLOR); // status/command line
+#define BTN_WIDTH 8
+typedef struct fn_1_10_tbl_rec {
+    char pre_mark;
+    char mark;
+    char name[BTN_WIDTH];
+    fn_1_10_ptr action;
+} fn_1_10_tbl_rec_t;
 
+void do_nothing(uint8_t cmd) {
+
+}
+
+#define BTNS_COUNT 10
+typedef fn_1_10_tbl_rec_t fn_1_10_tbl_t[BTNS_COUNT];
+static fn_1_10_tbl_t fn_1_10_tbl = {
+    ' ', '1', " Help ", do_nothing,
+    ' ', '2', " Menu ", do_nothing,
+    ' ', '3', " View ", do_nothing,
+    ' ', '4', " Edit ", do_nothing,
+    ' ', '5', " Copy ", do_nothing,
+    ' ', '6', " Move ", do_nothing,
+    ' ', '7', "MkDir ", do_nothing,
+    ' ', '8', " Del  ", do_nothing,
+    ' ', '9', " Swap ", do_nothing,
+    ' ', '0', " USB  ", do_nothing
+};
+
+static fn_1_10_tbl_t fn_1_10_tbl_alt = {
+    ' ', '1', "Right ", do_nothing,
+    ' ', '2', " Left ", do_nothing,
+    ' ', '3', " View ", do_nothing,
+    ' ', '4', " Edit ", do_nothing,
+    ' ', '5', " Copy ", do_nothing,
+    ' ', '6', " Move ", do_nothing,
+    ' ', '7', " Find ", do_nothing,
+    ' ', '8', " Del  ", do_nothing,
+    ' ', '9', " UpMn ", do_nothing,
+    ' ', '0', " USB  ", do_nothing
+};
+
+static fn_1_10_tbl_t fn_1_10_tbl_ctrl = {
+    ' ', '1', " EjtL ", do_nothing,
+    ' ', '2', " EjtR ", do_nothing,
+    ' ', '3', "Debug ", do_nothing,
+    ' ', '4', " Edit ", do_nothing,
+    ' ', '5', " Copy ", do_nothing,
+    ' ', '6', " Move ", do_nothing,
+    ' ', '7', " Find ", do_nothing,
+    ' ', '8', " Del  ", do_nothing,
+    ' ', '9', " Swap ", do_nothing,
+    ' ', '0', " USB  ", do_nothing
+};
+
+void bottom_line() {
+    const fn_1_10_tbl_t * ptbl = &fn_1_10_tbl;
     if (altPressed) {
-        sprintf(line, " Left "); draw_text(line,  1, F_BTN_Y_POS, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, "Right "); draw_text(line,  9, F_BTN_Y_POS, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " View "); draw_text(line, 17, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Edit "); draw_text(line, 25, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Copy "); draw_text(line, 33, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Move "); draw_text(line, 41, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Find "); draw_text(line, 49, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Del  "); draw_text(line, 57, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Swap "); draw_text(line, 65, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " USB ");  draw_text(line, 74, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        ptbl = &fn_1_10_tbl_alt;
     } else if (ctrlPressed) {
-        sprintf(line, " EjtL "); draw_text(line,  1, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " EjtR "); draw_text(line,  9, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, "Debug "); draw_text(line, 17, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Edit "); draw_text(line, 25, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Copy "); draw_text(line, 33, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Move "); draw_text(line, 41, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Dir  "); draw_text(line, 49, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Del  "); draw_text(line, 57, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " UpMn "); draw_text(line, 65, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " USB ");  draw_text(line, 74, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-    } else {
-        sprintf(line, " Help "); draw_text(line,  1, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Menu "); draw_text(line,  9, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " View "); draw_text(line, 17, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Edit "); draw_text(line, 25, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Copy "); draw_text(line, 33, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Move "); draw_text(line, 41, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Dir  "); draw_text(line, 49, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " Del  "); draw_text(line, 57, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " UpMn "); draw_text(line, 65, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-        sprintf(line, " USB ");  draw_text(line, 74, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        ptbl = &fn_1_10_tbl_ctrl;
     }
+    sprintf(line, "1      "); 
+    for (int i = 0; i < BTNS_COUNT; ++i) {
+        const fn_1_10_tbl_rec_t* rec = &(*ptbl)[i];
+        // 1, 2, 3... button mark
+        line[0] = rec->pre_mark;
+        line[1] = rec->mark;
+        draw_text(line, i * BTN_WIDTH, F_BTN_Y_POS, FOREGROUND_F1_10_COLOR, BACKGROUND_F1_10_COLOR);
+        // button
+        sprintf(line, rec->name);
+        draw_text(line, i * BTN_WIDTH + 2, F_BTN_Y_POS, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+    }
+    
+    memset(line, ' ', 80); line[0] = '>'; line[80] = 0;
+    draw_text(line, 0, CMD_Y_POS, FOREGROUND_CMD_COLOR, BACKGROUND_CMD_COLOR); // status/command line
 }
 
 void fill_left() {
@@ -150,7 +183,7 @@ void fill_left() {
         draw_text(line, x, y++, FOREGROUND_FIELD_COLOR, bgc);
     }
 
-    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y < 28) {
+    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y <= LAST_FILE_LINE_ON_PANEL_Y) {
         sprintf(line, fileInfo.fname);
         for(int l = strlen(line); l < 38; ++l) {
            line[l] = ' ';
@@ -186,7 +219,7 @@ void fill_right() {
         draw_text(line, x, y++, FOREGROUND_FIELD_COLOR, bgc);
     }
 
-    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y < 28) {
+    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y <= LAST_FILE_LINE_ON_PANEL_Y) {
         sprintf(line, fileInfo.fname);
         for(int l = strlen(line); l < 38; ++l) {
            line[l] = ' ';
