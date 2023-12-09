@@ -22,8 +22,30 @@ static volatile bool left_panel_make_active = true;
 static bool left_panel_is_selected = true;
 static int left_panel_selected_file = 1;
 static int right_panel_selected_file = 1;
-static volatile uint32_t lastScanCode = 0;
-static uint32_t prevProcessedScanCode = 0;
+static volatile uint32_t lastCleanableScanCode = 0;
+static uint32_t lastSavedScanCode = 0;
+
+static uint8_t BACKGROUND_FIELD_COLOR = 1; // Blue
+static uint8_t FOREGROUND_FIELD_COLOR = 7; // White
+
+static uint8_t BACKGROUND_F1_10_COLOR = 0; // Black
+static uint8_t FOREGROUND_F1_10_COLOR = 7; // White
+
+static uint8_t BACKGROUND_F_BTN_COLOR = 3; // Green
+static uint8_t FOREGROUND_F_BTN_COLOR = 0; // Black
+
+static uint8_t BACKGROUND_CMD_COLOR = 0; // Black
+static uint8_t FOREGROUND_CMD_COLOR = 7; // White
+
+static const uint8_t PANEL_TOP_Y = 0;
+static const uint8_t TOTAL_SCREEN_LINES = 30;
+static const uint8_t F_BTN_Y_POS = TOTAL_SCREEN_LINES - 1;
+static const uint8_t CMD_Y_POS = F_BTN_Y_POS - 1;
+static const uint8_t PANEL_LAST_Y = CMD_Y_POS - 1;
+
+static uint8_t FIRST_FILE_LINE_ON_PANEL_Y = PANEL_TOP_Y + 1;
+static uint8_t LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
+
 
 static void draw_window() {
     line[80] = 0;
@@ -34,21 +56,21 @@ static void draw_window() {
     line[39] = 0xBB; // ╗
     line[40] = 0xC9; // ╔
     line[79] = 0xBB; // ╗
-    draw_text(line, 0, 0, 7, 1);
+    draw_text(line, 0, PANEL_TOP_Y, FOREGROUND_FIELD_COLOR, BACKGROUND_FIELD_COLOR);
     // TODO: center, actual drive/path
     sprintf(line, " SD:%s ", pathA);
-    draw_text(line, 16, 0, 7, 1);
+    draw_text(line, 16, PANEL_TOP_Y, FOREGROUND_FIELD_COLOR, BACKGROUND_FIELD_COLOR);
 
     sprintf(line, " SD:%s ", pathB);
-    draw_text(line, 57, 0, 7, 1);
+    draw_text(line, 57, PANEL_TOP_Y, FOREGROUND_FIELD_COLOR, BACKGROUND_FIELD_COLOR);
 
     memset(line, ' ', 80);
     line[0]  = 0xBA;
     line[39] = 0xBA;
     line[40] = 0xBA;
     line[79] = 0xBA;
-    for (int y = 1; y < 27; ++y) {
-        draw_text(line, 0, y, 7, 1);
+    for (int y = PANEL_TOP_Y + 1; y < PANEL_LAST_Y; ++y) {
+        draw_text(line, 0, y, FOREGROUND_FIELD_COLOR, BACKGROUND_FIELD_COLOR);
     }
 
     for(int i = 1; i < 79; ++i) {
@@ -58,49 +80,49 @@ static void draw_window() {
     line[39] = 0xBC; // ╝
     line[40] = 0xC8; // ╚
     line[79] = 0xBC; // ╝
-    draw_text(line, 0, 27, 7, 1);
+    draw_text(line, 0, PANEL_LAST_Y, FOREGROUND_FIELD_COLOR, BACKGROUND_FIELD_COLOR);
 }
 
 void bottom_line() {
     sprintf(line, "1       2       3       4       5       6       7       8       9       10      ");
-    draw_text(line, 0, 29, 7, 0);
+    draw_text(line, 0, F_BTN_Y_POS, FOREGROUND_F1_10_COLOR, BACKGROUND_F1_10_COLOR);
     
     memset(line, ' ', 80); line[0] = '>';
-    draw_text(line, 0, 28, 7, 0); // status line ?
+    draw_text(line, 0, CMD_Y_POS, FOREGROUND_CMD_COLOR, BACKGROUND_CMD_COLOR); // status/command line
 
     if (altPressed) {
-        sprintf(line, " Left "); draw_text(line,  1, 29, 0, 3);
-        sprintf(line, "Right "); draw_text(line,  9, 29, 0, 3);
-        sprintf(line, " View "); draw_text(line, 17, 29, 0, 3);
-        sprintf(line, " Edit "); draw_text(line, 25, 29, 0, 3);
-        sprintf(line, " Copy "); draw_text(line, 33, 29, 0, 3);
-        sprintf(line, " Move "); draw_text(line, 41, 29, 0, 3);
-        sprintf(line, " Find "); draw_text(line, 49, 29, 0, 3);
-        sprintf(line, " Del  "); draw_text(line, 57, 29, 0, 3);
-        sprintf(line, " Swap "); draw_text(line, 65, 29, 0, 3);
-        sprintf(line, " USB ");  draw_text(line, 74, 29, 0, 3);
+        sprintf(line, " Left "); draw_text(line,  1, F_BTN_Y_POS, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, "Right "); draw_text(line,  9, F_BTN_Y_POS, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " View "); draw_text(line, 17, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Edit "); draw_text(line, 25, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Copy "); draw_text(line, 33, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Move "); draw_text(line, 41, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Find "); draw_text(line, 49, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Del  "); draw_text(line, 57, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Swap "); draw_text(line, 65, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " USB ");  draw_text(line, 74, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
     } else if (ctrlPressed) {
-        sprintf(line, "Eject "); draw_text(line,  1, 29, 0, 3);
-        sprintf(line, " Menu "); draw_text(line,  9, 29, 0, 3);
-        sprintf(line, " View "); draw_text(line, 17, 29, 0, 3);
-        sprintf(line, " Edit "); draw_text(line, 25, 29, 0, 3);
-        sprintf(line, " Copy "); draw_text(line, 33, 29, 0, 3);
-        sprintf(line, " Move "); draw_text(line, 41, 29, 0, 3);
-        sprintf(line, " Dir  "); draw_text(line, 49, 29, 0, 3);
-        sprintf(line, " Del  "); draw_text(line, 57, 29, 0, 3);
-        sprintf(line, " UpMn "); draw_text(line, 65, 29, 0, 3);
-        sprintf(line, " USB ");  draw_text(line, 74, 29, 0, 3);
+        sprintf(line, " EjtL "); draw_text(line,  1, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " EjtR "); draw_text(line,  9, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, "Debug "); draw_text(line, 17, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Edit "); draw_text(line, 25, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Copy "); draw_text(line, 33, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Move "); draw_text(line, 41, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Dir  "); draw_text(line, 49, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Del  "); draw_text(line, 57, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " UpMn "); draw_text(line, 65, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " USB ");  draw_text(line, 74, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
     } else {
-        sprintf(line, " Help "); draw_text(line,  1, 29, 0, 3);
-        sprintf(line, " Menu "); draw_text(line,  9, 29, 0, 3);
-        sprintf(line, " View "); draw_text(line, 17, 29, 0, 3);
-        sprintf(line, " Edit "); draw_text(line, 25, 29, 0, 3);
-        sprintf(line, " Copy "); draw_text(line, 33, 29, 0, 3);
-        sprintf(line, " Move "); draw_text(line, 41, 29, 0, 3);
-        sprintf(line, " Dir  "); draw_text(line, 49, 29, 0, 3);
-        sprintf(line, " Del  "); draw_text(line, 57, 29, 0, 3);
-        sprintf(line, " UpMn "); draw_text(line, 65, 29, 0, 3);
-        sprintf(line, " USB ");  draw_text(line, 74, 29, 0, 3);
+        sprintf(line, " Help "); draw_text(line,  1, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Menu "); draw_text(line,  9, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " View "); draw_text(line, 17, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Edit "); draw_text(line, 25, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Copy "); draw_text(line, 33, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Move "); draw_text(line, 41, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Dir  "); draw_text(line, 49, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " Del  "); draw_text(line, 57, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " UpMn "); draw_text(line, 65, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
+        sprintf(line, " USB ");  draw_text(line, 74, 29, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
     }
 }
 
@@ -124,8 +146,8 @@ void fill_left() {
             line[l] = ' ';
         }
         line[38] = 0;
-        int bgc = left_panel_is_selected && left_panel_selected_file == y ? 11 : 1;
-        draw_text(line, x, y++, 7, bgc);
+        int bgc = left_panel_is_selected && left_panel_selected_file == y ? 11 : BACKGROUND_FIELD_COLOR;
+        draw_text(line, x, y++, FOREGROUND_FIELD_COLOR, bgc);
     }
 
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y < 28) {
@@ -134,8 +156,8 @@ void fill_left() {
            line[l] = ' ';
         }
         line[38] = 0;
-        int bgc = left_panel_is_selected && left_panel_selected_file == y ? 11 : 1;
-        draw_text(line, x, y++, 7, bgc);
+        int bgc = left_panel_is_selected && left_panel_selected_file == y ? 11 : BACKGROUND_FIELD_COLOR;
+        draw_text(line, x, y++, FOREGROUND_FIELD_COLOR, bgc);
     }
     f_closedir(&dir);
 }
@@ -160,8 +182,8 @@ void fill_right() {
             line[l] = ' ';
         }
         line[38] = 0;
-        int bgc = !left_panel_is_selected && right_panel_selected_file == y ? 11 : 1;
-        draw_text(line, x, y++, 7, bgc);
+        int bgc = !left_panel_is_selected && right_panel_selected_file == y ? 11 : BACKGROUND_FIELD_COLOR;
+        draw_text(line, x, y++, FOREGROUND_FIELD_COLOR, bgc);
     }
 
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y < 28) {
@@ -170,8 +192,8 @@ void fill_right() {
            line[l] = ' ';
         }
         line[38] = 0;
-        int bgc = !left_panel_is_selected && right_panel_selected_file == y ? 11 : 1;
-        draw_text(line, x, y++, 7, bgc);
+        int bgc = !left_panel_is_selected && right_panel_selected_file == y ? 11 : BACKGROUND_FIELD_COLOR;
+        draw_text(line, x, y++, FOREGROUND_FIELD_COLOR, bgc);
     }
     f_closedir(&dir);
 }
@@ -188,50 +210,76 @@ static void select_left_panel() {
     fill_left();
 }
 
+inline static void scan_code_processed() {
+  if (lastCleanableScanCode)
+    lastSavedScanCode = lastCleanableScanCode;
+  lastCleanableScanCode = 0;
+}
+
 static void work_cycle() {
     while(1) {
-        bottom_line();
         if (left_panel_is_selected && !left_panel_make_active) {
             select_right_panel();
         }
         if (!left_panel_is_selected && left_panel_make_active) {
             select_left_panel();
         }
-        switch(lastScanCode) {
-          case 0xD0: // down
-            if (prevProcessedScanCode != 0x50) {
+        switch(lastCleanableScanCode) {
+          case 0x1D: // Ctrl down
+          case 0x9D: // Ctrl up
+          case 0x38: // ALT down
+          case 0xB8: // ALT up
+            bottom_line();
+            scan_code_processed();
+            break;
+          case 0x50: // down arr down
+            scan_code_processed();
+            break;
+          case 0xD0: // down arr up
+            if (lastSavedScanCode != 0x50) {
                 break;
             }
-            if (left_panel_is_selected) {
+            if (left_panel_is_selected &&
+                left_panel_selected_file < LAST_FILE_LINE_ON_PANEL_Y
+              ) {
                 left_panel_selected_file++;
                 fill_left();
             }
-            else {
+            else if(
+                right_panel_selected_file < LAST_FILE_LINE_ON_PANEL_Y
+            ) {
                 right_panel_selected_file++;
                 fill_right();
             }
+            scan_code_processed();
             break;
-          case 0xC8: // up
-            if (prevProcessedScanCode != 0x48) {
+          case 0x48: // up arr down
+            scan_code_processed();
+            break;
+          case 0xC8: // up arr up
+            if (lastSavedScanCode != 0x48) {
                 break;
             }
-            if (left_panel_is_selected) {
+            if (left_panel_is_selected &&
+                left_panel_selected_file > FIRST_FILE_LINE_ON_PANEL_Y
+            ) {
                 left_panel_selected_file--;
                 fill_left();
             }
-            else {
+            else if(
+                right_panel_selected_file > FIRST_FILE_LINE_ON_PANEL_Y
+            ) {
                 right_panel_selected_file--;
                 fill_right();
             }
+            scan_code_processed();
             break;
           case 0xCB: // left
             break;
           case 0xCD: // right
             break;
         }
-        prevProcessedScanCode = lastScanCode;
-        lastScanCode = 0;
-        sleep_ms(33);
+    //    sleep_ms(33);
     }
     
     //in_flash_drive();
@@ -244,6 +292,7 @@ void start_manager() {
     draw_window();
     fill_left();
     fill_right();
+    bottom_line();
 
     work_cycle();
     
@@ -256,7 +305,7 @@ void start_manager() {
 }
 
 bool handleScancode(uint32_t ps2scancode) { // core 1
-    lastScanCode = ps2scancode;
+    lastCleanableScanCode = ps2scancode;
     switch (ps2scancode) {
       case 0x48:
         upPressed = true;
@@ -310,7 +359,8 @@ bool handleScancode(uint32_t ps2scancode) { // core 1
         tabPressed = true;
         break;
       case 0x8F:
-        if (manager_started) left_panel_make_active = !left_panel_make_active; // TODO: combinations?
+        if (manager_started)
+            left_panel_make_active = !left_panel_make_active; // TODO: combinations?
         tabPressed = false;
         break;
       default: {
