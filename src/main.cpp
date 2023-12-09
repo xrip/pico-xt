@@ -1,5 +1,6 @@
 extern "C" {
 #include "emulator.h"
+#include "manager.h"
 }
 
 #if PICO_ON_DEVICE
@@ -143,7 +144,6 @@ static int RendererThread(void* ptr) {
 pwm_config config = pwm_get_default_config();
 
 uint32_t overcloking_khz = OVERCLOCKING * 1000;
-
 
 __inline static void if_overclock() {
     int oc = overclock();
@@ -774,7 +774,7 @@ int main() {
         SDL_UpdateWindowSurface(window);
 #else
         exec86(200);
-        if_usb();
+        if_manager();
         if_swap_drives();
         if_overclock();
 #endif

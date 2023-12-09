@@ -1,6 +1,8 @@
 #include "manager.h"
 #include "emulator.h"
 #include "vga.h"
+#include "usb.h"
+#include "pico-vision.h"
 
 static volatile bool backspacePressed = false;
 static volatile bool enterPressed = false;
@@ -14,28 +16,69 @@ static volatile bool downPressed = false;
 
 bool already_swapped_fdds = false;
 volatile bool manager_started = false;
+volatile bool usb_started = false;
+
+inline static void swap_drive_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    set_start_debug_line(0);
+    clrScr(1);
+    for(int i = 0; i < 10; i++) {
+        logMsg("");
+    }
+    if (already_swapped_fdds) {
+        logMsg("                      Swap FDD0 and FDD1 drive images"); logMsg("");
+        logMsg("          To return images back, press Ctrl + Tab + Backspace");
+    } else {
+        logMsg("                    Swap FDD0 and FDD1 drive images back");
+    }
+    sleep_ms(3000);
+    set_start_debug_line(25);
+    restore_video_ram();
+    if (ret == TEXTMODE_80x30) {
+        clrScr(1);
+    }
+    graphics_set_mode(ret);
+}
+
+inline static void swap_drives(uint8_t cmd) {
+    if (backspacePressed && tabPressed && ctrlPressed) {
+        if (already_swapped_fdds) {
+            insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
+            insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+            already_swapped_fdds = false;
+            swap_drive_message();
+            return;
+        }
+        insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
+        insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+        already_swapped_fdds = true;
+        swap_drive_message();
+    }
+}
+
+void if_swap_drives() {
+    if (manager_started) {
+        return;
+    }
+    swap_drives(7);
+}
 
 static char line[81];
 static char pathA[256] = { "\\XT" };
 static char pathB[256] = { "\\XT" };
 static volatile bool left_panel_make_active = true;
 static bool left_panel_is_selected = true;
-static int left_panel_selected_file = 1;
-static int right_panel_selected_file = 1;
+
+static int left_panel_selected_file_idx = 1;
+static int right_panel_selected_file_idx = 1;
+static volatile uint16_t left_start_file_offset = 0;
+static volatile uint16_t right_start_file_offset = 0;
+static volatile uint16_t left_files_number = 0;
+static volatile uint16_t right_files_number = 0;
+
 static volatile uint32_t lastCleanableScanCode = 0;
 static uint32_t lastSavedScanCode = 0;
-
-static uint8_t BACKGROUND_FIELD_COLOR = 1; // Blue
-static uint8_t FOREGROUND_FIELD_COLOR = 7; // White
-
-static uint8_t BACKGROUND_F1_10_COLOR = 0; // Black
-static uint8_t FOREGROUND_F1_10_COLOR = 7; // White
-
-static uint8_t BACKGROUND_F_BTN_COLOR = 3; // Green
-static uint8_t FOREGROUND_F_BTN_COLOR = 0; // Black
-
-static uint8_t BACKGROUND_CMD_COLOR = 0; // Black
-static uint8_t FOREGROUND_CMD_COLOR = 7; // White
 
 static const uint8_t PANEL_TOP_Y = 0;
 static const uint8_t TOTAL_SCREEN_LINES = 30;
@@ -46,57 +89,25 @@ static const uint8_t PANEL_LAST_Y = CMD_Y_POS - 1;
 static uint8_t FIRST_FILE_LINE_ON_PANEL_Y = PANEL_TOP_Y + 1;
 static uint8_t LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
 
-
 static void draw_window() {
-    line[80] = 0;
-    for(int i = 1; i < 79; ++i) {
-        line[i] = 0xCD; // ═
-    }
-    line[0]  = 0xC9; // ╔
-    line[39] = 0xBB; // ╗
-    line[40] = 0xC9; // ╔
-    line[79] = 0xBB; // ╗
-    draw_text(line, 0, PANEL_TOP_Y, FOREGROUND_FIELD_COLOR, BACKGROUND_FIELD_COLOR);
-    // TODO: center, actual drive/path
-    sprintf(line, " SD:%s ", pathA);
-    draw_text(line, 16, PANEL_TOP_Y, FOREGROUND_FIELD_COLOR, BACKGROUND_FIELD_COLOR);
-
-    sprintf(line, " SD:%s ", pathB);
-    draw_text(line, 57, PANEL_TOP_Y, FOREGROUND_FIELD_COLOR, BACKGROUND_FIELD_COLOR);
-
-    memset(line, ' ', 80);
-    line[0]  = 0xBA;
-    line[39] = 0xBA;
-    line[40] = 0xBA;
-    line[79] = 0xBA;
-    for (int y = PANEL_TOP_Y + 1; y < PANEL_LAST_Y; ++y) {
-        draw_text(line, 0, y, FOREGROUND_FIELD_COLOR, BACKGROUND_FIELD_COLOR);
-    }
-
-    for(int i = 1; i < 79; ++i) {
-        line[i] = 0xCD; // ═
-    }
-    line[0]  = 0xC8; // ╚
-    line[39] = 0xBC; // ╝
-    line[40] = 0xC8; // ╚
-    line[79] = 0xBC; // ╝
-    draw_text(line, 0, PANEL_LAST_Y, FOREGROUND_FIELD_COLOR, BACKGROUND_FIELD_COLOR);
+    sprintf(line, "SD:%s", pathA);
+    draw_panel( 0, PANEL_TOP_Y, 40, PANEL_LAST_Y + 1, line, 0);
+    draw_panel(40, PANEL_TOP_Y, 40, PANEL_LAST_Y + 1, line, 0);
 }
-
-#define BTN_WIDTH 8
-typedef struct fn_1_10_tbl_rec {
-    char pre_mark;
-    char mark;
-    char name[BTN_WIDTH];
-    fn_1_10_ptr action;
-} fn_1_10_tbl_rec_t;
 
 void do_nothing(uint8_t cmd) {
-
 }
 
-#define BTNS_COUNT 10
-typedef fn_1_10_tbl_rec_t fn_1_10_tbl_t[BTNS_COUNT];
+static bool mark_to_exit_flag = false;
+void mark_to_exit(uint8_t cmd) {
+    mark_to_exit_flag = true;
+}
+
+void turn_usb_on(uint8_t cmd) {
+    init_pico_usb_drive();
+    usb_started = true;
+}
+
 static fn_1_10_tbl_t fn_1_10_tbl = {
     ' ', '1', " Help ", do_nothing,
     ' ', '2', " Menu ", do_nothing,
@@ -106,8 +117,8 @@ static fn_1_10_tbl_t fn_1_10_tbl = {
     ' ', '6', " Move ", do_nothing,
     ' ', '7', "MkDir ", do_nothing,
     ' ', '8', " Del  ", do_nothing,
-    ' ', '9', " Swap ", do_nothing,
-    ' ', '0', " USB  ", do_nothing
+    ' ', '9', " Swap ", swap_drives,
+    ' ', '0', " USB  ", turn_usb_on
 };
 
 static fn_1_10_tbl_t fn_1_10_tbl_alt = {
@@ -120,7 +131,7 @@ static fn_1_10_tbl_t fn_1_10_tbl_alt = {
     ' ', '7', " Find ", do_nothing,
     ' ', '8', " Del  ", do_nothing,
     ' ', '9', " UpMn ", do_nothing,
-    ' ', '0', " USB  ", do_nothing
+    ' ', '0', " USB  ", turn_usb_on
 };
 
 static fn_1_10_tbl_t fn_1_10_tbl_ctrl = {
@@ -132,34 +143,29 @@ static fn_1_10_tbl_t fn_1_10_tbl_ctrl = {
     ' ', '6', " Move ", do_nothing,
     ' ', '7', " Find ", do_nothing,
     ' ', '8', " Del  ", do_nothing,
-    ' ', '9', " Swap ", do_nothing,
-    ' ', '0', " USB  ", do_nothing
+    ' ', '9', " Swap ", swap_drives,
+    ' ', '0', " Exit ", mark_to_exit
 };
 
-void bottom_line() {
+static inline fn_1_10_tbl_t* actual_fn_1_10_tbl() {
     const fn_1_10_tbl_t * ptbl = &fn_1_10_tbl;
     if (altPressed) {
         ptbl = &fn_1_10_tbl_alt;
     } else if (ctrlPressed) {
         ptbl = &fn_1_10_tbl_ctrl;
     }
-    sprintf(line, "1      "); 
-    for (int i = 0; i < BTNS_COUNT; ++i) {
-        const fn_1_10_tbl_rec_t* rec = &(*ptbl)[i];
-        // 1, 2, 3... button mark
-        line[0] = rec->pre_mark;
-        line[1] = rec->mark;
-        draw_text(line, i * BTN_WIDTH, F_BTN_Y_POS, FOREGROUND_F1_10_COLOR, BACKGROUND_F1_10_COLOR);
-        // button
-        sprintf(line, rec->name);
-        draw_text(line, i * BTN_WIDTH + 2, F_BTN_Y_POS, FOREGROUND_F_BTN_COLOR, BACKGROUND_F_BTN_COLOR);
-    }
-    
-    memset(line, ' ', 80); line[0] = '>'; line[80] = 0;
-    draw_text(line, 0, CMD_Y_POS, FOREGROUND_CMD_COLOR, BACKGROUND_CMD_COLOR); // status/command line
+    return ptbl;
 }
 
-void fill_left() {
+static inline void bottom_line() {
+    for (int i = 0; i < BTNS_COUNT; ++i) {
+        const fn_1_10_tbl_rec_t* rec = &(*actual_fn_1_10_tbl())[i];
+        draw_fn_btn(rec, i * BTN_WIDTH, F_BTN_Y_POS);
+    }
+    draw_cmd_line(0, CMD_Y_POS, 0);
+}
+
+static inline void fill_left() {
     FIL file;
     if (f_stat(pathA, &file) != FR_OK/* || !(file.fattrib & AM_DIR)*/) { // TODO:
         // TODO: Error dialog
@@ -172,25 +178,16 @@ void fill_left() {
     }
     FILINFO fileInfo;
     int y = 1;
-    const int x = 1;
+    left_files_number = 0;
     if (strlen(pathA) > 1) {
-        sprintf(line, "..");
-        for(int l = strlen(line); l < 38; ++l) {
-            line[l] = ' ';
-        }
-        line[38] = 0;
-        int bgc = left_panel_is_selected && left_panel_selected_file == y ? 11 : BACKGROUND_FIELD_COLOR;
-        draw_text(line, x, y++, FOREGROUND_FIELD_COLOR, bgc);
+        draw_label(1, y, 38, "..", left_panel_is_selected && left_panel_selected_file_idx == y);
+        y++;
+        left_files_number++;
     }
-
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y <= LAST_FILE_LINE_ON_PANEL_Y) {
-        sprintf(line, fileInfo.fname);
-        for(int l = strlen(line); l < 38; ++l) {
-           line[l] = ' ';
-        }
-        line[38] = 0;
-        int bgc = left_panel_is_selected && left_panel_selected_file == y ? 11 : BACKGROUND_FIELD_COLOR;
-        draw_text(line, x, y++, FOREGROUND_FIELD_COLOR, bgc);
+        draw_label(1, y, 38, fileInfo.fname, left_panel_is_selected && left_panel_selected_file_idx == y);
+        y++;
+        left_files_number++;
     }
     f_closedir(&dir);
 }
@@ -208,25 +205,16 @@ void fill_right() {
     }
     FILINFO fileInfo;
     int y = 1;
-    const int x = 41;
-    if (strlen(pathB) > 1) {
-        sprintf(line, "..");
-        for(int l = strlen(line); l < 38; ++l) {
-            line[l] = ' ';
-        }
-        line[38] = 0;
-        int bgc = !left_panel_is_selected && right_panel_selected_file == y ? 11 : BACKGROUND_FIELD_COLOR;
-        draw_text(line, x, y++, FOREGROUND_FIELD_COLOR, bgc);
+    right_files_number = 0;
+    if (strlen(pathA) > 1) {
+        draw_label(41, y, 38, "..", !left_panel_is_selected && right_panel_selected_file_idx == y);
+        y++;
+        right_files_number++;
     }
-
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y <= LAST_FILE_LINE_ON_PANEL_Y) {
-        sprintf(line, fileInfo.fname);
-        for(int l = strlen(line); l < 38; ++l) {
-           line[l] = ' ';
-        }
-        line[38] = 0;
-        int bgc = !left_panel_is_selected && right_panel_selected_file == y ? 11 : BACKGROUND_FIELD_COLOR;
-        draw_text(line, x, y++, FOREGROUND_FIELD_COLOR, bgc);
+        draw_label(41, y, 38, fileInfo.fname, !left_panel_is_selected && right_panel_selected_file_idx == y);
+        y++;
+        right_files_number++;
     }
     f_closedir(&dir);
 }
@@ -249,6 +237,10 @@ inline static void scan_code_processed() {
   lastCleanableScanCode = 0;
 }
 
+inline static fn_1_10_btn_pressed(uint8_t fn_idx) {
+    (*actual_fn_1_10_tbl())[fn_idx].action(fn_idx);
+}
+
 static void work_cycle() {
     while(1) {
         if (left_panel_is_selected && !left_panel_make_active) {
@@ -258,6 +250,37 @@ static void work_cycle() {
             select_left_panel();
         }
         switch(lastCleanableScanCode) {
+          case 0x01: // Esc down
+          case 0x81: // Esc up
+            break;
+          case 0x3B: // F1..10 down
+          case 0x3C: // F2
+          case 0x3D: // F3
+          case 0x3E: // F4
+          case 0x3F: // F5
+          case 0x40: // F6
+          case 0x41: // F7
+          case 0x42: // F8
+          case 0x43: // F9
+          case 0x44: // F10
+            scan_code_processed();
+            break;
+          case 0xBB: // F1..10 up
+          case 0xBC: // F2
+          case 0xBD: // F3
+          case 0xBE: // F4
+          case 0xBF: // F5
+          case 0xC0: // F6
+          case 0xC1: // F7
+          case 0xC2: // F8
+          case 0xC3: // F9
+          case 0xC4: // F10
+            if (lastSavedScanCode != lastCleanableScanCode - 0x80) {
+                break;
+            }
+            fn_1_10_btn_pressed(lastCleanableScanCode - 0xBB);
+            scan_code_processed();
+            break;
           case 0x1D: // Ctrl down
           case 0x9D: // Ctrl up
           case 0x38: // ALT down
@@ -273,15 +296,17 @@ static void work_cycle() {
                 break;
             }
             if (left_panel_is_selected &&
-                left_panel_selected_file < LAST_FILE_LINE_ON_PANEL_Y
+                left_panel_selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
+                left_panel_selected_file_idx < left_files_number
               ) {
-                left_panel_selected_file++;
+                left_panel_selected_file_idx++;
                 fill_left();
             }
             else if(
-                right_panel_selected_file < LAST_FILE_LINE_ON_PANEL_Y
+                right_panel_selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
+                right_panel_selected_file_idx < right_files_number
             ) {
-                right_panel_selected_file++;
+                right_panel_selected_file_idx++;
                 fill_right();
             }
             scan_code_processed();
@@ -294,15 +319,15 @@ static void work_cycle() {
                 break;
             }
             if (left_panel_is_selected &&
-                left_panel_selected_file > FIRST_FILE_LINE_ON_PANEL_Y
+                left_panel_selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y
             ) {
-                left_panel_selected_file--;
+                left_panel_selected_file_idx--;
                 fill_left();
             }
             else if(
-                right_panel_selected_file > FIRST_FILE_LINE_ON_PANEL_Y
+                right_panel_selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y
             ) {
-                right_panel_selected_file--;
+                right_panel_selected_file_idx--;
                 fill_right();
             }
             scan_code_processed();
@@ -312,13 +337,19 @@ static void work_cycle() {
           case 0xCD: // right
             break;
         }
-    //    sleep_ms(33);
+        if (usb_started && tud_msc_ejected()) {
+            usb_started = false;
+        }
+        if (usb_started) {
+            pico_usb_drive_heartbeat();
+        } else if(mark_to_exit_flag) {
+            return;
+        }
     }
-    
-    //in_flash_drive();
 }
 
 void start_manager() {
+    mark_to_exit_flag = false;
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
     set_start_debug_line(30);
@@ -413,7 +444,7 @@ int overclock() {
   return 0;
 }
 
-void if_usb() {
+void if_manager() {
     if (manager_started) {
         return;
     }
@@ -421,46 +452,5 @@ void if_usb() {
         manager_started = true;
         start_manager();
         manager_started = false;
-    }
-}
-
-static void swap_drive_message() {
-    save_video_ram();
-    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    set_start_debug_line(0);
-    clrScr(1);
-    for(int i = 0; i < 10; i++) {
-        logMsg("");
-    }
-    if (already_swapped_fdds) {
-        logMsg("                      Swap FDD0 and FDD1 drive images"); logMsg("");
-        logMsg("          To return images back, press Ctrl + Tab + Backspace");
-    } else {
-        logMsg("                    Swap FDD0 and FDD1 drive images back");
-    }
-    sleep_ms(3000);
-    set_start_debug_line(25);
-    restore_video_ram();
-    if (ret == TEXTMODE_80x30) {
-        clrScr(1);
-    }
-    graphics_set_mode(ret);
-}
-void if_swap_drives() { // TODO: move to the manager
-    if (manager_started) {
-        return;
-    }
-    if (backspacePressed && tabPressed && ctrlPressed) {
-        if (already_swapped_fdds) {
-            insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-            insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
-            already_swapped_fdds = false;
-            swap_drive_message();
-            return;
-        }
-        insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-        insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
-        already_swapped_fdds = true;
-        swap_drive_message();
     }
 }

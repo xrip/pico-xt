@@ -707,7 +707,7 @@ void graphics_init() {
 static const char* path = "\\XT\\video.ram";
 static FATFS fs;
 static FIL file;
-bool save_video_ram() {
+bool save_video_ram() { // TODO: more than one save
     gpio_put(PICO_DEFAULT_LED_PIN, true);
     FRESULT result = f_open(&file, path, FA_WRITE | FA_CREATE_ALWAYS);
     if (result != FR_OK) {

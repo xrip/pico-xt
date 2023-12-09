@@ -74,7 +74,7 @@ void in_flash_drive() {
     pico_usb_drive_heartbeat();
     if_swap_drives();
   }
-  for (int i = 0; i < 10; ++i) { // sevaral hb till end of cycle
+  for (int i = 0; i < 10; ++i) { // sevaral hb till end of cycle, TODO: care eject
     pico_usb_drive_heartbeat();
     sleep_ms(50);
   }

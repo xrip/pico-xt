@@ -1,6 +1,7 @@
 #pragma once
 
-// type of F1-F10 function pointer
-typedef void (*fn_1_10_ptr)(uint8_t);
+void if_manager();
+void if_swap_drives();
+int overclock();
 
 void start_manager();
