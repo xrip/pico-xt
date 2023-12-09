@@ -9,6 +9,8 @@ static volatile bool minusPressed = false;
 static volatile bool ctrlPressed = false;
 static volatile bool altPressed = false;
 static volatile bool tabPressed = false;
+static volatile bool upPressed = false;
+static volatile bool downPressed = false;
 
 bool already_swapped_fdds = false;
 volatile bool manager_started = false;
@@ -21,6 +23,7 @@ static bool left_panel_is_selected = true;
 static int left_panel_selected_file = 1;
 static int right_panel_selected_file = 1;
 static volatile uint32_t lastScanCode = 0;
+static uint32_t prevProcessedScanCode = 0;
 
 static void draw_window() {
     line[80] = 0;
@@ -121,7 +124,7 @@ void fill_left() {
             line[l] = ' ';
         }
         line[38] = 0;
-        int bgc = left_panel_is_selected && right_panel_selected_file == y ? 11 : 1;
+        int bgc = left_panel_is_selected && left_panel_selected_file == y ? 11 : 1;
         draw_text(line, x, y++, 7, bgc);
     }
 
@@ -131,7 +134,7 @@ void fill_left() {
            line[l] = ' ';
         }
         line[38] = 0;
-        int bgc = left_panel_is_selected && right_panel_selected_file == y ? 11 : 1;
+        int bgc = left_panel_is_selected && left_panel_selected_file == y ? 11 : 1;
         draw_text(line, x, y++, 7, bgc);
     }
     f_closedir(&dir);
@@ -196,20 +199,39 @@ static void work_cycle() {
         }
         switch(lastScanCode) {
           case 0xD0: // down
-            if (left_panel_is_selected) left_panel_selected_file++;
-            else right_panel_selected_file++;
+            if (prevProcessedScanCode != 0x50) {
+                break;
+            }
+            if (left_panel_is_selected) {
+                left_panel_selected_file++;
+                fill_left();
+            }
+            else {
+                right_panel_selected_file++;
+                fill_right();
+            }
             break;
           case 0xC8: // up
-            if (left_panel_is_selected) left_panel_selected_file--;
-            else right_panel_selected_file--;
+            if (prevProcessedScanCode != 0x48) {
+                break;
+            }
+            if (left_panel_is_selected) {
+                left_panel_selected_file--;
+                fill_left();
+            }
+            else {
+                right_panel_selected_file--;
+                fill_right();
+            }
             break;
           case 0xCB: // left
             break;
           case 0xCD: // right
             break;
         }
+        prevProcessedScanCode = lastScanCode;
         lastScanCode = 0;
-        sleep_ms(200);
+        sleep_ms(33);
     }
     
     //in_flash_drive();
@@ -236,6 +258,18 @@ void start_manager() {
 bool handleScancode(uint32_t ps2scancode) { // core 1
     lastScanCode = ps2scancode;
     switch (ps2scancode) {
+      case 0x48:
+        upPressed = true;
+        break;
+      case 0xC8:
+        upPressed = false;
+        break;
+      case 0x50:
+        downPressed = true;
+        break;
+      case 0xD0:
+        downPressed = false;
+        break;
       case 0x38:
         altPressed = true;
         break;
