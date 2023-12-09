@@ -168,7 +168,7 @@ void portout(uint16_t portnum, uint16_t value) {
                 }
             }
             if (VGA_SC_index == 0x04) {
-                vga_planar_mode = VGA_SC_value & 6;
+                vga_planar_mode = (VGA_SC_value & 6) == 0;
 #if PICO_ON_DEVICE
                 if (vga_planar_mode && videomode == 0x13) {
                     graphics_set_mode(VGA_320x200x256x4);
