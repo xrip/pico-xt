@@ -103,10 +103,7 @@ void mark_to_exit(uint8_t cmd) {
     mark_to_exit_flag = true;
 }
 
-void turn_usb_on(uint8_t cmd) {
-    init_pico_usb_drive();
-    usb_started = true;
-}
+static void turn_usb_on(uint8_t cmd);
 
 static fn_1_10_tbl_t fn_1_10_tbl = {
     ' ', '1', " Help ", do_nothing,
@@ -163,6 +160,24 @@ static inline void bottom_line() {
         draw_fn_btn(rec, i * BTN_WIDTH, F_BTN_Y_POS);
     }
     draw_cmd_line(0, CMD_Y_POS, 0);
+}
+
+static void turn_usb_off(uint8_t cmd) { // TODO: support multiple enter for USB mount
+    set_tud_msc_ejected(true);
+    usb_started = false;
+    memset(fn_1_10_tbl_alt[9].name, ' ', BTN_WIDTH);
+    fn_1_10_tbl_alt[9].action = do_nothing;
+    bottom_line();
+}
+
+static void turn_usb_on(uint8_t cmd) {
+    init_pico_usb_drive();
+    usb_started = true;
+    memset(fn_1_10_tbl[9].name, ' ', BTN_WIDTH);
+    fn_1_10_tbl[9].action = do_nothing;
+    sprintf(fn_1_10_tbl_alt[9].name, " UnUSB");
+    fn_1_10_tbl_alt[9].action = turn_usb_off;
+    bottom_line();
 }
 
 static inline void fill_left() {
