@@ -1,3 +1,4 @@
+#if PICO_ON_DEVICE
 #include <stdio.h>
 #include <string.h>
 #include "pico-vision.h"
@@ -142,3 +143,4 @@ void draw_label(int left, int top, int width, char* txt, bool selected) {
     int bgc = selected ? pcs->BACKGROUND_SELECTED_COLOR : pcs->BACKGROUND_FIELD_COLOR;
     draw_text(line, left, top, fgc, bgc);
 }
+#endif
