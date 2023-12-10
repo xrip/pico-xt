@@ -704,7 +704,8 @@ void graphics_init() {
     dma_start_channel_mask((1u << dma_chan));
 };
 
-#include "emulator.h"
+#include "ff.h"
+extern uint8_t VIDEORAM[];
 static const char* path = "\\XT\\video.ram";
 static FATFS fs;
 static FIL file;
@@ -715,7 +716,7 @@ bool save_video_ram() { // TODO: more than one save
         return false;
     }
     UINT bw;
-    result = f_write(&file, VIDEORAM, sizeof(VIDEORAM), &bw);
+    result = f_write(&file, VIDEORAM, 64ul << 10, &bw); // TODO: psram?
     if (result != FR_OK) {
         return false;
     }
@@ -728,7 +729,7 @@ bool restore_video_ram() {
     FRESULT result = f_open(&file, path, FA_READ);
     if (result == FR_OK) {
       UINT bw;
-      result = f_read(&file, VIDEORAM, sizeof(VIDEORAM), &bw);
+      result = f_read(&file, VIDEORAM, 64ul, &bw); // TODO: psram?
       if (result != FR_OK) {
         return false;
       }

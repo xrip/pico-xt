@@ -56,7 +56,9 @@ static FATFS fs;
 
 #define VGA_plane_size 16000
 // TODO: no direct access support (for PC mode)
+#ifndef PSRAM_ONLY_NO_RAM
 extern uint8_t RAM[RAM_SIZE];
+#endif
 extern uint8_t VIDEORAM[VIDEORAM_SIZE];
 extern bool PSRAM_AVAILABLE;
 extern bool SD_CARD_AVAILABLE;
@@ -169,28 +171,6 @@ void logMsg(char*);
 #define putsegreg(regid, writeval)  segregs[regid] = writeval
 #define segbase(x)  ((uint32_t) x << 4)
 
-uint8_t read86(uint32_t addr32);
-
-void write86(uint32_t addr32, uint8_t v);
-
-static __inline void pokeb(uint32_t a, uint32_t b) {
-    uint8_t av = read86(a);
-    uint8_t bv = read86(b);
-    write86(b, av);
-    write86(a, bv);
-}
-
-#define peekb(a)   read86(a)
-
-static __inline void pokew(int a, uint16_t w) {
-    pokeb(a, w & 0xFF);
-    pokeb(a + 1, w >> 8);
-}
-
-static __inline uint16_t peekw(int a) {
-    return peekb(a) + (peekb(a + 1) << 8);
-}
-
 extern uint16_t portram[256];
 extern uint16_t port378, port379, port37A, port3D8, port3D9, port201;
 
@@ -210,6 +190,24 @@ void write86(uint32_t addr32, uint8_t value);
 uint16_t readw86(uint32_t addr32);
 
 uint8_t read86(uint32_t addr32);
+
+static __inline void pokeb(uint32_t a, uint32_t b) {
+    uint8_t av = read86(a);
+    uint8_t bv = read86(b);
+    write86(b, av);
+    write86(a, bv);
+}
+
+#define peekb(a)   read86(a)
+
+static __inline void pokew(int a, uint16_t w) {
+    pokeb(a, w & 0xFF);
+    pokeb(a + 1, w >> 8);
+}
+
+static __inline uint16_t peekw(int a) {
+    return peekb(a) + (peekb(a + 1) << 8);
+}
 
 void reset86(void);
 

@@ -618,7 +618,7 @@ __force_inline static void psram_write_async_fast(psram_spi_inst_t* spi, uint32_
 };
 
 void init_psram();
-void psram_cleanup();
+void psram_cleanup(uint32_t from, uint32_t to);
 void write8psram(uint32_t addr32, uint8_t v);
 void write16psram(uint32_t addr32, uint16_t v);
 uint8_t read8psram(uint32_t addr32);

@@ -71,10 +71,14 @@ static const uint8_t parity[0x100] = {
     1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
     0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
 };
+
+#ifndef PSRAM_ONLY_NO_RAM
 #if PICO_ON_DEVICE
 __aligned(4096)
 #endif
 uint8_t RAM[RAM_SIZE];
+#endif
+
 #if PICO_ON_DEVICE
 __aligned(4096)
 #endif
@@ -137,7 +141,7 @@ void reboot_detected() {
         DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
     }
     if (PSRAM_AVAILABLE) {
-        psram_cleanup();
+        psram_cleanup(1ul << 20, 2ul << 20);
     }
     init_cpu_addresses_map();
 
@@ -607,15 +611,20 @@ void reset86() {
     init8259();
     initsermouse(0x378, 4);
     initBlaster(0x220, 7);
-
+#ifndef PSRAM_ONLY_NO_RAM
     memset(RAM, 0x0, RAM_SIZE);
+#else
+    psram_cleanup(0, 1ul << 20);
+#endif
     memset(VIDEORAM, 0x0, VIDEORAM_SIZE);
 #if PICO_ON_DEVICE
     if (SD_CARD_AVAILABLE) {
         gpio_put(PICO_DEFAULT_LED_PIN, true);
+#ifndef PSRAM_ONLY_NO_RAM
         for (size_t page = 0; page < RAM_BLOCKS; ++page) {
             RAM_PAGES[page] = page;
         }
+#endif
     }
 #endif
 
@@ -712,12 +721,15 @@ static void intcall86(uint8_t intnum) {
                 // FIXME!!
                     ega_plane_offset = 0;
                     vga_planar_mode = false;
-                    RAM[0x449] = CPU_AL;
-                    RAM[0x44A] = (uint8_t)videomode <= 2 ? 40 : 80;
-                    RAM[0x44B] = 0;
-                    RAM[0x484] = (uint8_t)(25 - 1);
+                    write86(0x449, CPU_AL);
+                    write86(0x44A, (uint8_t)videomode <= 2 ? 40 : 80);
+                    write86(0x44B, 0);
+                    write86(0x484, (uint8_t)(25 - 1));
                     if ((CPU_AL & 0x80) == 0x00) {
                         memset(VIDEORAM, 0x0, sizeof VIDEORAM);
+#ifdef PSRAM_ONLY_NO_RAM
+                        psram_cleanup(VIDEORAM_START32, VIDEORAM_END32);
+#endif
                     }
                 // http://www.techhelpmanual.com/114-video_modes.html
                 // http://www.techhelpmanual.com/89-video_memory_layouts.html
@@ -3991,6 +4003,9 @@ static write_fn_ptr write_funtions[256] = { 0 };
 
 static inline void write8video(uint32_t addr32, uint8_t v) {
     VIDEORAM[(ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = v;
+#ifdef PSRAM_ONLY_NO_RAM
+    write8psram(addr32, v);
+#endif
 }
 
 #ifdef EMS_DRIVER
@@ -4014,22 +4029,34 @@ static void write8nothing(uint32_t addr32, uint8_t v) {
 }
 
 static void write8low(uint32_t addr32, uint8_t v) {
+#ifdef PSRAM_ONLY_NO_RAM
+    write8psram(addr32, v);
+#else
     if (addr32 < RAM_SIZE) {
         RAM[addr32] = v;
     }
+#endif
 }
 
 static void write8low_psram(uint32_t addr32, uint8_t v) {
+#ifdef PSRAM_ONLY_NO_RAM
+    write8psram(addr32, v);
+#else
     if (addr32 < RAM_SIZE) {
         RAM[addr32] = v;
     } else {
         write8psram(addr32, v);
     }
+#endif
 }
 
 static void write8low_swap(uint32_t addr32, uint8_t v) {
     if (addr32 < RAM_PAGE_SIZE) {
+#ifdef PSRAM_ONLY_NO_RAM
+        write8psram(addr32, v);
+#else
         RAM[addr32] = v;
+#endif
     } else {
         ram_page_write(addr32, v);
     }
@@ -4046,6 +4073,9 @@ static inline void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32,
 
 static inline void write16video(uint32_t addr32, uint16_t v) {
     write16arr(VIDEORAM, 0, (ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, v);
+#ifdef PSRAM_ONLY_NO_RAM
+    write16psram(addr32, v);
+#endif
 }
 
 #ifdef EMS_DRIVER
@@ -4069,25 +4099,37 @@ static void write16nothing(uint32_t addr32, uint16_t v) {
 }
 
 static void write16low(uint32_t addr32, uint16_t v) {
+#ifdef PSRAM_ONLY_NO_RAM
+    write16psram(addr32, v);
+#else
     if (addr32 < RAM_SIZE) {
         write16arr(RAM, 0, addr32, v);
     }
+#endif
 }
 
 static void write16low_psram(uint32_t addr32, uint16_t v) {
+#ifdef PSRAM_ONLY_NO_RAM
+    write16psram(addr32, v);
+#else
     if (addr32 < RAM_SIZE) {
         write16arr(RAM, 0, addr32, v);
     } else {
         write16psram(addr32, v);
     }
+#endif
 }
 
 static void write16low_swap(uint32_t addr32, uint16_t v) {
+#ifdef PSRAM_ONLY_NO_RAM
+    write16psram(addr32, v);
+#else
     if (addr32 < RAM_PAGE_SIZE) {
         write16arr(RAM, 0, addr32, v);
     } else {
         ram_page_write16(addr32, v);
     }
+#endif
 }
 
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
@@ -4098,7 +4140,11 @@ uint8_t read8nothng(uint32_t addr32) {
 }
 
 static inline uint8_t read8video(uint32_t addr32) {
+#ifdef PSRAM_ONLY_NO_RAM
+    return read8psram(addr32);
+#else
     return VIDEORAM[(ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE];
+#endif
 }
 
 static inline uint8_t read86rom(uint32_t addr32) {
@@ -4143,7 +4189,11 @@ static uint16_t read16nothng(uint32_t addr32) {
 }
 
 static inline uint16_t read16video(uint32_t addr32) {
+#ifdef PSRAM_ONLY_NO_RAM
+    return read16psram(addr32);
+#else
     return read16arr0(VIDEORAM, (ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE);
+#endif
 }
 
 static inline uint16_t read86rom16(uint32_t addr32) {
@@ -4303,9 +4353,11 @@ void writew86(uint32_t addr32, uint16_t v) {
 uint8_t read86(uint32_t addr32) {
     // Не удаляй плиз коммент
     //if (addr32 == 0xFC000) { return 0x21; };
+#ifndef PSRAM_ONLY_NO_RAM
     if (addr32 < DIRECT_RAM_BORDER) { // performance improvement (W/A)
         return RAM[addr32];
     }
+#endif
     return read_funtions[addr32 >> 15](addr32);
 }
 
@@ -4314,9 +4366,11 @@ uint16_t readw86(uint32_t addr32) {
         // not 16-bit address
         return ((uint16_t)read86(addr32) | (uint16_t)(read86(addr32 + 1) << 8));
     }
+#ifndef PSRAM_ONLY_NO_RAM
     if (addr32 < DIRECT_RAM_BORDER) { // performance improvement (W/A)
         return read16arr0(RAM, addr32);
     }
+#endif
     return read16_funtions[addr32 >> 15](addr32);
 }
 

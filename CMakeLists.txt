@@ -185,6 +185,9 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         PSRAM_PIN_SCK=19
         PSRAM_PIN_MOSI=20
         PSRAM_PIN_MISO=21
+        
+        # experimental for debug only
+        PSRAM_ONLY_NO_RAM
 
         # supports only for pico with 4 or more MB flashes
         PICO_FLASH_SIZE_BYTES=4194304

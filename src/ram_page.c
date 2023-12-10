@@ -6,7 +6,9 @@
 #include <pico.h>
 #include <pico/stdlib.h>
 
+#ifndef PSRAM_ONLY_NO_RAM
 uint16_t RAM_PAGES[RAM_BLOCKS] = { 0 };
+#endif
 
 static uint32_t get_ram_page_for(const uint32_t addr32);
 
@@ -16,6 +18,9 @@ char tmp[40];
 #endif
 
 uint8_t ram_page_read(uint32_t addr32) {
+#ifdef PSRAM_ONLY_NO_RAM
+    return read8psram(addr32);
+#else
     const register uint32_t ram_page = get_ram_page_for(addr32);
     const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
 #ifdef BOOT_DEBUG_ACC
@@ -27,6 +32,7 @@ uint8_t ram_page_read(uint32_t addr32) {
 #else
     return RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
 #endif
+#endif
 }
 
 INLINE uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
@@ -37,6 +43,9 @@ INLINE uint16_t read16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32) {
 }
 
 uint16_t ram_page_read16(uint32_t addr32) {
+#ifdef PSRAM_ONLY_NO_RAM
+    return read16psram(addr32);
+#else
     const register uint32_t ram_page = get_ram_page_for(addr32);
     const register uint32_t addr_in_page = addr32 & RAM_IN_PAGE_ADDR_MASK;
 #ifdef BOOT_DEBUG_ACC
@@ -48,9 +57,13 @@ uint16_t ram_page_read16(uint32_t addr32) {
 #else
     return read16arr(RAM, 0, (ram_page * RAM_PAGE_SIZE) + addr_in_page);
 #endif
+#endif
 }
 
 void ram_page_write(uint32_t addr32, uint8_t value) {
+#ifdef PSRAM_ONLY_NO_RAM
+    write8psram(addr32, value);
+#else
 #ifdef BOOT_DEBUG_ACC
     if (addr32 >= BOOT_DEBUG_ACC) {
         snprintf(tmp, 40, "W %08X <-   %02X", addr32, value); logMsg(tmp);
@@ -64,9 +77,13 @@ void ram_page_write(uint32_t addr32, uint8_t value) {
         // if higest (15) bit is set, it means - the page has changes
         RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
     }
+#endif
 }
 
 void ram_page_write16(uint32_t addr32, uint16_t value) {
+#ifdef PSRAM_ONLY_NO_RAM
+    write16psram(addr32, value);
+#else
 #ifdef BOOT_DEBUG_ACC
     if (addr32 >= BOOT_DEBUG_ACC) {
         snprintf(tmp, 40, "W %08X <- %04X", addr32, value); logMsg(tmp);
@@ -82,8 +99,10 @@ void ram_page_write16(uint32_t addr32, uint16_t value) {
         // if higest (15) bit is set, it means - the page has changes
         RAM_PAGES[ram_page] = ram_page_desc | 0x8000; // mark it as changed - bit 15
     }
+#endif
 }
 
+#ifndef PSRAM_ONLY_NO_RAM
 static uint16_t oldest_ram_page = 1;
 static uint16_t last_ram_page = 0;
 static uint32_t last_lba_page = 0;
@@ -223,5 +242,8 @@ void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     }
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
+#else
+bool init_vram() {}
+#endif
 
 #endif

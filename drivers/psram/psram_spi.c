@@ -9,9 +9,9 @@ void init_psram() {
     PSRAM_AVAILABLE = 0xDEADBEEF == psram_read32(&psram_spi, 0x313373);
 }
 
-void psram_cleanup() {
+void psram_cleanup(uint32_t from, uint32_t to) {
     DBG_PUTS("PSRAM cleanup"); // TODO: block mode, ensure diapason
-    for (uint32_t addr32 = (1ul << 20); addr32 < (2ul << 20); addr32 += 4) {
+    for (uint32_t addr32 = from; addr32 < to; addr32 += 4) {
         psram_write32(&psram_spi, addr32, 0);
     }
 }

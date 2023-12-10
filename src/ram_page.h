@@ -32,16 +32,21 @@
 
 #if PICO_ON_DEVICE
 // CGA
-#define RAM_SIZE (2 * 70ul << 10) // 75 pages (2Kb) = 150KB real pico RAM
+#ifndef PSRAM_ONLY_NO_RAM
+#define RAM_SIZE (2 * 70ul << 10) // 7 pages (2Kb) = 140KB real pico RAM
+#else
+#define RAM_SIZE (640ul << 10) // all RAM in PSRAM
+#endif
 //#define RAM_SIZE (2 * 44ul << 10) // 44 pages (2Kb) = 88KB real pico RAM
 #else
 #define RAM_SIZE (640ul << 10)
 #endif
 
+#ifndef PSRAM_ONLY_NO_RAM
 extern uint8_t RAM[RAM_SIZE];
-
 #define RAM_BLOCKS (RAM_SIZE / RAM_PAGE_SIZE)
 extern uint16_t RAM_PAGES[RAM_BLOCKS]; // lba (14-0); 15 - written
+#endif
 
 #define CONVENTIONAL_END 0xA0000ul
 
