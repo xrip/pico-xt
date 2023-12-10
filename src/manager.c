@@ -177,18 +177,29 @@ static inline void bottom_line() {
 static void turn_usb_off(uint8_t cmd) { // TODO: support multiple enter for USB mount
     set_tud_msc_ejected(true);
     usb_started = false;
+    // Alt + F10 no more actions
     memset(fn_1_10_tbl_alt[9].name, ' ', BTN_WIDTH);
     fn_1_10_tbl_alt[9].action = do_nothing;
+    // Ctrl + F10 - Exit
+    sprintf(fn_1_10_tbl_ctrl[9].name, " Exit ");
+    fn_1_10_tbl_ctrl[9].action = mark_to_exit;
+
     bottom_line();
 }
 
 static void turn_usb_on(uint8_t cmd) {
     init_pico_usb_drive();
     usb_started = true;
+    // do not USB after it was turned on
     memset(fn_1_10_tbl[9].name, ' ', BTN_WIDTH);
     fn_1_10_tbl[9].action = do_nothing;
+    // do not Exit in usb mode
+    memset(fn_1_10_tbl_ctrl[9].name, ' ', BTN_WIDTH);
+    fn_1_10_tbl_ctrl[9].action = do_nothing;
+    // Alt + F10 - force unmount usb
     sprintf(fn_1_10_tbl_alt[9].name, " UnUSB");
     fn_1_10_tbl_alt[9].action = turn_usb_off;
+
     bottom_line();
 }
 
@@ -241,8 +252,9 @@ static void select_left_panel() {
 }
 
 inline static void scan_code_processed() {
-  if (lastCleanableScanCode)
-    lastSavedScanCode = lastCleanableScanCode;
+  if (lastCleanableScanCode) {
+      lastSavedScanCode = lastCleanableScanCode;
+  }
   lastCleanableScanCode = 0;
 }
 
@@ -277,6 +289,59 @@ inline static void handle_up_pressed() {
         fill_panel(psp);       
     }
     scan_code_processed();
+}
+
+static inline void enter_pressed() {
+    if (psp->selected_file_idx == 1 && psp->start_file_offset == 0 && strlen(psp->path[0]) > 1) {
+        int i = strlen(psp->path);
+        while(i-- > 0) {
+            if (psp->path[i] == '\\') {
+                psp->path[i + 1] = 0;
+                draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, psp->path, 0);
+                fill_panel(psp);
+                return;
+            }
+        }
+        psp->path[0] = '\\';
+        draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, psp->path, 0);
+        fill_panel(psp);
+        return;
+    }
+    FIL file;
+    if (f_stat(psp->path, &file) != FR_OK/* || !(file.fattrib & AM_DIR)*/) { // TODO:
+        // TODO: Error dialog
+        return;
+    }
+    DIR dir;
+    if (f_opendir(&dir, psp->path) != FR_OK) {
+        // TODO: Error dialog
+        return;
+    }
+    FILINFO fileInfo;
+    int y = 1;
+    if (psp->start_file_offset == 0 && strlen(psp->path) > 1) {
+        y++;
+    }
+    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
+        if (psp->start_file_offset <= psp->files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
+            if (psp->selected_file_idx == y) {
+                sprintf(line, "fn: %s afn: %s sz: %d attr: %03oo date: %04Xh time: %04Xh",
+                              fileInfo.fname, fileInfo.altname, fileInfo.fsize, fileInfo.fattrib, fileInfo.fdate, fileInfo.ftime);
+                draw_cmd_line(0, CMD_Y_POS, line);
+                if (fileInfo.fattrib & AM_DIR) {
+                    sprintf(psp->path, "%s\\%s", psp->path, fileInfo.fname);
+                    psp->selected_file_idx = 1;
+                    psp->start_file_offset = 0;
+                    draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, psp->path, 0);
+                    fill_panel(psp);
+                    f_closedir(&dir);
+                    return;
+                }
+            }
+            y++;
+        }
+    }
+    f_closedir(&dir);
 }
 
 static uint8_t repeat_cnt = 0;
@@ -359,6 +424,16 @@ static void work_cycle() {
             break;
           case 0xCD: // right
             break;
+          case 0x1C: // Enter down
+            scan_code_processed();
+            break;
+          case 0x9C: // Enter up
+            if (lastSavedScanCode != 0x1C) {
+                break;
+            }
+            enter_pressed();
+            scan_code_processed();
+            break;
         }
         if (usb_started && tud_msc_ejected()) {
             usb_started = false;
@@ -368,6 +443,8 @@ static void work_cycle() {
         } else if(mark_to_exit_flag) {
             return;
         }
+        sprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode);
+        draw_cmd_line(0, CMD_Y_POS, line);
     }
 }
 
@@ -449,11 +526,8 @@ bool handleScancode(uint32_t ps2scancode) { // core 1
             left_panel_make_active = !left_panel_make_active; // TODO: combinations?
         tabPressed = false;
         break;
-      default: {
-        char tmp[40];
-        sprintf(tmp, "Scan code: %02X", ps2scancode);
-        draw_text(tmp, 0, 0, 0, 3);
-      }
+      default:
+        break;
     }
     return manager_started;
 }

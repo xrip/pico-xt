@@ -60,6 +60,7 @@ void draw_panel(int left, int top, int width, int height, char* title, char* bot
     }
     line[0]         = 0xC8; // ╚
     line[width - 1] = 0xBC; // ╝
+    line[width]     = 0;
     draw_text(line, left, top + height - 1, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
     if (bottom) {
         int sl = strlen(bottom);
