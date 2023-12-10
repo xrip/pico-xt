@@ -316,7 +316,7 @@ void tickBlaster( void )
 
 //	printf("tickBlaster();\n");
 #ifdef DMA_8237
-	blaster.sample = read8237 (blaster.sbdma);
+	blaster.sample = i8237_read(blaster.sbdma);
 #endif
 	blaster.blockstep++;
 	if (blaster.blockstep > blaster.blocksize) {

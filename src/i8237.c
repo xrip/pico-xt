@@ -57,7 +57,7 @@ static struct I8237_s {
 #define DMA_OP_READMEM		2
 
 void i8237_reset() {
-	memset(&i8237, 0x00, sizeof(i8237) * 4);
+	//memset(&i8237, 0x00, sizeof(i8237) * 4);
 	i8237.channel[0].masked = 1;
 	i8237.channel[1].masked = 1;
 	i8237.channel[2].masked = 1;

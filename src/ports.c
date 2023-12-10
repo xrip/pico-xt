@@ -54,7 +54,10 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x0D:
         case 0x0E:
         case 0x0F:
+            i8237_writeport(portnum, value);
+            return;
         //
+
         case 0x80:
         case 0x81:
         case 0x82:
@@ -71,8 +74,8 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x8D:
         case 0x8E:
         case 0x8F:
-            out8237(portnum, value);
-            return;
+        i8237_writepage(portnum, value);
+        return;
 #endif
         case 0x20:
         case 0x21: //i8259
@@ -386,7 +389,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x0D:
         case 0x0E:
         case 0x0F:
-
+            return i8237_readport(portnum);
         case 0x80:
         case 0x81:
         case 0x82:
@@ -403,7 +406,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x8D:
         case 0x8E:
         case 0x8F:
-            return in8237(portnum);
+        return i8237_readpage(portnum);
 #endif
         case 0x20:
         case 0x21: //i8259
