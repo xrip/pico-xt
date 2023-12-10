@@ -89,6 +89,7 @@ void draw_box(int left, int top, int width, int height, char* title, char* txt) 
             }
             y++;
             i = 0;
+            line[0] = 0;
         } else {
             line[i++] = *txt;
         }
@@ -114,7 +115,7 @@ void draw_fn_btn(fn_1_10_tbl_rec_t* prec, int left, int top) {
     draw_text(line, left + 2, top, pcs->FOREGROUND_F_BTN_COLOR, pcs->BACKGROUND_F_BTN_COLOR);
 }
 
-void draw_cmd_line(int left, int top, char* cmd) { // TODO: cmd
+void draw_cmd_line(int left, int top, char* cmd) {
     char line[82];
     if (cmd) {
         int sl = strlen(cmd);

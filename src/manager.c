@@ -220,7 +220,8 @@ static void turn_usb_on(uint8_t cmd) {
 static inline void fill_panel(file_panel_desc_t* p) {
     DIR dir;
     if (f_opendir(&dir, p->path) != FR_OK) {
-        // TODO: Error dialog
+        draw_box(10, 7, 60, 10, "Warning", "\n\n\n\n               It is not a folder!");
+        sleep_ms(1500);
         return;
     }
     FILINFO fileInfo;
@@ -236,7 +237,7 @@ static inline void fill_panel(file_panel_desc_t* p) {
     ) {
         if (p->start_file_offset <= p->files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
             char* name = fileInfo.fname;
-            //snprintf(line, 80, "%s\\%s", p->path, fileInfo.fname);
+            snprintf(line, 80, "%s\\%s", p->path, fileInfo.fname);
             for (int i = 0; i < 3; ++i) {
                 if (drives_states[i].path && strcmp(drives_states[i].path, line) == 0) {
                     snprintf(line, p->width, "%s", name);
@@ -339,7 +340,8 @@ static inline void enter_pressed() {
     }
     DIR dir;
     if (f_opendir(&dir, psp->path) != FR_OK) {
-        // TODO: Error dialog
+        draw_box(10, 7, 60, 10, "Warning", "\n\n\n\n               It is not a folder!");
+        sleep_ms(1500);
         return;
     }
     FILINFO fileInfo;
@@ -358,7 +360,7 @@ static inline void enter_pressed() {
                     if (strlen(psp->path) > 1) {
                         sprintf(line, "%s\\%s", psp->path, fileInfo.fname);
                     } else {
-                        sprintf(line, "%s", fileInfo.fname);
+                        sprintf(line, "\\%s", fileInfo.fname);
                     }
                     if (f_opendir(&dir, line) != FR_OK) {
                         draw_box(10, 7, 60, 10, "Warning", "\n\n\n\n               It is not a folder!");
