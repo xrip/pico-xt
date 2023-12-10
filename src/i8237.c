@@ -67,16 +67,23 @@ void i8237_reset() {
 char tmp[80];
 #endif
 
-void i8237_writeport(uint16_t addr, uint8_t value) {
+void i8237_writeport(uint16_t addr16, uint8_t value) {
 	uint8_t ch;
+	uint8_t addr = addr16 & 0x0F;
 #ifdef DEBUG_DMA
-	snprintf(tmp, 80, "[DMA] Write port %04Xh: %02Xh", addr, value); logMsg(tmp);
+	snprintf(tmp, 80, "[DMA] Write port %04Xh (%02Xh) v: %02Xh", addr16, addr, value); logMsg(tmp);
 #endif
-	addr &= 0x0F;
 	switch (addr) {
 	case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
 		ch = (addr >> 1) & 3;
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] Write port %04Xh (%02Xh) ch: %02Xh v: %02Xh", addr16, addr, ch, value); logMsg(tmp);
+#endif
 		if (addr & 0x01) { //write terminal count
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA]1 before: flipflop: %02Xh count: %04Xh reloadcount: %04Xh",
+	                  i8237.flipflop, i8237.channel[ch].count, i8237.channel[ch].reloadcount); logMsg(tmp);
+#endif
 			if (i8237.flipflop) {
 				i8237.channel[ch].count = (i8237.channel[ch].count & 0x00FF) | ((uint16_t)value << 8);
 			}
@@ -84,8 +91,16 @@ void i8237_writeport(uint16_t addr, uint8_t value) {
 				i8237.channel[ch].count = (i8237.channel[ch].count & 0xFF00) | (uint16_t)value;
 			}
 			i8237.channel[ch].reloadcount = i8237.channel[ch].count;
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA]1 after: flipflop: %02Xh count: %04Xh reloadcount: %04Xh",
+	                  i8237.flipflop, i8237.channel[ch].count, i8237.channel[ch].reloadcount); logMsg(tmp);
+#endif
 		}
 		else {
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA]2 before: flipflop: %02Xh count: %04Xh reloadcount: %04Xh",
+	                  i8237.flipflop, i8237.channel[ch].count, i8237.channel[ch].reloadcount); logMsg(tmp);
+#endif
 			if (i8237.flipflop) {
 				i8237.channel[ch].addr = (i8237.channel[ch].addr & 0x00FF) | ((uint16_t)value << 8);
 			}
@@ -94,37 +109,62 @@ void i8237_writeport(uint16_t addr, uint8_t value) {
 			}
 			i8237.channel[ch].reloadaddr = i8237.channel[ch].addr;
 #ifdef DEBUG_DMA
-			snprintf(tmp, 80, "[DMA] Channel %u addr set to %08X", ch, i8237.channel[ch].addr); logMsg(tmp);
+	snprintf(tmp, 80, "[DMA]2 after: flipflop: %02Xh count: %04Xh reloadcount: %04Xh",
+	                  i8237.flipflop, i8237.channel[ch].count, i8237.channel[ch].reloadcount); logMsg(tmp);
 #endif
 		}
 		i8237.flipflop ^= 1;
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] flipflop: %02Xh", i8237.flipflop); logMsg(tmp);
+#endif
 		break;
 	case 0x08: //DMA channel 0-3 command register
 		i8237.memtomem = value & 1;
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] memtomem: %02Xh", i8237.memtomem); logMsg(tmp);
+#endif
 		break;
 	case 0x09: //DMA request register
 		i8237.channel[value & 3].dreq = (value >> 2) & 1;
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] channel[value & 3(%d)].dreq: %02Xh", value & 3, i8237.channel[value & 3].dreq); logMsg(tmp);
+#endif
 		break;
 	case 0x0A: //DMA channel 0-3 mask register
 		i8237.channel[value & 3].masked = (value >> 2) & 1;
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] channel[value & 3(%d)].masked: %02Xh", value & 3, i8237.channel[value & 3].masked); logMsg(tmp);
+#endif
 		break;
 	case 0x0B: //DMA channel 0-3 mode register
 		i8237.channel[value & 3].operation = (value >> 2) & 3;
 		i8237.channel[value & 3].mode = (value >> 6) & 3;
 		i8237.channel[value & 3].autoinit = (value >> 4) & 1;
 		i8237.channel[value & 3].addrinc = (value & 0x20) ? 0xFFFFFFFF : 0x00000001;
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] channel[value & 3(%d)].operation: %02Xh ...", value & 3, i8237.channel[value & 3].operation); logMsg(tmp);
+#endif
 		break;
 	case 0x0C: //clear byte pointer flip flop
 		i8237.flipflop = 0;
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] flipflop: %02Xh", i8237.flipflop); logMsg(tmp);
+#endif
 		break;
 	case 0x0D: //DMA master clear
 		i8237_reset(i8237);
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] i8237_reset"); logMsg(tmp);
+#endif
 		break;
 	case 0x0F: //DMA write mask register
 		i8237.channel[0].masked = value & 1;
 		i8237.channel[1].masked = (value >> 1) & 1;
 		i8237.channel[2].masked = (value >> 2) & 1;
 		i8237.channel[3].masked = (value >> 3) & 1;
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] mask register: %02Xh...", value); logMsg(tmp);
+#endif
 		break;
 	}
 }
