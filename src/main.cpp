@@ -1,5 +1,6 @@
 extern "C" {
 #include "emulator.h"
+#include "manager.h"
 }
 
 #if PICO_ON_DEVICE
@@ -146,7 +147,6 @@ pwm_config config = pwm_get_default_config();
 
 uint32_t overcloking_khz = OVERCLOCKING * 1000;
 
-
 __inline static void if_overclock() {
     int oc = overclock();
     if (oc > 0) overcloking_khz += 1000;
@@ -191,7 +191,7 @@ int main() {
     set_sys_clock_khz(270000, true);
 #endif
 
-    stdio_init_all();
+    //stdio_init_all();
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -248,7 +248,7 @@ int main() {
                                             screen->format->Rmask, screen->format->Gmask, screen->format->Bmask,
                                             screen->format->Amask);
     auto* pixels = (unsigned int *)drawsurface->pixels;
-
+#if SOUND_SYSTEM
     static SDL_AudioSpec wanted;
     wanted.freq = 8000;
     wanted.format = AUDIO_U8;
@@ -261,6 +261,8 @@ int main() {
         printf("Error: %s\n", SDL_GetError());
     }
     SDL_PauseAudio(0);
+
+#endif
     if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
         fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
         return -1;
@@ -777,7 +779,7 @@ int main() {
         SDL_UpdateWindowSurface(window);
 #else
         exec86(200);
-        if_usb();
+        if_manager();
         if_swap_drives();
         if_overclock();
 #endif

@@ -47,12 +47,20 @@ extern uint16_t RAM_PAGES[RAM_BLOCKS]; // lba (14-0); 15 - written
 
 bool init_vram();
 
+#if PICO_ON_DEVICE
 uint8_t ram_page_read(uint32_t addr32);
 uint16_t ram_page_read16(uint32_t addr32);
 
 void ram_page_write(uint32_t addr32, uint8_t value);
 void ram_page_write16(uint32_t addr32, uint16_t value);
+#else
+static uint8_t ram_page_read(uint32_t addr32);
+static uint16_t ram_page_read16(uint32_t addr32);
 
+static void ram_page_write(uint32_t addr32, uint8_t value);
+static void ram_page_write16(uint32_t addr32, uint16_t value);
+
+#endif
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz);
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz);
 

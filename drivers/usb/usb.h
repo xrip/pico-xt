@@ -1,12 +1,9 @@
+#pragma once
 #ifndef PICO_USB_DRIVE
 #define PICO_USB_DRIVE
 
 #include "ff.h"
 #include "diskio.h"
-
-void if_usb();
-void if_swap_drives();
-int overclock();
 
 char* fdd0_rom();
 size_t fdd0_sz();
@@ -14,6 +11,8 @@ size_t fdd0_sz();
 char* fdd1_rom();
 size_t fdd1_sz();
 
+void init_pico_usb_drive();
+void pico_usb_drive_heartbeat();
 
 // msc_disk.c
 bool tud_msc_ejected();

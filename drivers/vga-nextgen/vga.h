@@ -17,8 +17,9 @@ enum graphics_mode_t {
     CGA_640x200x2,
 
     TGA_320x200x16,
-    EGA_320x200x16,
+    EGA_320x200x16x4, // planar EGA
     VGA_320x200x256,
+    VGA_320x200x256x4, // planar VGA
 };
 
 
@@ -47,3 +48,7 @@ void logMsg(char * msg);
 void set_start_debug_line(int _start_debug_line);
 
 char* get_free_vram_ptr();
+
+bool save_video_ram();
+
+bool restore_video_ram();

@@ -6,10 +6,13 @@
 #include "ps2.h"
 #include "vga.h"
 #include "nespad.h"
-
 #endif
 uint16_t portram[256];
-uint8_t crt_controller_idx, crt_controller[18];
+uint8_t VGA_CRT_index, VGA_CRT[25]; // CRT controller
+uint8_t VGA_ATTR_index, VGA_ATTR[21]; // VGA attribute regisers
+uint8_t VGA_SC_index, VGA_SC[5]; // VGA Sequencer Registers
+uint8_t VGA_GC_index, VGA_GC[9]; // VGA Other Graphics Registers
+
 uint16_t port378, port379, port37A, port3D8, port3D9, port3DA, port201;
 
 void ports_reboot() {
@@ -23,12 +26,11 @@ static uint8_t vga_color_index = 0;
 static uint8_t dac_state = 0;
 static uint8_t latchReadRGB = 0, latchReadPal = 0;
 
-#define ega_plane_size 16000
-uint16_t ega_plane_offset = 0;
-static uint16_t port3C4 = 0;
-static uint16_t port3C5 = 0;
-static uint8_t port3C0 = 0xff;
-static bool port3C0_flipflop = false;
+
+uint32_t ega_plane_offset = 0;
+bool vga_planar_mode = false;
+
+static bool flip3C0 = false;
 
 void portout(uint16_t portnum, uint16_t value) {
     //if (portnum == 0x80) {
@@ -112,6 +114,7 @@ void portout(uint16_t portnum, uint16_t value) {
             }
 #endif
             break;
+#ifdef SOUND_SYSTEM
         case 0x220:
         case 0x221:
         case 0x222:
@@ -130,51 +133,73 @@ void portout(uint16_t portnum, uint16_t value) {
         //case 0x22f:
             outBlaster(portnum, value);
             break;
-#ifdef SOUND_SYSTEM
-        //case 0x378:
-        //case 0x37A:
-//            outsoundsource(portnum, value);
-//            break;
+        case 0x378:
+        case 0x37A:
+            outsoundsource(portnum, value);
+            break;
         case 0x388: // adlib
         case 0x389:
             outadlib(portnum, value);
             break;
 #endif
+/*
+        case 0x3B8: // TODO: hercules support
+            break;
+*/
         case 0x3C0:
             ///printf("EGA control register 3c0 0x%x\r\n", value);
-            if (port3C0_flipflop && port3C4 <= 0xf) {
-                printf("3c0 COLOR %i 0x%x\r\n", port3C4, value);
-                const uint8_t b = (value & 0b001 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
+            if (flip3C0 && VGA_ATTR_index <= 0xf) {
+                printf("3c0 COLOR %i 0x%x\r\n", VGA_ATTR_index, value);
+
+                const uint8_t r = (value & 0b001 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
                 const uint8_t g = (value & 0b010 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
-                const uint8_t r = (value & 0b100 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
-                vga_palette[port3C4] = rgb(r * 85, g * 85, b * 85);
+                const uint8_t b = (value & 0b100 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
+
+                vga_palette[VGA_ATTR_index] = rgb(b * 85, g * 85, r * 85);
+            } else if (flip3C0) {
+                VGA_ATTR[VGA_ATTR_index] = value & 255;
             }
-            port3C4 = value;
-            port3C0_flipflop ^= true;
+            VGA_ATTR_index = value;
+            flip3C0 ^= true;
 
             break;
         case 0x3C4: //sequence controller index
             // TODO: implement other EGA sequences
-            port3C4 = value & 255;
+            VGA_SC_index = value & 255;
             break;
         case 0x3C5: //sequence controller data
-            // TODO: Это грязный хак, сделать нормально
-            port3C5 = value & 255;
-            if ((port3C4 & 0x1F) == 0x02) {
+            VGA_SC[VGA_SC_index] = value & 255;
+            if (VGA_SC_index == 0) {
+                ega_plane_offset = 0;
+                vga_planar_mode = 0;
+            }
+            if ((VGA_SC_index & 0x1F) == 0x02) {
                 switch (value) {
-                    case 0x02: ega_plane_offset = ega_plane_size * 1;
+                    case 0x02: ega_plane_offset = (VGA_plane_size * 1);
                         break;
-                    case 0x04: ega_plane_offset = ega_plane_size * 2;
+                    case 0x04: ega_plane_offset = (VGA_plane_size * 2);
                         break;
-                    case 0x08: ega_plane_offset = ega_plane_size * 3;
+                    case 0x08: ega_plane_offset = (VGA_plane_size * 3);
                         break;
                     default:
                         ega_plane_offset = 0;
                 }
             }
+            if (VGA_SC_index == 0x04) {
+                vga_planar_mode = (value & 6) ? true : false;
+#if  1
+                //PICO_ON_DEVICE
+                if (vga_planar_mode && videomode == 0x13) {
+                    graphics_set_mode(VGA_320x200x256x4);
+                } else {
+                    graphics_set_mode(VGA_320x200x256);
+                }
+#endif
+            }
             break;
         case 0x3C7: //color index register (read operations)
             //printf("W 0x%x : 0x%x\r\n", portnum, value);
+            latchReadPal = value % 255;
             dac_state = 0;
             latchReadRGB = 0;
             break;
@@ -187,19 +212,19 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3C9: //RGB data register
         {
             //printf("W 0x%x : 0x%x\r\n", portnum, value);
-            static uint32_t color;
-            //value = value & 63;
-            //value = value; // & 63;
+            static uint8_t r,g,b;
+            value = value & 63;
+
             switch (vga_color_index) {
                 case 0: //red
-                    color = value << 16;
+                    r = value;
                     break;
                 case 1: //green
-                    color |= value << 8;
+                    g = value;
                     break;
                 case 2: //blue
-                    color |= value;
-                    vga_palette[vga_palette_index] = color << 2;
+                    b =  value;
+                    vga_palette[vga_palette_index] = rgb(r << 2, g << 2, b << 2);
 #if PICO_ON_DEVICE
                     graphics_set_palette(vga_palette_index, vga_palette[vga_palette_index]);
 #endif
@@ -211,14 +236,21 @@ void portout(uint16_t portnum, uint16_t value) {
 
             break;
         }
+        case 0x3CE:
+            VGA_GC_index = value & 255;
+        break;
+        // https://frolov-lib.ru/books/bsp.old/v03/ch7.htm
+        // https://swag.outpostbbs.net/EGAVGA/0222.PAS.html
+        case 0x3CF:
+            VGA_GC[VGA_GC_index]= value & 255;
         case 0x3D4:
             // http://www.techhelpmanual.com/901-color_graphics_adapter_i_o_ports.html
-            crt_controller_idx = value;
+            VGA_CRT_index = value;
             break;
         case 0x3D5:
             //printf("port3d5 0x%x\r\n", value);
-            crt_controller[crt_controller_idx] = value;
-            if ((crt_controller_idx == 0x0E) || (crt_controller_idx == 0x0F)) {
+            VGA_CRT[VGA_CRT_index] = value;
+            if ((VGA_CRT_index == 0x0E) || (VGA_CRT_index == 0x0F)) {
                 //setcursor(((uint16_t)crt_controller[0x0E] << 8) | crt_controller[0x0F]);
             }
 
@@ -393,12 +425,11 @@ uint16_t portin(uint16_t portnum) {
         /*case 0x201: // joystick
             return 0b11110000;*/
 #ifdef SOUND_SYSTEM
-        //case 0x379:
-//            return insoundsource(portnum);
+        case 0x379:
+            return insoundsource(portnum);
         case 0x388: // adlib
         case 0x389:
             return inadlib(portnum);
-#endif
         case 0x220:
         case 0x221:
         case 0x222:
@@ -415,36 +446,39 @@ uint16_t portin(uint16_t portnum) {
         case 0x22d:
         case 0x22e:
             return inBlaster(portnum);
-        case 0x3C0:
-            return port3C4;
-        case 0x3C4: //sequence controller index
-            // https://wiki.osdev.org/VGA_Hardware#Port_0x3C0
-            // https://files.osdev.org/mirrors/geezer/osd/graphics/modes.c
-            // https://vtda.org/books/Computing/Programming/EGA-VGA-ProgrammersReferenceGuide2ndEd_BradleyDyckKliewer.pdf
-            // TODO: implement other EGA sequences
-            return port3C4;
+        #endif
+        // http://www.techhelpmanual.com/900-video_graphics_array_i_o_ports.html
+        // https://wiki.osdev.org/VGA_Hardware#Port_0x3C0
+        // https://files.osdev.org/mirrors/geezer/osd/graphics/modes.c
+        // https://vtda.org/books/Computing/Programming/EGA-VGA-ProgrammersReferenceGuide2ndEd_BradleyDyckKliewer.pdf
+        case 0x3C0: // Attribute Address Register (read/write)
+            return VGA_ATTR_index;
+        case 0x3C1: // Palette Registers / Other Attribute Registers (write)
+            return VGA_ATTR[VGA_ATTR_index];
+        case 0x3C4: // Sequencer Address Register (read/write)
+            return VGA_SC_index;
         case 0x3C5:
-            if (port3C4 == 0x02) return port3C5;
-            return 0xFF;
+            return VGA_SC[VGA_SC_index];
         case 0x3C7: //DAC state
             return dac_state;
         case 0x3C8: //palette index
             return latchReadPal;
         case 0x3C9: //RGB data register
+            //printf("latchReadRGB %i\r\n", latchReadPal);
             switch (latchReadRGB++) {
                 case 0: //blue
-                    return (vga_palette[latchReadPal] >> 2) & 63;
+                    return ((vga_palette[latchReadPal] >> 16) >> 2) & 63;
                 case 1: //green
-                    return (vga_palette[latchReadPal] >> 2) & 63;
+                    return ((vga_palette[latchReadPal] >> 8) >> 2) & 63;
                 case 2: //red
                     latchReadRGB = 0;
                     return (vga_palette[latchReadPal++] >> 2) & 63;
             }
             break;
-        case 0x3D4:
-            return crt_controller_idx;
-        case 0x3D5:
-            return crt_controller[crt_controller_idx];
+        case 0x3D4: // CRT controller address
+            return VGA_CRT_index;
+        case 0x3D5: // CRT controller internal registers
+            return VGA_CRT[VGA_CRT_index];
         case 0x3D8:
             return port3D8;
         case 0x3D9:

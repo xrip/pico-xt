@@ -74,6 +74,7 @@ static uint16_t* txt_palette_fast = NULL;
 //static uint16_t txt_palette_fast[256*4];
 
 enum graphics_mode_t graphics_mode;
+extern volatile bool manager_started;
 
 void __not_in_flash_func(dma_handler_VGA)() {
     dma_hw->ints0 = 1u << dma_chan_ctrl;
@@ -122,8 +123,9 @@ void __not_in_flash_func(dma_handler_VGA)() {
         case CGA_320x200x4:
         case CGA_640x200x2:
         case TGA_320x200x16:
-        case EGA_320x200x16:
+        case EGA_320x200x16x4:
         case VGA_320x200x256:
+        case VGA_320x200x256x4:
             line_number = screen_line / 2;
             if (screen_line % 2) return;
             y = screen_line / 2 - graphics_buffer_shift_y;
@@ -149,7 +151,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
                 //считываем из быстрой палитры начало таблицы быстрого преобразования 2-битных комбинаций цветов пикселей
                 uint16_t* color = &txt_palette_fast[4 * (*text_buffer_line++)];
 
-                if (cursor_blink_state &&
+                if (cursor_blink_state && !manager_started &&
                     (screen_line / 16 == CURSOR_Y && x == CURSOR_X && glyph_line >= 11 && glyph_line <= 13)) {
                     *output_buffer_16bit++ = color[3];
                     *output_buffer_16bit++ = color[3];
@@ -297,7 +299,7 @@ void __not_in_flash_func(dma_handler_VGA)() {
                 input_buffer_8bit++;
             }
             break;
-        case EGA_320x200x16: {
+        case EGA_320x200x16x4: {
             input_buffer_8bit = input_buffer + y * 40;
             for (int x = 0; x < 40; x++) {
                 for (int bit = 7; bit--;) {
@@ -316,6 +318,17 @@ void __not_in_flash_func(dma_handler_VGA)() {
             for (int i = width; i--;) {
                 //*output_buffer_16bit++=current_palette[*input_buffer_8bit++];
                 *output_buffer_16bit++ = current_palette[*input_buffer_8bit++];
+            }
+            break;
+        case VGA_320x200x256x4:
+            input_buffer_8bit = input_buffer + y * (width / 4);
+            for (int x = width / 2; x--;) {
+                //*output_buffer_16bit++=current_palette[*input_buffer_8bit++];
+                *output_buffer_16bit++ = current_palette[*input_buffer_8bit];
+                *output_buffer_16bit++ = current_palette[*(input_buffer_8bit + 16000)];
+                *output_buffer_16bit++ = current_palette[*(input_buffer_8bit + 32000)];
+                *output_buffer_16bit++ = current_palette[*(input_buffer_8bit + 48000)];
+                *input_buffer_8bit++;
             }
             break;
         default:
@@ -380,7 +393,8 @@ enum graphics_mode_t graphics_set_mode(enum graphics_mode_t mode) {
         case CGA_320x200x4:
         case CGA_160x200x16:
         case VGA_320x200x256:
-        case EGA_320x200x16:
+        case VGA_320x200x256x4:
+        case EGA_320x200x16x4:
         case TGA_320x200x16:
 
             TMPL_LINE8 = 0b11000000;
@@ -487,8 +501,8 @@ void clrScr(uint8_t color) {
     current_line = start_debug_line;
 };
 
-void draw_text2(char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    if ((y < 0) | (y >= text_buffer_height)) return;
+void draw_text(char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
+  /*if ((y < 0) | (y >= text_buffer_height)) return;
     if (x >= text_buffer_width) return;
     int len = strlen(string);
     if (x < 0) {
@@ -499,8 +513,8 @@ void draw_text2(char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
         else {
             return;
         }
-    }
-    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * y + x;
+    }*/
+    uint8_t* t_buf = text_buffer + text_buffer_width * 2 * y + 2 * x;
     for (int xi = x; xi < text_buffer_width * 2; xi++) {
         if (!(*string)) break;
         *t_buf++ = *string++;
@@ -520,13 +534,14 @@ void set_start_debug_line(int _start_debug_line) {
 void logFile(char* msg);
 #endif
 
+extern volatile bool manager_started;
 void logMsg(char* msg) {
 #if BOOT_DEBUG
     { char tmp[85]; sprintf(tmp, "%s\n", msg); logFile(tmp); }
 #else
     printf("%s\n", msg);
 #endif
-    if (graphics_mode != TEXTMODE_80x30) {
+    if (graphics_mode != TEXTMODE_80x30 || manager_started) {
         // log in text mode only
         return;
     }
@@ -544,30 +559,8 @@ void logMsg(char* msg) {
             *(t_buf++) = 1 << 4;
         }
     }
-    draw_text2(msg, 0, current_line++, 7, 1);
+    draw_text(msg, 0, current_line++, 7, 1);
 }
-
-void draw_text(char* string, int x, int y, uint8_t color, uint8_t bgcolor) {
-    if ((y < 0) | (y >= text_buffer_height)) return;
-    int len = strlen(string);
-    if (x < 0) {
-        if ((len + x) > 0) {
-            string += -x;
-            x = 0;
-        }
-        else {
-            return;
-        }
-    }
-    if (x >= text_buffer_width) return;
-    uint8_t* t_buf = text_buffer + ((text_buffer_width * 2) * y) + x;
-    //uint8_t* t_buf_c=text_buf+(text_buf_width*y)+x+1;
-    for (int xi = x; xi < text_buffer_width * 2; xi++) {
-        if (!(*string)) break;
-        *t_buf++ = *string++;
-        *t_buf++ = (bgcolor << 4) | (color & 0xF);
-    }
-};
 
 void graphics_set_bgcolor(uint32_t color888) {
     uint8_t conv0[] = { 0b00, 0b00, 0b01, 0b10, 0b10, 0b10, 0b11, 0b11 };
@@ -709,3 +702,37 @@ void graphics_init() {
     irq_set_enabled(VGA_DMA_IRQ, true);
     dma_start_channel_mask((1u << dma_chan));
 };
+
+#include "emulator.h"
+static const char* path = "\\XT\\video.ram";
+static FATFS fs;
+static FIL file;
+bool save_video_ram() { // TODO: more than one save
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    FRESULT result = f_open(&file, path, FA_WRITE | FA_CREATE_ALWAYS);
+    if (result != FR_OK) {
+        return false;
+    }
+    UINT bw;
+    result = f_write(&file, VIDEORAM, sizeof(VIDEORAM), &bw);
+    if (result != FR_OK) {
+        return false;
+    }
+    f_close(&file);
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+    return true;
+}
+bool restore_video_ram() {
+    gpio_put(PICO_DEFAULT_LED_PIN, true);
+    FRESULT result = f_open(&file, path, FA_READ);
+    if (result == FR_OK) {
+      UINT bw;
+      result = f_read(&file, VIDEORAM, sizeof(VIDEORAM), &bw);
+      if (result != FR_OK) {
+        return false;
+      }
+    }
+    f_close(&file);
+    gpio_put(PICO_DEFAULT_LED_PIN, false);
+    return true;
+}

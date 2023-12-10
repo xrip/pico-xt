@@ -1,4 +1,6 @@
 #include "umb.h"
+#include "ram_page.h"
+#include "ram.h"
 
 #ifdef XMS_UMB
 typedef struct umb {
@@ -10,10 +12,10 @@ typedef struct umb {
 static umb_t umb_blocks[UMB_BLOCKS] = {
     UMB_START_ADDRESS >> 4, 0x0800, false,
     0xC800, 0x0800, false,
- //   0xE000, 0x0800, false, // TODO: Adjust UMB issues
- //   0xE800, 0x0800, false,
- //   0xF000, 0x0800, false
-   // 0xF800, 0x0600, false
+    0xE000, 0x0800, false,
+    0xE800, 0x0800, false,
+    0xF000, 0x0800, false,
+    0xF800, 0x0600, false // 24k before BIOS
 };
 
 void init_umb() {
@@ -21,18 +23,60 @@ void init_umb() {
         umb_t *p = &umb_blocks[i];
         if(p->allocated) {
             p->allocated = false;
+            update_segment_map(p->seg, 0, 0, 0, 0);
         }
     }
 }
 
-bool umb_in_use(uint32_t addr32) {
-    uint16_t paragraph = addr32 >> 4;
-    for (int i = 0; i < UMB_BLOCKS; ++i) {
-        umb_t *p = &umb_blocks[i];
-        if(p->allocated && p->seg <= paragraph && p->seg + p->sz > paragraph)
-            return true;
+static void write8umb_psram(uint32_t addr32, uint8_t v) {
+    if (addr32 < 0xFE000UL) {
+        write8psram(addr32, v);
     }
-    return false;
+}
+
+static void write8umb_swap(uint32_t addr32, uint8_t v) {
+    if (addr32 < 0xFE000UL) {
+        ram_page_write(addr32, v);
+    }
+}
+static void write16umb_psram(uint32_t addr32, uint16_t v) {
+    if (addr32 < 0xFE000UL) {
+        write16psram(addr32, v);
+    }
+}
+
+static void write16umb_swap(uint32_t addr32, uint16_t v) {
+    if (addr32 < 0xFE000UL) {
+        ram_page_write16(addr32, v);
+    }
+}
+
+static uint8_t read8umb_psram(uint32_t addr32) {
+    if (addr32 < 0xFE000UL) {
+        return read8psram(addr32);
+    }
+    return *(pBIOS() + addr32 - 0xFE000UL);
+}
+
+static uint8_t read8umb_swap(uint32_t addr32) {
+    if (addr32 < 0xFE000UL) {
+        return ram_page_read(addr32);
+    }
+    return *(pBIOS() + addr32 - 0xFE000UL);
+}
+
+static uint16_t read16umb_psram(uint32_t addr32) {
+    if (addr32 < 0xFE000UL) {
+        return read16psram(addr32);
+    }
+    return read16arr(pBIOS(), 0xFE000UL, addr32);
+}
+
+static uint16_t read16umb_swap(uint32_t addr32) {
+    if (addr32 < 0xFE000UL) {
+        return ram_page_read16(addr32);
+    }
+    return read16arr(pBIOS(), 0xFE000UL, addr32);
 }
 
 uint16_t umb_allocate(uint16_t* psz, uint16_t* err) {
@@ -40,6 +84,23 @@ uint16_t umb_allocate(uint16_t* psz, uint16_t* err) {
         umb_t *p = &umb_blocks[i];
         if(!p->allocated && p->sz >= *psz) {
             p->allocated = true;
+            if (p->sz == 0x0800) {
+                update_segment_map(
+                    p->seg,
+                    PSRAM_AVAILABLE ? write8psram  : ram_page_write  ,
+                    PSRAM_AVAILABLE ? write16psram : write16umb_swap,
+                    PSRAM_AVAILABLE ? read8psram   : ram_page_read   ,
+                    PSRAM_AVAILABLE ? read16psram  : ram_page_read16
+                );
+            } else {
+                update_segment_map(
+                    p->seg,
+                    PSRAM_AVAILABLE ? write8umb_psram  : write8umb_swap  ,
+                    PSRAM_AVAILABLE ? write16umb_psram : ram_page_write16,
+                    PSRAM_AVAILABLE ? read8umb_psram   : read8umb_swap   ,
+                    PSRAM_AVAILABLE ? read16umb_psram  : read16umb_swap
+                );
+            }
             *psz = p->sz;
             *err = XMS_SUCCESS_CODE;
             return p->seg;
@@ -62,6 +123,7 @@ uint16_t umb_deallocate(uint16_t* seg, uint16_t* err) {
         umb_t *p = &umb_blocks[i];
         if(p->allocated && p->seg >= *seg) {
             p->allocated = false;
+         //   update_segment_map(p->seg, 0, 0, 0, 0);
             *err = XMS_SUCCESS_CODE;
             return 0x0000;
         }

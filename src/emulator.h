@@ -6,8 +6,8 @@
 #define TINY8086_CPU8086_H
 #define INLINE static
 
-// Settings for max 8MB 0f PSRAM
-#define TOTAL_VIRTUAL_MEMORY_KBS (8ul << 10)
+// Settings for max 4MB 0f PSRAM
+#define TOTAL_VIRTUAL_MEMORY_KBS (4ul << 10)
 
 #ifdef XMS_DRIVER
 #if XMS_OVER_HMA_KB
@@ -24,7 +24,7 @@
 
 #ifdef EMS_DRIVER
 //#define TOTAL_EMM_KB (TOTAL_VIRTUAL_MEMORY_KBS - ON_BOARD_RAM_KB)
-#define TOTAL_EMM_KB (4ul << 10)
+#define TOTAL_EMM_KB (2ul << 10)
 #else
 #define TOTAL_EMM_KB 0
 #endif
@@ -50,14 +50,11 @@
 #include "f_util.h"
 #include "ff.h"
 static FATFS fs;
-#else
-#define EXT_RAM_SIZE 32 << 20 // 32Mb
-extern uint8_t EXTRAM[EXT_RAM_SIZE];
 #endif
 
 #define BEEPER_PIN 28
 
-
+#define VGA_plane_size 16000
 // TODO: no direct access support (for PC mode)
 extern uint8_t RAM[RAM_SIZE];
 extern uint8_t VIDEORAM[VIDEORAM_SIZE];
@@ -94,7 +91,8 @@ extern uint8_t tempcf, oldcf, cf, pf, af, zf, sf, tf, ifl, df, of, mode, reg, rm
 extern uint8_t videomode;
 extern uint8_t speakerenabled;
 extern int timer_period;
-extern uint16_t ega_plane_offset;
+extern uint32_t ega_plane_offset;
+extern bool vga_planar_mode;
 
 #if PICO_ON_DEVICE
 extern pwm_config config;
@@ -332,3 +330,5 @@ void notify_a20_line_state_changed(bool v);
 bool is_a20_line_open();
 
 void ports_reboot();
+
+

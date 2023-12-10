@@ -112,6 +112,8 @@ static _FILE* tryDefaultDrive(uint8_t drivenum, size_t size, char *path) {
     gpio_put(PICO_DEFAULT_LED_PIN, false);
     return pFile;
 }
+// manager.h
+void notify_image_insert_action(uint8_t drivenum, char *pathname);
 #endif
 
 uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
@@ -134,6 +136,7 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
         } else {
             size = f_size(pFile);
         }
+        notify_image_insert_action(drivenum, pathname);
 #else
         file = SDL_RWFromFile(pathname, "r+w");
 

@@ -36,7 +36,7 @@ typedef struct xmm_handle {
 } xmm_handle_t;
 
 #if XMS_OVER_HMA_KB
-#define MAX_XMM_HANDLES 15 // TODO: 60 ??
+#define MAX_XMM_HANDLES 60 // TODO: 60 ??
 static xmm_handle_t xmm_handles[MAX_XMM_HANDLES] = { 0 };
 #endif
 
@@ -413,17 +413,16 @@ bool INT_15h() {
 }
 
 uint8_t xms_fn() {
-    char tmp[80];
     if (CPU_AH == 0x00) { // XMS 00H: Get XMS Version Number
 #ifdef XMS_HMA
-        sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 3.0; Drv ver 1.01; HMA available", CPU_AH);
+        sprintf(tmp, "XMS FN %02Xh: XMS Spec ver 3.0; Drv ver 4.0; HMA available", CPU_AH);
         CPU_DX = 0x0001; // HMA installed
 #else
-        sprintf(tmp, "XMS FN %02Xh: XMS Sec ver 3.0; Drv ver 1.01; HMA is turned off", CPU_AH);
+        sprintf(tmp, "XMS FN %02Xh: XMS Spec ver 3.0; Drv ver 4.0; HMA is turned off", CPU_AH);
         CPU_DX = 0x0000; // HMA not installed
 #endif
         CPU_AX = 0x0300; // spec. version
-        CPU_BX = 0x0101; // driver version
+        CPU_BX = 0x0400; // driver version
     } else {
         xms_in_use = true;
         switch(CPU_AH) {
@@ -477,7 +476,8 @@ uint8_t xms_fn() {
             break;
         case 0x07: // XMS 07H: Query A20 State
             CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
-            sprintf(tmp, "XMS FN 07h: Query A20 status: %s", CPU_AX ? "ON" : "OFF");
+            //sprintf(tmp, "XMS FN 07h: Query A20 status: %s", CPU_AX ? "ON" : "OFF");
+            tmp[0] = 0;
             CPU_BL = 0x00;
             break;
         case 0x08: { // XMS 08H: Query Free Extended Memory
@@ -591,13 +591,19 @@ uint8_t xms_fn() {
             sprintf(tmp, "XMS FN 11h: UMB dellocation: BX(seg/err): %04Xh; DX(sz): %04Xh; AX(err): %04Xh", CPU_BX, CPU_DX, CPU_AX);
             break;
 #endif
+        case 0x88: // Query Any (since 386)
+        case 0x89: // Allocate Any (since 386)
+        case 0x8E: // Extended EMB Handle info (since 386)
+        case 0x8F: // Reallocate Any (since 386)
         default:
             sprintf(tmp, "XMS FN %2Xh: ERROR (not implemented)", CPU_AH);
             CPU_AX = XMS_ERROR_CODE; // ERROR
             CPU_BL = 0x80; // Function not implemented
         }
     }
-    logMsg(tmp);
+    if (tmp[0]) { // do not print empty string
+        logMsg(tmp);
+    }
     return 0xCB /* CB RETF */;
 }
 

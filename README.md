@@ -22,5 +22,7 @@ To swap floppy drives A <-> B use: Left Ctrl + Tab + Backspace
 To get it working you should have an Murmulator (development) board with VGA output. Schematics available here at https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme
 ![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
 
+![RAM extention](/psram.jpg)
+
 # Contributors
 ![GitHub Contributors Image](https://contrib.rocks/image?repo=xrip/pico-xt)
