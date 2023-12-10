@@ -600,6 +600,9 @@ void reset86() {
 #ifdef EMS_DRIVER
     init_emm();
 #endif
+#if DMA_8237
+    i8237_reset();
+#endif
     init8253();
     init8259();
     initsermouse(0x378, 4);

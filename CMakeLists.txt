@@ -206,11 +206,11 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         XMS_HMA=1
         HANDLE_REBOOT
 
-        #SOUND_SYSTEM
+        SOUND_SYSTEM
 
         #ROM_DRIVE_B=1
 
-        #DMA_8237
+        DMA_8237
 )
 
 

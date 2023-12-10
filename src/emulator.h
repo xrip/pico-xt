@@ -251,16 +251,15 @@ struct dmachan_s {
 };
 #ifdef DMA_8237
 uint8_t in8237(uint16_t addr);
-
+void i8237_reset();
 void out8237(uint16_t addr, uint8_t value);
-
 uint8_t read8237(uint8_t channel);
 #endif
 uint8_t insermouse(uint16_t portnum);
 
 void outsermouse(uint16_t portnum, uint8_t value);
 
-void sermouseevent(uint8_t buttons, int8_t xrel, int8_t yrel);
+void sermouseevent(uint8_t buttons, int8_t xrel, int8_t yrel);ы
 
 void initsermouse(uint16_t baseport, uint8_t irq);
 

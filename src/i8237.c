@@ -26,96 +26,230 @@
 
 #ifdef DMA_8237
 
-static struct dmachan_s dmachan[4];
-static uint8_t flipflop = 0;
+static struct I8237_s {
+	struct {
+		uint32_t page;
+		uint32_t addr;
+		uint32_t reloadaddr;
+		uint32_t addrinc;
+		uint16_t count;
+		uint16_t reloadcount;
+		uint8_t autoinit;
+		uint8_t mode;
+		uint8_t enable;
+		uint8_t masked;
+		uint8_t dreq;
+		uint8_t terminal;
+		uint8_t operation;
+	} channel[4];
+	uint8_t flipflop;
+	uint8_t tempreg;
+	uint8_t memtomem;
+} i8237;
 
-// FIXME read86 is valid or we need direct ram/psram/swap acceess?
-uint8_t read8237(uint8_t channel) {
-    uint8_t ret;
-    if (dmachan[channel].masked) return 128;
-    if (dmachan[channel].autoinit && (dmachan[channel].count > dmachan[channel].reload)) dmachan[channel].count = 0;
-    if (dmachan[channel].count > dmachan[channel].reload) return 128;
-    //if (dmachan[channel].direction) ret = RAM[dmachan[channel].page + dmachan[channel].addr + dmachan[channel].count];
-    //	else ret = RAM[dmachan[channel].page + dmachan[channel].addr - dmachan[channel].count];
-    if (dmachan[channel].direction == 0)
-        ret = read86(dmachan[channel].page + dmachan[channel].addr + dmachan[channel].count);
-    else ret = read86(dmachan[channel].page + dmachan[channel].addr - dmachan[channel].count);
-    dmachan[channel].count++;
-    return ret;
+#define DMA_MODE_DEMAND		0
+#define DMA_MODE_SINGLE		1
+#define DMA_MODE_BLOCK		2
+#define DMA_MODE_CASCADE	3
+
+#define DMA_OP_VERIFY		0
+#define DMA_OP_WRITEMEM		1
+#define DMA_OP_READMEM		2
+
+void i8237_reset() {
+	memset(&i8237, 0x00, sizeof(i8237) * 4);
+	i8237.channel[0].masked = 1;
+	i8237.channel[1].masked = 1;
+	i8237.channel[2].masked = 1;
+	i8237.channel[3].masked = 1;
 }
 
-__inline void out8237(uint16_t addr, uint8_t value) {
-    uint8_t channel;
+void i8237_writeport(uint16_t addr, uint8_t value) {
+	uint8_t ch;
 #ifdef DEBUG_DMA
-    printf ("out8237(0x%X, %X);\n", addr, value);
+	printf("[DMA] Write port 0x%X: %X\n", addr, value);
 #endif
-    switch (addr) {
-        case 0x2: //channel 1 address register
-            if (flipflop == 1) dmachan[1].addr = (dmachan[1].addr & 0x00FF) | ((uint32_t) value << 8);
-            else dmachan[1].addr = (dmachan[1].addr & 0xFF00) | value;
+	addr &= 0x0F;
+	switch (addr) {
+	case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
+		ch = (addr >> 1) & 3;
+		if (addr & 0x01) { //write terminal count
+			if (i8237.flipflop) {
+				i8237.channel[ch].count = (i8237.channel[ch].count & 0x00FF) | ((uint16_t)value << 8);
+			}
+			else {
+				i8237.channel[ch].count = (i8237.channel[ch].count & 0xFF00) | (uint16_t)value;
+			}
+			i8237.channel[ch].reloadcount = i8237.channel[ch].count;
+		}
+		else {
+			if (i8237.flipflop) {
+				i8237.channel[ch].addr = (i8237.channel[ch].addr & 0x00FF) | ((uint16_t)value << 8);
+			}
+			else {
+				i8237.channel[ch].addr = (i8237.channel[ch].addr & 0xFF00) | (uint16_t)value;
+			}
+			i8237.channel[ch].reloadaddr = i8237.channel[ch].addr;
 #ifdef DEBUG_DMA
-            if (flipflop == 1) printf ("[NOTICE] DMA channel 1 address register = %04X\n", dmachan[1].addr);
+			printf("[DMA] Channel %u addr set to %08X\r\n", ch, i8237.channel[ch].addr);
 #endif
-            flipflop = ~flipflop & 1;
-            break;
-        case 0x3: //channel 1 count register
-            if (flipflop == 1) dmachan[1].reload = (dmachan[1].reload & 0x00FF) | ((uint32_t) value << 8);
-            else dmachan[1].reload = (dmachan[1].reload & 0xFF00) | value;
-            if (flipflop == 1) {
-                if (dmachan[1].reload == 0) dmachan[1].reload = 65536;
-                dmachan[1].count = 0;
-#ifdef DEBUG_DMA
-                printf ("[NOTICE] DMA channel 1 reload register = %04X\n", dmachan[1].reload);
-#endif
-            }
-            flipflop = ~flipflop & 1;
-            break;
-        case 0xA: //write single mask register
-            channel = value & 3;
-            dmachan[channel].masked = (value >> 2) & 1;
-#ifdef DEBUG_DMA
-            printf ("[NOTICE] DMA channel %u masking = %u\n", channel, dmachan[channel].masked);
-#endif
-            break;
-        case 0xB: //write mode register
-            channel = value & 3;
-            dmachan[channel].direction = (value >> 5) & 1;
-            dmachan[channel].autoinit = (value >> 4) & 1;
-            dmachan[channel].writemode = (value >> 2) & 1; //not quite accurate
-#ifdef DEBUG_DMA
-            printf ("[NOTICE] DMA channel %u write mode reg: direction = %u, autoinit = %u, write mode = %u\n",
-                    channel, dmachan[channel].direction, dmachan[channel].autoinit, dmachan[channel].writemode);
-#endif
-            break;
-        case 0xC: //clear byte pointer flip-flop
-#ifdef DEBUG_DMA
-            printf ("[NOTICE] DMA cleared byte pointer flip-flop\n");
-#endif
-            flipflop = 0;
-            break;
-        case 0x83: //DMA channel 1 page register
-            dmachan[1].page = (uint32_t) value << 16;
-#ifdef DEBUG_DMA
-            printf ("[NOTICE] DMA channel 1 page base = %05X\n", dmachan[1].page);
-#endif
-            break;
-    }
+		}
+		i8237.flipflop ^= 1;
+		break;
+	case 0x08: //DMA channel 0-3 command register
+		i8237.memtomem = value & 1;
+		break;
+	case 0x09: //DMA request register
+		i8237.channel[value & 3].dreq = (value >> 2) & 1;
+		break;
+	case 0x0A: //DMA channel 0-3 mask register
+		i8237.channel[value & 3].masked = (value >> 2) & 1;
+		break;
+	case 0x0B: //DMA channel 0-3 mode register
+		i8237.channel[value & 3].operation = (value >> 2) & 3;
+		i8237.channel[value & 3].mode = (value >> 6) & 3;
+		i8237.channel[value & 3].autoinit = (value >> 4) & 1;
+		i8237.channel[value & 3].addrinc = (value & 0x20) ? 0xFFFFFFFF : 0x00000001;
+		break;
+	case 0x0C: //clear byte pointer flip flop
+		i8237.flipflop = 0;
+		break;
+	case 0x0D: //DMA master clear
+		i8237_reset(i8237);
+		break;
+	case 0x0F: //DMA write mask register
+		i8237.channel[0].masked = value & 1;
+		i8237.channel[1].masked = (value >> 1) & 1;
+		i8237.channel[2].masked = (value >> 2) & 1;
+		i8237.channel[3].masked = (value >> 3) & 1;
+		break;
+	}
 }
 
-__inline uint8_t in8237(uint16_t addr) {
+void i8237_writepage(uint16_t addr, uint8_t value) {
+	uint8_t ch;
 #ifdef DEBUG_DMA
-    printf ("in8237(0x%X);\n", addr);
+	printf("[DMA] Write port 0x%X: %X\n", addr, value);
 #endif
-    switch (addr) {
-        case 3:
-            if (flipflop == 1)
-                return dmachan[1].reload >> 8;
-            else
-                return dmachan[1].reload;
-            flipflop = ~flipflop & 1;    // this seems to be invalid, control never gets here ... :-O
-            break;
-    }
-    return 0;
+	addr &= 0x0F;
+	switch (addr) {
+	case 0x07:
+		ch = 0;
+		break;
+	case 0x03:
+		ch = 1;
+		break;
+	case 0x01:
+		ch = 2;
+		break;
+	case 0x02:
+		ch = 3;
+		break;
+	default:
+		return;
+	}
+	i8237.channel[ch].page = (uint32_t)value << 16;
+#ifdef DEBUG_DMA
+	printf("[DMA] Channel %u page set to %08X\r\n", ch, i8237.channel[ch].page);
+#endif
+}
+
+uint8_t i8237_readport(uint16_t addr) {
+	uint8_t ch, ret = 0xFF;
+#ifdef DEBUG_DMA
+	printf("[DMA] Read port 0x%X\n", addr);
+#endif
+
+	addr &= 0x0F;
+	switch (addr) {
+	case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
+		ch = (addr >> 1) & 3;
+		if (addr & 1) { //count
+			if (i8237.flipflop) {
+				ret = (uint8_t)(i8237.channel[ch].count >> 8); //TODO: or give back the reload??
+			}
+			else {
+				ret = (uint8_t)i8237.channel[ch].count; //TODO: or give back the reload??
+			}
+		} else { //address
+			//printf("%04X\r\n", i8237.channel[ch].addr);
+			if (i8237.flipflop) {
+				ret = (uint8_t)(i8237.channel[ch].addr >> 8);
+			}
+			else {
+				ret = (uint8_t)i8237.channel[ch].addr;
+			}
+		}
+		i8237.flipflop ^= 1;
+		break;
+	case 0x08: //status register
+		ret = 0x0F;
+	}
+	return ret;
+}
+
+uint8_t i8237_readpage(uint16_t addr) {
+	uint8_t ch;
+#ifdef DEBUG_DMA
+	printf("[DMA] Read port 0x%X\n", addr);
+#endif
+	addr &= 0x0F;
+	switch (addr) {
+	case 0x07:
+		ch = 0;
+		break;
+	case 0x03:
+		ch = 1;
+		break;
+	case 0x01:
+		ch = 2;
+		break;
+	case 0x02:
+		ch = 3;
+		break;
+	default:
+		return 0xFF;
+	}
+	return (uint8_t)(i8237.channel[ch].page >> 16);
+}
+
+uint8_t i8237_read(uint8_t ch) {
+	uint8_t ret = 0xFF;
+
+	//TODO: fix commented out stuff
+	//if (i8237.channel[ch].enable && !i8237.channel[ch].terminal) {
+		ret = read86(i8237.channel[ch].page + i8237.channel[ch].addr);
+		i8237.channel[ch].addr += i8237.channel[ch].addrinc;
+		i8237.channel[ch].count--;
+		if (i8237.channel[ch].count == 0xFFFF) {
+			if (i8237.channel[ch].autoinit) {
+				i8237.channel[ch].count = i8237.channel[ch].reloadcount;
+				i8237.channel[ch].addr = i8237.channel[ch].reloadaddr;
+			} else {
+				i8237.channel[ch].terminal = 1; //TODO: does this also happen in autoinit mode?
+			}
+		}
+	//}
+
+	return ret;
+}
+
+void i8237_write(uint8_t ch, uint8_t value) {
+	//TODO: fix commented out stuff
+	//if (i8237.channel[ch].enable && !i8237.channel[ch].terminal) {
+	write86(i8237.channel[ch].page + i8237.channel[ch].addr, value);
+	printf("Write to %05X\r\n", i8237.channel[ch].page + i8237.channel[ch].addr);
+	i8237.channel[ch].addr += i8237.channel[ch].addrinc;
+	i8237.channel[ch].count--;
+	if (i8237.channel[ch].count == 0xFFFF) {
+		if (i8237.channel[ch].autoinit) {
+			i8237.channel[ch].count = i8237.channel[ch].reloadcount;
+			i8237.channel[ch].addr = i8237.channel[ch].reloadaddr;
+		}
+		else {
+			i8237.channel[ch].terminal = 1; //TODO: does this also happen in autoinit mode?
+		}
+	}
 }
 
 #endif
