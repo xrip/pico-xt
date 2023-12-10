@@ -41,6 +41,21 @@ inline static void swap_drive_message() {
     graphics_set_mode(ret);
 }
 
+typedef struct drive_state {
+    char* path;
+    char* lbl;
+} drive_state_t;
+
+static drive_state_t drives_states[3] = {
+    0, "FDD0",
+    0, "FDD1",
+    0, "HDD0"
+};
+
+void notify_image_insert_action(uint8_t drivenum, char *pathname) {
+    drives_states[drivenum].path = pathname;
+}
+
 inline static void swap_drives(uint8_t cmd) {
     if (backspacePressed && tabPressed && ctrlPressed) {
         if (already_swapped_fdds) {
@@ -77,7 +92,7 @@ typedef struct file_panel_desc {
 
 static file_panel_desc_t left_panel = {
     0, 40, 1, 0, 0,
-    { "\\XT" },
+    { "\\" },
 };
 
 static file_panel_desc_t right_panel = {
@@ -220,10 +235,21 @@ static inline void fill_panel(file_panel_desc_t* p) {
     while(f_readdir(&dir, &fileInfo) == FR_OK &&
           fileInfo.fname[0] != '\0'
     ) {
-        if (p->start_file_offset <= p->files_number &&
-            y <= LAST_FILE_LINE_ON_PANEL_Y
-        ) {
-            draw_label(p->left + 1, y, p->width - 2, fileInfo.fname, p == psp && p->selected_file_idx == y);
+        if (p->start_file_offset <= p->files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
+            char* name = fileInfo.fname;
+            snprintf(line, 80, "%s\\%s", p->path, fileInfo.fname);
+            for (int i = 0; i < 3; ++i) {
+                if (drives_states[i].path && strcmp(drives_states[i].path, line) == 0) {
+                    snprintf(line, p->width, "%s", name);
+                    for (int j = strlen(name); j < p->width - 6; ++j) {
+                        line[j] = ' ';
+                    }
+                    snprintf(line + p->width - 6, 6, "%s", drives_states[i].lbl);
+                    name = line;
+                    break;
+                }
+            }
+            draw_label(p->left + 1, y, p->width - 2, name, p == psp && p->selected_file_idx == y);
             y++;
         }
         p->files_number++;
@@ -431,7 +457,7 @@ static void work_cycle() {
             break;
         }
         if (usb_started && tud_msc_ejected()) {
-            usb_started = false;
+            turn_usb_off(0);
         }
         if (usb_started) {
             pico_usb_drive_heartbeat();
