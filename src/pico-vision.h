@@ -39,4 +39,15 @@ void draw_cmd_line(int left, int top, char* cmd);
 
 void draw_label(int left, int top, int width, char* txt, bool selected);
 
-void draw_box(int left, int top, int width, int height, char* title, char* txt);
+typedef struct line {
+   uint8_t off;
+   char* txt;
+} line_t;
+
+typedef struct lines {
+   uint8_t sz;
+   uint8_t toff;
+   line_t* plns;
+} lines_t;
+
+void draw_box(int left, int top, int width, int height, const char* title, const lines_t* plines);

@@ -60,12 +60,21 @@ inline static void swap_drive_message() {
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
     if (already_swapped_fdds) {
-        draw_box(10, 7, 60, 10, "Info",
-            "\n\n            Swap FDD0 and FDD1 drive images\n\nTo return images back, press Ctrl + Tab + Backspace");
+        const line_t lns[3] = {
+            { 13, "Swap FDD0 and FDD1 drive images" },
+            {  0, "" },
+            {  4, "To return images back, press Ctrl + Tab + Backspace"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
     } else {
-        draw_box(10, 7, 60, 10, "Info", "\n\n\n\n          Swap FDD0 and FDD1 drive images back");
+        const line_t lns[1] = {
+            { 13, "Swap FDD0 and FDD1 drive images back" }
+        };
+        const lines_t lines = { 1, 4, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
     }
-    sleep_ms(5500);
+    sleep_ms(1500);
     graphics_set_mode(ret);
     restore_video_ram();
     
@@ -220,7 +229,11 @@ static void turn_usb_on(uint8_t cmd) {
 static inline void fill_panel(file_panel_desc_t* p) {
     DIR dir;
     if (f_opendir(&dir, p->path) != FR_OK) {
-        draw_box(10, 7, 60, 10, "Warning", "\n\n\n\n               It is not a folder!");
+        const line_t lns[1] = {
+            { 20, "It is not a folder!" }
+        };
+        const lines_t lines = { 1, 4, lns };
+        draw_box(10, 7, 60, 10, "Warning", &lines);
         sleep_ms(1500);
         return;
     }
@@ -340,7 +353,11 @@ static inline void enter_pressed() {
     }
     DIR dir;
     if (f_opendir(&dir, psp->path) != FR_OK) {
-        draw_box(10, 7, 60, 10, "Warning", "\n\n\n\n               It is not a folder!");
+        const line_t lns[1] = {
+            { 20, "It is not a folder!" }
+        };
+        const lines_t lines = { 1, 4, lns };
+        draw_box(10, 7, 60, 10, "Warning", &lines);
         sleep_ms(1500);
         return;
     }
@@ -363,7 +380,11 @@ static inline void enter_pressed() {
                         sprintf(line, "\\%s", fileInfo.fname);
                     }
                     if (f_opendir(&dir, line) != FR_OK) {
-                        draw_box(10, 7, 60, 10, "Warning", "\n\n\n\n               It is not a folder!");
+                        const line_t lns[1] = {
+                            { 20, "It is not a folder!" }
+                        };
+                        const lines_t lines = { 1, 4, lns };
+                        draw_box(10, 7, 60, 10, "Warning", &lines);
                         sleep_ms(1500);
                     } else {
                         f_closedir(&dir);
@@ -383,6 +404,8 @@ static uint8_t repeat_cnt = 0;
 
 static void work_cycle() {
     while(1) {
+        if_swap_drives();
+        if_overclock();
         if (psp == &left_panel && !left_panel_make_active) {
             select_right_panel();
         }
@@ -580,6 +603,36 @@ void if_manager() {
         manager_started = true;
         start_manager();
         manager_started = false;
+    }
+}
+
+uint32_t overcloking_khz = OVERCLOCKING * 1000;
+
+void if_overclock() {
+    int oc = overclock();
+    if (oc > 0) overcloking_khz += 1000;
+    if (oc < 0) overcloking_khz -= 1000;
+    if (oc != 0) {
+        uint vco, postdiv1, postdiv2;
+        if (check_sys_clock_khz(overcloking_khz, &vco, &postdiv1, &postdiv2)) {
+            set_sys_clock_pll(vco, postdiv1, postdiv2);
+            sprintf(line, "overcloking_khz: %u kHz", overcloking_khz);
+            line_t lns[1] = {
+                { 10, line }
+            };
+            lines_t lines = { 1, 3, lns };
+            draw_box(10, 7, 60, 10, "Info", &lines);
+            sleep_ms(1500);
+        }
+        else {
+            sprintf(line, "System clock of %u kHz cannot be achieved", overcloking_khz);
+            line_t lns[1] = {
+                { 4, line }
+            };
+            lines_t lines = { 1, 3, lns };
+            draw_box(10, 7, 60, 10, "Warning", &lines);
+            sleep_ms(1500);
+        }
     }
 }
 #endif

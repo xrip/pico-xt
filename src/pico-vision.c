@@ -75,31 +75,15 @@ void draw_panel(int left, int top, int width, int height, char* title, char* bot
     }
 }
 
-void draw_box(int left, int top, int width, int height, char* title, char* txt) {
+void draw_box(int left, int top, int width, int height, const char* title, const lines_t* plines) {
     draw_panel(left, top, width, height, title, 0);
-    char line[80] = {0};
-    int i = 0;
     int y = top + 1;
-    while (*txt != 0 && i < 80) {
-        if (*txt == '\n') {
-            if (line[0] && i > 0) {
-                draw_label(left + 1, y, width - 2, line, false);
-            } else {
-                draw_label(left + 1, y, width - 2, "", false);
-            }
-            y++;
-            i = 0;
-            line[0] = 0;
-        } else {
-            line[i++] = *txt;
-        }
-        txt++;
-    }
-    if (line[0] && i > 0) {
-        draw_label(left + 1, y, width - 2, line, false);
-    }
     for (int i = y; y < top + height - 1; ++y) {
         draw_label(left + 1, y, width - 2, "", false);
+    }
+    for (int i = 0, y = top + 1 + plines->toff; i < plines->sz; ++i, ++y) {
+        const line_t * pl = plines->plns + i;
+        draw_label(left + 1 + pl->off, y, width - 2 - pl->off, pl->txt, false);
     }
 }
 
