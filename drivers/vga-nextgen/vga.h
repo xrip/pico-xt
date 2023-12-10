@@ -48,3 +48,7 @@ void logMsg(char * msg);
 void set_start_debug_line(int _start_debug_line);
 
 char* get_free_vram_ptr();
+
+bool save_video_ram();
+
+bool restore_video_ram();

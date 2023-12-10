@@ -591,13 +591,17 @@ uint8_t xms_fn() {
             sprintf(tmp, "XMS FN 11h: UMB dellocation: BX(seg/err): %04Xh; DX(sz): %04Xh; AX(err): %04Xh", CPU_BX, CPU_DX, CPU_AX);
             break;
 #endif
+        case 0x88: // Query Any (since 386)
+        case 0x89: // Allocate Any (since 386)
+        case 0x8E: // Extended EMB Handle info (since 386)
+        case 0x8F: // Reallocate Any (since 386)
         default:
             sprintf(tmp, "XMS FN %2Xh: ERROR (not implemented)", CPU_AH);
             CPU_AX = XMS_ERROR_CODE; // ERROR
             CPU_BL = 0x80; // Function not implemented
         }
     }
-    if (strlen(tmp)) {
+    if (tmp[0]) { // do not print empty string
         logMsg(tmp);
     }
     return 0xCB /* CB RETF */;
