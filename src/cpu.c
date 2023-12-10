@@ -603,6 +603,7 @@ void reset86() {
     init8253();
     init8259();
     initsermouse(0x378, 4);
+    initBlaster(0x220, 7);
 
     memset(RAM, 0x0, RAM_SIZE);
     memset(VIDEORAM, 0x0, VIDEORAM_SIZE);

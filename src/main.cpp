@@ -57,8 +57,10 @@ void PWM_init_pin(uint pinN){
 
 bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
     uint8_t sound_tick = 0;
+
     int16_t out = adlibgensample() >> 3;
-    out += tickssource() >> 1;
+    tickBlaster();
+    out += getBlasterSample();
 
     //if (out) {
         pwm_set_gpio_level(ZX_AY_PWM_PIN0,(uint8_t)((uint16_t)out+128)); // Право
@@ -168,8 +170,11 @@ __inline static void if_overclock() {
 #endif
 
 static void fill_audio(void* udata, uint8_t* stream, int len) {
-    int16_t out = adlibgensample() >> 4;
-    out += tickssource() >> 1;
+    // int16_t out = adlibgensample() >> 4;
+    // out += tickssource() >> 1;
+    tickBlaster();
+    int16_t out = adlibgensample() >> 3;
+    out += getBlasterSample();
     *stream = (uint8_t)((uint16_t)out + 128);
     //memcpy(stream, &out, len);
 }

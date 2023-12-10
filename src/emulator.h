@@ -99,9 +99,9 @@ extern pwm_config config;
 #endif
 
 static inline uint16_t makeflagsword(void) {
-    return 2 | (uint16_t) cf | ((uint16_t) pf << 2) | ((uint16_t) af << 4) | ((uint16_t) zf << 6) |
-           ((uint16_t) sf << 7) |
-           ((uint16_t) tf << 8) | ((uint16_t) ifl << 9) | ((uint16_t) df << 10) | ((uint16_t) of << 11);
+    return 2 | (uint16_t)cf | ((uint16_t)pf << 2) | ((uint16_t)af << 4) | ((uint16_t)zf << 6) |
+           ((uint16_t)sf << 7) |
+           ((uint16_t)tf << 8) | ((uint16_t)ifl << 9) | ((uint16_t)df << 10) | ((uint16_t)of << 11);
 }
 
 static inline void decodeflagsword(uint16_t x) {
@@ -170,6 +170,7 @@ void logMsg(char*);
 #define segbase(x)  ((uint32_t) x << 4)
 
 uint8_t read86(uint32_t addr32);
+
 void write86(uint32_t addr32, uint8_t v);
 
 static __inline void pokeb(uint32_t a, uint32_t b) {
@@ -178,6 +179,7 @@ static __inline void pokeb(uint32_t a, uint32_t b) {
     write86(b, av);
     write86(a, bv);
 }
+
 #define peekb(a)   read86(a)
 
 static __inline void pokew(int a, uint16_t w) {
@@ -188,8 +190,9 @@ static __inline void pokew(int a, uint16_t w) {
 static __inline uint16_t peekw(int a) {
     return peekb(a) + (peekb(a + 1) << 8);
 }
+
 extern uint16_t portram[256];
-extern uint16_t  port378, port379, port37A, port3D8, port3D9, port201;
+extern uint16_t port378, port379, port37A, port3D8, port3D9, port201;
 
 extern union _bytewordregs_ {
     uint16_t wordregs[8];
@@ -197,29 +200,43 @@ extern union _bytewordregs_ {
 } regs;
 
 void diskhandler();
-uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname);
+
+uint8_t insertdisk(uint8_t drivenum, size_t size, char* ROM, char* pathname);
 
 void writew86(uint32_t addr32, uint16_t value);
+
 void write86(uint32_t addr32, uint8_t value);
+
 uint16_t readw86(uint32_t addr32);
+
 uint8_t read86(uint32_t addr32);
 
 void reset86(void);
+
 void exec86(uint32_t execloops);
 
 void portout(uint16_t portnum, uint16_t value);
+
 uint16_t portin(uint16_t portnum);
+
 void portout16(uint16_t portnum, uint16_t value);
+
 uint16_t portin16(uint16_t portnum);
 
 void init8259();
+
 void out8259(uint16_t portnum, uint8_t value);
+
 uint8_t in8259(uint16_t portnum);
+
 uint8_t nextintr();
+
 void doirq(uint8_t irqnum);
 
 void init8253();
+
 void out8253(uint16_t portnum, uint8_t value);
+
 uint8_t in8253(uint16_t portnum);
 
 struct dmachan_s {
@@ -234,23 +251,45 @@ struct dmachan_s {
 };
 #ifdef DMA_8237
 uint8_t in8237(uint16_t addr);
-void out8237(uint16_t addr, uint8_t value);
-uint8_t read8237 (uint8_t channel);
-#endif
-uint8_t insermouse ( uint16_t portnum );
-void outsermouse ( uint16_t portnum, uint8_t value );
-void sermouseevent ( uint8_t buttons, int8_t xrel, int8_t yrel );
-void initsermouse ( uint16_t baseport, uint8_t irq );
 
-void outsoundsource ( uint16_t portnum, uint8_t value );
-uint8_t insoundsource ( uint16_t portnum );
+void out8237(uint16_t addr, uint8_t value);
+
+uint8_t read8237(uint8_t channel);
+#endif
+uint8_t insermouse(uint16_t portnum);
+
+void outsermouse(uint16_t portnum, uint8_t value);
+
+void sermouseevent(uint8_t buttons, int8_t xrel, int8_t yrel);
+
+void initsermouse(uint16_t baseport, uint8_t irq);
+
+void outsoundsource(uint16_t portnum, uint8_t value);
+
+uint8_t insoundsource(uint16_t portnum);
+
 int16_t tickssource();
 
-extern int16_t	adlibgensample	( void );
-extern uint8_t	inadlib		( uint16_t portnum );
-extern void	initadlib	( uint16_t baseport );
-extern void	outadlib	( uint16_t portnum, uint8_t value );
-extern void	tickadlib	( void );
+extern int16_t adlibgensample(void);
+
+extern uint8_t inadlib(uint16_t portnum);
+
+extern void initadlib(uint16_t baseport);
+
+extern void outadlib(uint16_t portnum, uint8_t value);
+
+extern void tickadlib(void);
+
+
+extern int16_t getBlasterSample(void);
+
+extern void tickBlaster(void);
+
+extern void initBlaster(uint16_t baseport, uint8_t irq);
+
+extern void outBlaster(uint16_t portnum, uint8_t value);
+
+extern uint8_t inBlaster(uint16_t portnum);
 
 #if !PICO_ON_DEVICE
 void handleinput(void);
@@ -280,13 +319,16 @@ extern struct i8253_s {
     uint8_t active[3];
     uint16_t counter[3];
 } i8253;
+
 #define rgb(r, g, b) ((r<<16) | (g << 8 ) | b )
 #define rgb1(b, g, r) r | (g<<8) | (b<<16);
 //r<<16) | (g << 8 ) | b )
 #endif //TINY8086_CPU8086_H
 
 void notify_a20_line_state_changed(bool v);
+
 bool is_a20_line_open();
+
 void ports_reboot();
 
 
