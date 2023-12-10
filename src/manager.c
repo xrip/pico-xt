@@ -1,3 +1,4 @@
+#if PICO_ON_DEVICE
 #include "manager.h"
 #include "emulator.h"
 #include "vga.h"
@@ -571,3 +572,4 @@ void if_manager() {
         manager_started = false;
     }
 }
+#endif
