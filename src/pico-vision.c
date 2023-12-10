@@ -87,7 +87,14 @@ void draw_fn_btn(fn_1_10_tbl_rec_t* prec, int left, int top) {
 
 void draw_cmd_line(int left, int top, char* cmd) { // TODO: cmd
     char line[82];
-    memset(line, ' ', 80); line[0] = '>'; line[80] = 0;
+    if (cmd) {
+        int sl = strlen(cmd);
+        snprintf(line, 80, ">%s", cmd);
+        memset(line + sl + 1, ' ', 80 - sl);
+    } else {
+        memset(line, ' ', 80); line[0] = '>';
+    }
+    line[80] = 0;
     draw_text(line, left, top, pcs->FOREGROUND_CMD_COLOR, pcs->BACKGROUND_CMD_COLOR);
 }
 

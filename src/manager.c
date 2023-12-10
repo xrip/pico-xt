@@ -72,10 +72,10 @@ static bool left_panel_is_selected = true;
 
 static int left_panel_selected_file_idx = 1;
 static int right_panel_selected_file_idx = 1;
-static volatile uint16_t left_start_file_offset = 0;
-static volatile uint16_t right_start_file_offset = 0;
-static volatile uint16_t left_files_number = 0;
-static volatile uint16_t right_files_number = 0;
+static uint16_t left_start_file_offset = 0;
+static uint16_t right_start_file_offset = 0;
+static uint16_t left_files_number = 0;
+static uint16_t right_files_number = 0;
 
 static volatile uint32_t lastCleanableScanCode = 0;
 static uint32_t lastSavedScanCode = 0;
@@ -194,17 +194,26 @@ static inline void fill_left() {
     FILINFO fileInfo;
     int y = 1;
     left_files_number = 0;
-    if (strlen(pathA) > 1) {
+    if (left_start_file_offset == 0 && strlen(pathA) > 1) {
         draw_label(1, y, 38, "..", left_panel_is_selected && left_panel_selected_file_idx == y);
         y++;
         left_files_number++;
     }
-    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y <= LAST_FILE_LINE_ON_PANEL_Y) {
-        draw_label(1, y, 38, fileInfo.fname, left_panel_is_selected && left_panel_selected_file_idx == y);
-        y++;
+    while(f_readdir(&dir, &fileInfo) == FR_OK &&
+          fileInfo.fname[0] != '\0'
+    ) {
+        if (left_start_file_offset <= left_files_number &&
+            y <= LAST_FILE_LINE_ON_PANEL_Y
+        ) {
+            draw_label(1, y, 38, fileInfo.fname, left_panel_is_selected && left_panel_selected_file_idx == y);
+            y++;
+        }
         left_files_number++;
     }
     f_closedir(&dir);
+    for (; y <= LAST_FILE_LINE_ON_PANEL_Y; ++y) {
+        draw_label(1, y, 38, "", false);
+    }
 }
 
 void fill_right() {
@@ -254,6 +263,53 @@ inline static void scan_code_processed() {
 
 inline static fn_1_10_btn_pressed(uint8_t fn_idx) {
     (*actual_fn_1_10_tbl())[fn_idx].action(fn_idx);
+}
+
+inline static void handle_down_pressed() {
+    if (left_panel_is_selected) {
+        if (left_panel_selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
+            left_start_file_offset + left_panel_selected_file_idx < left_files_number
+        ) {
+            left_panel_selected_file_idx++;
+            fill_left();
+        } else if (left_panel_selected_file_idx == LAST_FILE_LINE_ON_PANEL_Y &&
+                   left_start_file_offset + left_panel_selected_file_idx < left_files_number
+        ) {
+            left_panel_selected_file_idx -= 5;
+            left_start_file_offset += 5;
+            fill_left();      
+        }
+    }
+    else if(
+                right_panel_selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
+                right_panel_selected_file_idx < right_files_number
+    ) {
+                right_panel_selected_file_idx++;
+                fill_right();
+    }
+    scan_code_processed();
+}
+
+inline static void handle_up_pressed() {
+    if (left_panel_is_selected) {
+        if (left_panel_selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y)
+        {
+            left_panel_selected_file_idx--;
+            fill_left();
+        } else if (left_panel_selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y &&
+                   left_start_file_offset
+        ) {
+            left_panel_selected_file_idx += 5;
+            left_start_file_offset -= 5;
+            fill_left();           
+        }
+    } else if(
+                right_panel_selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y
+    ) {
+        right_panel_selected_file_idx--;
+        fill_right();
+    }
+    scan_code_processed();
 }
 
 static void work_cycle() {
@@ -310,21 +366,7 @@ static void work_cycle() {
             if (lastSavedScanCode != 0x50) {
                 break;
             }
-            if (left_panel_is_selected &&
-                left_panel_selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
-                left_panel_selected_file_idx < left_files_number
-              ) {
-                left_panel_selected_file_idx++;
-                fill_left();
-            }
-            else if(
-                right_panel_selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
-                right_panel_selected_file_idx < right_files_number
-            ) {
-                right_panel_selected_file_idx++;
-                fill_right();
-            }
-            scan_code_processed();
+            handle_down_pressed();
             break;
           case 0x48: // up arr down
             scan_code_processed();
@@ -333,19 +375,7 @@ static void work_cycle() {
             if (lastSavedScanCode != 0x48) {
                 break;
             }
-            if (left_panel_is_selected &&
-                left_panel_selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y
-            ) {
-                left_panel_selected_file_idx--;
-                fill_left();
-            }
-            else if(
-                right_panel_selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y
-            ) {
-                right_panel_selected_file_idx--;
-                fill_right();
-            }
-            scan_code_processed();
+            handle_up_pressed();
             break;
           case 0xCB: // left
             break;
