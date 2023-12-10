@@ -29,12 +29,12 @@ void set_color_schems(color_schema_t* pschema) {
 void draw_panel(int left, int top, int width, int height, char* title, char* bottom) {
     char line[82];
     // top line
-    line[80] = 0;
     for(int i = 1; i < width - 1; ++i) {
         line[i] = 0xCD; // ═
     }
     line[0]         = 0xC9; // ╔
     line[width - 1] = 0xBB; // ╗
+    line[width]     = 0;
     draw_text(line, left, top, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR); 
     if (title) {
         int sl = strlen(title);

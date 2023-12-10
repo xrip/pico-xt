@@ -65,17 +65,28 @@ void if_swap_drives() {
 }
 
 static char line[81];
-static char pathA[256] = { "\\XT" };
-static char pathB[256] = { "\\XT" };
-static volatile bool left_panel_make_active = true;
-static bool left_panel_is_selected = true;
 
-static int left_panel_selected_file_idx = 1;
-static int right_panel_selected_file_idx = 1;
-static uint16_t left_start_file_offset = 0;
-static uint16_t right_start_file_offset = 0;
-static uint16_t left_files_number = 0;
-static uint16_t right_files_number = 0;
+typedef struct file_panel_desc {
+    int left;
+    int width;
+    int selected_file_idx;
+    int start_file_offset;
+    int files_number;
+    char path[256];
+} file_panel_desc_t;
+
+static file_panel_desc_t left_panel = {
+    0, 40, 1, 0, 0,
+    { "\\XT" },
+};
+
+static file_panel_desc_t right_panel = {
+    40, 40, 1, 0, 0,
+    { "\\XT" },
+};
+
+static volatile bool left_panel_make_active = true;
+static file_panel_desc_t* psp = &left_panel;
 
 static volatile uint32_t lastCleanableScanCode = 0;
 static uint32_t lastSavedScanCode = 0;
@@ -90,8 +101,9 @@ static uint8_t FIRST_FILE_LINE_ON_PANEL_Y = PANEL_TOP_Y + 1;
 static uint8_t LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
 
 static void draw_window() {
-    sprintf(line, "SD:%s", pathA);
+    sprintf(line, "SD:%s", left_panel.path);
     draw_panel( 0, PANEL_TOP_Y, 40, PANEL_LAST_Y + 1, line, 0);
+    sprintf(line, "SD:%s", right_panel.path);
     draw_panel(40, PANEL_TOP_Y, 40, PANEL_LAST_Y + 1, line, 0);
 }
 
@@ -180,79 +192,52 @@ static void turn_usb_on(uint8_t cmd) {
     bottom_line();
 }
 
-static inline void fill_left() {
+static inline void fill_panel(file_panel_desc_t* p) {
     FIL file;
-    if (f_stat(pathA, &file) != FR_OK/* || !(file.fattrib & AM_DIR)*/) { // TODO:
+    if (f_stat(p->path, &file) != FR_OK/* || !(file.fattrib & AM_DIR)*/) { // TODO:
         // TODO: Error dialog
         return;
     }
     DIR dir;
-    if (f_opendir(&dir, pathA) != FR_OK) {
+    if (f_opendir(&dir, p->path) != FR_OK) {
         // TODO: Error dialog
         return;
     }
     FILINFO fileInfo;
     int y = 1;
-    left_files_number = 0;
-    if (left_start_file_offset == 0 && strlen(pathA) > 1) {
-        draw_label(1, y, 38, "..", left_panel_is_selected && left_panel_selected_file_idx == y);
+    p->files_number = 0;
+    if (p->start_file_offset == 0 && strlen(p->path) > 1) {
+        draw_label(p->left + 1, y, p->width - 2, "..", p == psp && p->selected_file_idx == y);
         y++;
-        left_files_number++;
+        p->files_number++;
     }
     while(f_readdir(&dir, &fileInfo) == FR_OK &&
           fileInfo.fname[0] != '\0'
     ) {
-        if (left_start_file_offset <= left_files_number &&
+        if (p->start_file_offset <= p->files_number &&
             y <= LAST_FILE_LINE_ON_PANEL_Y
         ) {
-            draw_label(1, y, 38, fileInfo.fname, left_panel_is_selected && left_panel_selected_file_idx == y);
+            draw_label(p->left + 1, y, p->width - 2, fileInfo.fname, p == psp && p->selected_file_idx == y);
             y++;
         }
-        left_files_number++;
+        p->files_number++;
     }
     f_closedir(&dir);
     for (; y <= LAST_FILE_LINE_ON_PANEL_Y; ++y) {
-        draw_label(1, y, 38, "", false);
+        draw_label(p->left + 1, y, p->width - 2, "", false);
     }
-}
-
-void fill_right() {
-    FIL file;
-    if (f_stat(pathB, &file) != FR_OK/* || !(file.fattrib & AM_DIR)*/) { // TODO:
-        // TODO: Error dialog
-        return;
-    }
-    DIR dir;
-    if (f_opendir(&dir, pathB) != FR_OK) {
-        // TODO: Error dialog
-        return;
-    }
-    FILINFO fileInfo;
-    int y = 1;
-    right_files_number = 0;
-    if (strlen(pathA) > 1) {
-        draw_label(41, y, 38, "..", !left_panel_is_selected && right_panel_selected_file_idx == y);
-        y++;
-        right_files_number++;
-    }
-    while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0' && y <= LAST_FILE_LINE_ON_PANEL_Y) {
-        draw_label(41, y, 38, fileInfo.fname, !left_panel_is_selected && right_panel_selected_file_idx == y);
-        y++;
-        right_files_number++;
-    }
-    f_closedir(&dir);
 }
 
 static void select_right_panel() {
-    left_panel_is_selected = false;
-    fill_right();
-    fill_left();
+    psp = &right_panel;
+    fill_panel(&left_panel);
+    fill_panel(&right_panel);
 }
 
 static void select_left_panel() {
-    left_panel_is_selected = true;
-    fill_right();
-    fill_left();
+    psp = &left_panel;
+    fill_panel(&left_panel);
+    fill_panel(&right_panel);
 }
 
 inline static void scan_code_processed() {
@@ -266,59 +251,52 @@ inline static fn_1_10_btn_pressed(uint8_t fn_idx) {
 }
 
 inline static void handle_down_pressed() {
-    if (left_panel_is_selected) {
-        if (left_panel_selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
-            left_start_file_offset + left_panel_selected_file_idx < left_files_number
-        ) {
-            left_panel_selected_file_idx++;
-            fill_left();
-        } else if (left_panel_selected_file_idx == LAST_FILE_LINE_ON_PANEL_Y &&
-                   left_start_file_offset + left_panel_selected_file_idx < left_files_number
-        ) {
-            left_panel_selected_file_idx -= 5;
-            left_start_file_offset += 5;
-            fill_left();      
-        }
-    }
-    else if(
-                right_panel_selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
-                right_panel_selected_file_idx < right_files_number
+    if (psp->selected_file_idx < LAST_FILE_LINE_ON_PANEL_Y &&
+        psp->start_file_offset + psp->selected_file_idx < psp->files_number
     ) {
-                right_panel_selected_file_idx++;
-                fill_right();
+        psp->selected_file_idx++;
+        fill_panel(psp);
+    } else if (
+        psp->selected_file_idx == LAST_FILE_LINE_ON_PANEL_Y &&
+        psp->start_file_offset + psp->selected_file_idx < psp->files_number
+    ) {
+        psp->selected_file_idx -= 5;
+        psp->start_file_offset += 5;
+        fill_panel(psp);    
     }
     scan_code_processed();
 }
 
 inline static void handle_up_pressed() {
-    if (left_panel_is_selected) {
-        if (left_panel_selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y)
-        {
-            left_panel_selected_file_idx--;
-            fill_left();
-        } else if (left_panel_selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y &&
-                   left_start_file_offset
-        ) {
-            left_panel_selected_file_idx += 5;
-            left_start_file_offset -= 5;
-            fill_left();           
-        }
-    } else if(
-                right_panel_selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y
-    ) {
-        right_panel_selected_file_idx--;
-        fill_right();
+    if (psp->selected_file_idx > FIRST_FILE_LINE_ON_PANEL_Y) {
+        psp->selected_file_idx--;
+        fill_panel(psp);
+    } else if (psp->selected_file_idx == FIRST_FILE_LINE_ON_PANEL_Y && psp->start_file_offset > 0) {
+        psp->selected_file_idx += 5;
+        psp->start_file_offset -= 5;
+        fill_panel(psp);       
     }
     scan_code_processed();
 }
 
+static uint8_t repeat_cnt = 0;
+
 static void work_cycle() {
     while(1) {
-        if (left_panel_is_selected && !left_panel_make_active) {
+        if (psp == &left_panel && !left_panel_make_active) {
             select_right_panel();
         }
-        if (!left_panel_is_selected && left_panel_make_active) {
+        if (psp != &left_panel && left_panel_make_active) {
             select_left_panel();
+        }
+        if (lastSavedScanCode != lastCleanableScanCode && lastSavedScanCode > 0x80) {
+            repeat_cnt = 0;
+        } else {
+            repeat_cnt++;
+            if (repeat_cnt > 0xFE && lastSavedScanCode < 0x80) {
+               lastCleanableScanCode = lastSavedScanCode + 0x80;
+               repeat_cnt = 0;
+            }
         }
         switch(lastCleanableScanCode) {
           case 0x01: // Esc down
@@ -399,8 +377,7 @@ void start_manager() {
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
     set_start_debug_line(30);
     draw_window();
-    fill_left();
-    fill_right();
+    select_left_panel();
     bottom_line();
 
     work_cycle();
