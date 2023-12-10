@@ -291,20 +291,28 @@ inline static void handle_up_pressed() {
     scan_code_processed();
 }
 
+static inline void redraw_current_panel() {
+    psp->selected_file_idx = 1;
+    psp->start_file_offset = 0;
+    sprintf(line, "SD:%s", psp->path);
+    draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, line, 0);
+    fill_panel(psp);
+    draw_cmd_line(0, CMD_Y_POS, line);
+}
+
 static inline void enter_pressed() {
     if (psp->selected_file_idx == 1 && psp->start_file_offset == 0 && strlen(psp->path[0]) > 1) {
         int i = strlen(psp->path);
-        while(i-- > 0) {
+        while(--i > 0) {
             if (psp->path[i] == '\\') {
-                psp->path[i + 1] = 0;
-                draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, psp->path, 0);
-                fill_panel(psp);
+                psp->path[i] = 0;
+                redraw_current_panel();
                 return;
             }
         }
         psp->path[0] = '\\';
-        draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, psp->path, 0);
-        fill_panel(psp);
+        psp->path[1] = 0;
+        redraw_current_panel();
         return;
     }
     FIL file;
@@ -330,10 +338,7 @@ static inline void enter_pressed() {
                 draw_cmd_line(0, CMD_Y_POS, line);
                 if (fileInfo.fattrib & AM_DIR) {
                     sprintf(psp->path, "%s\\%s", psp->path, fileInfo.fname);
-                    psp->selected_file_idx = 1;
-                    psp->start_file_offset = 0;
-                    draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, psp->path, 0);
-                    fill_panel(psp);
+                    redraw_current_panel();
                     f_closedir(&dir);
                     return;
                 }
@@ -443,8 +448,8 @@ static void work_cycle() {
         } else if(mark_to_exit_flag) {
             return;
         }
-        sprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode);
-        draw_cmd_line(0, CMD_Y_POS, line);
+        //sprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode);
+        //draw_cmd_line(0, CMD_Y_POS, line);
     }
 }
 
