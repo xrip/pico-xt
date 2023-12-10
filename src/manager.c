@@ -204,11 +204,6 @@ static void turn_usb_on(uint8_t cmd) {
 }
 
 static inline void fill_panel(file_panel_desc_t* p) {
-    FIL file;
-    if (f_stat(p->path, &file) != FR_OK/* || !(file.fattrib & AM_DIR)*/) { // TODO:
-        // TODO: Error dialog
-        return;
-    }
     DIR dir;
     if (f_opendir(&dir, p->path) != FR_OK) {
         // TODO: Error dialog
@@ -313,11 +308,6 @@ static inline void enter_pressed() {
         psp->path[0] = '\\';
         psp->path[1] = 0;
         redraw_current_panel();
-        return;
-    }
-    FIL file;
-    if (f_stat(psp->path, &file) != FR_OK/* || !(file.fattrib & AM_DIR)*/) { // TODO:
-        // TODO: Error dialog
         return;
     }
     DIR dir;
