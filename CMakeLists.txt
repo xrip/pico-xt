@@ -187,12 +187,12 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         PSRAM_PIN_MISO=21
         
         # experimental for debug only
-        PSRAM_ONLY_NO_RAM
+        #PSRAM_ONLY_NO_RAM
 
         # supports only for pico with 4 or more MB flashes
         PICO_FLASH_SIZE_BYTES=4194304
 
-        #BOOT_DEBUG=1
+        BOOT_DEBUG=1
         #BOOT_DEBUG_ACC=0xA0000
 
         # select onr of the folowing:
@@ -214,6 +214,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #ROM_DRIVE_B=1
 
         DMA_8237
+        DEBUG_DMA=1
 
         #DEBUG_PSRAM
         #DEBUG_VGA

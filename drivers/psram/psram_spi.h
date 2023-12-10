@@ -591,8 +591,8 @@ __force_inline static void psram_read(psram_spi_inst_t* spi, const uint32_t addr
     pio_spi_write_read_dma_blocking(spi, read_command, sizeof(read_command), dst, count);
 };
 
-
-static uint8_t write_async_fast_command[134] = {
+#define FAST_COMMAND_SZ 134
+static uint8_t write_async_fast_command[FAST_COMMAND_SZ] = {
     0,          // n bits write
     0,          // 0 bits read
     0x02u      // Fast write command
@@ -612,7 +612,7 @@ __force_inline static void psram_write_async_fast(psram_spi_inst_t* spi, uint32_
     write_async_fast_command[4] = addr >> 8;
     write_async_fast_command[5] = addr;
 
-    memcpy(write_async_fast_command + 6, val, count);
+    memcpy(write_async_fast_command + 6, val, count > FAST_COMMAND_SZ ? FAST_COMMAND_SZ : count);
 
     pio_spi_write_async(spi, write_async_fast_command, 6 + count);
 };

@@ -280,7 +280,7 @@ void VgaPioInit()
 
 	// configure main program instructions
 	uint16_t ins[32]; // temporary buffer of program instructions
-	memcpy(ins, &vga_program_instructions, vga_program.length*sizeof(uint16_t)); // copy program into buffer
+	memcpy(ins, &vga_program_instructions, vga_program.length*sizeof(uint16_t) > 32 ? 32 : vga_program.length*sizeof(uint16_t)); // copy program into buffer
 	u16 cpp = (u16)CurVmode.cpp; // number of clocks per pixel
 	ins[vga_offset_extra1] |= (cpp-2) << 8; // update waits
 	ins[vga_offset_extra2] |= (cpp-2) << 8; // update waits

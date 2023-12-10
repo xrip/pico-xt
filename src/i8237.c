@@ -22,7 +22,6 @@
    the Sound Blaster emulation functions rely on this! */
 
 #include "emulator.h"
-#define DEBUG_DMA 1
 
 #ifdef DMA_8237
 
@@ -57,17 +56,21 @@ static struct I8237_s {
 #define DMA_OP_READMEM		2
 
 void i8237_reset() {
-	//memset(&i8237, 0x00, sizeof(i8237) * 4);
+	memset(&i8237, 0x00, sizeof(i8237));
 	i8237.channel[0].masked = 1;
 	i8237.channel[1].masked = 1;
 	i8237.channel[2].masked = 1;
 	i8237.channel[3].masked = 1;
 }
 
+#ifdef DEBUG_DMA
+char tmp[80];
+#endif
+
 void i8237_writeport(uint16_t addr, uint8_t value) {
 	uint8_t ch;
 #ifdef DEBUG_DMA
-	printf("[DMA] Write port 0x%X: %X\n", addr, value);
+	snprintf(tmp, 80, "[DMA] Write port %04Xh: %02Xh", addr, value); logMsg(tmp);
 #endif
 	addr &= 0x0F;
 	switch (addr) {
@@ -91,7 +94,7 @@ void i8237_writeport(uint16_t addr, uint8_t value) {
 			}
 			i8237.channel[ch].reloadaddr = i8237.channel[ch].addr;
 #ifdef DEBUG_DMA
-			printf("[DMA] Channel %u addr set to %08X\r\n", ch, i8237.channel[ch].addr);
+			snprintf(tmp, 80, "[DMA] Channel %u addr set to %08X", ch, i8237.channel[ch].addr); logMsg(tmp);
 #endif
 		}
 		i8237.flipflop ^= 1;
@@ -129,7 +132,7 @@ void i8237_writeport(uint16_t addr, uint8_t value) {
 void i8237_writepage(uint16_t addr, uint8_t value) {
 	uint8_t ch;
 #ifdef DEBUG_DMA
-	printf("[DMA] Write port 0x%X: %X\n", addr, value);
+	snprintf(tmp, 80, "[DMA] Write port %04Xh: %02Xh", addr, value); logMsg(tmp);
 #endif
 	addr &= 0x0F;
 	switch (addr) {
@@ -150,17 +153,13 @@ void i8237_writepage(uint16_t addr, uint8_t value) {
 	}
 	i8237.channel[ch].page = (uint32_t)value << 16;
 #ifdef DEBUG_DMA
-	printf("[DMA] Channel %u page set to %08X\r\n", ch, i8237.channel[ch].page);
+	snprintf(tmp, 80, "[DMA] Channel %01Xh page set to %08Xh", ch, i8237.channel[ch].page); logMsg(tmp);
 #endif
 }
 
-uint8_t i8237_readport(uint16_t addr) {
+uint8_t i8237_readport(uint16_t addr16) {
 	uint8_t ch, ret = 0xFF;
-#ifdef DEBUG_DMA
-	printf("[DMA] Read port 0x%X\n", addr);
-#endif
-
-	addr &= 0x0F;
+	uint8_t addr = addr16 & 0x0F;
 	switch (addr) {
 	case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
 		ch = (addr >> 1) & 3;
@@ -185,14 +184,14 @@ uint8_t i8237_readport(uint16_t addr) {
 	case 0x08: //status register
 		ret = 0x0F;
 	}
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] Read port %04Xh channel %02Xh res %02Xh", addr16, addr, ret); logMsg(tmp);
+#endif
 	return ret;
 }
 
 uint8_t i8237_readpage(uint16_t addr) {
 	uint8_t ch;
-#ifdef DEBUG_DMA
-	printf("[DMA] Read port 0x%X\n", addr);
-#endif
 	addr &= 0x0F;
 	switch (addr) {
 	case 0x07:
@@ -208,9 +207,16 @@ uint8_t i8237_readpage(uint16_t addr) {
 		ch = 3;
 		break;
 	default:
+#ifdef DEBUG_DMA
+        snprintf(tmp, 80, "[DMA] Read port %04Xh channel %01Xh err FFh", addr, ch); logMsg(tmp);
+#endif
 		return 0xFF;
 	}
-	return (uint8_t)(i8237.channel[ch].page >> 16);
+	uint8_t res = (uint8_t)(i8237.channel[ch].page >> 16);
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] Read port %04Xh channel %01Xh res %02Xh", addr, ch, res); logMsg(tmp);
+#endif
+	return res;
 }
 
 uint8_t i8237_read(uint8_t ch) {
@@ -239,7 +245,7 @@ void i8237_write(uint8_t ch, uint8_t value) {
 	//if (i8237.channel[ch].enable && !i8237.channel[ch].terminal) {
 	write86(i8237.channel[ch].page + i8237.channel[ch].addr, value);
 #ifdef DEBUG_DMA
-	printf("Write to %05X\r\n", i8237.channel[ch].page + i8237.channel[ch].addr);
+	snprintf(tmp, 80,"Write %02Xh to %05X", value, i8237.channel[ch].page + i8237.channel[ch].addr); logMsg(tmp);
 #endif
 	i8237.channel[ch].addr += i8237.channel[ch].addrinc;
 	i8237.channel[ch].count--;
