@@ -175,7 +175,7 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t* block_count, uint16_t* block_siz
 // - Start = 0 : stopped power mode, if load_eject = 1 : unload disk storage
 // - Start = 1 : active mode, if load_eject = 1 : load disk storage
 bool tud_msc_start_stop_cb(uint8_t lun, uint8_t power_condition, bool start, bool load_eject) {
-  char tmp[81]; sprintf(tmp, "power_condition: 0x%X start: %d load_eject: %d", power_condition, start, load_eject); logMsg(tmp);
+  //char tmp[81]; sprintf(tmp, "power_condition: 0x%X start: %d load_eject: %d", power_condition, start, load_eject); logMsg(tmp);
   (void) lun;
   (void) power_condition;
   if ( load_eject ) {

@@ -211,6 +211,11 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #ROM_DRIVE_B=1
 
         DMA_8237
+
+        #DEBUG_PSRAM
+        #DEBUG_VGA
+        #DEBUG_XMS
+        #DEBUG_DISK
 )
 
 

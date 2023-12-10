@@ -117,9 +117,9 @@ static uint8_t FIRST_FILE_LINE_ON_PANEL_Y = PANEL_TOP_Y + 1;
 static uint8_t LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
 
 static void draw_window() {
-    sprintf(line, "SD:%s", left_panel.path);
+    snprintf(line, 81, "SD:%s", left_panel.path);
     draw_panel( 0, PANEL_TOP_Y, 40, PANEL_LAST_Y + 1, line, 0);
-    sprintf(line, "SD:%s", right_panel.path);
+    snprintf(line, 81, "SD:%s", right_panel.path);
     draw_panel(40, PANEL_TOP_Y, 40, PANEL_LAST_Y + 1, line, 0);
 }
 
@@ -197,7 +197,7 @@ static void turn_usb_off(uint8_t cmd) { // TODO: support multiple enter for USB 
     memset(fn_1_10_tbl_alt[9].name, ' ', BTN_WIDTH);
     fn_1_10_tbl_alt[9].action = do_nothing;
     // Ctrl + F10 - Exit
-    sprintf(fn_1_10_tbl_ctrl[9].name, " Exit ");
+    snprintf(fn_1_10_tbl_ctrl[9].name, BTN_WIDTH, " Exit ");
     fn_1_10_tbl_ctrl[9].action = mark_to_exit;
 
     bottom_line();
@@ -213,7 +213,7 @@ static void turn_usb_on(uint8_t cmd) {
     memset(fn_1_10_tbl_ctrl[9].name, ' ', BTN_WIDTH);
     fn_1_10_tbl_ctrl[9].action = do_nothing;
     // Alt + F10 - force unmount usb
-    sprintf(fn_1_10_tbl_alt[9].name, " UnUSB");
+    snprintf(fn_1_10_tbl_alt[9].name, BTN_WIDTH, " UnUSB");
     fn_1_10_tbl_alt[9].action = turn_usb_off;
 
     bottom_line();
@@ -241,7 +241,7 @@ static inline void fill_panel(file_panel_desc_t* p) {
             snprintf(line, 80, "%s\\%s", p->path, fileInfo.fname);
             for (int i = 0; i < 3; ++i) {
                 if (drives_states[i].path && strcmp(drives_states[i].path, line) == 0) {
-                    snprintf(line, p->width, "%s", name);
+                    snprintf(line, p->width > 80 ? 80 : p->width, "%s", name);
                     for (int j = strlen(name); j < p->width - 6; ++j) {
                         line[j] = ' ';
                     }
@@ -316,7 +316,7 @@ inline static void handle_up_pressed() {
 static inline void redraw_current_panel() {
     psp->selected_file_idx = 1;
     psp->start_file_offset = 0;
-    sprintf(line, "SD:%s", psp->path);
+    snprintf(line, 81, "SD:%s", psp->path);
     draw_panel(psp->left, PANEL_TOP_Y, psp->width, PANEL_LAST_Y + 1, line, 0);
     fill_panel(psp);
     draw_cmd_line(0, CMD_Y_POS, line);
@@ -350,11 +350,11 @@ static inline void enter_pressed() {
     while(f_readdir(&dir, &fileInfo) == FR_OK && fileInfo.fname[0] != '\0') {
         if (psp->start_file_offset <= psp->files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
             if (psp->selected_file_idx == y) {
-                sprintf(line, "fn: %s afn: %s sz: %d attr: %03oo date: %04Xh time: %04Xh",
+                snprintf(line, 81, "fn: %s afn: %s sz: %d attr: %03oo date: %04Xh time: %04Xh",
                               fileInfo.fname, fileInfo.altname, fileInfo.fsize, fileInfo.fattrib, fileInfo.fdate, fileInfo.ftime);
                 draw_cmd_line(0, CMD_Y_POS, line);
                 if (fileInfo.fattrib & AM_DIR) {
-                    sprintf(psp->path, "%s\\%s", psp->path, fileInfo.fname);
+                    snprintf(psp->path, 256, "%s\\%s", psp->path, fileInfo.fname);
                     redraw_current_panel();
                     f_closedir(&dir);
                     return;
@@ -465,7 +465,7 @@ static void work_cycle() {
         } else if(mark_to_exit_flag) {
             return;
         }
-        //sprintf(line, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode);
+        //snprintf(line, 81, "scan-code: %02Xh / saved scan-code: %02Xh", lastCleanableScanCode, lastSavedScanCode);
         //draw_cmd_line(0, CMD_Y_POS, line);
     }
 }

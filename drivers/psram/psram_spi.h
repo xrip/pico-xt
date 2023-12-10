@@ -65,6 +65,14 @@ SOFTWARE.
 extern "C" {
 #endif
 
+#ifdef DEBUG_PSRAM
+#define DBG_PRINTF(...) printf(__VA_ARGS__)
+#define DBG_PUTS(...) puts(__VA_ARGS__)
+#else
+#define DBG_PRINTF(...)
+#define DBG_PUTS(...)
+#endif
+
 /**
  * @brief A struct that holds the configuration for the PSRAM interface.
  *

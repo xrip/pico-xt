@@ -238,7 +238,9 @@ void i8237_write(uint8_t ch, uint8_t value) {
 	//TODO: fix commented out stuff
 	//if (i8237.channel[ch].enable && !i8237.channel[ch].terminal) {
 	write86(i8237.channel[ch].page + i8237.channel[ch].addr, value);
+#ifdef DEBUG_DMA
 	printf("Write to %05X\r\n", i8237.channel[ch].page + i8237.channel[ch].addr);
+#endif
 	i8237.channel[ch].addr += i8237.channel[ch].addrinc;
 	i8237.channel[ch].count--;
 	if (i8237.channel[ch].count == 0xFFFF) {

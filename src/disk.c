@@ -3,6 +3,12 @@
 //
 #include "emulator.h"
 
+#ifdef DEBUG_DISK
+#define DBG_PRINTF(...) printf(__VA_ARGS__)
+#else
+#define DBG_PRINTF(...)
+#endif
+
 #if PICO_ON_DEVICE
 
 #define _FILE FIL
@@ -82,8 +88,8 @@ static _FILE* tryFlushROM(uint8_t drivenum, size_t size, char *ROM, char *path) 
 #include "fat12.h"
 
 static _FILE* tryDefaultDrive(uint8_t drivenum, size_t size, char *path) {
-    char* tmp[40];
-    sprintf(tmp, "Drive 0x%02X not found. Will try to init %s by size: %f MB...", drivenum, path, (size / 1024 / 1024.0f));
+    char tmp[80];
+    snprintf(tmp, 80, "Drive 0x%02X not found. Will try to init %s by size: %f MB...", drivenum, path, (size / 1024 / 1024.0f));
     logMsg(tmp);
     _FILE *pFile = actualDrive(drivenum);
     FRESULT result = f_open(pFile, path, FA_WRITE | FA_CREATE_ALWAYS);
@@ -206,19 +212,23 @@ uint8_t insertdisk(uint8_t drivenum, size_t size, char *ROM, char *pathname) {
         hdcount++;
     else
         fdcount++;
-    printf(
-            "DISK: Disk 0%02Xh has been attached %s from file %s size=%luK, CHS=%d,%d,%d\n",
+    char tmp[80];
+#ifdef BOOT_DEBUG
+    snprintf(tmp, 80,
+            "DISK: Disk 0%02Xh has been attached %s from file %s size=%luK, CHS=%d,%d,%d",
             drivenum,
             disk[drivenum].readonly ? "R/O" : "R/W",
-            "ROM",
+            pathname ? pathname : "ROM",
             (unsigned long) (size >> 10),
             cyls,
             heads,
             sects
-    );
+    ); logMsg(tmp);
+#endif
     return 0;
-    error:
-    fprintf(stderr, "DISK: ERROR: cannot insert disk 0%02Xh as %s because: %s\r\n", drivenum, "ROM", err);
+error:
+    snprintf(tmp, 80, stderr, "DISK: ERROR: disk 0%02Xh as %s err: %s", drivenum, pathname ? pathname : "ROM", err);
+    logMsg(tmp);
     return 1;
 }
 
@@ -276,14 +286,13 @@ bios_readdisk(uint8_t drivenum,
 #if PICO_ON_DEVICE
     FRESULT result;
 #endif
-
     if (!disk[drivenum].inserted) {
-        printf("no media %i\r\n", drivenum);
+        DBG_PRINTF("no media %i\r\n", drivenum);
         CPU_AH = 0x31;    // no media in drive
         goto error;
     }
     if (!sect || sect > disk[drivenum].sects || cyl >= disk[drivenum].cyls || head >= disk[drivenum].heads) {
-        printf("sector no found\r\n");
+        DBG_PRINTF("sector no found\r\n");
         CPU_AH = 0x04;    // sector not found
         goto error;
     }
@@ -311,7 +320,7 @@ bios_readdisk(uint8_t drivenum,
 #endif
     }
     if (fileoffset > disk[drivenum].filesize) {
-        printf("sector no found\r\n");
+        DBG_PRINTF("sector no found\r\n");
         CPU_AH = 0x04;    // sector not found
         goto error;
     }
@@ -393,7 +402,7 @@ bios_readdisk(uint8_t drivenum,
     CPU_AH = 0;
     return;
     error:
-    printf("DISK ERROR %i 0x%x\r\n", drivenum, CPU_AH);
+    DBG_PRINTF("DISK ERROR %i 0x%x\r\n", drivenum, CPU_AH);
     // AH must be set with the error code
     CPU_AL = 0;
     CPU_FL_CF = 1;
@@ -414,7 +423,7 @@ bios_writedisk(uint8_t drivenum,
 #if PICO_ON_DEVICE
     FRESULT result;
 #endif
-    //printf("bios_writedisk\r\n");
+    //DBG_PRINTF("bios_writedisk\r\n");
     if (!disk[drivenum].inserted) {
         CPU_AH = 0x31;    // no media in drive
         goto error;
@@ -445,7 +454,7 @@ bios_writedisk(uint8_t drivenum,
     }
 #if PICO_ON_DEVICE
     if (disk[drivenum].diskfile != NULL && f_lseek(disk[drivenum].diskfile, fileoffset) != FR_OK) {
-        //printf("Write seek error");
+        //DBG_PRINTF("Write seek error");
         CPU_AH = 0x04;    // sector not found
         goto error;
     }
@@ -464,7 +473,7 @@ bios_writedisk(uint8_t drivenum,
 #if PICO_ON_DEVICE
             UINT writen_bytes;
             result = f_write(disk[drivenum].diskfile, sectorbuffer, 512, &writen_bytes);
-//            printf("drivenum %i :: f_write result: %s (%d)\r\n", drivenum, FRESULT_str(result), writen_bytes);
+//            DBG_PRINTF("drivenum %i :: f_write result: %s (%d)\r\n", drivenum, FRESULT_str(result), writen_bytes);
 #else
             SDL_RWwrite(disk[drivenum].diskfile, sectorbuffer, 512, 1);
 #endif
@@ -491,10 +500,10 @@ void diskhandler(void) {
     drivenum = CPU_DL;
     if (drivenum & 0x80) drivenum -= 126;
 
-    //printf("DISK interrupt function %02Xh\r\n", CPU_AH);
+    //DBG_PRINTF("DISK interrupt function %02Xh\r\n", CPU_AH);
     switch (CPU_AH) {
         case 0: //reset disk system
-            //printf("Disk reset %i\r\n", CPU_DL);
+            //DBG_PRINTF("Disk reset %i\r\n", CPU_DL);
             if (disk[drivenum].inserted) {
                 CPU_AH = 0;
                 CPU_FL_CF = 0; //useless function in an emulator. say success and return.
@@ -507,7 +516,7 @@ void diskhandler(void) {
             CPU_FL_CF = lastdiskcf[drivenum];
             return;
         case 2: //read sector(s) into memory
-/*            printf("bios_readdisk %i %i %i %i %i %i %i\r\n",
+/*            DBG_PRINTF("bios_readdisk %i %i %i %i %i %i %i\r\n",
                     CPU_DL,                // drivenum
                     CPU_ES, CPU_BX,            // segment & offset
                     CPU_CH + (CPU_CL / 64) * 256,    // cylinder
@@ -527,7 +536,7 @@ void diskhandler(void) {
             );
             break;
         case 3: //write sector(s) from memory
-/*            printf("bios_writedisk %i %i %i %i %i %i %i\r\n",   CPU_DL,                // drivenum
+/*            DBG_PRINTF("bios_writedisk %i %i %i %i %i %i %i\r\n",   CPU_DL,                // drivenum
                    CPU_ES, CPU_BX,            // segment & offset
                    CPU_CH + (CPU_CL / 64) * 256,    // cylinder
                    CPU_CL & 63,            // sector
@@ -544,7 +553,7 @@ void diskhandler(void) {
             );
             break;
         case 4:    // verify sectors ...
-/*            printf("bios_verify %i %i %i %i %i %i %i\r\n",
+/*            DBG_PRINTF("bios_verify %i %i %i %i %i %i %i\r\n",
                    CPU_DL,                // drivenum
                    CPU_ES, CPU_BX,            // segment & offset
                    CPU_CH + (CPU_CL / 64) * 256,    // cylinder
@@ -591,14 +600,14 @@ void diskhandler(void) {
             case 0x15:	// get disk type
             if (disk[CPU_DL].inserted) {
                 int drivenum = CPU_DL;
-                printf("Requesting int 13h / function 15h for drive %02Xh\n", drivenum);
+                DBG_PRINTF("Requesting int 13h / function 15h for drive %02Xh\n", drivenum);
                 CPU_AH = (drivenum & 0x80) ? 3 : 1;		// either "floppy without change line support" (1) or "harddisk" (3)
                 CPU_CX = (disk[drivenum].filesize >> 9) >> 16;	// number of blocks, high word
                 CPU_DX = (disk[drivenum].filesize >> 9) & 0xFFFF;	// number of blocks, low word
                 CPU_AL = CPU_AH;
                 CPU_FL_CF = 0;
             } else {
-                printf("Requesting int 13h / function 15h for drive %02Xh no such device\n", CPU_DL);
+                DBG_PRINTF("Requesting int 13h / function 15h for drive %02Xh no such device\n", CPU_DL);
                 CPU_AH = 0;	// no such device
                 CPU_AL = 0;
                 CPU_CX = 0;
@@ -610,7 +619,7 @@ void diskhandler(void) {
             break;
 #endif
         default:
-            //printf("BIOS: unknown Int 13h service was requested: %02Xh\r\n", CPU_AH);
+            //DBG_PRINTF("BIOS: unknown Int 13h service was requested: %02Xh\r\n", CPU_AH);
             CPU_FL_CF = 1;    // unknown function was requested?
             //CPU_AH = 1;
             break;

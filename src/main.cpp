@@ -156,13 +156,13 @@ __inline static void if_overclock() {
         if (check_sys_clock_khz(overcloking_khz, &vco, &postdiv1, &postdiv2)) {
             set_sys_clock_pll(vco, postdiv1, postdiv2);
             char tmp[80];
-            sprintf(tmp, "overcloking_khz: %u kHz", overcloking_khz);
+            snprintf(tmp, 80, "overcloking_khz: %u kHz", overcloking_khz);
             logMsg(tmp);
             sleep_ms(33);
         }
         else {
             char tmp[80];
-            sprintf(tmp, "System clock of %u kHz cannot be achieved", overcloking_khz);
+            snprintf(tmp, 80, "System clock of %u kHz cannot be achieved", overcloking_khz);
             logMsg(tmp);
         }
     }
@@ -222,7 +222,7 @@ int main() {
     FRESULT result = f_mount(&fs, "", 1);
     if (result != FR_OK) {
         char tmp[80];
-        sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result);
+        snprintf(tmp, 80, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
     } else {
         SD_CARD_AVAILABLE = true;

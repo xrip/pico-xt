@@ -199,7 +199,9 @@ static void cmdBlaster ( uint8_t value )
 				bufNewData (0);
 				break;
 			default:
+#ifdef DEBUG_BLASTER
 				printf("[NOTICE] Sound Blaster received unhandled command %02Xh\n", value);
+#endif
 				break;
 		}
 }
@@ -357,7 +359,9 @@ void initBlaster ( uint16_t baseport, uint8_t irq )
 	blaster.sbirq = 7;
 	blaster.sbdma = 1;
 	mixerReset();
+#ifdef DEBUG_BLASTER
 	printf("SB INIT\r\n");
+#endif
 //	set_port_write_redirector(baseport, baseport + 0xE, &outBlaster);
 	// set_port_read_redirector(baseport, baseport + 0xE, &inBlaster);
 }

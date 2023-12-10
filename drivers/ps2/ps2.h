@@ -13,6 +13,12 @@
 #define PS2_LED_NUM_LOCK    2
 #define PS2_LED_CAPS_LOCK   4
 
+#ifdef DEBUG_PS2
+#define DBG_PRINTF(...) printf(__VA_ARGS__)
+#else
+#define DBG_PRINTF(...)
+#endif
+
 extern uint8_t kbloop;
 
 void KeyboardHandler();//uint /*gpio*/, uint32_t /*event_mask*/

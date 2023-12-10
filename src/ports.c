@@ -152,7 +152,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3C0:
             ///printf("EGA control register 3c0 0x%x\r\n", value);
             if (flip3C0 && VGA_ATTR_index <= 0xf) {
-                printf("3c0 COLOR %i 0x%x\r\n", VGA_ATTR_index, value);
+                DBG_PRINTF("3c0 COLOR %i 0x%x\r\n", VGA_ATTR_index, value);
 
                 const uint8_t r = (value & 0b001 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
                 const uint8_t g = (value & 0b010 ? 2 : 0) + (value & 0b111000 ? 1 : 0);
@@ -264,7 +264,7 @@ void portout(uint16_t portnum, uint16_t value) {
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;
             char tmp[80];
-            sprintf(tmp, "colorset %i, int %i value  %x", cga_colorset, cga_intensity, value);
+            snprintf(tmp, 80, "colorset %i intensity %i value  %x", cga_colorset, cga_intensity, value);
             logMsg(tmp);
 
 #if PICO_ON_DEVICE
@@ -310,7 +310,7 @@ void portout(uint16_t portnum, uint16_t value) {
 
         // 160x100x16
             if ((videomode == 2 || videomode == 3) && (port3D8 & 0x0f) == 0b0001) {
-                printf("160x100x16");
+                DBG_PRINTF("160x100x16");
 #if PICO_ON_DEVICE
                 graphics_set_mode(TEXTMODE_160x100);
 #else
@@ -321,7 +321,7 @@ void portout(uint16_t portnum, uint16_t value) {
         // 160x200x16
         // TODO: Включение/выключение глобального композитного режима по хоткеямы
             if ((videomode == 6 /*|| videomode == 4*/) && (port3D8 & 0x0f) == 0b1010) {
-                printf("160x200x16");
+                DBG_PRINTF("160x200x16");
 #if PICO_ON_DEVICE
                 for (int i = 0; i < 16; i++) {
                     graphics_set_palette(i, cga_composite_palette[0][i]);
@@ -333,13 +333,13 @@ void portout(uint16_t portnum, uint16_t value) {
             }
             break;
         case 0x3DA: // EGA control register
-            printf("Tandy control register 3dA 0x%x\r\n", value);
+            DBG_PRINTF("Tandy control register 3dA 0x%x\r\n", value);
             break;
         case 0x3DE: // tandy register
-            printf("Tandy control register 3dE 0x%x\r\n", value);
+            DBG_PRINTF("Tandy control register 3dE 0x%x\r\n", value);
             break;
         case 0x3DF: // tandy CRT/Processor Page Register
-            printf("Tandy control register 3df 0x%x\r\n", value);
+            DBG_PRINTF("Tandy control register 3df 0x%x\r\n", value);
         /*
         CRT/Processor Page Register
         This 8-bit (write-only) register is addressed at 3DF. The descriptions below are

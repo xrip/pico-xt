@@ -44,7 +44,7 @@ void draw_panel(int left, int top, int width, int height, char* title, char* bot
             sl -= width + 4;
         }
         int title_left = left + (width - sl) / 2;
-        sprintf(line, " %s ", title);
+        snprintf(line, 80, " %s ", title);
         draw_text(line, title_left, top, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
     }
     // middle lines
@@ -70,20 +70,20 @@ void draw_panel(int left, int top, int width, int height, char* title, char* bot
             sl -= width + 4;
         } 
         int bottom_left = (width - sl) / 2;
-        sprintf(line, " %s ", bottom);
+        snprintf(line, 80, " %s ", bottom);
         draw_text(line, bottom_left, top + height - 1, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
     }
 }
 
 void draw_fn_btn(fn_1_10_tbl_rec_t* prec, int left, int top) {
     char line[10];
-    sprintf(line, "       ");
+    snprintf(line, 10, "       ");
     // 1, 2, 3... button mark
     line[0] = prec->pre_mark;
     line[1] = prec->mark;
     draw_text(line, left, top, pcs->FOREGROUND_F1_10_COLOR, pcs->BACKGROUND_F1_10_COLOR);
     // button
-    sprintf(line, prec->name);
+    snprintf(line, 10, prec->name);
     draw_text(line, left + 2, top, pcs->FOREGROUND_F_BTN_COLOR, pcs->BACKGROUND_F_BTN_COLOR);
 }
 

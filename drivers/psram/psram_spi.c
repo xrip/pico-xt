@@ -10,7 +10,7 @@ void init_psram() {
 }
 
 void psram_cleanup() {
-    logMsg("PSRAM cleanup"); // TODO: block mode, ensure diapason
+    DBG_PUTS("PSRAM cleanup"); // TODO: block mode, ensure diapason
     for (uint32_t addr32 = (1ul << 20); addr32 < (2ul << 20); addr32 += 4) {
         psram_write32(&psram_spi, addr32, 0);
     }
@@ -164,25 +164,25 @@ void psram_spi_uninit(psram_spi_inst_t spi, bool fudge) {
 }
 
 int test_psram(psram_spi_inst_t* psram_spi, int increment) {
-    puts("Writing PSRAM...");
+    DBG_PUTS("Writing PSRAM...");
     uint8_t deadbeef[8] = {0xd, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf};
     for (uint32_t addr = 0; addr < (1024 * 1024); addr += increment) {
         psram_write8(psram_spi, addr, (addr & 0xFF));
         // psram_write8_async(psram_spi, addr, (addr & 0xFF));
     }
-    puts("Reading PSRAM...");
+    DBG_PUTS("Reading PSRAM...");
     uint32_t psram_begin = time_us_32();
     for (uint32_t addr = 0; addr < (1024 * 1024); addr += increment) {
         uint8_t result = psram_read8(psram_spi, addr);
         if ((uint8_t)(addr & 0xFF) != result) {
-            printf("\nPSRAM failure at address %x (%x != %x)\n", addr, addr & 0xFF, result);
+            DBG_PRINTF("\nPSRAM failure at address %x (%x != %x)\n", addr, addr & 0xFF, result);
             /* err_blink(); */
             return 1;
         }
     }
     uint32_t psram_elapsed = time_us_32() - psram_begin;
     float psram_speed = 1000000.0 * 1024.0 * 1024 / psram_elapsed;
-    printf("8 bit: PSRAM read 1MB in %d us, %d B/s (target 705600 B/s)\n", psram_elapsed, (uint32_t)psram_speed);
+    DBG_PRINTF("8 bit: PSRAM read 1MB in %d us, %d B/s (target 705600 B/s)\n", psram_elapsed, (uint32_t)psram_speed);
 
     psram_begin = time_us_32();
     for (uint32_t addr = 0; addr < (1024 * 1024); addr += 2) {
@@ -191,14 +191,14 @@ int test_psram(psram_spi_inst_t* psram_spi, int increment) {
                 (((addr + 1) & 0xFF) << 8) |
                 (addr & 0XFF)) != result
         ) {
-            printf("PSRAM failure at address %x (%x != %x) ", addr, addr & 0xFF, result & 0xFF);
+            DBG_PRINTF("PSRAM failure at address %x (%x != %x) ", addr, addr & 0xFF, result & 0xFF);
             /* err_blink(); */
             return 1;
         }
     }
     psram_elapsed = (time_us_32() - psram_begin);
     psram_speed = 1000000.0 * 1024 * 1024 / psram_elapsed;
-    printf("16 bit: PSRAM read 1MB in %d us, %d B/s (target 1411200 B/s)\n", psram_elapsed, (uint32_t)psram_speed);
+    DBG_PRINTF("16 bit: PSRAM read 1MB in %d us, %d B/s (target 1411200 B/s)\n", psram_elapsed, (uint32_t)psram_speed);
 
     psram_begin = time_us_32();
     for (uint32_t addr = 0; addr < (1024 * 1024); addr += 4) {
@@ -209,13 +209,13 @@ int test_psram(psram_spi_inst_t* psram_spi, int increment) {
                 (((addr + 1) & 0xFF) << 8)  |
                 (addr & 0XFF)) != result
         ) {
-            printf("PSRAM failure at address %x (%x != %x) ", addr, addr & 0xFF, result & 0xFF);
+            DBG_PRINTF("PSRAM failure at address %x (%x != %x) ", addr, addr & 0xFF, result & 0xFF);
             /* err_blink(); */
             return 1;
         }
     }
     psram_elapsed = (time_us_32() - psram_begin);
     psram_speed = 1000000.0 * 1024 * 1024 / psram_elapsed;
-    printf("32 bit: PSRAM read 1MB in %d us, %d B/s (target 1411200 B/s)\n", psram_elapsed, (uint32_t)psram_speed);
+    DBG_PRINTF("32 bit: PSRAM read 1MB in %d us, %d B/s (target 1411200 B/s)\n", psram_elapsed, (uint32_t)psram_speed);
     return 0;
 }

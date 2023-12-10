@@ -7,6 +7,12 @@
 #define beginVGA_PIN (6)
 #define VGA_DMA_IRQ (DMA_IRQ_0)
 
+#ifdef DEBUG_VGA
+#define DBG_PRINTF(...) printf(__VA_ARGS__)
+#else
+#define DBG_PRINTF(...)
+#endif
+
 enum graphics_mode_t {
     TEXTMODE_40x30,
     TEXTMODE_80x30,

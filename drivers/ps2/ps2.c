@@ -130,7 +130,7 @@ int16_t keyboard_send(uint8_t data) {
     bool parity = true;
     ps2_error = PS2_ERR_NONE;
 
-    //printf("KBD set s%02X \r\n", data);
+    //DBG_PRINTF("KBD set s%02X \r\n", data);
 
     int_off();
 
@@ -178,7 +178,7 @@ int16_t keyboard_send(uint8_t data) {
     int_on();
     return ps2_recv_response();
     ERROR:
-    printf("KBD error %02X \r\n", ps2_error);
+    DBG_PRINTF("KBD error %02X \r\n", ps2_error);
     ps2_error = 0;
     idle();
     int_on();

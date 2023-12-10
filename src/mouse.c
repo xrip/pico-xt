@@ -49,7 +49,7 @@ __inline  void outsermouse ( uint16_t portnum, uint8_t value )
 
 	portnum &= 7;
 	/*char tmp[80];
-	sprintf(tmp, "[DEBUG] Serial mouse, port %X out: %02X\n", portnum, value);
+	snprintf(tmp, 80, "[DEBUG] Serial mouse, port %X out: %02X\n", portnum, value);
 	logMsg(tmp);*/
 	oldreg = sermouse.reg[portnum];
 	sermouse.reg[portnum] = value;
@@ -74,7 +74,7 @@ __inline uint8_t insermouse ( uint16_t portnum )
 	uint8_t temp;
 	portnum &= 7;
 	/*char tmp[80];
-	sprintf(tmp, "[DEBUG] Serial mouse, port %X in\n", portnum);
+	snprintf(tmp, 80, "[DEBUG] Serial mouse, port %X in\n", portnum);
 	logMsg(tmp);*/
 	switch (portnum) {
 		case 0:	//data receive

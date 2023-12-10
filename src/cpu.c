@@ -691,7 +691,7 @@ static void intcall86(uint8_t intnum) {
             break;
 #endif
         case 0x10:
-            //printf("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
+            //DBG_PRINTF("INT 10h CPU_AH: 0x%x CPU_AL: 0x%x\r\n", CPU_AH, CPU_AL);
             switch (CPU_AH) {
                 case 0x0f:
                     if (videomode < 8) break;
@@ -721,9 +721,11 @@ static void intcall86(uint8_t intnum) {
                     }
                 // http://www.techhelpmanual.com/114-video_modes.html
                 // http://www.techhelpmanual.com/89-video_memory_layouts.html
+#ifdef DEBUG_VGA
                     char tmp[40];
                     sprintf(tmp, "VBIOS: Mode 0x%x (0x%x)", CPU_AX, videomode);
                     logMsg(tmp);
+#endif
 #if PICO_ON_DEVICE
                     if (videomode <= 0xd) {
                         graphics_set_buffer(VIDEORAM + 32768, 320, 200);
@@ -805,7 +807,7 @@ static void intcall86(uint8_t intnum) {
                 // Установить видеорежим
                     break;
                 case 0x10: //VGA DAC functions
-                    //printf("palette manipulation %x %x\r\n", CPU_AX, CPU_BX);
+                    //DBG_PRINTF("palette manipulation %x %x\r\n", CPU_AX, CPU_BX);
                 if (videomode < 0x08) break;
                     switch (CPU_AL) {
                         case 0x00: {
@@ -927,7 +929,7 @@ static void intcall86(uint8_t intnum) {
                            CX = счетчик (сколько экземпляров символа записать)
                            BL = видео атрибут (текст) или цвет (графика)
                             (графические режимы: +80H означает XOR с символом на экране)*/
-                        //printf("color %c %x %i\r\n",  CPU_AL, CPU_CX, CPU_BL);
+                        //DBG_PRINTF("color %c %x %i\r\n",  CPU_AL, CPU_CX, CPU_BL);
                         color = CPU_BL;
                     case 0x0A:
                         /*0aH писать символ в текущей позиции курсора
@@ -980,7 +982,7 @@ static void intcall86(uint8_t intnum) {
         /* case 0x19: // bootstrap
              didbootstrap = 1;
              break;
-             printf("Bootstrap\r\n");
+             DBG_PRINTF("Bootstrap\r\n");
 
              if (bootdrive < 255) { // read first sector of boot drive into
                  // 07C0:0000 and execute it
@@ -994,7 +996,7 @@ static void intcall86(uint8_t intnum) {
                  } else {
                      CPU_CS = 0x0000;
                      ip = 0x7C00;
-                     printf("BOOT: executing boot record at %04X:%04X\n", CPU_CS, ip);
+                     DBG_PRINTF("BOOT: executing boot record at %04X:%04X\n", CPU_CS, ip);
                  }
              } else {
                  CPU_CS = 0xF600; // start ROM BASIC at bootstrap if requested
@@ -1581,7 +1583,7 @@ int hijacked_input = 0;
 static uint8_t keydown[0x100];
 
 static int translatescancode_from_sdl(SDL_Keycode keyval) {
-    //printf("translatekey for 0x%04X %s\n", keyval, SDL_GetKeyName(keyval));
+    //DBG_PRINTF("translatekey for 0x%04X %s\n", keyval, SDL_GetKeyName(keyval));
     switch (keyval) {
         case SDLK_ESCAPE:
             return 0x01; // escape
@@ -1775,11 +1777,11 @@ void handleinput(void) {
                         portram[0x64] |= 2;
                         doirq(1);
                     }
-                    //printf("%02X\n", translatescancode_from_sdl(event.key.keysym.sym));
+                    //DBG_PRINTF("%02X\n", translatescancode_from_sdl(event.key.keysym.sym));
                     keydown[translated_key] = 1;
                 }
                 else if (!hijacked_input)
-                    printf("INPUT: Unsupported key: %s [%d]\n", SDL_GetKeyName(event.key.keysym.sym),
+                    DBG_PRINTF("INPUT: Unsupported key: %s [%d]\n", SDL_GetKeyName(event.key.keysym.sym),
                            event.key.keysym.sym);
                 break;
             case SDL_KEYUP:
@@ -1834,7 +1836,7 @@ void exec86(uint32_t execloops) {
         firstip = ip;
         /*
                 if ((CPU_CS == 0xF000) && (ip == 0xE066)) {
-                    printf("didbootsreap\r\n");
+                    DBG_PRINTF("didbootsreap\r\n");
                     didbootstrap = 0; //detect if we hit the BIOS entry point to clear didbootstrap because we've rebooted
                 }*/
 

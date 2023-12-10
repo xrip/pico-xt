@@ -21,7 +21,7 @@ uint8_t ram_page_read(uint32_t addr32) {
 #ifdef BOOT_DEBUG_ACC
     uint8_t res = RAM[(ram_page * RAM_PAGE_SIZE) + addr_in_page];
     if (addr32 >= BOOT_DEBUG_ACC) {
-        sprintf(tmp, "R %08X ->   %02X", addr32, res); logMsg(tmp);
+        snprintf(tmp, 40, "R %08X ->   %02X", addr32, res); logMsg(tmp);
     }
     return res;
 #else
@@ -42,7 +42,7 @@ uint16_t ram_page_read16(uint32_t addr32) {
 #ifdef BOOT_DEBUG_ACC
     uint16_t res = read16arr(RAM, 0, (ram_page * RAM_PAGE_SIZE) + addr_in_page);
     if (addr32 >= BOOT_DEBUG_ACC) {
-        sprintf(tmp, "R %08X -> %04X", addr32, res); logMsg(tmp);
+        snprintf(tmp, 40, "R %08X -> %04X", addr32, res); logMsg(tmp);
     }
     return res;
 #else
@@ -53,7 +53,7 @@ uint16_t ram_page_read16(uint32_t addr32) {
 void ram_page_write(uint32_t addr32, uint8_t value) {
 #ifdef BOOT_DEBUG_ACC
     if (addr32 >= BOOT_DEBUG_ACC) {
-        sprintf(tmp, "W %08X <-   %02X", addr32, value); logMsg(tmp);
+        snprintf(tmp, 40, "W %08X <-   %02X", addr32, value); logMsg(tmp);
     }
 #endif
     register uint32_t ram_page = get_ram_page_for(addr32);
@@ -69,7 +69,7 @@ void ram_page_write(uint32_t addr32, uint8_t value) {
 void ram_page_write16(uint32_t addr32, uint16_t value) {
 #ifdef BOOT_DEBUG_ACC
     if (addr32 >= BOOT_DEBUG_ACC) {
-        sprintf(tmp, "W %08X <- %04X", addr32, value); logMsg(tmp);
+        snprintf(tmp, 40, "W %08X <- %04X", addr32, value); logMsg(tmp);
     }
 #endif
     register uint32_t ram_page = get_ram_page_for(addr32);
@@ -103,7 +103,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
         }
     }
 #ifdef BOOT_DEBUG_ACC
-    sprintf(tmp, "VRAM page: 0x%X", lba_page); logMsg(tmp);
+    snprintf(tmp, 40, "VRAM page: 0x%X", lba_page); logMsg(tmp);
 #endif
     // rolling page usage
     uint16_t ram_page = oldest_ram_page++;
@@ -116,7 +116,7 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     if (ro_page_was_found) {
         // just replace RO page (faster than RW flush to sdcard)
 #ifdef BOOT_DEBUG_ACC
-        sprintf(tmp, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
+        snprintf(tmp, 40, "1 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
 #endif
         uint32_t ram_page_offset = ((uint32_t)ram_page) * RAM_PAGE_SIZE;
         uint32_t lba_page_offset = lba_page * RAM_PAGE_SIZE;
@@ -126,12 +126,12 @@ uint32_t get_ram_page_for(const uint32_t addr32) {
     }
     // Lets flush found RW page to sdcard
 #ifdef BOOT_DEBUG_ACC
-    sprintf(tmp, "2 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
+    snprintf(tmp, 40, "2 RAM page 0x%X / VRAM page: 0x%X", ram_page, lba_page); logMsg(tmp);
 #endif
     uint32_t ram_page_offset = ram_page * RAM_PAGE_SIZE;
     uint32_t lba_page_offset = old_lba_page * RAM_PAGE_SIZE;
 #ifdef BOOT_DEBUG_ACC
-    sprintf(tmp, "2 RAM offs 0x%X / VRAM offs: 0x%X", ram_page_offset, lba_page_offset); logMsg(tmp);
+    snprintf(tmp, 40, "2 RAM offs 0x%X / VRAM offs: 0x%X", ram_page_offset, lba_page_offset); logMsg(tmp);
 #endif
     flush_vram_block(RAM + ram_page_offset, lba_page_offset, RAM_PAGE_SIZE);
     // use new page:
@@ -174,11 +174,11 @@ FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
         char tmp[40];
         result = f_open(&file, path, FA_READ | FA_WRITE);
         if (result != FR_OK) {
-            sprintf(tmp, "Unable to open pagefile.sys: %s (%d)", FRESULT_str(result), result);
+            snprintf(tmp, 40, "Unable to open pagefile.sys: %s (%d)", FRESULT_str(result), result);
             logMsg(tmp);
             return result;
         }
-        sprintf(tmp, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result);
+        snprintf(tmp, 40, "Failed to f_lseek: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
     }
     return result;
@@ -187,7 +187,7 @@ FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
 void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
   //  if (file_offset >= 0x100000) {
-  //      sprintf(tmp, "Read  pagefile 0x%X<-0x%X", dst, file_offset);
+  //      snprintf(tmp, 40, "Read  pagefile 0x%X<-0x%X", dst, file_offset);
   //      logMsg(tmp);
   //  }
     FRESULT result = vram_seek(&file, file_offset);
@@ -198,7 +198,7 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     result = f_read(&file, dst, sz, &br);
     if (result != FR_OK) {
         char tmp[40];
-        sprintf(tmp, "Failed to f_read: %s (%d)", FRESULT_str(result), result);
+        snprintf(tmp, 40, "Failed to f_read: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
     }
     gpio_put(PICO_DEFAULT_LED_PIN, false);
@@ -207,7 +207,7 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
 void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
    // if (file_offset >= 0x100000) {
-   //     sprintf(tmp, "Flush pagefile 0x%X->0x%X", src, file_offset);
+   //     snprintf(tmp, 40, "Flush pagefile 0x%X->0x%X", src, file_offset);
    //     logMsg(tmp);
    // }
     FRESULT result = vram_seek(&file, file_offset);
@@ -218,7 +218,7 @@ void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     result = f_write(&file, src, sz, &bw);
     if (result != FR_OK) {
         char tmp[40];
-        sprintf(tmp, "Failed to f_write: %s (%d)", FRESULT_str(result), result);
+        snprintf(tmp, 40, "Failed to f_write: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
     }
     gpio_put(PICO_DEFAULT_LED_PIN, false);
