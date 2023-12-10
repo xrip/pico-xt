@@ -82,7 +82,11 @@ void draw_box(int left, int top, int width, int height, char* title, char* txt) 
     int y = top + 1;
     while (*txt != 0 && i < 80) {
         if (*txt == '\n') {
-            draw_label(left + 1, y, width - 2, line, false);
+            if (line[0] && i > 0) {
+                draw_label(left + 1, y, width - 2, line, false);
+            } else {
+                draw_label(left + 1, y, width - 2, "", false);
+            }
             y++;
             i = 0;
         } else {

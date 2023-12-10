@@ -236,7 +236,7 @@ static inline void fill_panel(file_panel_desc_t* p) {
     ) {
         if (p->start_file_offset <= p->files_number && y <= LAST_FILE_LINE_ON_PANEL_Y) {
             char* name = fileInfo.fname;
-            snprintf(line, 80, "%s\\%s", p->path, fileInfo.fname);
+            //snprintf(line, 80, "%s\\%s", p->path, fileInfo.fname);
             for (int i = 0; i < 3; ++i) {
                 if (drives_states[i].path && strcmp(drives_states[i].path, line) == 0) {
                     snprintf(line, p->width, "%s", name);
@@ -354,9 +354,20 @@ static inline void enter_pressed() {
                               fileInfo.fname, fileInfo.altname, fileInfo.fsize, fileInfo.fattrib, fileInfo.fdate, fileInfo.ftime);
                 draw_cmd_line(0, CMD_Y_POS, line);
                 if (fileInfo.fattrib & AM_DIR) {
-                    sprintf(psp->path, "%s\\%s", psp->path, fileInfo.fname);
-                    redraw_current_panel();
                     f_closedir(&dir);
+                    if (strlen(psp->path) > 1) {
+                        sprintf(line, "%s\\%s", psp->path, fileInfo.fname);
+                    } else {
+                        sprintf(line, "%s", fileInfo.fname);
+                    }
+                    if (f_opendir(&dir, line) != FR_OK) {
+                        draw_box(10, 7, 60, 10, "Warning", "\n\n\n\n               It is not a folder!");
+                        sleep_ms(1500);
+                    } else {
+                        f_closedir(&dir);
+                        strcpy(psp->path, line);
+                        redraw_current_panel();
+                    }
                     return;
                 }
             }
