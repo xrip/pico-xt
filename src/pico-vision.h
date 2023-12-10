@@ -38,3 +38,5 @@ void draw_fn_btn(fn_1_10_tbl_rec_t* prec, int left, int top);
 void draw_cmd_line(int left, int top, char* cmd);
 
 void draw_label(int left, int top, int width, char* txt, bool selected);
+
+void draw_box(int left, int top, int width, int height, char* title, char* txt);

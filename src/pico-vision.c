@@ -74,6 +74,27 @@ void draw_panel(int left, int top, int width, int height, char* title, char* bot
     }
 }
 
+void draw_box(int left, int top, int width, int height, char* title, char* txt) {
+    draw_panel(left, top, width, height, title, 0);
+    char line[80] = {0};
+    int i = 0;
+    int y = top + 1;
+    while (*txt != 0) {
+        if (*txt == '\n') {
+            draw_label(left + 1, y, width - 2, line, false);
+            y++;
+        }
+        line[i] = *txt;
+        txt++;
+    }
+    if (line[0]) {
+        draw_label(left + 1, y, width - 2, line, false);
+    }
+    for (int i = y; y < height - 1; ++y) {
+        draw_label(left + 1, y, width - 2, "", false);
+    }
+}
+
 void draw_fn_btn(fn_1_10_tbl_rec_t* prec, int left, int top) {
     char line[10];
     sprintf(line, "       ");

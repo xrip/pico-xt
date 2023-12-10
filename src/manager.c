@@ -17,28 +17,32 @@ static volatile bool downPressed = false;
 bool already_swapped_fdds = false;
 volatile bool manager_started = false;
 volatile bool usb_started = false;
+static char line[81];
+
+static volatile uint32_t lastCleanableScanCode = 0;
+static uint32_t lastSavedScanCode = 0;
+
+static const uint8_t PANEL_TOP_Y = 0;
+static const uint8_t TOTAL_SCREEN_LINES = 30;
+static const uint8_t F_BTN_Y_POS = TOTAL_SCREEN_LINES - 1;
+static const uint8_t CMD_Y_POS = F_BTN_Y_POS - 1;
+static const uint8_t PANEL_LAST_Y = CMD_Y_POS - 1;
+
+static uint8_t FIRST_FILE_LINE_ON_PANEL_Y = PANEL_TOP_Y + 1;
+static uint8_t LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
 
 inline static void swap_drive_message() {
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    set_start_debug_line(0);
-    clrScr(1);
-    for(int i = 0; i < 10; i++) {
-        logMsg("");
-    }
     if (already_swapped_fdds) {
-        logMsg("                      Swap FDD0 and FDD1 drive images"); logMsg("");
-        logMsg("          To return images back, press Ctrl + Tab + Backspace");
+        draw_box(10, 10, 60, 5, "Info",
+            "            Swap FDD0 and FDD1 drive images\n\nTo return images back, press Ctrl + Tab + Backspace");
     } else {
-        logMsg("                    Swap FDD0 and FDD1 drive images back");
+        draw_box(10, 10, 60, 5, "Info", "\n\n\n\n          Swap FDD0 and FDD1 drive images back");
     }
-    sleep_ms(3000);
-    set_start_debug_line(25);
-    restore_video_ram();
-    if (ret == TEXTMODE_80x30) {
-        clrScr(1);
-    }
+    sleep_ms(1500);
     graphics_set_mode(ret);
+    restore_video_ram();
 }
 
 typedef struct drive_state {
@@ -56,30 +60,27 @@ void notify_image_insert_action(uint8_t drivenum, char *pathname) {
     drives_states[drivenum].path = pathname;
 }
 
-inline static void swap_drives(uint8_t cmd) {
-    if (backspacePressed && tabPressed && ctrlPressed) {
-        if (already_swapped_fdds) {
-            insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-            insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
-            already_swapped_fdds = false;
-            swap_drive_message();
-            return;
-        }
-        insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-        insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
-        already_swapped_fdds = true;
+static void swap_drives(uint8_t cmd) {
+    sprintf(line, "F%d pressed - swap FDD images", cmd + 1);
+    draw_cmd_line(0, CMD_Y_POS, line);
+    if (already_swapped_fdds) {
+        insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
+        insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+        already_swapped_fdds = false;
         swap_drive_message();
+        return;
     }
+    insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
+    insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+    already_swapped_fdds = true;
+    swap_drive_message();
 }
 
 void if_swap_drives() {
-    if (manager_started) {
-        return;
+    if (backspacePressed && tabPressed && ctrlPressed) {
+        swap_drives(8);
     }
-    swap_drives(7);
 }
-
-static char line[81];
 
 typedef struct file_panel_desc {
     int left;
@@ -103,18 +104,6 @@ static file_panel_desc_t right_panel = {
 static volatile bool left_panel_make_active = true;
 static file_panel_desc_t* psp = &left_panel;
 
-static volatile uint32_t lastCleanableScanCode = 0;
-static uint32_t lastSavedScanCode = 0;
-
-static const uint8_t PANEL_TOP_Y = 0;
-static const uint8_t TOTAL_SCREEN_LINES = 30;
-static const uint8_t F_BTN_Y_POS = TOTAL_SCREEN_LINES - 1;
-static const uint8_t CMD_Y_POS = F_BTN_Y_POS - 1;
-static const uint8_t PANEL_LAST_Y = CMD_Y_POS - 1;
-
-static uint8_t FIRST_FILE_LINE_ON_PANEL_Y = PANEL_TOP_Y + 1;
-static uint8_t LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
-
 static void draw_window() {
     sprintf(line, "SD:%s", left_panel.path);
     draw_panel( 0, PANEL_TOP_Y, 40, PANEL_LAST_Y + 1, line, 0);
@@ -123,6 +112,8 @@ static void draw_window() {
 }
 
 void do_nothing(uint8_t cmd) {
+    sprintf(line, "F%d pressed - not yet implemnted", cmd + 1);
+    draw_cmd_line(0, CMD_Y_POS, line);
 }
 
 static bool mark_to_exit_flag = false;
@@ -280,6 +271,8 @@ inline static void scan_code_processed() {
 }
 
 inline static fn_1_10_btn_pressed(uint8_t fn_idx) {
+    sprintf(line, "F%d pressed", fn_idx + 1);
+    draw_cmd_line(0, CMD_Y_POS, line);
     (*actual_fn_1_10_tbl())[fn_idx].action(fn_idx);
 }
 
@@ -481,11 +474,8 @@ void start_manager() {
     work_cycle();
     
     set_start_debug_line(25);
-    restore_video_ram();
-    if (ret == TEXTMODE_80x30) {
-        clrScr(1);
-    }
     graphics_set_mode(ret);
+    restore_video_ram();
 }
 
 bool handleScancode(uint32_t ps2scancode) { // core 1

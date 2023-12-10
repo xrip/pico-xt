@@ -704,11 +704,14 @@ void graphics_init() {
 };
 
 #include "emulator.h"
-static const char* path = "\\XT\\video.ram";
 static FATFS fs;
 static FIL file;
-bool save_video_ram() { // TODO: more than one save
+static int video_ram_level = 0;
+
+bool save_video_ram() {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
+    char path[16];
+    sprintf(path, "\\XT\\video%d.ram", video_ram_level);
     FRESULT result = f_open(&file, path, FA_WRITE | FA_CREATE_ALWAYS);
     if (result != FR_OK) {
         return false;
@@ -719,11 +722,15 @@ bool save_video_ram() { // TODO: more than one save
         return false;
     }
     f_close(&file);
+    video_ram_level++;
     gpio_put(PICO_DEFAULT_LED_PIN, false);
     return true;
 }
 bool restore_video_ram() {
     gpio_put(PICO_DEFAULT_LED_PIN, true);
+    video_ram_level--;
+    char path[16];
+    sprintf(path, "\\XT\\video%d.ram", video_ram_level);
     FRESULT result = f_open(&file, path, FA_READ);
     if (result == FR_OK) {
       UINT bw;
@@ -733,6 +740,7 @@ bool restore_video_ram() {
       }
     }
     f_close(&file);
+    f_unlink(path);
     gpio_put(PICO_DEFAULT_LED_PIN, false);
     return true;
 }
