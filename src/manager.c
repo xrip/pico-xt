@@ -31,18 +31,45 @@ static const uint8_t PANEL_LAST_Y = CMD_Y_POS - 1;
 static uint8_t FIRST_FILE_LINE_ON_PANEL_Y = PANEL_TOP_Y + 1;
 static uint8_t LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
 
+typedef struct file_panel_desc {
+    int left;
+    int width;
+    int selected_file_idx;
+    int start_file_offset;
+    int files_number;
+    char path[256];
+} file_panel_desc_t;
+
+static file_panel_desc_t left_panel = {
+    0, 40, 1, 0, 0,
+    { "\\" },
+};
+
+static file_panel_desc_t right_panel = {
+    40, 40, 1, 0, 0,
+    { "\\XT" },
+};
+
+static volatile bool left_panel_make_active = true;
+static file_panel_desc_t* psp = &left_panel;
+
+static inline void fill_panel(file_panel_desc_t* p);
+
 inline static void swap_drive_message() {
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
     if (already_swapped_fdds) {
-        draw_box(10, 10, 60, 5, "Info",
-            "            Swap FDD0 and FDD1 drive images\n\nTo return images back, press Ctrl + Tab + Backspace");
+        draw_box(10, 7, 60, 10, "Info",
+            "\n\n            Swap FDD0 and FDD1 drive images\n\nTo return images back, press Ctrl + Tab + Backspace");
     } else {
-        draw_box(10, 10, 60, 5, "Info", "\n\n\n\n          Swap FDD0 and FDD1 drive images back");
+        draw_box(10, 7, 60, 10, "Info", "\n\n\n\n          Swap FDD0 and FDD1 drive images back");
     }
-    sleep_ms(1500);
+    sleep_ms(5500);
     graphics_set_mode(ret);
     restore_video_ram();
+    
+    fill_panel(&left_panel);
+    fill_panel(&right_panel);
 }
 
 typedef struct drive_state {
@@ -81,28 +108,6 @@ void if_swap_drives() {
         swap_drives(8);
     }
 }
-
-typedef struct file_panel_desc {
-    int left;
-    int width;
-    int selected_file_idx;
-    int start_file_offset;
-    int files_number;
-    char path[256];
-} file_panel_desc_t;
-
-static file_panel_desc_t left_panel = {
-    0, 40, 1, 0, 0,
-    { "\\" },
-};
-
-static file_panel_desc_t right_panel = {
-    40, 40, 1, 0, 0,
-    { "\\XT" },
-};
-
-static volatile bool left_panel_make_active = true;
-static file_panel_desc_t* psp = &left_panel;
 
 static void draw_window() {
     sprintf(line, "SD:%s", left_panel.path);
@@ -190,6 +195,8 @@ static void turn_usb_off(uint8_t cmd) { // TODO: support multiple enter for USB 
     sprintf(fn_1_10_tbl_ctrl[9].name, " Exit ");
     fn_1_10_tbl_ctrl[9].action = mark_to_exit;
 
+    fill_panel(&left_panel);
+    fill_panel(&right_panel);
     bottom_line();
 }
 
@@ -315,7 +322,7 @@ static inline void redraw_current_panel() {
 }
 
 static inline void enter_pressed() {
-    if (psp->selected_file_idx == 1 && psp->start_file_offset == 0 && strlen(psp->path[0]) > 1) {
+    if (psp->selected_file_idx == 1 && psp->start_file_offset == 0 && strlen(psp->path) > 1) {
         int i = strlen(psp->path);
         while(--i > 0) {
             if (psp->path[i] == '\\') {

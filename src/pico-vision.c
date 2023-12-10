@@ -51,7 +51,7 @@ void draw_panel(int left, int top, int width, int height, char* title, char* bot
     line[0]         = 0xBA; // ║
     line[width - 1] = 0xBA;
     line[width]     = 0;
-    for (int y = top + 1; y < height - 1; ++y) {
+    for (int y = top + 1; y < top + height - 1; ++y) {
         draw_text(line, left, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
     }
     // bottom line
@@ -79,18 +79,20 @@ void draw_box(int left, int top, int width, int height, char* title, char* txt) 
     char line[80] = {0};
     int i = 0;
     int y = top + 1;
-    while (*txt != 0) {
+    while (*txt != 0 && i < 80) {
         if (*txt == '\n') {
             draw_label(left + 1, y, width - 2, line, false);
             y++;
+            i = 0;
+        } else {
+            line[i++] = *txt;
         }
-        line[i] = *txt;
         txt++;
     }
-    if (line[0]) {
+    if (line[0] && i > 0) {
         draw_label(left + 1, y, width - 2, line, false);
     }
-    for (int i = y; y < height - 1; ++y) {
+    for (int i = y; y < top + height - 1; ++y) {
         draw_label(left + 1, y, width - 2, "", false);
     }
 }
