@@ -206,7 +206,7 @@ static int32_t adlibsample ( uint8_t curchan )
 	if (adlibpercussion && (curchan >= 6) && (curchan <= 8))
 		return 0;
 	// FIXME: 7100
-	fullstep = 11000/adlibfreq(curchan);
+	fullstep = 8000/adlibfreq(curchan);
 	tempsample = (int32_t)oplwave[adlibch[curchan].wavesel][(uint8_t)((double)adlibstep[curchan] / ((double)fullstep / (double)256))];
 	tempstep = adlibenv[curchan];
 	if (tempstep > 1.0)

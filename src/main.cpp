@@ -64,7 +64,7 @@ bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
 #endif
 #if SOUND_BLASTER
     tickBlaster();
-    out += getBlasterSample();
+    out += (getBlasterSample() + 128);
 #endif
 #if DSS
     out += tickssource()(
@@ -88,7 +88,7 @@ void __time_critical_func(render_core)() {
     PWM_init_pin(ZX_AY_PWM_PIN1);
 #ifdef SOUND_SYSTEM
 #if PICO_ON_DEVICE
-    static const int sound_frequency = 44100;
+    static const int sound_frequency = 8000;
 #endif
     if (!add_repeating_timer_us(-1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
         logMsg("Failed to add timer");

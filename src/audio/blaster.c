@@ -69,7 +69,7 @@ static void setsampleticks ( void )
 		blaster.sampleticks = 0;
 		return;
 	}
-	blaster.sampleticks = 44100 / (uint64_t)blaster.samplerate;
+	blaster.sampleticks = 8000 / (uint64_t)blaster.samplerate;
 }
 
 
