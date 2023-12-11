@@ -40,7 +40,7 @@ static struct I8237_s {
 		uint8_t dreq;
 		uint8_t terminal;
 		uint8_t operation;
-	} channel[4];
+	} channel[8];
 	uint8_t flipflop;
 	uint8_t tempreg;
 	uint8_t memtomem;
@@ -57,10 +57,9 @@ static struct I8237_s {
 
 void i8237_reset() {
 	memset(&i8237, 0x00, sizeof(i8237));
-	i8237.channel[0].masked = 1;
-	i8237.channel[1].masked = 1;
-	i8237.channel[2].masked = 1;
-	i8237.channel[3].masked = 1;
+	for (int i = 0; i < 8; ++i) {
+	    i8237.channel[i].masked = 1;
+	}
 }
 
 #ifdef DEBUG_DMA
@@ -162,6 +161,10 @@ void i8237_writeport(uint16_t addr16, uint8_t value) {
 		i8237.channel[1].masked = (value >> 1) & 1;
 		i8237.channel[2].masked = (value >> 2) & 1;
 		i8237.channel[3].masked = (value >> 3) & 1;
+		i8237.channel[4].masked = (value >> 4) & 1;
+		i8237.channel[5].masked = (value >> 5) & 1;
+		i8237.channel[6].masked = (value >> 6) & 1;
+		i8237.channel[7].masked = (value >> 7) & 1;
 #ifdef DEBUG_DMA
 	snprintf(tmp, 80, "[DMA] mask register: %02Xh...", value); logMsg(tmp);
 #endif
@@ -169,31 +172,20 @@ void i8237_writeport(uint16_t addr16, uint8_t value) {
 	}
 }
 
-void i8237_writepage(uint16_t addr, uint8_t value) {
-	uint8_t ch;
+void i8237_writepage(uint16_t addr16, uint8_t value) {
+	uint8_t ch = addr16 & 0x000F;
 #ifdef DEBUG_DMA
-	snprintf(tmp, 80, "[DMA] Write port %04Xh: %02Xh", addr, value); logMsg(tmp);
+	snprintf(tmp, 80, "[DMA] Write port %04Xh channel: %d : %02Xh", addr16, ch, value); logMsg(tmp);
 #endif
-	addr &= 0x0F;
-	switch (addr) {
-	case 0x07:
-		ch = 0;
-		break;
-	case 0x03:
-		ch = 1;
-		break;
-	case 0x01:
-		ch = 2;
-		break;
-	case 0x02:
-		ch = 3;
-		break;
-	default:
+    if (ch > 7) {
+#ifdef DEBUG_DMA
+	snprintf(tmp, 80, "[DMA] ERROR channel: %d", ch); logMsg(tmp);
+#endif
 		return;
 	}
 	i8237.channel[ch].page = (uint32_t)value << 16;
 #ifdef DEBUG_DMA
-	snprintf(tmp, 80, "[DMA] Channel %01Xh page set to %08Xh", ch, i8237.channel[ch].page); logMsg(tmp);
+	snprintf(tmp, 80, "[DMA] Channel %d page set to %08Xh", ch, i8237.channel[ch].page); logMsg(tmp);
 #endif
 }
 
@@ -231,22 +223,8 @@ uint8_t i8237_readport(uint16_t addr16) {
 }
 
 uint8_t i8237_readpage(uint16_t addr) {
-	uint8_t ch;
-	addr &= 0x0F;
-	switch (addr) {
-	case 0x07:
-		ch = 0;
-		break;
-	case 0x03:
-		ch = 1;
-		break;
-	case 0x01:
-		ch = 2;
-		break;
-	case 0x02:
-		ch = 3;
-		break;
-	default:
+	uint8_t ch = addr & 0x000F;
+	if (addr > 7) {
 #ifdef DEBUG_DMA
         snprintf(tmp, 80, "[DMA] Read port %04Xh channel %01Xh err FFh", addr, ch); logMsg(tmp);
 #endif
@@ -285,7 +263,9 @@ void i8237_write(uint8_t ch, uint8_t value) {
 	//if (i8237.channel[ch].enable && !i8237.channel[ch].terminal) {
 	write86(i8237.channel[ch].page + i8237.channel[ch].addr, value);
 #ifdef DEBUG_DMA
-	snprintf(tmp, 80,"Write %02Xh to %05X", value, i8237.channel[ch].page + i8237.channel[ch].addr); logMsg(tmp);
+	snprintf(tmp, 80,"[DMA] RAM Write %02Xh to %05Xh count: %04Xh addrinc: %08Xh",
+	              value, i8237.channel[ch].page + i8237.channel[ch].addr, i8237.channel[ch].count, i8237.channel[ch].addrinc
+	); logMsg(tmp);
 #endif
 	i8237.channel[ch].addr += i8237.channel[ch].addrinc;
 	i8237.channel[ch].count--;
