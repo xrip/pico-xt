@@ -63,7 +63,7 @@ pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
 #if (!OVERCLOCKING)
-set(OVERCLOCKING 416)
+set(OVERCLOCKING 408)
 #endif ()
 
 
@@ -210,6 +210,9 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         HANDLE_REBOOT
 
         SOUND_SYSTEM
+        SOUND_BLASTER
+        ADLIB
+        #DSS
 
         #ROM_DRIVE_B=1
 
