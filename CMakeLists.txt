@@ -207,13 +207,13 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         HANDLE_REBOOT
 
         SOUND_SYSTEM
-        #SOUND_BLASTER
-        #ADLIB
+        SOUND_BLASTER
+        ADLIB
         #DSS
 
-        #ROM_DRIVE_B=1
+        ROM_DRIVE_B=1
 
-        #DMA_8237
+        DMA_8237
 )
 
 

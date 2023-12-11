@@ -25,6 +25,11 @@
 #include <stdio.h>
 #include <string.h>
 //#define DEBUG_BLASTER 1
+#ifdef SOUND_BLASTER
+#ifndef DMA8237
+#define DMA8237
+#endif
+#endif
 
 struct blaster_s {
 	uint8_t mem[1024];
@@ -69,7 +74,7 @@ static void setsampleticks ( void )
 		blaster.sampleticks = 0;
 		return;
 	}
-	blaster.sampleticks = 44100 / (uint64_t)blaster.samplerate;
+	blaster.sampleticks = 8000 / (uint64_t)blaster.samplerate;
 }
 
 
@@ -338,7 +343,7 @@ int16_t getBlasterSample ( void )
 	if (blaster.speakerstate == 0)
 		return 0;
 	else
-		return (int16_t)blaster.sample - 128;
+		return (int16_t)blaster.sample;
 }
 
 
