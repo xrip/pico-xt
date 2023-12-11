@@ -2134,7 +2134,10 @@ void exec86(uint32_t execloops) {
             case 0x1E: /* 1E PUSH CPU_DS */
                 push(CPU_DS);
                 break;
-
+            
+            //case 0x07:
+            case 0x0F:
+            //case 0x17:
             case 0x1F: /* 1F POP CPU_DS */
                 CPU_DS = pop();
                 break;
@@ -2865,7 +2868,9 @@ void exec86(uint32_t execloops) {
                     ip = ip + temp16;
                 }
                 break;
-
+            case 0x64: /*JE alias*/
+            //case 0x74: /*JE*/
+            case 0x65: /*JNE alias*/
             case 0x75: /* 75 JNZ Jb */
                 temp16 = signext(getmem8(CPU_CS, ip));
                 StepIP(1);
@@ -2873,7 +2878,9 @@ void exec86(uint32_t execloops) {
                     ip = ip + temp16;
                 }
                 break;
-
+            case 0x66: // Aliases
+            //case 0x77: // see:
+            case 0x67: // https://github.com/86Box/86Box/blob/0ca5ba08418a87dcf94e45588815d91245df778c/src/cpu/808x.c#L2524
             case 0x76: /* 76 JBE Jb */
                 temp16 = signext(getmem8(CPU_CS, ip));
                 StepIP(1);
@@ -3905,7 +3912,7 @@ void exec86(uint32_t execloops) {
                 oper1 = CPU_DX;
                 portout16(oper1, CPU_AX);
                 break;
-
+            case 0xF1: /*LOCK - F1 is alias*/
             case 0xF0: /* F0 LOCK */
                 break;
 
