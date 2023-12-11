@@ -2646,7 +2646,7 @@ void exec86(uint32_t execloops) {
                 CPU_CX = pop();
                 CPU_AX = pop();
                 break;
-
+ //case 0x62: /*JB alias*/ ??
             case 0x62: /* 62 BOUND Gv, Ev (80186+) */
                 modregrm();
                 getea(rm);
@@ -2844,7 +2844,7 @@ void exec86(uint32_t execloops) {
                     ip = ip + temp16;
                 }
                 break;
-
+            //case 0x62: /*JB alias*/
             case 0x72: /* 72 JB Jb */
                 temp16 = signext(getmem8(CPU_CS, ip));
                 StepIP(1);
@@ -2853,6 +2853,7 @@ void exec86(uint32_t execloops) {
                 }
                 break;
 
+            case 0x63: /*JNB alias*/
             case 0x73: /* 73 JNB Jb */
                 temp16 = signext(getmem8(CPU_CS, ip));
                 StepIP(1);
@@ -2860,7 +2861,7 @@ void exec86(uint32_t execloops) {
                     ip = ip + temp16;
                 }
                 break;
-
+            case 0x64: /*JE alias*/
             case 0x74: /* 74 JZ Jb */
                 temp16 = signext(getmem8(CPU_CS, ip));
                 StepIP(1);
@@ -2868,8 +2869,7 @@ void exec86(uint32_t execloops) {
                     ip = ip + temp16;
                 }
                 break;
-            case 0x64: /*JE alias*/
-            //case 0x74: /*JE*/
+
             case 0x65: /*JNE alias*/
             case 0x75: /* 75 JNZ Jb */
                 temp16 = signext(getmem8(CPU_CS, ip));
