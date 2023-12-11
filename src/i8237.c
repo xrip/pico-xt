@@ -59,6 +59,8 @@ void i8237_reset() {
 	memset(&i8237, 0x00, sizeof(i8237));
 	for (int i = 0; i < 8; ++i) {
 	    i8237.channel[i].masked = 1;
+		i8237.channel[i].addrinc = 1;
+		i8237.channel[i].enable = 1;
 	}
 }
 
@@ -140,6 +142,7 @@ void i8237_writeport(uint16_t addr16, uint8_t value) {
 		i8237.channel[value & 3].mode = (value >> 6) & 3;
 		i8237.channel[value & 3].autoinit = (value >> 4) & 1;
 		i8237.channel[value & 3].addrinc = (value & 0x20) ? 0xFFFFFFFF : 0x00000001;
+		i8237.channel[value & 3].terminal = 0;
 #ifdef DEBUG_DMA
 	snprintf(tmp, 80, "[DMA] channel[value & 3(%d)].operation: %02Xh ...", value & 3, i8237.channel[value & 3].operation); logMsg(tmp);
 #endif
@@ -239,9 +242,8 @@ uint8_t i8237_readpage(uint16_t addr) {
 
 uint8_t i8237_read(uint8_t ch) {
 	uint8_t ret = 0xFF;
-
 	//TODO: fix commented out stuff
-	//if (i8237.channel[ch].enable && !i8237.channel[ch].terminal) {
+	if (i8237.channel[ch].enable && !i8237.channel[ch].terminal) {
 		ret = read86(i8237.channel[ch].page + i8237.channel[ch].addr);
 		i8237.channel[ch].addr += i8237.channel[ch].addrinc;
 		i8237.channel[ch].count--;
@@ -253,14 +255,13 @@ uint8_t i8237_read(uint8_t ch) {
 				i8237.channel[ch].terminal = 1; //TODO: does this also happen in autoinit mode?
 			}
 		}
-	//}
-
+	}
 	return ret;
 }
 
 void i8237_write(uint8_t ch, uint8_t value) {
 	//TODO: fix commented out stuff
-	//if (i8237.channel[ch].enable && !i8237.channel[ch].terminal) {
+	if (i8237.channel[ch].enable && !i8237.channel[ch].terminal) {
 	write86(i8237.channel[ch].page + i8237.channel[ch].addr, value);
 #ifdef DEBUG_DMA
 	snprintf(tmp, 80,"[DMA] RAM Write %02Xh to %05Xh count: %04Xh addrinc: %08Xh",
@@ -277,6 +278,7 @@ void i8237_write(uint8_t ch, uint8_t value) {
 		else {
 			i8237.channel[ch].terminal = 1; //TODO: does this also happen in autoinit mode?
 		}
+	}
 	}
 }
 

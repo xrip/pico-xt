@@ -255,7 +255,6 @@ uint8_t i8237_readpage(uint16_t addr);
 uint8_t i8237_read(uint8_t ch);
 void i8237_write(uint8_t ch, uint8_t value);
 void i8237_reset();
-uint8_t i8237_read(uint8_t ch);
 #endif
 uint8_t insermouse(uint16_t portnum);
 
