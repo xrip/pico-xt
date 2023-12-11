@@ -602,7 +602,10 @@ void reset86() {
 #endif
     init8253();
     init8259();
+
     initsermouse(0x378, 4);
+
+    sn76489_reset();
     initBlaster(0x220, 7);
 
     memset(RAM, 0x0, RAM_SIZE);
@@ -4297,7 +4300,7 @@ void writew86(uint32_t addr32, uint16_t v) {
 // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 uint8_t read86(uint32_t addr32) {
     // Не удаляй плиз коммент
-    //if (addr32 == 0xFC000) { return 0x21; };
+    if (addr32 == 0xFC000) { return 0x21; };
     if (addr32 < DIRECT_RAM_BORDER) { // performance improvement (W/A)
         return RAM[addr32];
     }

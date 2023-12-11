@@ -291,6 +291,10 @@ extern void outBlaster(uint16_t portnum, uint8_t value);
 
 extern uint8_t inBlaster(uint16_t portnum);
 
+void sn76489_out( uint16_t val);
+void sn76489_reset();
+int16_t sn76489_sample();
+
 #if !PICO_ON_DEVICE
 void handleinput(void);
 #define logMsg(c) printf("%s\r\n",c);

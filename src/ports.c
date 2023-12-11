@@ -115,6 +115,17 @@ void portout(uint16_t portnum, uint16_t value) {
 #endif
             break;
 #ifdef SOUND_SYSTEM
+        case 0xC0:
+        case 0xC1:
+        case 0xC2:
+        case 0xC3:
+        case 0xC4:
+        case 0xC5:
+        case 0xC6:
+        case 0xC7:
+            sn76489_out(value);
+        break;
+        //
         case 0x220:
         case 0x221:
         case 0x222:

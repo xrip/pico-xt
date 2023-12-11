@@ -61,6 +61,7 @@ bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
     int16_t out = adlibgensample() >> 3;
     tickBlaster();
     out += getBlasterSample();
+    out += sn76489_sample() >> 6;
 
     //if (out) {
         pwm_set_gpio_level(ZX_AY_PWM_PIN0,(uint8_t)((uint16_t)out+128)); // Право
@@ -172,9 +173,10 @@ __inline static void if_overclock() {
 static void fill_audio(void* udata, uint8_t* stream, int len) {
     // int16_t out = adlibgensample() >> 4;
     // out += tickssource() >> 1;
-    tickBlaster();
-    int16_t out = adlibgensample() >> 3;
-    out += getBlasterSample();
+    // tickBlaster();
+    // int16_t out = adlibgensample() >> 3;
+    // out += getBlasterSample();
+   int16_t out = sn76489_sample() >> 6;
     *stream = (uint8_t)((uint16_t)out + 128);
     //memcpy(stream, &out, len);
 }
