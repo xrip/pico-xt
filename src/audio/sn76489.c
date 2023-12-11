@@ -85,7 +85,7 @@ void SNG_set_quality( uint32_t q) {
 void sn76489_reset() {
     int i;
     sng.clock = 3579545;
-    SNG_set_rate(11000);
+    SNG_set_rate(44100);
     SNG_set_quality(0);
     sng.base_count = 0;
 
