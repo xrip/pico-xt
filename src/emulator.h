@@ -294,6 +294,7 @@ extern uint8_t inBlaster(uint16_t portnum);
 void sn76489_out( uint16_t val);
 void sn76489_reset();
 int16_t sn76489_sample();
+void sn76489_sample_stereo(uint32_t out[0]);
 
 #if !PICO_ON_DEVICE
 void handleinput(void);

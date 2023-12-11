@@ -24,6 +24,9 @@
 #include "emulator.h"
 #define DEBUG_DMA 1
 
+#ifdef SOUND_BLASTER
+#defineDMA_8237
+#endif
 #ifdef DMA_8237
 
 static struct dmachan_s dmachan[4] = { 0, 0, 0, 0};

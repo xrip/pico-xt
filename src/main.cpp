@@ -58,9 +58,17 @@ void PWM_init_pin(uint pinN){
 bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
     uint8_t sound_tick = 0;
 
-    int16_t out = adlibgensample() >> 3;
+    int16_t out = 0;
+#if SOUND_BLASTER || ADLIB
+    out += adlibgensample() >> 3;
+#endif
+#if SOUND_BLASTER
     tickBlaster();
     out += getBlasterSample();
+#endif
+#if DSS
+    out += tickssource()(
+#endif
     out += sn76489_sample() >> 6;
 
     //if (out) {
@@ -79,7 +87,7 @@ void __time_critical_func(render_core)() {
     PWM_init_pin(ZX_AY_PWM_PIN0);
     PWM_init_pin(ZX_AY_PWM_PIN1);
 #ifdef SOUND_SYSTEM
-    static const int sound_frequency = 8000;
+    static const int sound_frequency = 22050;
     if (!add_repeating_timer_us(-1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
         logMsg("Failed to add timer");
         sleep_ms(3000);
@@ -172,11 +180,21 @@ __inline static void if_overclock() {
 
 static void fill_audio(void* udata, uint8_t* stream, int len) {
     // int16_t out = adlibgensample() >> 4;
-    // out += tickssource() >> 1;
-    // tickBlaster();
-    // int16_t out = adlibgensample() >> 3;
-    // out += getBlasterSample();
-   int16_t out = sn76489_sample() >> 6;
+    //
+
+    int16_t out = 0;
+#if SOUND_BLASTER || ADLIB
+    out += adlibgensample() >> 3;
+#endif
+#if SOUND_BLASTER
+    tickBlaster();
+    out += getBlasterSample();
+#endif
+#if DSS
+    out += tickssource() >> 1;
+#endif
+    out += sn76489_sample() >> 6;
+
     *stream = (uint8_t)((uint16_t)out + 128);
     //memcpy(stream, &out, len);
 }
@@ -252,7 +270,7 @@ int main() {
     auto* pixels = (unsigned int *)drawsurface->pixels;
 #if SOUND_SYSTEM
     static SDL_AudioSpec wanted;
-    wanted.freq = 8000;
+    wanted.freq = 44100;
     wanted.format = AUDIO_U8;
     wanted.channels = 1;
     wanted.samples = 1;
@@ -533,7 +551,7 @@ int main() {
 #if !PICO_ON_DEVICE
         handleinput();
         uint8_t mode = videomode; // & 0x0F;
-        uint8_t* vidramptr = VIDEORAM+32768;
+        uint8_t* vidramptr = VIDEORAM + 32768;
         if (mode == 0x11) mode = 1;
         if (mode <= 3 || mode == 0x56) {
             uint8_t cols = videomode <= 1 ? 40 : 80;
@@ -728,49 +746,51 @@ int main() {
                 for (int x = 0; x < 320 / 4; x++) {
                     uint32_t vidptr = (x >> 1) + (y >> 1) * 320 / 8;
                     uint8_t pixel = vidramptr[vidptr];
-                     *pix++ = vga_palette[(pixel >> 7) & 1];
-                     *pix++ = vga_palette[(pixel >> 6) & 1];
-                     *pix++ = vga_palette[(pixel >> 5) & 1];
-                     *pix++ = vga_palette[(pixel >> 4) & 1];
-                     *pix++ = vga_palette[(pixel >> 3) & 1];
-                     *pix++ = vga_palette[(pixel >> 2) & 1];
-                     *pix++ = vga_palette[(pixel >> 1) & 1];
+                    *pix++ = vga_palette[(pixel >> 7) & 1];
+                    *pix++ = vga_palette[(pixel >> 6) & 1];
+                    *pix++ = vga_palette[(pixel >> 5) & 1];
+                    *pix++ = vga_palette[(pixel >> 4) & 1];
+                    *pix++ = vga_palette[(pixel >> 3) & 1];
+                    *pix++ = vga_palette[(pixel >> 2) & 1];
+                    *pix++ = vga_palette[(pixel >> 1) & 1];
                     *pix++ = vga_palette[(pixel >> 0) & 1];
                 }
             }
-        } else if (mode == 0x0d) {
+        }
+        else if (mode == 0x0d) {
             uint32_t* pix = pixels;
             vidramptr = VIDEORAM;
             const uint32_t planesize = 16000;
             for (int y = 0; y < 400; y++) {
                 for (int x = 0; x < 640; x++) {
-                    uint32_t divx = x>>1;
-                    uint32_t divy = y>>1;
-                    uint32_t vidptr = divy*40 + (divx>>3);
+                    uint32_t divx = x >> 1;
+                    uint32_t divy = y >> 1;
+                    uint32_t vidptr = divy * 40 + (divx >> 3);
                     int x1 = 7 - (divx & 7);
                     uint32_t color = (vidramptr[vidptr] >> x1) & 1;
-                    color |= ( ( (vidramptr[planesize + vidptr] >> x1) & 1) << 1);
-                    color |= ( ( (vidramptr[planesize*2 + vidptr] >> x1) & 1) << 2);
-                    color |= ( ( (vidramptr[planesize*3 + vidptr] >> x1) & 1) << 3);
+                    color |= (((vidramptr[planesize + vidptr] >> x1) & 1) << 1);
+                    color |= (((vidramptr[planesize * 2 + vidptr] >> x1) & 1) << 2);
+                    color |= (((vidramptr[planesize * 3 + vidptr] >> x1) & 1) << 3);
                     //prestretch[y][x] = color;
                     *pix++ = vga_palette[color];;
                 }
                 // pix += pia.tail;
             }
-        } else if (mode == 0x0e) {
+        }
+        else if (mode == 0x0e) {
             uint32_t* pix = pixels;
             vidramptr = VIDEORAM;
             const uint32_t planesize = 16000;
             for (int y = 0; y < 400; y++) {
                 for (int x = 0; x < 640; x++) {
                     uint32_t divx = x;
-                    uint32_t divy = y>>1;
-                    uint32_t vidptr = divy*80 + (divx>>3);
+                    uint32_t divy = y >> 1;
+                    uint32_t vidptr = divy * 80 + (divx >> 3);
                     int x1 = 7 - (divx & 7);
                     uint32_t color = (vidramptr[vidptr] >> x1) & 1;
-                    color |= ( ( (vidramptr[planesize + vidptr] >> x1) & 1) << 1);
-                    color |= ( ( (vidramptr[planesize*2 + vidptr] >> x1) & 1) << 2);
-                    color |= ( ( (vidramptr[planesize*3 + vidptr] >> x1) & 1) << 3);
+                    color |= (((vidramptr[planesize + vidptr] >> x1) & 1) << 1);
+                    color |= (((vidramptr[planesize * 2 + vidptr] >> x1) & 1) << 2);
+                    color |= (((vidramptr[planesize * 3 + vidptr] >> x1) & 1) << 3);
                     //prestretch[y][x] = color;
                     *pix++ = vga_palette[color];;
                 }

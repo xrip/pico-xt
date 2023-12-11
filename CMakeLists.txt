@@ -206,7 +206,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         XMS_HMA=1
         HANDLE_REBOOT
 
-        #SOUND_SYSTEM
+        SOUND_SYSTEM
+        #SOUND_BLASTER
+        #ADLIB
+        #DSS
 
         #ROM_DRIVE_B=1
 

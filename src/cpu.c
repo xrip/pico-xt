@@ -606,8 +606,9 @@ void reset86() {
     initsermouse(0x378, 4);
 
     sn76489_reset();
+#if SOUND_BLASTER
     initBlaster(0x220, 7);
-
+#endif
     memset(RAM, 0x0, RAM_SIZE);
     memset(VIDEORAM, 0x0, VIDEORAM_SIZE);
 #if PICO_ON_DEVICE
