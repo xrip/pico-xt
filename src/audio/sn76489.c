@@ -19,8 +19,10 @@
 #include <stdint.h>
 
 int32_t output;
-
-uint32_t clock = 3579545;;
+/*
+ *The SN76489 is connected to a clock signal, which is commonly 3579545Hz for NTSC systems and 3546893Hz for PAL/SECAM systems (these are based on the associated TV colour subcarrier frequencies, and are common master clock speeds for many systems). It divides this clock by 16 to get its internal clock. The datasheets specify a maximum of 4MHz.
+*/
+uint32_t clock = 3579545;
 uint32_t samplerate = 44100;
 uint32_t base_incr, quality = 0;
 
@@ -52,7 +54,7 @@ int16_t channel_sample[4];
 // } sng = { 0 };
 
 
-static const uint32_t voltbl[16] = {
+static const uint32_t volume_table[16] = {
     0xff, 0xcb, 0xa1, 0x80, 0x65, 0x50, 0x40, 0x33, 0x28, 0x20, 0x19, 0x14, 0x10, 0x0c, 0x0a, 0x00
 };
 
@@ -165,7 +167,7 @@ static inline void update_output() {
     }
 
     if (noise_seed & 1) {
-        channel_sample[3] += voltbl[noise_volume] << 4;
+        channel_sample[3] += volume_table[noise_volume] << 4;
     }
     channel_sample[3] >>= 1;
 
@@ -183,7 +185,7 @@ static inline void update_output() {
         }
 
         if (edge[i] && !mute[i]) {
-            channel_sample[i] += voltbl[volume[i]] << 4;
+            channel_sample[i] += volume_table[volume[i]] << 4;
         }
 
         channel_sample[i] >>= 1;
