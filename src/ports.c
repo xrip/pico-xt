@@ -79,7 +79,7 @@ void portout(uint16_t portnum, uint16_t value) {
 #endif
         case 0x20:
         case 0x21: //i8259
-            out8259(portnum, value);
+            out8259(portnum, value & 255);
             return;
         case 0x40:
         case 0x41:
@@ -118,6 +118,18 @@ void portout(uint16_t portnum, uint16_t value) {
 #endif
             break;
 #ifdef SOUND_SYSTEM
+        case 0xC0:
+        case 0xC1:
+        case 0xC2:
+        case 0xC3:
+        case 0xC4:
+        case 0xC5:
+        case 0xC6:
+        case 0xC7:
+            sn76489_out(value);
+        break;
+#if SOUND_BLASTER
+        //
         case 0x220:
         case 0x221:
         case 0x222:
@@ -136,14 +148,19 @@ void portout(uint16_t portnum, uint16_t value) {
         //case 0x22f:
             outBlaster(portnum, value);
             break;
+#endif
+#if DSS
         case 0x378:
         case 0x37A:
             outsoundsource(portnum, value);
             break;
+#endif
+#if SOUND_BLASTER || ADLIB
         case 0x388: // adlib
         case 0x389:
             outadlib(portnum, value);
             break;
+#endif
 #endif
 /*
         case 0x3B8: // TODO: hercules support
@@ -427,11 +444,16 @@ uint16_t portin(uint16_t portnum) {
         /*case 0x201: // joystick
             return 0b11110000;*/
 #ifdef SOUND_SYSTEM
+#if DSS
         case 0x379:
             return insoundsource(portnum);
+#endif
+#if SOUND_BLASTER || ADLIB
         case 0x388: // adlib
         case 0x389:
             return inadlib(portnum);
+#endif
+#if SOUND_BLASTER
         case 0x220:
         case 0x221:
         case 0x222:
@@ -448,6 +470,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x22d:
         case 0x22e:
             return inBlaster(portnum);
+#endif
         #endif
         // http://www.techhelpmanual.com/900-video_graphics_array_i_o_ports.html
         // https://wiki.osdev.org/VGA_Hardware#Port_0x3C0
