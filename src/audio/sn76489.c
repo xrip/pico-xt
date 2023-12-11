@@ -16,265 +16,233 @@
 
 *****************************************************************************/
 // https://github.com/mamedev/mame/blob/master/src/devices/sound/sn76496.cpp
-#include <stdio.h>
 #include <stdint.h>
-#include <string.h>
+
+int32_t output;
+
+uint32_t clock = 3579545;;
+uint32_t samplerate = 44100;
+uint32_t base_incr, quality = 0;
+
+uint32_t count[3];
+uint32_t volume[3];
+uint32_t freq[3];
+uint32_t edge[3];
+uint32_t mute[3];
+
+uint32_t noise_seed;
+uint32_t noise_count;
+uint32_t noise_freq;
+uint32_t noise_volume;
+uint32_t noise_mode;
+uint32_t noise_fref;
+
+uint32_t base_count;
+
+/* rate converter */
+uint32_t realstep;
+uint32_t sngtime;
+uint32_t sngstep;
+
+uint32_t adr;
+
+uint32_t stereo;
+
+int16_t channel_sample[4];
+// } sng = { 0 };
 
 
-struct __SNG {
-    int32_t out;
-
-    uint32_t clock, samplerate, base_incr, quality;
-
-    uint32_t count[3];
-    uint32_t volume[3];
-    uint32_t freq[3];
-    uint32_t edge[3];
-    uint32_t mute[3];
-
-    uint32_t noise_seed;
-    uint32_t noise_count;
-    uint32_t noise_freq;
-    uint32_t noise_volume;
-    uint32_t noise_mode;
-    uint32_t noise_fref;
-
-    uint32_t base_count;
-
-    /* rate converter */
-    uint32_t realstep;
-    uint32_t sngtime;
-    uint32_t sngstep;
-
-    uint32_t adr;
-
-    uint32_t stereo;
-
-    int16_t ch_out[4];
-} sng = { 0 };
-
-
-static uint32_t voltbl[16] = {
+static const uint32_t voltbl[16] = {
     0xff, 0xcb, 0xa1, 0x80, 0x65, 0x50, 0x40, 0x33, 0x28, 0x20, 0x19, 0x14, 0x10, 0x0c, 0x0a, 0x00
 };
 
 #define GETA_BITS 24
 
-static void
-internal_refresh() {
-    if (sng.quality) {
-        sng.base_incr = 1 << GETA_BITS;
-        sng.realstep = (uint32_t)((1 << 31) / sng.samplerate);
-        sng.sngstep = (uint32_t)((1 << 31) / (sng.clock / 16));
-        sng.sngtime = 0;
+void sn76489_reset() {
+    if (quality) {
+        base_incr = 1 << GETA_BITS;
+        realstep = (uint32_t)((1 << 31) / samplerate);
+        sngstep = (uint32_t)((1 << 31) / (clock / 16));
+        sngtime = 0;
     }
     else {
-        sng.base_incr = (uint32_t)((double)sng.clock * (1 << GETA_BITS) / (16 * sng.samplerate));
-    }
-}
-
-void SNG_set_rate( uint32_t r) {
-    sng.samplerate = r ? r : 44100;
-    internal_refresh(sng);
-}
-
-void SNG_set_quality( uint32_t q) {
-    sng.quality = q;
-    internal_refresh(sng);
-}
-
-void sn76489_reset() {
-    int i;
-    sng.clock = 3579545;
-    SNG_set_rate(44100);
-    SNG_set_quality(0);
-    sng.base_count = 0;
-
-    for (i = 0; i < 3; i++) {
-        sng.count[i] = 0;
-        sng.freq[i] = 0;
-        sng.edge[i] = 0;
-        sng.volume[i] = 0x0f;
-        sng.mute[i] = 0;
+        base_incr = (uint32_t)((double)clock * (1 << GETA_BITS) / (16 * samplerate));
     }
 
-    sng.adr = 0;
+    for (int i = 0; i < 3; i++) {
+        count[i] = 0;
+        freq[i] = 0;
+        edge[i] = 0;
+        volume[i] = 0x0f;
+        mute[i] = 0;
+    }
 
-    sng.noise_seed = 0x8000;
-    sng.noise_count = 0;
-    sng.noise_freq = 0;
-    sng.noise_volume = 0x0f;
-    sng.noise_mode = 0;
-    sng.noise_fref = 0;
+    adr = 0;
 
-    sng.out = 0;
-    sng.stereo = 0xFF;
+    noise_seed = 0x8000;
+    noise_count = 0;
+    noise_freq = 0;
+    noise_volume = 0x0f;
+    noise_mode = 0;
+    noise_fref = 0;
 
-    sng.ch_out[0] = sng.ch_out[1] = sng.ch_out[2] = sng.ch_out[3] = 0;
+    output = 0;
+    stereo = 0xFF;
+
+    channel_sample[0] = channel_sample[1] = channel_sample[2] = channel_sample[3] = 0;
 }
 
-void sn76489_out( uint16_t val) {
-
-    if (val & 0x80) {
+void sn76489_out(uint16_t value) {
+    if (value & 0x80) {
         //printf("OK");
-        sng.adr = (val & 0x70) >> 4;
-        switch (sng.adr) {
+        adr = (value & 0x70) >> 4;
+        switch (adr) {
             case 0: // tone 0: frequency
             case 2: // tone 1: frequency
             case 4: // tone 2: frequency
-                sng.freq[sng.adr >> 1] = (sng.freq[sng.adr >> 1] & 0x3F0) | (val & 0x0F);
+                freq[adr >> 1] = (freq[adr >> 1] & 0x3F0) | (value & 0x0F);
                 break;
 
             case 1: // tone 0: volume
             case 3: // tone 1: volume
             case 5: // tone 2: volume
-                sng.volume[(sng.adr - 1) >> 1] = val & 0xF;
+                volume[(adr - 1) >> 1] = value & 0xF;
                 break;
 
             case 6: // noise: frequency, mode
-                sng.noise_mode = (val & 4) >> 2;
+                noise_mode = (value & 4) >> 2;
 
-                if ((val & 0x03) == 0x03) {
-                    sng.noise_freq = sng.freq[2];
-                    sng.noise_fref = 1;
+                if ((value & 0x03) == 0x03) {
+                    noise_freq = freq[2];
+                    noise_fref = 1;
                 }
                 else {
-                    sng.noise_freq = 32 << (val & 0x03);
-                    sng.noise_fref = 0;
+                    noise_freq = 32 << (value & 0x03);
+                    noise_fref = 0;
                 }
 
-                if (sng.noise_freq == 0)
-                    sng.noise_freq = 1;
+                if (noise_freq == 0)
+                    noise_freq = 1;
 
-                sng.noise_seed = 0x8000;
+                noise_seed = 0x8000;
                 break;
 
             case 7: // noise: volume
-                sng.noise_volume = val & 0x0f;
+                noise_volume = value & 0x0f;
                 break;
         }
     }
     else {
-        sng.freq[sng.adr >> 1] = ((val & 0x3F) << 4) | (sng.freq[sng.adr >> 1] & 0x0F);
+        freq[adr >> 1] = ((value & 0x3F) << 4) | (freq[adr >> 1] & 0x0F);
     }
 }
 
-static inline int parity(int val) {
-    val ^= val >> 8;
-    val ^= val >> 4;
-    val ^= val >> 2;
-    val ^= val >> 1;
-    return val & 1;
+static inline int parity(int value) {
+    value ^= value >> 8;
+    value ^= value >> 4;
+    value ^= value >> 2;
+    value ^= value >> 1;
+    return value & 1;
 };
 
 static inline void update_output() {
-    int i;
-    uint32_t incr;
-
-    sng.base_count += sng.base_incr;
-    incr = (sng.base_count >> GETA_BITS);
-    sng.base_count &= (1 << GETA_BITS) - 1;
+    base_count += base_incr;
+    uint32_t incr = (base_count >> GETA_BITS);
+    base_count &= (1 << GETA_BITS) - 1;
 
     /* Noise */
-    sng.noise_count += incr;
-    if (sng.noise_count & 0x400) {
-        if (sng.noise_mode) /* White */
-            sng.noise_seed = (sng.noise_seed >> 1) | (parity(sng.noise_seed & 0x0009) << 15);
+    noise_count += incr;
+    if (noise_count & 0x400) {
+        if (noise_mode) /* White */
+            noise_seed = (noise_seed >> 1) | (parity(noise_seed & 0x0009) << 15);
         else /* Periodic */
-            sng.noise_seed = (sng.noise_seed >> 1) | ((sng.noise_seed & 1) << 15);
+            noise_seed = (noise_seed >> 1) | ((noise_seed & 1) << 15);
 
-        if (sng.noise_fref)
-            sng.noise_count -= sng.freq[2];
+        if (noise_fref)
+            noise_count -= freq[2];
         else
-            sng.noise_count -= sng.noise_freq;
+            noise_count -= noise_freq;
     }
 
-    if (sng.noise_seed & 1) {
-        sng.ch_out[3] += voltbl[sng.noise_volume] << 4;
+    if (noise_seed & 1) {
+        channel_sample[3] += voltbl[noise_volume] << 4;
     }
-    sng.ch_out[3] >>= 1;
+    channel_sample[3] >>= 1;
 
     /* Tone */
-    for (i = 0; i < 3; i++) {
-        sng.count[i] += incr;
-        if (sng.count[i] & 0x400) {
-            if (sng.freq[i] > 1) {
-                sng.edge[i] = !sng.edge[i];
-                sng.count[i] -= sng.freq[i];
+    for ( int i = 0; i < 3; i++) {
+        count[i] += incr;
+        if (count[i] & 0x400) {
+            if (freq[i] > 1) {
+                edge[i] = !edge[i];
+                count[i] -= freq[i];
             }
             else {
-                sng.edge[i] = 1;
+                edge[i] = 1;
             }
         }
 
-        if (sng.edge[i] && !sng.mute[i]) {
-            sng.ch_out[i] += voltbl[sng.volume[i]] << 4;
+        if (edge[i] && !mute[i]) {
+            channel_sample[i] += voltbl[volume[i]] << 4;
         }
 
-        sng.ch_out[i] >>= 1;
+        channel_sample[i] >>= 1;
     }
 }
 
 static inline int16_t mix_output() {
-    sng.out = sng.ch_out[0] + sng.ch_out[1] + sng.ch_out[2] + sng.ch_out[3];
-    return (int16_t)sng.out;
+    output = channel_sample[0] + channel_sample[1] + channel_sample[2] + channel_sample[3];
+    return (int16_t)output;
 }
 
 int16_t sn76489_sample() {
-    if (!sng.quality) {
+    if (!quality) {
         update_output();
         return mix_output();
     }
 
     /* Simple rate converter */
-    while (sng.realstep > sng.sngtime) {
-        sng.sngtime += sng.sngstep;
-        update_output(sng);
+    while (realstep > sngtime) {
+        sngtime += sngstep;
+        update_output();
     }
 
-    sng.sngtime = sng.sngtime - sng.realstep;
+    sngtime = sngtime - realstep;
 
     return mix_output();
 }
 
-static inline void mix_output_stereo( int32_t out[2]) {
-    int i;
-
+static inline void mix_output_stereo(int32_t out[2]) {
     out[0] = out[1] = 0;
-    if ((sng.stereo >> 4) & 0x08) {
-        out[0] += sng.ch_out[3];
+    if ((stereo >> 4) & 0x08) {
+        out[0] += channel_sample[3];
     }
-    if (sng.stereo & 0x08) {
-        out[1] += sng.ch_out[3];
+    if (stereo & 0x08) {
+        out[1] += channel_sample[3];
     }
 
-    for (i = 0; i < 3; i++) {
-        if ((sng.stereo >> (i + 4)) & 0x01) {
-            out[0] += sng.ch_out[i];
+    for (int i = 0; i < 3; i++) {
+        if ((stereo >> (i + 4)) & 0x01) {
+            out[0] += channel_sample[i];
         }
-        if ((sng.stereo >> i) & 0x01) {
-            out[1] += sng.ch_out[i];
+        if ((stereo >> i) & 0x01) {
+            out[1] += channel_sample[i];
         }
     }
 }
 
-void sn76489_sample_stereo( int32_t out[2]) {
-    if (!sng.quality) {
+void sn76489_sample_stereo(int32_t out[2]) {
+    if (!quality) {
         update_output();
         mix_output_stereo(out);
         return;
     }
 
-    while (sng.realstep > sng.sngtime) {
-        sng.sngtime += sng.sngstep;
+    while (realstep > sngtime) {
+        sngtime += sngstep;
         update_output();
     }
 
-    sng.sngtime = sng.sngtime - sng.realstep;
+    sngtime = sngtime - realstep;
     mix_output_stereo(out);
-    return;
-}
-
-void SNG_writeGGIO( uint32_t val) {
-    sng.stereo = val;
 }
