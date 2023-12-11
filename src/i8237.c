@@ -26,7 +26,7 @@
 
 #ifdef DMA_8237
 
-static struct dmachan_s dmachan[4];
+static struct dmachan_s dmachan[4] = { 0, 0, 0, 0};
 static uint8_t flipflop = 0;
 
 // FIXME read86 is valid or we need direct ram/psram/swap acceess?
@@ -114,8 +114,11 @@ __inline uint8_t in8237(uint16_t addr) {
                 return dmachan[1].reload;
             flipflop = ~flipflop & 1;    // this seems to be invalid, control never gets here ... :-O
             break;
+        case 8:
+            return 0x0F;
+        break;
     }
-    return 0;
+    return 0xFF;
 }
 
 #endif

@@ -71,12 +71,12 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x8D:
         case 0x8E:
         case 0x8F:
-            out8237(portnum, value);
+            out8237(portnum, value & 255);
             return;
 #endif
         case 0x20:
         case 0x21: //i8259
-            out8259(portnum, value);
+            out8259(portnum, value & 255);
             return;
         case 0x40:
         case 0x41:
