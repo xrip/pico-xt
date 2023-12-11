@@ -18,69 +18,19 @@ static volatile bool downPressed = false;
 bool already_swapped_fdds = false;
 volatile bool manager_started = false;
 volatile bool usb_started = false;
-
-inline static void swap_drive_message() {
-    save_video_ram();
-    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    set_start_debug_line(0);
-    clrScr(1);
-    for(int i = 0; i < 10; i++) {
-        logMsg("");
-    }
-    if (already_swapped_fdds) {
-        logMsg("                      Swap FDD0 and FDD1 drive images"); logMsg("");
-        logMsg("          To return images back, press Ctrl + Tab + Backspace");
-    } else {
-        logMsg("                    Swap FDD0 and FDD1 drive images back");
-    }
-    sleep_ms(3000);
-    set_start_debug_line(25);
-    restore_video_ram();
-    if (ret == TEXTMODE_80x30) {
-        clrScr(1);
-    }
-    graphics_set_mode(ret);
-}
-
-typedef struct drive_state {
-    char* path;
-    char* lbl;
-} drive_state_t;
-
-static drive_state_t drives_states[3] = {
-    0, "FDD0",
-    0, "FDD1",
-    0, "HDD0"
-};
-
-void notify_image_insert_action(uint8_t drivenum, char *pathname) {
-    drives_states[drivenum].path = pathname;
-}
-
-inline static void swap_drives(uint8_t cmd) {
-    if (backspacePressed && tabPressed && ctrlPressed) {
-        if (already_swapped_fdds) {
-            insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-            insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
-            already_swapped_fdds = false;
-            swap_drive_message();
-            return;
-        }
-        insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-        insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
-        already_swapped_fdds = true;
-        swap_drive_message();
-    }
-}
-
-void if_swap_drives() {
-    if (manager_started) {
-        return;
-    }
-    swap_drives(7);
-}
-
 static char line[81];
+
+static volatile uint32_t lastCleanableScanCode = 0;
+static uint32_t lastSavedScanCode = 0;
+
+static const uint8_t PANEL_TOP_Y = 0;
+static const uint8_t TOTAL_SCREEN_LINES = 30;
+static const uint8_t F_BTN_Y_POS = TOTAL_SCREEN_LINES - 1;
+static const uint8_t CMD_Y_POS = F_BTN_Y_POS - 1;
+static const uint8_t PANEL_LAST_Y = CMD_Y_POS - 1;
+
+static uint8_t FIRST_FILE_LINE_ON_PANEL_Y = PANEL_TOP_Y + 1;
+static uint8_t LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
 
 typedef struct file_panel_desc {
     int left;
@@ -104,17 +54,70 @@ static file_panel_desc_t right_panel = {
 static volatile bool left_panel_make_active = true;
 static file_panel_desc_t* psp = &left_panel;
 
-static volatile uint32_t lastCleanableScanCode = 0;
-static uint32_t lastSavedScanCode = 0;
+static inline void fill_panel(file_panel_desc_t* p);
 
-static const uint8_t PANEL_TOP_Y = 0;
-static const uint8_t TOTAL_SCREEN_LINES = 30;
-static const uint8_t F_BTN_Y_POS = TOTAL_SCREEN_LINES - 1;
-static const uint8_t CMD_Y_POS = F_BTN_Y_POS - 1;
-static const uint8_t PANEL_LAST_Y = CMD_Y_POS - 1;
+inline static void swap_drive_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (already_swapped_fdds) {
+        const line_t lns[3] = {
+            { 13, "Swap FDD0 and FDD1 drive images" },
+            {  0, "" },
+            {  4, "To return images back, press Ctrl + Tab + Backspace"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    } else {
+        const line_t lns[1] = {
+            { 13, "Swap FDD0 and FDD1 drive images back" }
+        };
+        const lines_t lines = { 1, 4, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    }
+    sleep_ms(1500);
+    graphics_set_mode(ret);
+    restore_video_ram();
+    
+    fill_panel(&left_panel);
+    fill_panel(&right_panel);
+}
 
-static uint8_t FIRST_FILE_LINE_ON_PANEL_Y = PANEL_TOP_Y + 1;
-static uint8_t LAST_FILE_LINE_ON_PANEL_Y = PANEL_LAST_Y - 1;
+typedef struct drive_state {
+    char* path;
+    char* lbl;
+} drive_state_t;
+
+static drive_state_t drives_states[3] = {
+    0, "FDD0",
+    0, "FDD1",
+    0, "HDD0"
+};
+
+void notify_image_insert_action(uint8_t drivenum, char *pathname) {
+    drives_states[drivenum].path = pathname;
+}
+
+static void swap_drives(uint8_t cmd) {
+    sprintf(line, "F%d pressed - swap FDD images", cmd + 1);
+    draw_cmd_line(0, CMD_Y_POS, line);
+    if (already_swapped_fdds) {
+        insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
+        insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+        already_swapped_fdds = false;
+        swap_drive_message();
+        return;
+    }
+    insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
+    insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
+    already_swapped_fdds = true;
+    swap_drive_message();
+}
+
+void if_swap_drives() {
+    if (backspacePressed && tabPressed && ctrlPressed) {
+        swap_drives(8);
+    }
+}
 
 static void draw_window() {
     sprintf(line, "SD:%s", left_panel.path);
@@ -124,6 +127,8 @@ static void draw_window() {
 }
 
 void do_nothing(uint8_t cmd) {
+    sprintf(line, "F%d pressed - not yet implemnted", cmd + 1);
+    draw_cmd_line(0, CMD_Y_POS, line);
 }
 
 static bool mark_to_exit_flag = false;
@@ -200,6 +205,8 @@ static void turn_usb_off(uint8_t cmd) { // TODO: support multiple enter for USB 
     sprintf(fn_1_10_tbl_ctrl[9].name, " Exit ");
     fn_1_10_tbl_ctrl[9].action = mark_to_exit;
 
+    fill_panel(&left_panel);
+    fill_panel(&right_panel);
     bottom_line();
 }
 
@@ -222,7 +229,12 @@ static void turn_usb_on(uint8_t cmd) {
 static inline void fill_panel(file_panel_desc_t* p) {
     DIR dir;
     if (f_opendir(&dir, p->path) != FR_OK) {
-        // TODO: Error dialog
+        const line_t lns[1] = {
+            { 20, "It is not a folder!" }
+        };
+        const lines_t lines = { 1, 4, lns };
+        draw_box(10, 7, 60, 10, "Warning", &lines);
+        sleep_ms(1500);
         return;
     }
     FILINFO fileInfo;
@@ -281,6 +293,8 @@ inline static void scan_code_processed() {
 }
 
 inline static fn_1_10_btn_pressed(uint8_t fn_idx) {
+    sprintf(line, "F%d pressed", fn_idx + 1);
+    draw_cmd_line(0, CMD_Y_POS, line);
     (*actual_fn_1_10_tbl())[fn_idx].action(fn_idx);
 }
 
@@ -323,7 +337,7 @@ static inline void redraw_current_panel() {
 }
 
 static inline void enter_pressed() {
-    if (psp->selected_file_idx == 1 && psp->start_file_offset == 0 && strlen(psp->path[0]) > 1) {
+    if (psp->selected_file_idx == 1 && psp->start_file_offset == 0 && strlen(psp->path) > 1) {
         int i = strlen(psp->path);
         while(--i > 0) {
             if (psp->path[i] == '\\') {
@@ -339,7 +353,12 @@ static inline void enter_pressed() {
     }
     DIR dir;
     if (f_opendir(&dir, psp->path) != FR_OK) {
-        // TODO: Error dialog
+        const line_t lns[1] = {
+            { 20, "It is not a folder!" }
+        };
+        const lines_t lines = { 1, 4, lns };
+        draw_box(10, 7, 60, 10, "Warning", &lines);
+        sleep_ms(1500);
         return;
     }
     FILINFO fileInfo;
@@ -354,9 +373,24 @@ static inline void enter_pressed() {
                               fileInfo.fname, fileInfo.altname, fileInfo.fsize, fileInfo.fattrib, fileInfo.fdate, fileInfo.ftime);
                 draw_cmd_line(0, CMD_Y_POS, line);
                 if (fileInfo.fattrib & AM_DIR) {
-                    sprintf(psp->path, "%s\\%s", psp->path, fileInfo.fname);
-                    redraw_current_panel();
                     f_closedir(&dir);
+                    if (strlen(psp->path) > 1) {
+                        sprintf(line, "%s\\%s", psp->path, fileInfo.fname);
+                    } else {
+                        sprintf(line, "\\%s", fileInfo.fname);
+                    }
+                    if (f_opendir(&dir, line) != FR_OK) {
+                        const line_t lns[1] = {
+                            { 20, "It is not a folder!" }
+                        };
+                        const lines_t lines = { 1, 4, lns };
+                        draw_box(10, 7, 60, 10, "Warning", &lines);
+                        sleep_ms(1500);
+                    } else {
+                        f_closedir(&dir);
+                        strcpy(psp->path, line);
+                        redraw_current_panel();
+                    }
                     return;
                 }
             }
@@ -370,6 +404,8 @@ static uint8_t repeat_cnt = 0;
 
 static void work_cycle() {
     while(1) {
+        if_swap_drives();
+        if_overclock();
         if (psp == &left_panel && !left_panel_make_active) {
             select_right_panel();
         }
@@ -482,11 +518,8 @@ void start_manager() {
     work_cycle();
     
     set_start_debug_line(25);
-    restore_video_ram();
-    if (ret == TEXTMODE_80x30) {
-        clrScr(1);
-    }
     graphics_set_mode(ret);
+    restore_video_ram();
 }
 
 bool handleScancode(uint32_t ps2scancode) { // core 1
@@ -570,6 +603,36 @@ void if_manager() {
         manager_started = true;
         start_manager();
         manager_started = false;
+    }
+}
+
+uint32_t overcloking_khz = OVERCLOCKING * 1000;
+
+void if_overclock() {
+    int oc = overclock();
+    if (oc > 0) overcloking_khz += 1000;
+    if (oc < 0) overcloking_khz -= 1000;
+    if (oc != 0) {
+        uint vco, postdiv1, postdiv2;
+        if (check_sys_clock_khz(overcloking_khz, &vco, &postdiv1, &postdiv2)) {
+            set_sys_clock_pll(vco, postdiv1, postdiv2);
+            sprintf(line, "overcloking_khz: %u kHz", overcloking_khz);
+            line_t lns[1] = {
+                { 10, line }
+            };
+            lines_t lines = { 1, 3, lns };
+            draw_box(10, 7, 60, 10, "Info", &lines);
+            sleep_ms(1500);
+        }
+        else {
+            sprintf(line, "System clock of %u kHz cannot be achieved", overcloking_khz);
+            line_t lns[1] = {
+                { 4, line }
+            };
+            lines_t lines = { 1, 3, lns };
+            draw_box(10, 7, 60, 10, "Warning", &lines);
+            sleep_ms(1500);
+        }
     }
 }
 #endif

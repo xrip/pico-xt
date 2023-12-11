@@ -49,7 +49,7 @@ void PWM_init_pin(uint pinN){
     gpio_set_function(pinN, GPIO_FUNC_PWM);
     uint slice_num = pwm_gpio_to_slice_num(pinN);
 
-    pwm_config c_pwm=pwm_get_default_config();
+    pwm_config c_pwm = pwm_get_default_config();
     pwm_config_set_clkdiv(&c_pwm,1.0);
     pwm_config_set_wrap(&c_pwm,255);//MAX PWM value
     pwm_init(slice_num,&c_pwm,true);
@@ -151,33 +151,6 @@ static int RendererThread(void* ptr) {
 
 #endif
 
-#if PICO_ON_DEVICE
-pwm_config config = pwm_get_default_config();
-
-uint32_t overcloking_khz = OVERCLOCKING * 1000;
-
-__inline static void if_overclock() {
-    int oc = overclock();
-    if (oc > 0) overcloking_khz += 1000;
-    if (oc < 0) overcloking_khz -= 1000;
-    if (oc != 0) {
-        uint vco, postdiv1, postdiv2;
-        if (check_sys_clock_khz(overcloking_khz, &vco, &postdiv1, &postdiv2)) {
-            set_sys_clock_pll(vco, postdiv1, postdiv2);
-            char tmp[80];
-            sprintf(tmp, "overcloking_khz: %u kHz", overcloking_khz);
-            logMsg(tmp);
-            sleep_ms(33);
-        }
-        else {
-            char tmp[80];
-            sprintf(tmp, "System clock of %u kHz cannot be achieved", overcloking_khz);
-            logMsg(tmp);
-        }
-    }
-}
-#endif
-
 static void fill_audio(void* udata, uint8_t* stream, int len) {
     // int16_t out = adlibgensample() >> 4;
     //
@@ -199,12 +172,14 @@ static void fill_audio(void* udata, uint8_t* stream, int len) {
     //memcpy(stream, &out, len);
 }
 
+pwm_config config = pwm_get_default_config();
+
 int main() {
 #if PICO_ON_DEVICE
 #if (OVERCLOCKING > 270)
     hw_set_bits(&vreg_and_chip_reset_hw->vreg, VREG_AND_CHIP_RESET_VREG_VSEL_BITS);
     sleep_ms(33);
-    set_sys_clock_khz(overcloking_khz, true);
+    set_sys_clock_khz(OVERCLOCKING * 1000, true);
 #else
     vreg_set_voltage(VREG_VOLTAGE_1_15);
     sleep_ms(33);
@@ -215,8 +190,6 @@ int main() {
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-
-
 
     for (int i = 0; i < 6; i++) {
         sleep_ms(23);
