@@ -72,8 +72,8 @@ bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
     out += sn76489_sample() >> 6;
 
     //if (out) {
-        pwm_set_gpio_level(ZX_AY_PWM_PIN0,(uint8_t)((uint16_t)out+128)); // Право
-        pwm_set_gpio_level(ZX_AY_PWM_PIN1,(uint8_t)((uint16_t)out+128)); // Лево
+        pwm_set_gpio_level(ZX_AY_PWM_PIN0,(uint8_t)((uint16_t)out)); // Право
+        pwm_set_gpio_level(ZX_AY_PWM_PIN1,(uint8_t)((uint16_t)out)); // Лево
     //}
 
     return true;
@@ -87,7 +87,9 @@ void __time_critical_func(render_core)() {
     PWM_init_pin(ZX_AY_PWM_PIN0);
     PWM_init_pin(ZX_AY_PWM_PIN1);
 #ifdef SOUND_SYSTEM
-    static const int sound_frequency = 11000;
+#if PICO_ON_DEVICE
+    static const int sound_frequency = 44100;
+#endif
     if (!add_repeating_timer_us(-1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
         logMsg("Failed to add timer");
         sleep_ms(3000);
@@ -166,9 +168,9 @@ static void fill_audio(void* udata, uint8_t* stream, int len) {
 #if DSS
     out += tickssource() >> 1;
 #endif
-    out += sn76489_sample() >> 6;
+    out += (sn76489_sample()) >> 6;
 
-    *stream = (uint8_t)((uint16_t)out + 128);
+    *stream = (uint8_t)((uint16_t)out);
     //memcpy(stream, &out, len);
 }
 
