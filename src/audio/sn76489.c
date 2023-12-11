@@ -15,6 +15,7 @@
     sn76489.txt -- from http://www.smspower.org/
 
 *****************************************************************************/
+// https://github.com/mamedev/mame/blob/master/src/devices/sound/sn76496.cpp
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -118,19 +119,19 @@ void sn76489_out( uint16_t val) {
         //printf("OK");
         sng.adr = (val & 0x70) >> 4;
         switch (sng.adr) {
-            case 0:
-            case 2:
-            case 4:
+            case 0: // tone 0: frequency
+            case 2: // tone 1: frequency
+            case 4: // tone 2: frequency
                 sng.freq[sng.adr >> 1] = (sng.freq[sng.adr >> 1] & 0x3F0) | (val & 0x0F);
                 break;
 
-            case 1:
-            case 3:
-            case 5:
+            case 1: // tone 0: volume
+            case 3: // tone 1: volume
+            case 5: // tone 2: volume
                 sng.volume[(sng.adr - 1) >> 1] = val & 0xF;
                 break;
 
-            case 6:
+            case 6: // noise: frequency, mode
                 sng.noise_mode = (val & 4) >> 2;
 
                 if ((val & 0x03) == 0x03) {
@@ -148,7 +149,7 @@ void sn76489_out( uint16_t val) {
                 sng.noise_seed = 0x8000;
                 break;
 
-            case 7:
+            case 7: // noise: volume
                 sng.noise_volume = val & 0x0f;
                 break;
         }
