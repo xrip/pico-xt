@@ -81,6 +81,11 @@ bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt){
 struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
+    // create an alarm pool on core 1
+    alarm_pool_t *core1pool = alarm_pool_create(2, 16) ;
+    // Create a repeating timer that calls repeating_timer_callback.
+    struct repeating_timer timer_core_1;
+
     gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
     pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
 
@@ -88,9 +93,9 @@ void __time_critical_func(render_core)() {
     PWM_init_pin(ZX_AY_PWM_PIN1);
 #ifdef SOUND_SYSTEM
 #if PICO_ON_DEVICE
-    static const int sound_frequency = 44100;
+    static const int sound_frequency = 11000;
 #endif
-    if (!add_repeating_timer_us(-1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
+    if (!alarm_pool_add_repeating_timer_us(core1pool, -1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
         logMsg("Failed to add timer");
         sleep_ms(3000);
     }
@@ -186,7 +191,7 @@ static void fill_audio(void* udata, uint8_t* stream, int len) {
 
     int16_t out = 0;
 #if SOUND_BLASTER || ADLIB
-    out += adlibgensample() >> 3;
+    out += (adlibgensample() >> 3);
 #endif
 #if SOUND_BLASTER
     tickBlaster();
