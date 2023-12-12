@@ -48,7 +48,7 @@ uint32_t realstep;
 uint32_t sngtime;
 uint32_t sngstep;
 
-uint32_t adr;
+uint32_t addr;
 
 uint32_t stereo;
 
@@ -81,7 +81,7 @@ void sn76489_reset() {
         mute[i] = 0;
     }
 
-    adr = 0;
+    addr = 0;
 
     noise_seed = 0x8000;
     noise_count = 0;
@@ -99,18 +99,18 @@ void sn76489_reset() {
 void sn76489_out(uint16_t value) {
     if (value & 0x80) {
         //printf("OK");
-        adr = (value & 0x70) >> 4;
-        switch (adr) {
+        addr = (value & 0x70) >> 4;
+        switch (addr) {
             case 0: // tone 0: frequency
             case 2: // tone 1: frequency
             case 4: // tone 2: frequency
-                freq[adr >> 1] = (freq[adr >> 1] & 0x3F0) | (value & 0x0F);
+                freq[addr >> 1] = (freq[addr >> 1] & 0x3F0) | (value & 0x0F);
                 break;
 
             case 1: // tone 0: volume
             case 3: // tone 1: volume
             case 5: // tone 2: volume
-                volume[(adr - 1) >> 1] = value & 0xF;
+                volume[(addr - 1) >> 1] = value & 0xF;
                 break;
 
             case 6: // noise: frequency, mode
@@ -137,7 +137,7 @@ void sn76489_out(uint16_t value) {
         }
     }
     else {
-        freq[adr >> 1] = ((value & 0x3F) << 4) | (freq[adr >> 1] & 0x0F);
+        freq[addr >> 1] = ((value & 0x3F) << 4) | (freq[addr >> 1] & 0x0F);
     }
 }
 
