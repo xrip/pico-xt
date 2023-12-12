@@ -87,7 +87,7 @@ int16_t tickssource();
 static int16_t last_dss_sample = 0;
 
 void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
-    sound_cycles_per_vga+=5;
+    sound_cycles_per_vga+=10;
     int16_t out = 0;
 #if SOUND_BLASTER || ADLIB
     out += adlibgensample() >> 3;
@@ -97,9 +97,9 @@ void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
     out += getBlasterSample();
 #endif
 #if DSS
-    if (sound_cycles_per_vga % 45 == 0) { // about 7-8kHz, TODO: divide by 4.5
+    if (sound_cycles_per_vga >= 70) { // about 7-8kHz, TODO: divide by 4.5
         last_dss_sample = tickssource();
-        sound_cycles_per_vga = 1;
+        sound_cycles_per_vga = 0;
     }
     out += last_dss_sample;
 #endif
