@@ -18,13 +18,14 @@
 // https://github.com/mamedev/mame/blob/master/src/devices/sound/sn76496.cpp
 #include <stdint.h>
 
-int32_t output;
 /*
  *The SN76489 is connected to a clock signal, which is commonly 3579545Hz for NTSC systems and 3546893Hz for PAL/SECAM systems (these are based on the associated TV colour subcarrier frequencies, and are common master clock speeds for many systems). It divides this clock by 16 to get its internal clock. The datasheets specify a maximum of 4MHz.
 */
 uint32_t clock = 3579545;
-uint32_t samplerate = 44100;
-uint32_t base_incr, quality = 0;
+uint16_t samplerate = 44100;
+uint8_t quality = 0;
+
+uint32_t base_incr = 0;
 
 uint32_t count[3];
 uint32_t volume[3];
@@ -46,7 +47,7 @@ uint32_t realstep;
 uint32_t sngtime;
 uint32_t sngstep;
 
-uint32_t adr;
+uint32_t addr;
 
 uint32_t stereo;
 
@@ -54,7 +55,7 @@ int16_t channel_sample[4];
 // } sng = { 0 };
 
 
-static const uint32_t volume_table[16] = {
+const uint32_t volume_table[16] = {
     0xff, 0xcb, 0xa1, 0x80, 0x65, 0x50, 0x40, 0x33, 0x28, 0x20, 0x19, 0x14, 0x10, 0x0c, 0x0a, 0x00
 };
 
@@ -79,7 +80,7 @@ void sn76489_reset() {
         mute[i] = 0;
     }
 
-    adr = 0;
+    addr = 0;
 
     noise_seed = 0x8000;
     noise_count = 0;
@@ -88,27 +89,26 @@ void sn76489_reset() {
     noise_mode = 0;
     noise_fref = 0;
 
-    output = 0;
     stereo = 0xFF;
 
     channel_sample[0] = channel_sample[1] = channel_sample[2] = channel_sample[3] = 0;
 }
 
-void sn76489_out(uint16_t value) {
+void sn76489_out(const uint16_t value) {
     if (value & 0x80) {
         //printf("OK");
-        adr = (value & 0x70) >> 4;
-        switch (adr) {
+        addr = (value & 0x70) >> 4;
+        switch (addr) {
             case 0: // tone 0: frequency
             case 2: // tone 1: frequency
             case 4: // tone 2: frequency
-                freq[adr >> 1] = (freq[adr >> 1] & 0x3F0) | (value & 0x0F);
+                freq[addr >> 1] = (freq[addr >> 1] & 0x3F0) | (value & 0x0F);
                 break;
 
             case 1: // tone 0: volume
             case 3: // tone 1: volume
             case 5: // tone 2: volume
-                volume[(adr - 1) >> 1] = value & 0xF;
+                volume[(addr - 1) >> 1] = value & 0xF;
                 break;
 
             case 6: // noise: frequency, mode
@@ -135,7 +135,7 @@ void sn76489_out(uint16_t value) {
         }
     }
     else {
-        freq[adr >> 1] = ((value & 0x3F) << 4) | (freq[adr >> 1] & 0x0F);
+        freq[addr >> 1] = ((value & 0x3F) << 4) | (freq[addr >> 1] & 0x0F);
     }
 }
 
@@ -169,6 +169,7 @@ static inline void update_output() {
     if (noise_seed & 1) {
         channel_sample[3] += volume_table[noise_volume] << 4;
     }
+
     channel_sample[3] >>= 1;
 
     /* Tone */
@@ -193,8 +194,7 @@ static inline void update_output() {
 }
 
 static inline int16_t mix_output() {
-    output = channel_sample[0] + channel_sample[1] + channel_sample[2] + channel_sample[3];
-    return (int16_t)output;
+    return (int16_t)(channel_sample[0] + channel_sample[1] + channel_sample[2] + channel_sample[3]);
 }
 
 int16_t sn76489_sample() {

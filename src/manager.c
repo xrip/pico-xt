@@ -113,7 +113,7 @@ static void swap_drives(uint8_t cmd) {
     swap_drive_message();
 }
 
-void if_swap_drives() {
+inline void if_swap_drives() {
     if (backspacePressed && tabPressed && ctrlPressed) {
         swap_drives(8);
     }
@@ -587,7 +587,7 @@ bool handleScancode(uint32_t ps2scancode) { // core 1
     return manager_started;
 }
 
-int overclock() {
+inline int overclock() {
   if (tabPressed && ctrlPressed) {
     if (plusPressed) return 1;
     if (minusPressed) return -1;
@@ -595,7 +595,7 @@ int overclock() {
   return 0;
 }
 
-void if_manager() {
+inline void if_manager() {
     if (manager_started) {
         return;
     }
@@ -608,7 +608,7 @@ void if_manager() {
 
 uint32_t overcloking_khz = OVERCLOCKING * 1000;
 
-void if_overclock() {
+inline void if_overclock() {
     int oc = overclock();
     if (oc > 0) overcloking_khz += 1000;
     if (oc < 0) overcloking_khz -= 1000;
