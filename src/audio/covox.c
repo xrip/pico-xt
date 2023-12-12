@@ -27,7 +27,7 @@ static uint8_t ssourcebuf[COVOX_BUF_SZ] = { 0 };
 static volatile uint8_t ssourceptrIn = 0;
 static volatile uint8_t ssourceptrOut = 0;
 static volatile uint8_t free_buff_sz = COVOX_BUF_SZ;
-static volatile uint8_t powerOn = 0;
+static volatile uint8_t powerOn = 1;
 
 int16_t tickssource() { // core #1
     if (free_buff_sz == 0 || !powerOn) { // no bytes in buffer or power is off
@@ -50,6 +50,9 @@ inline static void putssourcebyte(uint8_t value) { // core #0
         ssourceptrIn = 0;
     }
     free_buff_sz--;
+    if(free_buff_sz < 0) {
+        free_buff_sz = 0;
+    }
 }
 
 void outsoundsource(uint16_t portnum, uint8_t value) {
@@ -59,13 +62,13 @@ void outsoundsource(uint16_t portnum, uint8_t value) {
             putssourcebyte(value);
             break;
         case 0x37A:
-            if (value == 4 && !powerOn) { // 4h - turn DSS on
+            if ((value & 8) && powerOn) { // 0Eh / 0Ch - turn DSS off
+                powerOn = 0;
+            }
+            if ((value & 4) && !powerOn) { // 4h - turn DSS on
                 free_buff_sz = COVOX_BUF_SZ;
                 ssourceptrIn, ssourceptrOut = 0;
                 powerOn = 1;
-            }
-            else if ((value & 8) && powerOn) { // 0Eh / 0Ch - turn DSS off
-                powerOn = 0;
             }
             break;
     }

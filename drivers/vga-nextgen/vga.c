@@ -97,13 +97,13 @@ void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
     out += getBlasterSample();
 #endif
 #if DSS
-    if (sound_cycles_per_vga % 4 == 0) { // about 7-8kHz, TODO: divide by 4.5
+    if (sound_cycles_per_vga % 5 == 0) { // about 7-8kHz, TODO: divide by 4.5
         last_dss_sample = tickssource();
-    } else if (sound_cycles_per_vga % 5 == 0) {
-        last_dss_sample = tickssource();
-        sound_cycles_per_vga = 1;
+ //   } else if (sound_cycles_per_vga % 5 == 0) {
+ //       last_dss_sample = tickssource();
+  //      sound_cycles_per_vga = 1;
     }
-    out += last_dss_sample;
+    out += last_dss_sample << 2; // invrease volume
 #endif
     out += sn76489_sample() >> 6;
     pwm_set_gpio_level(PWM_PIN0,(uint8_t)((uint16_t)out)); // Право
