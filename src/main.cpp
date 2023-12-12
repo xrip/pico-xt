@@ -70,6 +70,7 @@ void __time_critical_func(render_core)() {
     PWM_init_pin(ZX_AY_PWM_PIN1);
 #ifdef SOUND_SYSTEM
 #if PICO_ON_DEVICE
+    pwm_config config = pwm_get_default_config();
     static const int sound_frequency = 11000;
 #endif
 //    if (!alarm_pool_add_repeating_timer_us(core1pool, -1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
@@ -160,7 +161,7 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
     //memcpy(stream, &out, len);
 }
 
-pwm_config config = pwm_get_default_config();
+
 
 int main() {
 #if PICO_ON_DEVICE
