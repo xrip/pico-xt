@@ -4,10 +4,6 @@ extern "C" {
 }
 
 #if PICO_ON_DEVICE
-#ifndef OVERCLOCKING
-#define OVERCLOCKING 270
-#endif
-
 #include <pico/time.h>
 #include <pico/multicore.h>
 #include <hardware/pwm.h>
@@ -24,6 +20,7 @@ extern "C" {
 #include "ps2.h"
 #include "usb.h"
 }
+
 #else
 #define SDL_MAIN_HANDLED
 
@@ -41,109 +38,70 @@ uint32_t DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? R
 bool runing = true;
 
 #if PICO_ON_DEVICE
-repeating_timer_t sound_timer;
-#define ZX_AY_PWM_PIN0 (26)
-#define ZX_AY_PWM_PIN1 (27)
+pwm_config config = pwm_get_default_config();
+#define PWM_PIN0 (26)
+#define PWM_PIN1 (27)
 
-void PWM_init_pin(uint pinN){
+void PWM_init_pin(uint8_t pinN) {
     gpio_set_function(pinN, GPIO_FUNC_PWM);
-    uint slice_num = pwm_gpio_to_slice_num(pinN);
 
-    pwm_config c_pwm = pwm_get_default_config();
-    pwm_config_set_clkdiv(&c_pwm,1.0);
-    pwm_config_set_wrap(&c_pwm,255);//MAX PWM value
-    pwm_init(slice_num,&c_pwm,true);
+    pwm_config_set_clkdiv(&config, 1.0);
+    pwm_config_set_wrap(&config, 255); //MAX PWM value
+    pwm_init(pwm_gpio_to_slice_num(pinN), &config, true);
 }
 
 struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
-    // create an alarm pool on core 1
-//    alarm_pool_t *core1pool = alarm_pool_create(2, 16) ;
-    // Create a repeating timer that calls repeating_timer_callback.
-    struct repeating_timer timer_core_1;
-
-    gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
-    pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
-
-    PWM_init_pin(ZX_AY_PWM_PIN0);
-    PWM_init_pin(ZX_AY_PWM_PIN1);
-#ifdef SOUND_SYSTEM
-#if PICO_ON_DEVICE
-    pwm_config config = pwm_get_default_config();
-    static const int sound_frequency = 11000;
-#endif
-//    if (!alarm_pool_add_repeating_timer_us(core1pool, -1000000 / sound_frequency, sound_callback, NULL, &sound_timer)) {
-//        logMsg("Failed to add timer");
-//        sleep_ms(3000);
-//    }
-#endif
     graphics_init();
     graphics_set_buffer(VIDEORAM, 320, 200);
-    graphics_set_textbuffer(VIDEORAM+32768);
+    graphics_set_textbuffer(VIDEORAM + 32768);
     graphics_set_bgcolor(0);
     graphics_set_offset(0, 0);
     graphics_set_flashmode(true, true);
-/*
+
     for (int i = 0; i < 16; ++i) {
         graphics_set_palette(i, cga_palette[i]);
     }
-    */
-
-
-	for (int i = 0; i < 16; ++i) {
-		graphics_set_palette(i, cga_palette[i]);
-	}
-
 
     sem_acquire_blocking(&vga_start_semaphore);
-    uint8_t tick50ms = 0;
+
+    uint8_t tick50ms_counter = 0;
     while (true) {
         doirq(0);
         busy_wait_us(timer_period);
-        if (tick50ms % 2 == 0 && nespad_available) {
+        if (tick50ms_counter % 2 == 0 && nespad_available) {
             nespad_read();
             if (nespad_state) {
                 //logMsg("TEST");
                 // TODO: Speedup in time
-                sermouseevent(nespad_state & DPAD_B ? 1 : nespad_state & DPAD_A ? 2 : 0, nespad_state & DPAD_LEFT ? -3 : nespad_state & DPAD_RIGHT ? 3 : 0, nespad_state & DPAD_UP ? -3 : nespad_state & DPAD_DOWN ? 3 : 0);
+                sermouseevent(nespad_state & DPAD_B ? 1 : nespad_state & DPAD_A ? 2 : 0,
+                              nespad_state & DPAD_LEFT ? -3 : nespad_state & DPAD_RIGHT ? 3 : 0,
+                              nespad_state & DPAD_UP ? -3 : nespad_state & DPAD_DOWN ? 3 : 0);
             }
         }
-        if (tick50ms == 0 || tick50ms == 10) {
+        if (tick50ms_counter == 0 || tick50ms_counter == 10) {
             cursor_blink_state ^= 1;
         }
-        if (tick50ms < 20) {
-            tick50ms++;
+        if (tick50ms_counter < 20) {
+            tick50ms_counter++;
         }
         else {
-            tick50ms = 0;
+            tick50ms_counter = 0;
         }
     }
 }
 
 #else
 
-
 static int RendererThread(void* ptr) {
     while (runing) {
         exec86(2000);
-#if !PICO_ON_DEVICE
-        //SDL_Delay(1);
-#endif
     }
     return 0;
 }
 
-#endif
-
-extern "C" {
-    int16_t sn76489_sample();
-}
-
 static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode only
-    // int16_t out = adlibgensample() >> 4;
-    //
-
     int16_t out = 0;
 #if SOUND_BLASTER || ADLIB
     out += (adlibgensample() >> 3);
@@ -160,7 +118,7 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
     *stream = (uint8_t)((uint16_t)out);
     //memcpy(stream, &out, len);
 }
-
+#endif
 
 
 int main() {
@@ -176,6 +134,14 @@ int main() {
 #endif
 
     //stdio_init_all();
+
+    gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
+    pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
+
+#ifdef SOUND_SYSTEM
+    PWM_init_pin(PWM_PIN0);
+    PWM_init_pin(PWM_PIN1);
+#endif
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -199,17 +165,17 @@ int main() {
     graphics_set_mode(TEXTMODE_80x30);
 
     init_psram();
-    DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
 
     FRESULT result = f_mount(&fs, "", 1);
-    if (result != FR_OK) {
+    if (FR_OK != result) {
         char tmp[80];
         sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
     } else {
         SD_CARD_AVAILABLE = true;
-        DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
     }
+
+    DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
 
     if (!PSRAM_AVAILABLE && !SD_CARD_AVAILABLE) {
         logMsg((char *)"Mo PSRAM or SD CARD available. Only 160Kb RAM will be usable...");
@@ -762,7 +728,7 @@ int main() {
         SDL_BlitScaled(drawsurface, NULL, screen, NULL);
         SDL_UpdateWindowSurface(window);
 #else
-        exec86(200);
+        exec86(2000);
         if_manager();
         if_swap_drives();
         if_overclock();
