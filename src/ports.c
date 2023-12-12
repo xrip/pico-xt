@@ -443,7 +443,8 @@ uint16_t portin(uint16_t portnum) {
             return 0b11110000;*/
 #ifdef SOUND_SYSTEM
 #if DSS
-        case 0x379: // ssStatus 
+        case 0x378: return port378;
+        case 0x379: // ssStatus
             return insoundsource(portnum);
 #endif
 #if SOUND_BLASTER || ADLIB
