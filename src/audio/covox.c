@@ -45,7 +45,7 @@ inline static void putssourcebyte(uint8_t value) { // core #0
     if (ssourceptr == 16)
         return;
     samples_buffer[ssourceptr++] = value;
-    printf("SS BUFF %i\r\n", ssourceptr);
+    // printf("SS BUFF %i\r\n", ssourceptr);
 }
 
 static inline uint8_t ssourcefull() {
@@ -53,7 +53,7 @@ static inline uint8_t ssourcefull() {
 }
 
 void outsoundsource(uint16_t portnum, uint8_t value) {
-    printf("OUT SS %x %x\r\n", portnum, value);
+    //printf("OUT SS %x %x\r\n", portnum, value);
     static uint8_t last37a, port378 = 0;
     switch (portnum) {
         case 0x378:
@@ -64,7 +64,7 @@ void outsoundsource(uint16_t portnum, uint8_t value) {
         case 0x37A:
            // Зачем слать предидущий байт в буфер если это не инит?
              if ((value & 4) && !(last37a & 4)) {
-                 putssourcebyte(port378);
+                 //putssourcebyte(port378);
              }
             if (value == 0x04) {
                 ssactive = 1;
@@ -76,7 +76,7 @@ void outsoundsource(uint16_t portnum, uint8_t value) {
 
 uint8_t insoundsource(uint16_t portnum) {
     uint8_t v = ssourcefull();
-    checks++;
-    printf("IN SS %x %x checks %i\r\n", portnum,v, checks);
+    if ( checks < 2 ) checks++;
+    //printf("IN SS %x %x checks %i\r\n", portnum,v, checks);
     return v;
 }

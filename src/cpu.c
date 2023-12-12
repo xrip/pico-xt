@@ -4308,7 +4308,7 @@ uint8_t read86(uint32_t addr32) {
     if (addr32 == 0xFC000) { return 0x21; };
     if (addr32 == 0x408) return 0x78;
     if (addr32 == 0x409) return 0x03;
-    if (addr32 == 0x411) return 0b01000000;
+    if (addr32 == 0x411) return 0b11000000;
 
     if (addr32 < DIRECT_RAM_BORDER) { // performance improvement (W/A)
         return RAM[addr32];
