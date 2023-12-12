@@ -18,7 +18,6 @@
 // https://github.com/mamedev/mame/blob/master/src/devices/sound/sn76496.cpp
 #include <stdint.h>
 
-int32_t output;
 /*
  *The SN76489 is connected to a clock signal, which is commonly 3579545Hz for NTSC systems and 3546893Hz for PAL/SECAM systems (these are based on the associated TV colour subcarrier frequencies, and are common master clock speeds for many systems). It divides this clock by 16 to get its internal clock. The datasheets specify a maximum of 4MHz.
 */
@@ -56,7 +55,7 @@ int16_t channel_sample[4];
 // } sng = { 0 };
 
 
-static const uint32_t volume_table[16] = {
+const uint32_t volume_table[16] = {
     0xff, 0xcb, 0xa1, 0x80, 0x65, 0x50, 0x40, 0x33, 0x28, 0x20, 0x19, 0x14, 0x10, 0x0c, 0x0a, 0x00
 };
 
@@ -90,13 +89,12 @@ void sn76489_reset() {
     noise_mode = 0;
     noise_fref = 0;
 
-    output = 0;
     stereo = 0xFF;
 
     channel_sample[0] = channel_sample[1] = channel_sample[2] = channel_sample[3] = 0;
 }
 
-void sn76489_out(uint16_t value) {
+void sn76489_out(const uint16_t value) {
     if (value & 0x80) {
         //printf("OK");
         addr = (value & 0x70) >> 4;
@@ -196,8 +194,7 @@ static inline void update_output() {
 }
 
 static inline int16_t mix_output() {
-    output = channel_sample[0] + channel_sample[1] + channel_sample[2] + channel_sample[3];
-    return (int16_t)output;
+    return (int16_t)(channel_sample[0] + channel_sample[1] + channel_sample[2] + channel_sample[3]);
 }
 
 int16_t sn76489_sample() {
