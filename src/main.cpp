@@ -198,7 +198,7 @@ int main() {
     auto* pixels = (unsigned int *)drawsurface->pixels;
 #if SOUND_SYSTEM
     static SDL_AudioSpec wanted;
-    wanted.freq = 8000;
+    wanted.freq = 4000;
     wanted.format = AUDIO_U8;
     wanted.channels = 1;
     wanted.samples = 1;

@@ -24,9 +24,10 @@
 // https://groups.google.com/g/comp.sys.ibm.pc.games/c/gsz2CLJZsx4
 static uint8_t samples_buffer[16] = { 0 };
 static volatile uint8_t ssourceptr = 0, ssactive = 0;
+uint8_t checks = 0;
 
 int16_t tickssource() { // core #1
-    if (ssourceptr == 0 || !ssactive) { // no bytes in buffer
+    if (ssourceptr == 0 || !ssactive || checks < 2) { // no bytes in buffer
         return 0;
     }
 
@@ -44,6 +45,7 @@ inline static void putssourcebyte(uint8_t value) { // core #0
     if (ssourceptr == 16)
         return;
     samples_buffer[ssourceptr++] = value;
+    printf("SS BUFF %i\r\n", ssourceptr);
 }
 
 static inline uint8_t ssourcefull() {
@@ -57,16 +59,15 @@ void outsoundsource(uint16_t portnum, uint8_t value) {
         case 0x378:
             port378 = value;
             putssourcebyte(value);
+            last37a = 0;
             break;
         case 0x37A:
            // Зачем слать предидущий байт в буфер если это не инит?
-            if ((value & 4) && !(last37a & 4)) {
-                putssourcebyte(port378);
-            }
+             if ((value & 4) && !(last37a & 4)) {
+                 putssourcebyte(port378);
+             }
             if (value == 0x04) {
                 ssactive = 1;
-            } else if (value == 0x0C) {
-                ssactive = 0;
             }
             last37a = value;
             break;
@@ -75,6 +76,7 @@ void outsoundsource(uint16_t portnum, uint8_t value) {
 
 uint8_t insoundsource(uint16_t portnum) {
     uint8_t v = ssourcefull();
-    printf("IN SS %x %x\r\n", portnum,v );
+    checks++;
+    printf("IN SS %x %x checks %i\r\n", portnum,v, checks);
     return v;
 }
