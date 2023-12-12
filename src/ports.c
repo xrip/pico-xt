@@ -150,7 +150,7 @@ void portout(uint16_t portnum, uint16_t value) {
 #if DSS
         case 0x378: // ssData
         case 0x37A: // ssControl
-            outsoundsource(portnum, value);
+            dss_out(portnum, value);
             break;
 #endif
 #if SOUND_BLASTER || ADLIB
@@ -445,7 +445,7 @@ uint16_t portin(uint16_t portnum) {
 #if DSS
         case 0x378: return port378;
         case 0x379: // ssStatus
-            return insoundsource(portnum);
+            return dss_in(portnum);
 #endif
 #if SOUND_BLASTER || ADLIB
         case 0x388: // adlib

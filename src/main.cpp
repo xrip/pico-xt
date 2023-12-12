@@ -111,7 +111,7 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
     out += getBlasterSample();
 #endif
 #if DSS
-    out += tickssource() >> 1;
+    out += dss_sample() >> 1;
 #endif
     out += (sn76489_sample()) >> 6;
 
@@ -198,7 +198,7 @@ int main() {
     auto* pixels = (unsigned int *)drawsurface->pixels;
 #if SOUND_SYSTEM
     static SDL_AudioSpec wanted;
-    wanted.freq = 4000;
+    wanted.freq = 8000;
     wanted.format = AUDIO_U8;
     wanted.channels = 1;
     wanted.samples = 1;

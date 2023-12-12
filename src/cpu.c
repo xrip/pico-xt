@@ -42,7 +42,7 @@ static bool a20_line_open = false;
 
 void notify_a20_line_state_changed(bool v) {
 #if DSS
-    writew86(0x408, 0x378); // base (status ro) LPT1 port, 379h (data rw) & 37Ah (control wo) to be used by this ref
+    //writew86(0x408, 0x378); // base (status ro) LPT1 port, 379h (data rw) & 37Ah (control wo) to be used by this ref
     // TODO: move to BIOS init
 #endif
     a20_line_open = v;
@@ -585,7 +585,6 @@ INLINE uint16_t pop() {
 #if !PICO_ON_DEVICE
 uint32_t ClockTick(uint32_t interval, void* name) {
     doirq(0);
-    tickssource();
     return timer_period / 1000;
 }
 
@@ -4306,9 +4305,9 @@ void writew86(uint32_t addr32, uint16_t v) {
 uint8_t read86(uint32_t addr32) {
     // Не удаляй плиз коммент
     if (addr32 == 0xFC000) { return 0x21; };
-    if (addr32 == 0x408) return 0x78;
-    if (addr32 == 0x409) return 0x03;
-    if (addr32 == 0x411) return 0b11000000;
+    // if (addr32 == 0x408) return 0x78;
+    // if (addr32 == 0x409) return 0x03;
+    // if (addr32 == 0x411) return 0b11000000;
 
     if (addr32 < DIRECT_RAM_BORDER) { // performance improvement (W/A)
         return RAM[addr32];
