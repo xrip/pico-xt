@@ -63,6 +63,6 @@ uint8_t nextintr() {
     return(0); //can't get here, but the compiler bitches
 }
 
-void doirq(uint8_t irqnum) {
+void doirq(uint8_t irqnum) { // core #1
     i8259.irr |= (1 << irqnum);
 }
