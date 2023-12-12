@@ -52,7 +52,7 @@ void draw_panel(int left, int top, int width, int height, char* title, char* bot
     line[0]         = 0xBA; // ║
     line[width - 1] = 0xBA;
     line[width]     = 0;
-    for (int y = top + 1; y < height - 1; ++y) {
+    for (int y = top + 1; y < top + height - 1; ++y) {
         draw_text(line, left, y, pcs->FOREGROUND_FIELD_COLOR, pcs->BACKGROUND_FIELD_COLOR);
     }
     // bottom line
@@ -75,6 +75,18 @@ void draw_panel(int left, int top, int width, int height, char* title, char* bot
     }
 }
 
+void draw_box(int left, int top, int width, int height, const char* title, const lines_t* plines) {
+    draw_panel(left, top, width, height, title, 0);
+    int y = top + 1;
+    for (int i = y; y < top + height - 1; ++y) {
+        draw_label(left + 1, y, width - 2, "", false);
+    }
+    for (int i = 0, y = top + 1 + plines->toff; i < plines->sz; ++i, ++y) {
+        const line_t * pl = plines->plns + i;
+        draw_label(left + 1 + pl->off, y, width - 2 - pl->off, pl->txt, false);
+    }
+}
+
 void draw_fn_btn(fn_1_10_tbl_rec_t* prec, int left, int top) {
     char line[10];
     sprintf(line, "       ");
@@ -87,7 +99,7 @@ void draw_fn_btn(fn_1_10_tbl_rec_t* prec, int left, int top) {
     draw_text(line, left + 2, top, pcs->FOREGROUND_F_BTN_COLOR, pcs->BACKGROUND_F_BTN_COLOR);
 }
 
-void draw_cmd_line(int left, int top, char* cmd) { // TODO: cmd
+void draw_cmd_line(int left, int top, char* cmd) {
     char line[82];
     if (cmd) {
         int sl = strlen(cmd);
