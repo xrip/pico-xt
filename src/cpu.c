@@ -72,11 +72,11 @@ static const uint8_t parity[0x100] = {
     0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
 };
 #if PICO_ON_DEVICE
-__aligned(4096)
+__aligned(4)
 #endif
 uint8_t RAM[RAM_SIZE];
 #if PICO_ON_DEVICE
-__aligned(4096)
+__aligned(4)
 #endif
 uint8_t VIDEORAM[VIDEORAM_SIZE];
 

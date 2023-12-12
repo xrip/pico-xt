@@ -25,7 +25,9 @@
 #define DEBUG_DMA 1
 
 #ifdef SOUND_BLASTER
-#defineDMA_8237
+#ifndef DMA_8237
+#define DMA_8237
+#endif
 #endif
 #ifdef DMA_8237
 

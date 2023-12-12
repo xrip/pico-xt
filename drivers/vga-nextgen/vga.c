@@ -76,7 +76,42 @@ static uint16_t* txt_palette_fast = NULL;
 enum graphics_mode_t graphics_mode;
 extern volatile bool manager_started;
 
+#ifdef SOUND_SYSTEM
+#include <hardware/pwm.h>
+#define ZX_AY_PWM_PIN0 (26)
+#define ZX_AY_PWM_PIN1 (27)
+volatile uint32_t sound_cycles_per_vga = 0;
+
+int16_t sn76489_sample();
+
+bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
+    sound_cycles_per_vga = 0;
+
+    uint8_t sound_tick = 0;
+
+    int16_t out = 0;
+#if SOUND_BLASTER || ADLIB
+    out += adlibgensample() >> 3;
+#endif
+#if SOUND_BLASTER
+    tickBlaster();
+    out += getBlasterSample();
+#endif
+#if DSS
+    out += tickssource()(
+#endif
+    out += sn76489_sample() >> 6;
+    pwm_set_gpio_level(ZX_AY_PWM_PIN0,(uint8_t)((uint16_t)out)); // Право
+    pwm_set_gpio_level(ZX_AY_PWM_PIN1,(uint8_t)((uint16_t)out)); // Лево
+    return true;
+}
+#endif
+
 void __not_in_flash_func(dma_handler_VGA)() {
+#ifdef SOUND_SYSTEM
+    ++sound_cycles_per_vga;
+    sound_callback(0);
+#endif
     dma_hw->ints0 = 1u << dma_chan_ctrl;
     static uint32_t frame_number = 0;
     static uint32_t screen_line = 0;
