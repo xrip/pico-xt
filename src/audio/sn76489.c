@@ -24,7 +24,9 @@ int32_t output;
 */
 uint32_t clock = 3579545;
 uint32_t samplerate = 44100;
-uint32_t base_incr, quality = 0;
+uint8_t quality = 0;
+
+uint32_t base_incr = 0;
 
 uint32_t count[3];
 uint32_t volume[3];
@@ -169,6 +171,7 @@ static inline void update_output() {
     if (noise_seed & 1) {
         channel_sample[3] += volume_table[noise_volume] << 4;
     }
+
     channel_sample[3] >>= 1;
 
     /* Tone */
