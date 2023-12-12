@@ -41,10 +41,8 @@ void * psram_spi;
 static bool a20_line_open = false;
 
 void notify_a20_line_state_changed(bool v) {
-#if DSS
-    //writew86(0x408, 0x378); // base (status ro) LPT1 port, 379h (data rw) & 37Ah (control wo) to be used by this ref
-    // TODO: move to BIOS init
-#endif
+    // Tandy hack
+    write86(0xFC000, 0x21);
     a20_line_open = v;
     if (v) {
         map_hma_ram_pages();
@@ -4304,7 +4302,7 @@ void writew86(uint32_t addr32, uint16_t v) {
 // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 uint8_t read86(uint32_t addr32) {
     // Не удаляй плиз коммент
-    if (addr32 == 0xFC000) { return 0x21; };
+    //if (addr32 == 0xFC000) { return 0x21; };
     // if (addr32 == 0x408) return 0x78;
     // if (addr32 == 0x409) return 0x03;
     // if (addr32 == 0x411) return 0b11000000;
