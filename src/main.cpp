@@ -100,7 +100,7 @@ void __time_critical_func(render_core)() {
     while (true) {
         doirq(0);
         busy_wait_us(timer_period);
-        if (nespad_available) {
+        if (tick50ms % 2 == 0 && nespad_available) {
             nespad_read();
             if (nespad_state) {
                 //logMsg("TEST");

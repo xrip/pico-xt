@@ -23,7 +23,7 @@ int32_t output;
  *The SN76489 is connected to a clock signal, which is commonly 3579545Hz for NTSC systems and 3546893Hz for PAL/SECAM systems (these are based on the associated TV colour subcarrier frequencies, and are common master clock speeds for many systems). It divides this clock by 16 to get its internal clock. The datasheets specify a maximum of 4MHz.
 */
 uint32_t clock = 3579545;
-uint32_t samplerate = 11000;
+uint32_t samplerate = 44100;
 uint32_t base_incr, quality = 0;
 
 uint32_t count[3];
