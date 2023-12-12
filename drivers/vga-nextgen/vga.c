@@ -83,12 +83,11 @@ extern volatile bool manager_started;
 volatile uint32_t sound_cycles_per_vga = 0;
 
 int16_t sn76489_sample();
+int16_t tickssource();
+static int16_t last_dss_sample = 0;
 
-bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
-    sound_cycles_per_vga = 0;
-
-    uint8_t sound_tick = 0;
-
+void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
+    sound_cycles_per_vga++;
     int16_t out = 0;
 #if SOUND_BLASTER || ADLIB
     out += adlibgensample() >> 3;
@@ -98,18 +97,22 @@ bool __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
     out += getBlasterSample();
 #endif
 #if DSS
-    out += tickssource()(
+    if (sound_cycles_per_vga % 4 == 0) { // about 7-8kHz, TODO: divide by 4.5
+        last_dss_sample = tickssource();
+    } else if (sound_cycles_per_vga % 5 == 0) {
+        last_dss_sample = tickssource();
+        sound_cycles_per_vga = 1;
+    }
+    out += last_dss_sample;
 #endif
     out += sn76489_sample() >> 6;
     pwm_set_gpio_level(ZX_AY_PWM_PIN0,(uint8_t)((uint16_t)out)); // Право
     pwm_set_gpio_level(ZX_AY_PWM_PIN1,(uint8_t)((uint16_t)out)); // Лево
-    return true;
 }
 #endif
 
 void __not_in_flash_func(dma_handler_VGA)() {
 #ifdef SOUND_SYSTEM
-    ++sound_cycles_per_vga;
     sound_callback(0);
 #endif
     dma_hw->ints0 = 1u << dma_chan_ctrl;

@@ -192,7 +192,8 @@ static __inline uint16_t peekw(int a) {
 }
 
 extern uint16_t portram[256];
-extern uint16_t port378, port379, port37A, port3D8, port3D9, port201;
+extern uint16_t port378, port37A, port3D8, port3D9, port201;
+extern volatile uint16_t port379;
 
 extern union _bytewordregs_ {
     uint16_t wordregs[8];

@@ -41,6 +41,10 @@ void * psram_spi;
 static bool a20_line_open = false;
 
 void notify_a20_line_state_changed(bool v) {
+#if DSS
+    writew86(0x408, 0x378); // base (status ro) LPT1 port, 379h (data rw) & 37Ah (control wo) to be used by this ref
+    // TODO: move to BIOS init
+#endif
     a20_line_open = v;
     if (v) {
         map_hma_ram_pages();

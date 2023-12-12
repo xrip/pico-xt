@@ -22,44 +22,39 @@
 #include "../emulator.h"
 // https://archive.org/details/dss-programmers-guide/page/n1/mode/2up
 // https://groups.google.com/g/comp.sys.ibm.pc.games/c/gsz2CLJZsx4
+#define COVOX_BUF_SZ 16
+static uint8_t ssourcebuf[COVOX_BUF_SZ] = { 0 };
+static volatile uint8_t ssourceptrIn = 0;
+static volatile uint8_t ssourceptrOut = 0;
+static volatile uint8_t free_buff_sz = COVOX_BUF_SZ;
 
-static uint8_t ssourcebuf[16], ssourceptr = 0;
-static int16_t ssourcecursample = 0;
-
-int16_t getssourcebyte() {
-
-    return ssourcecursample;
-}
-
-
-int16_t tickssource() {
-    if (ssourceptr == 0) {
-        ssourcecursample = 0;
+int16_t tickssource() { // core #1
+    if (ssourceptrIn == ssourceptrOut) { // no bytes in buffer
         return 0;
     }
-    ssourcecursample = ssourcebuf[0];
-    for (int rotatefifo = 1; rotatefifo < 16; rotatefifo++)
-        ssourcebuf[rotatefifo - 1] = ssourcebuf[rotatefifo];
-    ssourceptr--;
-    port379 = 0;
-
-    return ssourcecursample;
+    port379 = 0; // ready for next byte
+    register int16_t res = ssourcebuf[ssourceptrOut++];
+    free_buff_sz++;
+    return res;
 }
 
-
-static void putssourcebyte(uint8_t value) {
-    if (ssourceptr == 16)
+inline static void putssourcebyte(uint8_t value) { // core #0
+    if (free_buff_sz >= COVOX_BUF_SZ) { // ignore input, no free space in buffer
         return;
-    ssourcebuf[ssourceptr++] = value;
-    if (ssourceptr == 16)
-        port379 = 0x40;
+    }
+    ssourcebuf[ssourceptrIn++] = value;
+    if (ssourceptrIn >= 16) {
+        ssourceptrIn = 0;
+    }
+    free_buff_sz--;
+    if (free_buff_sz == 0) {
+        port379 = 0x40; // Buffer is full
+    }
 }
-
 
 static inline uint8_t ssourcefull() {
-    return ssourceptr == 16 ? 0x40 : 0x00;
+    return free_buff_sz == 0 ? 0x40 : 0x00;
 }
-
 
 void outsoundsource(uint16_t portnum, uint8_t value) {
     static uint8_t last37a = 0;
@@ -74,7 +69,6 @@ void outsoundsource(uint16_t portnum, uint8_t value) {
             break;
     }
 }
-
 
 uint8_t insoundsource(uint16_t portnum) {
     return ssourcefull();
