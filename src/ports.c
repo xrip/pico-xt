@@ -27,6 +27,7 @@ static uint8_t vga_color_index = 0;
 static uint8_t dac_state = 0;
 static uint8_t latchReadRGB = 0, latchReadPal = 0;
 
+extern volatile uint16_t true_covox;
 
 uint32_t ega_plane_offset = 0;
 bool vga_planar_mode = false;
@@ -151,6 +152,9 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x378: // ssData
         case 0x37A: // ssControl
             dss_out(portnum, value);
+            break;
+        case 0x3BD: // covox data port
+            true_covox = value;
             break;
 #endif
 #if SOUND_BLASTER || ADLIB
@@ -446,6 +450,8 @@ uint16_t portin(uint16_t portnum) {
         case 0x378: return port378;
         case 0x379: // ssStatus
             return dss_in(portnum);
+        case 0x3BE: // LPT2 status (covox is always ready)
+            return 0;
 #endif
 #if SOUND_BLASTER || ADLIB
         case 0x388: // adlib

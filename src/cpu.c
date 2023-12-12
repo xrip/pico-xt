@@ -42,7 +42,9 @@ static bool a20_line_open = false;
 
 void notify_a20_line_state_changed(bool v) {
 #if DSS
-    //writew86(0x408, 0x378); // base (status ro) LPT1 port, 379h (data rw) & 37Ah (control wo) to be used by this ref
+    writew86(0x408, 0x378); // base (status ro) LPT1 port, 379h (data rw) & 37Ah (control wo) to be used by this ref
+    writew86(0x410, readw86(0x410) | 0x8000); // bit 15 means 2 LPT ports are installed
+    writew86(0x40A, 0x3BC); // base (status ro) LPT2 port, 3BDh (data rw) & 3BEh (control wo)
     // TODO: move to BIOS init
 #endif
     a20_line_open = v;
