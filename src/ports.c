@@ -14,12 +14,11 @@ uint8_t VGA_SC_index, VGA_SC[5]; // VGA Sequencer Registers
 uint8_t VGA_GC_index, VGA_GC[9]; // VGA Other Graphics Registers
 
 uint16_t port378, port37A, port3D8, port3D9, port3DA, port201;
-volatile uint16_t port379;
 
 void ports_reboot() {
     notify_a20_line_state_changed(false);
     memset(portram, 0, sizeof(portram));
-    port378, port379, port37A, port3D8, port3D9, port3DA, port201 = 0;
+    port378, port37A, port3D8, port3D9, port3DA, port201 = 0;
 }
 
 static uint8_t vga_palette_index = 0;

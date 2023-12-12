@@ -27,12 +27,12 @@ static uint8_t ssourcebuf[COVOX_BUF_SZ] = { 0 };
 static volatile uint8_t ssourceptrIn = 0;
 static volatile uint8_t ssourceptrOut = 0;
 static volatile uint8_t free_buff_sz = COVOX_BUF_SZ;
+static volatile uint8_t powerOn = 0;
 
 int16_t tickssource() { // core #1
-    if (ssourceptrIn == ssourceptrOut && free_buff_sz == 0) { // no bytes in buffer
+    if (free_buff_sz == 0 || !powerOn) { // no bytes in buffer or power is off
         return 0;
     }
-    port379 = 0; // ready for next byte
     register int16_t res = ssourcebuf[ssourceptrOut++];
     if (ssourceptrOut >= COVOX_BUF_SZ) {
         ssourceptrOut = 0;
@@ -42,7 +42,7 @@ int16_t tickssource() { // core #1
 }
 
 inline static void putssourcebyte(uint8_t value) { // core #0
-    if (free_buff_sz >= COVOX_BUF_SZ) { // ignore input, no free space in buffer
+    if (free_buff_sz >= COVOX_BUF_SZ || !powerOn) { // ignore input, no free space in buffer or power is off
         return;
     }
     ssourcebuf[ssourceptrIn++] = value;
@@ -50,29 +50,27 @@ inline static void putssourcebyte(uint8_t value) { // core #0
         ssourceptrIn = 0;
     }
     free_buff_sz--;
-    if (free_buff_sz == 0) {
-        port379 = 0x40; // Buffer is full
-    }
-}
-
-static inline uint8_t ssourcefull() {
-    return free_buff_sz == 0 ? 0x40 : 0x00;
 }
 
 void outsoundsource(uint16_t portnum, uint8_t value) {
-    static uint8_t last37a = 0;
+    static uint8_t prev = 4;
     switch (portnum) {
         case 0x378:
             putssourcebyte(value);
             break;
         case 0x37A:
-            if ((value & 4) && !(last37a & 4))
-                putssourcebyte(port378);
-            last37a = value;
+            if (value == 4 && !powerOn) { // 4h - turn DSS on
+                free_buff_sz = COVOX_BUF_SZ;
+                ssourceptrIn, ssourceptrOut = 0;
+                powerOn = 1;
+            }
+            else if ((value & 8) && powerOn) { // 0Eh / 0Ch - turn DSS off
+                powerOn = 0;
+            }
             break;
     }
 }
 
 uint8_t insoundsource(uint16_t portnum) {
-    return ssourcefull();
+    return (!powerOn || free_buff_sz == 0) ? 0x40 : 0x00;
 }
