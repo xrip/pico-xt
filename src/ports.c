@@ -148,8 +148,8 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
 #endif
 #if DSS
-        case 0x378:
-        case 0x37A:
+        case 0x378: // ssData
+        case 0x37A: // ssControl
             outsoundsource(portnum, value);
             break;
 #endif
@@ -443,7 +443,7 @@ uint16_t portin(uint16_t portnum) {
             return 0b11110000;*/
 #ifdef SOUND_SYSTEM
 #if DSS
-        case 0x379:
+        case 0x379: // ssStatus 
             return insoundsource(portnum);
 #endif
 #if SOUND_BLASTER || ADLIB
