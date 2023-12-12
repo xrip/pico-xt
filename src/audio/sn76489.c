@@ -24,7 +24,7 @@ int32_t output;
 */
 uint32_t clock = 3579545;
 uint32_t samplerate = 44100;
-uint32_t base_incr, quality = 0;
+uint32_t base_incr, quality = 1;
 
 uint32_t count[3];
 uint32_t volume[3];
