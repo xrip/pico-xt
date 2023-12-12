@@ -29,11 +29,14 @@ static volatile uint8_t ssourceptrOut = 0;
 static volatile uint8_t free_buff_sz = COVOX_BUF_SZ;
 
 int16_t tickssource() { // core #1
-    if (ssourceptrIn == ssourceptrOut) { // no bytes in buffer
+    if (ssourceptrIn == ssourceptrOut && free_buff_sz == 0) { // no bytes in buffer
         return 0;
     }
     port379 = 0; // ready for next byte
     register int16_t res = ssourcebuf[ssourceptrOut++];
+    if (ssourceptrOut >= COVOX_BUF_SZ) {
+        ssourceptrOut = 0;
+    }
     free_buff_sz++;
     return res;
 }
@@ -43,7 +46,7 @@ inline static void putssourcebyte(uint8_t value) { // core #0
         return;
     }
     ssourcebuf[ssourceptrIn++] = value;
-    if (ssourceptrIn >= 16) {
+    if (ssourceptrIn >= COVOX_BUF_SZ) {
         ssourceptrIn = 0;
     }
     free_buff_sz--;
