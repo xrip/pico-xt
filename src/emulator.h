@@ -265,11 +265,11 @@ void sermouseevent(uint8_t buttons, int8_t xrel, int8_t yrel);
 
 void initsermouse(uint16_t baseport, uint8_t irq);
 
-void outsoundsource(uint16_t portnum, uint8_t value);
+void dss_out(uint16_t portnum, uint8_t value);
 
-uint8_t insoundsource(uint16_t portnum);
+uint8_t dss_in(uint16_t portnum);
 
-int16_t tickssource();
+int16_t dss_sample();
 
 extern int16_t adlibgensample(void);
 

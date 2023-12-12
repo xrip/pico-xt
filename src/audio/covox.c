@@ -26,7 +26,7 @@ static uint8_t samples_buffer[16] = { 0 };
 static volatile uint8_t ssourceptr = 0, ssactive = 0;
 uint8_t checks = 0;
 
-int16_t tickssource() { // core #1
+int16_t dss_sample() { // core #1
     if (ssourceptr == 0 || !ssactive || checks < 2) { // no bytes in buffer
         return 0;
     }
@@ -52,7 +52,7 @@ static inline uint8_t ssourcefull() {
     return ssourceptr == 16 ? 0x40 : 0x00;
 }
 
-void outsoundsource(uint16_t portnum, uint8_t value) {
+void dss_out(uint16_t portnum, uint8_t value) {
     //printf("OUT SS %x %x\r\n", portnum, value);
     static uint8_t last37a, port378 = 0;
     switch (portnum) {
@@ -74,7 +74,7 @@ void outsoundsource(uint16_t portnum, uint8_t value) {
     }
 }
 
-uint8_t insoundsource(uint16_t portnum) {
+uint8_t dss_in(uint16_t portnum) {
     uint8_t v = ssourcefull();
     if ( checks < 2 ) checks++;
     //printf("IN SS %x %x checks %i\r\n", portnum,v, checks);

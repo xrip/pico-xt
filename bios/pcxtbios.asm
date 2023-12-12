@@ -71,7 +71,7 @@ ENHANCED_KEYB	= 1		; Define for Int 9h enhanced (101-key) keyboard support
 ;ROM_START	= 0C000h	; Expansion ROM search start segment, must be 2K aligned
 ;ROM_END	= 0FE00h	; Expansion ROM search end segment, must be 2K aligned
 
-ROM_DELAY	= 1		; Seconds to wait after expansion ROM inits (keypress will bypass)
+ROM_DELAY	= 0		; Seconds to wait after expansion ROM inits (keypress will bypass)
 BOOT_DELAY	= 1		; Seconds to wait after memory test (keypress will bypass)
 
 ;WARM_BOOT_BASIC = 1		; Define to display ROM BASIC boot prompt during a warm boot
@@ -451,7 +451,7 @@ else
 endif
 else
 ifdef	TURBO_ENABLED
-	str_banner	db	15h,' MURMULATOR PC/XT - 11/30/2023', 0
+	str_banner	db	15h,' MURMULATOR PC/XT - 12/12/2023', 0
 else
 	str_banner	db	'Super XT BIOS v3.1 - 10/28/2017', 0
 endif
@@ -731,32 +731,36 @@ endif
 	mov	ax, 101h			; Time-out value seconds
 	mov	[ds:7Ch], ax			;   COM1
 	mov	[ds:7Eh], ax			;   COM2
-	mov	si, offset lpt_ports		; si --> LPT port table
-	xor	di, di				;   offset into data seg
-	mov	cl, 3				;   number of printers
 
-@@next_lpt:
-	mov	dx, [cs:si]			; Get LPT port
-	mov	al, 10101010b			;   write value
-	out	dx, al				;   to the LPT
-	mov	al, 11111111b			; Dummy data value
-	out	0C0h, al			;   on the bus
-	in	al, dx				; Read code back
-	cmp	al, 10101010b			;   check code
-	jnz	@@no_lpt			;   no printer found
-	mov	[di+8], dx			; Save printer port
-	inc	di
-	inc	di
+;	mov	si, offset lpt_ports		; si --> LPT port table
+;	xor	di, di				;   offset into data seg
+;	mov	cl, 3				;   number of printers
+;
+;@@next_lpt:
+;	mov	dx, [cs:si]			; Get LPT port
+;	mov	al, 10101010b			;   write value
+;	out	dx, al				;   to the LPT
+;	mov	al, 11111111b			; Dummy data value
+;	out	0C0h, al			;   on the bus
+;	in	al, dx				; Read code back
+;	cmp	al, 10101010b			;   check code
+;	jnz	@@no_lpt			;   no printer found
+;
+;	mov	[di+8], dx			; Save printer port
+;	inc	di
+;	inc	di
+;
+;@@no_lpt:
+;	inc	si
+;	inc	si
+;	loop	@@next_lpt
+;
+;	mov	ax, di				; Number of printers * 2
+;	mov	cl, 3				;   get shift count
+;	ror	al, cl				;   divide by eight
 
-@@no_lpt:
-	inc	si
-	inc	si
-	loop	@@next_lpt
-
-	mov	ax, di				; Number of printers * 2
-	mov	cl, 3				;   get shift count
-	ror	al, cl				;   divide by eight
-	mov	[ds:11h], al			;   save in equipment flag
+    mov	[8], 0x378
+	mov	[ds:11h], 01000000b	 ;   save in equipment flag with one printer
 
 	xor	di, di				; COM port(s) at 40:00 (hex)
 
@@ -5293,7 +5297,7 @@ endp	power
 ; BIOS Release Date and Signature
 ;--------------------------------------------------------------------------------------------------
 	entry	0FFF5h
-date	db	"11/24/23", 0			; Release date (MM/DD/YY)
+date	db	"12/12/23", 0			; Release date (MM/DD/YY)
 						;   originally 08/23/87
 	entry	0FFFEh
 ifdef	IBM_PC

@@ -83,7 +83,7 @@ extern volatile bool manager_started;
 volatile uint32_t sound_cycles_per_vga = 0;
 
 int16_t sn76489_sample();
-int16_t tickssource();
+int16_t dss_sample();
 static int16_t last_dss_sample = 0;
 
 void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
@@ -98,7 +98,7 @@ void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
 #endif
 #if DSS
     if (sound_cycles_per_vga >= 70) { // about 7-8kHz, TODO: divide by 4.5
-        last_dss_sample = tickssource();
+        last_dss_sample = dss_sample();
         sound_cycles_per_vga = 0;
     }
     out += last_dss_sample;
