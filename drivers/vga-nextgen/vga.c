@@ -85,7 +85,7 @@ volatile uint16_t true_covox = 0;
 
 int16_t sn76489_sample();
 int16_t dss_sample();
-int32_t adlibgensample_ch(int16_t ch);
+int16_t adlibgensample();
 
 inline static void sound_callback() {
     static uint32_t dss_cycles_per_vga = 0;
@@ -98,10 +98,10 @@ inline static void sound_callback() {
     adlib_cycles_per_vga += 1;
     int16_t out = 0;
 #if SOUND_BLASTER || ADLIB
-    sum_adlib_samples += adlibgensample_ch(adlib_cycles_per_vga);
+    //sum_adlib_samples += adlibgensample_ch(adlib_cycles_per_vga);
     if (adlib_cycles_per_vga >= 9) { // TODO: adjust rate
         adlib_cycles_per_vga = 0;
-        last_adlib_sample = (int16_t)(sum_adlib_samples / 8); // << 16 too mach, but i32 to i16...
+        last_adlib_sample = adlibgensample(); // << 16 too mach, but i32 to i16...
         sum_adlib_samples = 0;
     }
     out += last_adlib_sample;

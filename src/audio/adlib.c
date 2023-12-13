@@ -250,9 +250,9 @@ int16_t adlibgensample ( void )
 	int16_t adlibaccum = 0;
 	for (int curchan = 0; curchan < 9; curchan++) {
 		if (adlibfreq(curchan) != 0) {
-			adlibaccum += (int16_t)(adlibsample(curchan) >> 16);
+			adlibaccum += adlibsample(curchan);
 		}
 	}
-	return adlibaccum;
+	return (adlibaccum >> 4)+128;
 }
 

@@ -278,6 +278,7 @@ extern void initadlib(uint16_t baseport);
 extern void outadlib(uint16_t portnum, uint8_t value);
 
 extern void tickadlib(void);
+extern int16_t adlibgensample(void);
 
 
 extern int16_t getBlasterSample(void);
