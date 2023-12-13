@@ -26,8 +26,10 @@ static uint8_t vga_palette_index = 0;
 static uint8_t vga_color_index = 0;
 static uint8_t dac_state = 0;
 static uint8_t latchReadRGB = 0, latchReadPal = 0;
-
-extern volatile uint16_t true_covox;
+#if PICO_ON_DEVICE
+extern
+#endif
+volatile uint16_t true_covox;
 
 uint32_t ega_plane_offset = 0;
 bool vga_planar_mode = false;
@@ -463,7 +465,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x378: return port378;
         case 0x379: // ssStatus
             return dss_in(portnum);
-        case 0x3BE: // LPT2 status (covox is always ready)
+        case 0x27A: // LPT2 status (covox is always ready)
             return 0;
 #endif
 #if SOUND_BLASTER || ADLIB

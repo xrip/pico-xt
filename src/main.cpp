@@ -106,7 +106,7 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
     int16_t outs[2] = { 0 };
     int16_t out = 0;
 #if SOUND_BLASTER || ADLIB
-    out += (adlibgensample() >> 3);
+    out += adlibgensample();
 #endif
 #if SOUND_BLASTER
     tickBlaster();

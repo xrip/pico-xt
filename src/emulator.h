@@ -271,8 +271,6 @@ uint8_t dss_in(uint16_t portnum);
 
 int16_t dss_sample();
 
-extern int16_t adlibgensample(void);
-
 extern uint8_t inadlib(uint16_t portnum);
 
 extern void initadlib(uint16_t baseport);
@@ -280,6 +278,7 @@ extern void initadlib(uint16_t baseport);
 extern void outadlib(uint16_t portnum, uint8_t value);
 
 extern void tickadlib(void);
+extern int16_t adlibgensample(void);
 
 
 extern int16_t getBlasterSample(void);

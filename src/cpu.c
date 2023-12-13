@@ -42,7 +42,7 @@ static bool a20_line_open = false;
 
 void notify_a20_line_state_changed(bool v) {
     // Tandy hack
-    write86(0xFC000, 0x21);
+    write86(0xFC000, 0x21); // write to ROM? it is req. to tune up rom-shatow to work this way
     a20_line_open = v;
     if (v) {
         map_hma_ram_pages();
