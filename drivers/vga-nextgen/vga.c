@@ -76,6 +76,7 @@ static uint16_t* txt_palette_fast = NULL;
 enum graphics_mode_t graphics_mode;
 extern volatile bool manager_started;
 
+// TODO: separate header for sound mixer
 #ifdef SOUND_SYSTEM
 #include <hardware/pwm.h>
 #define PWM_PIN0 (26)
@@ -87,47 +88,64 @@ int16_t sn76489_sample();
 uint8_t dss_sample();
 void cms_samples(int16_t* pout_l, int16_t* pout_r);
 int16_t adlibgensample();
+extern volatile bool is_adlib_on;
+extern volatile bool is_covox_on;
+extern volatile bool is_game_balaster_on;
+extern volatile bool is_tandy3v_on;
+extern volatile bool is_dss_on;
+extern volatile bool is_sound_on;
 
 inline static void sound_callback() {
     static uint32_t dss_cycles_per_vga = 0;
     static uint8_t last_dss_sample = 0;
     static uint32_t adlib_cycles_per_vga = 0;
     static int16_t last_adlib_sample = 0;
-    static int32_t sum_adlib_samples = 0;
+    static int16_t sum_adlib_samples = 0;
 
     dss_cycles_per_vga += 10;
     adlib_cycles_per_vga += 1;
     int16_t out_l, out_r, out = 0;
 #if SOUND_BLASTER || ADLIB
-    //sum_adlib_samples += adlibgensample_ch(adlib_cycles_per_vga);
-    if (adlib_cycles_per_vga >= 9) { // TODO: adjust rate
-        adlib_cycles_per_vga = 0;
-        last_adlib_sample = (int16_t)(adlibgensample() >> 4); // signed 32 to signed 16, let assume not all 32 bits are in use
-        sum_adlib_samples = 0;
+    if (is_adlib_on) {
+        if (adlib_cycles_per_vga > 9) { // TODO: adjust rate
+            adlib_cycles_per_vga = 0;
+            sum_adlib_samples = 0;
+        }
+        sum_adlib_samples += (int16_t)(adlibgensample_ch(adlib_cycles_per_vga) >> 5);
+        out += last_adlib_sample;
     }
-    out += last_adlib_sample;
 #endif
 #if SOUND_BLASTER
     tickBlaster();
     out += getBlasterSample();
 #endif
 #if DSS
-    if (dss_cycles_per_vga >= 70) { // about 7-8kHz, TODO: divide by 4.5
-        last_dss_sample = dss_sample();
-        dss_cycles_per_vga = 0;
+    if (is_dss_on) {
+        if (dss_cycles_per_vga >= 70) { // about 7-8kHz, TODO: divide by 4.5
+            last_dss_sample = dss_sample();
+            dss_cycles_per_vga = 0;
+        }
+        out += ((int16_t)last_dss_sample - (int16_t)0x0080) << 7; // 8 unsigned on LPT1 mix to signed 16
     }
-    out += ((int16_t)last_dss_sample - (int16_t)0x0080) << 7; // 8 unsigned on LPT1 mix to signed 16
 #endif
 #ifdef COVOX
-    out += ((int16_t)true_covox - (int16_t)0x0080) << 7; // 8 unsigned on LPT2 mix to signed 18
+    if (is_covox_on) {
+        out += ((int16_t)true_covox - (int16_t)0x0080) << 7; // 8 unsigned on LPT2 mix to signed 18
+    }
 #endif
 #ifdef TANDY3V
-    out += sn76489_sample(); // already signed 16
+    if (is_tandy3v_on)
+        out += sn76489_sample(); // already signed 16
 #endif
 #ifdef CMS
-    cms_samples(&out_l, &out_r);
-    out_l = out + (out_l >> 12); // mix it with decrease volume
-    out_r = out + (out_r >> 12);
+    if (is_game_balaster_on) {
+        cms_samples(&out_l, &out_r);
+        out_l = out + (out_l >> 12); // mix it with decrease volume
+        out_r = out + (out_r >> 12);
+    } else {
+        out_l = out;
+        out_r = out;
+    }
 #else
     out_l = out;
     out_r = out;
@@ -402,7 +420,9 @@ inline static void dma_handler_VGA_impl() {
 void __not_in_flash_func(dma_handler_VGA)() {
     dma_handler_VGA_impl();
 #ifdef SOUND_SYSTEM
-    sound_callback();
+    if (is_sound_on) {
+        sound_callback();
+    }
 #endif
 }
 

@@ -14,6 +14,29 @@ static volatile bool altPressed = false;
 static volatile bool tabPressed = false;
 static volatile bool upPressed = false;
 static volatile bool downPressed = false;
+static volatile bool aPressed = false;
+static volatile bool cPressed = false;
+static volatile bool gPressed = false;
+static volatile bool tPressed = false;
+static volatile bool dPressed = false;
+static volatile bool sPressed = false;
+
+static volatile bool xPressed = false;
+static volatile bool ePressed = false;
+static volatile bool uPressed = false;
+static volatile bool hPressed = false;
+
+volatile bool is_adlib_on = false;
+volatile bool is_covox_on = true;
+volatile bool is_game_balaster_on = false;
+volatile bool is_tandy3v_on = true;
+volatile bool is_dss_on = true;
+volatile bool is_sound_on = true;
+
+volatile bool is_xms_on = false;
+volatile bool is_ems_on = true;
+volatile bool is_umb_on = true;
+volatile bool is_hma_on = true;
 
 bool already_swapped_fdds = false;
 volatile bool manager_started = false;
@@ -71,15 +94,36 @@ inline static void swap_drive_message() {
         const line_t lns[1] = {
             { 13, "Swap FDD0 and FDD1 drive images back" }
         };
-        const lines_t lines = { 1, 4, lns };
+        const lines_t lines = { 1, 3, lns };
         draw_box(10, 7, 60, 10, "Info", &lines);
     }
     sleep_ms(1500);
     graphics_set_mode(ret);
     restore_video_ram();
-    
-    fill_panel(&left_panel);
-    fill_panel(&right_panel);
+}
+
+inline static void swap_sound_state_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (is_sound_on) {
+        const line_t lns[3] = {
+            { 15, "Turn whole Sound Sustem OFF" },
+            {  0, "" },
+            {  6, "To turn it ON back, press Ctrl + Tab + S"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    } else {
+        const line_t lns[1] = {
+            { 15, "Turn whole Sound Sustem ON" }
+        };
+        const lines_t lines = { 1, 3, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    }
+    is_sound_on = !is_sound_on;
+    sleep_ms(1500);
+    graphics_set_mode(ret);
+    restore_video_ram();
 }
 
 typedef struct drive_state {
@@ -103,17 +147,15 @@ static void swap_drives(uint8_t cmd) {
     if (already_swapped_fdds) {
         insertdisk(0, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
         insertdisk(1, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
-        already_swapped_fdds = false;
-        swap_drive_message();
-        return;
+    } else {
+        insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
+        insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
     }
-    insertdisk(1, fdd0_sz(), fdd0_rom(), "\\XT\\fdd0.img");
-    insertdisk(0, fdd1_sz(), fdd1_rom(), "\\XT\\fdd1.img");
-    already_swapped_fdds = true;
+    already_swapped_fdds = !already_swapped_fdds;
     swap_drive_message();
 }
 
-inline void if_swap_drives() {
+inline static void if_swap_drives() {
     if (backspacePressed && tabPressed && ctrlPressed) {
         swap_drives(8);
     }
@@ -195,7 +237,7 @@ static inline void bottom_line() {
     draw_cmd_line(0, CMD_Y_POS, 0);
 }
 
-static void turn_usb_off(uint8_t cmd) { // TODO: support multiple enter for USB mount
+static inline void turn_usb_off(uint8_t cmd) { // TODO: support multiple enter for USB mount
     set_tud_msc_ejected(true);
     usb_started = false;
     // Alt + F10 no more actions
@@ -273,13 +315,13 @@ static inline void fill_panel(file_panel_desc_t* p) {
     }
 }
 
-static void select_right_panel() {
+inline static void select_right_panel() {
     psp = &right_panel;
     fill_panel(&left_panel);
     fill_panel(&right_panel);
 }
 
-static void select_left_panel() {
+inline static void select_left_panel() {
     psp = &left_panel;
     fill_panel(&left_panel);
     fill_panel(&right_panel);
@@ -400,12 +442,39 @@ static inline void enter_pressed() {
     f_closedir(&dir);
 }
 
+static inline void if_sound_control() { // core #0
+    if (ctrlPressed && tabPressed) {
+        if (aPressed) {
+            is_adlib_on;
+        } else if (cPressed) {
+
+        } else if (dPressed) {
+            
+        } else if (tPressed) {
+            
+        } else if (gPressed) {
+            
+        } else if (sPressed) {
+            swap_sound_state_message();
+        } else if (xPressed) {
+            
+        } else if (ePressed) {
+            
+        } else if (uPressed) {
+            
+        } else if (hPressed) {
+            
+        }
+    }
+}
+
 static uint8_t repeat_cnt = 0;
 
-static void work_cycle() {
+static inline void work_cycle() {
     while(1) {
         if_swap_drives();
         if_overclock();
+        if_sound_control();
         if (psp == &left_panel && !left_panel_make_active) {
             select_right_panel();
         }
@@ -506,7 +575,7 @@ static void work_cycle() {
     }
 }
 
-void start_manager() {
+inline static void start_manager() {
     mark_to_exit_flag = false;
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
@@ -573,6 +642,66 @@ bool handleScancode(uint32_t ps2scancode) { // core 1
       case 0x9D:
         ctrlPressed = false;
         break;
+      case 0x20:
+        dPressed = true;
+        break;
+      case 0xA0:
+        dPressed = false;
+        break;
+      case 0x2E:
+        cPressed = true;
+        break;
+      case 0xAE:
+        cPressed = false;
+        break;
+      case 0x14:
+        tPressed = true;
+        break;
+      case 0x94:
+        tPressed = false;
+        break;
+      case 0x22:
+        gPressed = true;
+        break;
+      case 0xA2:
+        gPressed = false;
+        break;
+      case 0x1E:
+        aPressed = true;
+        break;
+      case 0x9E:
+        aPressed = false;
+        break;
+      case 0x1F:
+        sPressed = true;
+        break;
+      case 0x9F:
+        sPressed = false;
+        break;
+      case 0x2D:
+        xPressed = true;
+        break;
+      case 0xAD:
+        xPressed = false;
+        break;
+      case 0x12:
+        ePressed = true;
+        break;
+      case 0x92:
+        ePressed = false;
+        break;
+      case 0x16:
+        uPressed = true;
+        break;
+      case 0x96:
+        uPressed = false;
+        break;
+      case 0x23:
+        hPressed = true;
+        break;
+      case 0xA3:
+        hPressed = false;
+        break;
       case 0x0F:
         tabPressed = true;
         break;
@@ -582,30 +711,19 @@ bool handleScancode(uint32_t ps2scancode) { // core 1
         tabPressed = false;
         break;
       default:
-        snprintf(line, 80, "Scan-code: %02Xh", ps2scancode);
-        draw_cmd_line(0, CMD_Y_POS, line);
+        //snprintf(line, 80, "Scan-code: %02Xh", ps2scancode);
+        //draw_cmd_line(0, CMD_Y_POS, line);
         break;
     }
     return manager_started;
 }
 
-inline int overclock() {
+inline static int overclock() {
   if (tabPressed && ctrlPressed) {
     if (plusPressed) return 1;
     if (minusPressed) return -1;
   }
   return 0;
-}
-
-inline void if_manager() {
-    if (manager_started) {
-        return;
-    }
-    if (backspacePressed && enterPressed) {
-        manager_started = true;
-        start_manager();
-        manager_started = false;
-    }
 }
 
 uint32_t overcloking_khz = OVERCLOCKING * 1000;
@@ -637,4 +755,19 @@ inline void if_overclock() {
         }
     }
 }
+
+void if_manager() {
+    if_swap_drives();
+    if_overclock();
+    if_sound_control();
+    if (manager_started) {
+        return;
+    }
+    if (backspacePressed && enterPressed) {
+        manager_started = true;
+        start_manager();
+        manager_started = false;
+    }
+}
+
 #endif

@@ -73,6 +73,8 @@
 #define MAX_EMM_HANDLERS 255
 #define MAX_EMM_HANDLER_NAME_SZ 8
 
+extern volatile bool is_ems_on;
+
 #ifdef EMS_DRIVER
 void init_emm();
 uint16_t emm_conventional_segment();

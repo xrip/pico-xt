@@ -360,6 +360,9 @@ bool INT_15h() {
             logMsg("INT15! C7h mem-map info (not implemented)");
             return false;
         case 0x24:
+            if (!is_hma_on) {
+                return false;
+            }
             switch (CPU_AL) {
                 case 0x00:
                     notify_a20_line_state_changed(true);
@@ -446,7 +449,7 @@ uint8_t xms_fn() {
         #ifdef XMS_DEBUG
         snprintf(tmp, 80, "XMS FN %02Xh: XMS Spec ver 3.0; Drv ver 4.0; HMA available", CPU_AH);
         #endif
-        CPU_DX = 0x0001; // HMA installed
+        CPU_DX = is_hma_on ? 0x0001 : 0; // HMA installed
 #else
         #ifdef XMS_DEBUG
         snprintf(tmp, 80, "XMS FN %02Xh: XMS Spec ver 3.0; Drv ver 4.0; HMA is turned off", CPU_AH);
@@ -466,7 +469,7 @@ uint8_t xms_fn() {
                 #endif
                 CPU_AX = XMS_ERROR_CODE; // ERROR
                 CPU_BL = 0x91; // HMA is already in use
-            } else if (!is_a20_line_open()) {
+            } else if (!is_a20_line_open() || !is_hma_on) {
                 #ifdef XMS_DEBUG
                 snprintf(tmp, 80, "XMS FN %02Xh: HMA requested to allocate %04Xh bytes (rejected - A20 is off)", CPU_AH, CPU_DX);
                 #endif
@@ -491,11 +494,11 @@ uint8_t xms_fn() {
             break;
 #endif
         case 0x03: // XMS 03H: Global Enable A20
-            notify_a20_line_state_changed(true);
+            notify_a20_line_state_changed(is_hma_on);
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN %02Xh: Global Enable A20", CPU_AH);
             #endif
-            CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
+            CPU_AX = is_hma_on && is_a20_line_open() ? 0x0001 : 0x0000;
             CPU_BL = 0x00;
             break;
         case 0x05: // XMS 05H: Local Enable A20
@@ -503,7 +506,7 @@ uint8_t xms_fn() {
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN %02Xh: Local Enable A20", CPU_AH);
             #endif
-            CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
+            CPU_AX = is_hma_on && is_a20_line_open() ? 0x0001 : 0x0000;
             CPU_BL = 0x00;
             break;
         case 0x04: // XMS 04H: Global Disable A20
@@ -511,7 +514,7 @@ uint8_t xms_fn() {
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN %02Xh: Global Disable A20", CPU_AH);
             #endif
-            CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
+            CPU_AX = is_hma_on && is_a20_line_open() ? 0x0001 : 0x0000;
             CPU_BL = 0x00;
             break;
         case 0x06: // XMS 06H: Local Disable A20
@@ -519,11 +522,11 @@ uint8_t xms_fn() {
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN %02Xh: Local Disable A20", CPU_AH);
             #endif
-            CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
+            CPU_AX = is_hma_on && is_a20_line_open() ? 0x0001 : 0x0000;
             CPU_BL = 0x00;
             break;
         case 0x07: // XMS 07H: Query A20 State
-            CPU_AX = is_a20_line_open() ? 0x0001 : 0x0000;
+            CPU_AX = is_hma_on && is_a20_line_open() ? 0x0001 : 0x0000;
             #ifdef XMS_DEBUG
             //snprintf(tmp, 80, "XMS FN 07h: Query A20 status: %s", CPU_AX ? "ON" : "OFF");
             tmp[0] = 0;
@@ -531,7 +534,7 @@ uint8_t xms_fn() {
             CPU_BL = 0x00;
             break;
         case 0x08: { // XMS 08H: Query Free Extended Memory
-            uint16_t t = xmm_max_block_kb();
+            uint16_t t = is_xms_on ? xmm_max_block_kb() : 0;
             CPU_AX = t > RESERVED_XMS_KB ? t - RESERVED_XMS_KB : t; // TODO: adjust UMB and HMA usage
             t = xmm_free_kb();
             CPU_DX = t > RESERVED_XMS_KB ? t - RESERVED_XMS_KB : t; // total free XMS amount
@@ -545,7 +548,7 @@ uint8_t xms_fn() {
                      // DX    desired size of block, in K-bytes
             uint16_t t = CPU_DX;
             // res: DX    XMS handle
-            CPU_DX = allocate_xmm_page(CPU_DX, &CPU_BL);
+            CPU_DX = is_xms_on ? allocate_xmm_page(CPU_DX, &CPU_BL) : 0x80;
             if (CPU_BL >= 0x80) {
                 #ifdef XMS_DEBUG
                 snprintf(tmp, 80, "XMS FN 09h: Allocate Extended Memory Block: %dKB (rejected)", t);
@@ -561,8 +564,8 @@ uint8_t xms_fn() {
         }
         case 0x0A: { // XMS 0AH: Free Extended Memory Block
             // DX    XMS handle (as obtained via XMS 09H)
-            CPU_BL = deallocate_xmm_page(CPU_DX);
-            CPU_AX = CPU_BL > 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
+            CPU_BL = is_xms_on ? deallocate_xmm_page(CPU_DX) : 0x80;
+            CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN 0Ah: Free Extended Memory Block #%d; res: %02X", CPU_DX, CPU_BL);
             #endif
@@ -572,7 +575,7 @@ uint8_t xms_fn() {
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN 0Bh: Move Extended Memory Block: TBL %04X:%04X", CPU_DS, CPU_SI); logMsg(tmp);
             #endif
-            CPU_BL = move_ext_mem_block(((uint32_t)CPU_DS << 4) + CPU_SI);
+            CPU_BL = is_xms_on ? move_ext_mem_block(((uint32_t)CPU_DS << 4) + CPU_SI) : 0x80;
             #ifdef XMS_DEBUG
             if (CPU_BL > 0x80) {
                 snprintf(tmp, 80, "XMS FN 0Bh: Move Extended Memory Block failed... BL: %02X", CPU_BL);
@@ -582,7 +585,7 @@ uint8_t xms_fn() {
             break;
         case 0x0C: {
             uint16_t handler = CPU_DX;
-            CPU_BL = lock_ext_mem_block(handler, &CPU_DX, &CPU_BX);
+            CPU_BL = is_xms_on ? lock_ext_mem_block(handler, &CPU_DX, &CPU_BX) : 0x80;
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN 0Ch: Lock Extended Memory Block #%d %04X:%044X err: %02X", handler, CPU_DX, CPU_BX, CPU_BL);
             #endif
@@ -590,7 +593,7 @@ uint8_t xms_fn() {
             break;
         }
         case 0x0D:
-            CPU_BL = unlock_ext_mem_block(CPU_DX);
+            CPU_BL = is_xms_on ? unlock_ext_mem_block(CPU_DX) : 0x80;
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN 0Dh: Unlock Extended Memory Block #%d", CPU_DX);
             #endif
@@ -612,16 +615,16 @@ uint8_t xms_fn() {
                 #endif
                 break;
             }
-            CPU_AX = XMS_SUCCESS_CODE;
-            CPU_BH = xmm_handles[handle - 1].locks_cnt;
-            CPU_BL = xmm_free_handles();
-            CPU_DX = xmm_handle_size(handle);
+            CPU_AX = is_xms_on ? XMS_SUCCESS_CODE : XMS_ERROR_CODE;
+            CPU_BH = is_xms_on ? xmm_handles[handle - 1].locks_cnt : 0;
+            CPU_BL = is_xms_on ? xmm_free_handles() : 0;
+            CPU_DX = is_xms_on ? xmm_handle_size(handle) : 0;
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN 0Eh: Handle Information #%d allocated %dKB", handle, CPU_DX);
             #endif
 #else
             CPU_DX = 0;
-            CPU_BL = 0x86;
+            CPU_BL = 0x80;
             CPU_AX = XMS_ERROR_CODE;
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN 0Eh: Handle Information #%d not implemented", handle, CPU_DX);
@@ -633,7 +636,7 @@ uint8_t xms_fn() {
             // BX    desired new size, in K-bytes
             // DX    XMS handle (as obtained via XMS 09H) must be unlocked
 #if XMS_OVER_HMA_KB
-            if (CPU_DX > MAX_XMM_HANDLES) {
+            if (is_xms_on && CPU_DX > MAX_XMM_HANDLES) {
                 #ifdef XMS_DEBUG
                 snprintf(tmp, 80, "XMS FN 0Fh: Resize Extended Memory Block (invalid hndl) #%d to %dKB", CPU_DX, CPU_BX);
                 #endif
@@ -641,7 +644,7 @@ uint8_t xms_fn() {
                 CPU_BL = 0xA2; // Invalid handler
                 break;
             }
-            if (CPU_BX > TOTAL_XMM_KB - 64 - (xmm_used_kb() - xmm_handle_size(CPU_DX))) {
+            if (is_xms_on && CPU_BX > TOTAL_XMM_KB - 64 - (xmm_used_kb() - xmm_handle_size(CPU_DX))) {
                 #ifdef XMS_DEBUG
                 snprintf(tmp, 80, "XMS FN 0Fh: Resize Extended Memory Block (failed) #%d to %dKB", CPU_DX, CPU_BX);
                 #endif
@@ -649,10 +652,10 @@ uint8_t xms_fn() {
                 CPU_BL = 0xA0; // no free space
                 break;
             }
-            CPU_BL = resize_xmm_page(CPU_DX, CPU_BX);
-            CPU_AX = CPU_BL > 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
+            CPU_BL = is_xms_on ? resize_xmm_page(CPU_DX, CPU_BX) : 0x80;
+            CPU_AX = CPU_BL >= 0x80 ? XMS_ERROR_CODE : XMS_SUCCESS_CODE;
 #else
-            CPU_BL = 0x86;
+            CPU_BL = 0x80;
             CPU_AX = XMS_ERROR_CODE;
 #endif
             #ifdef XMS_DEBUG
@@ -662,14 +665,14 @@ uint8_t xms_fn() {
 #ifdef XMS_UMB
         case 0x10: // XMS 10H: Request Upper Memory Block
                    // DX    desired size of UMB, in paragraphs (16-byte units)
-            CPU_BX = umb_allocate(&CPU_DX, &CPU_AX);
+            CPU_BX = is_umb_on ? umb_allocate(&CPU_DX, &CPU_AX) : 0x80;
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN 10h: UMB allocation: BX(seg/err): %04Xh; DX(sz): %04Xh; AX(err): %04Xh", CPU_BX, CPU_DX, CPU_AX);
             #endif
             break;
         case 0x11: // XMS 10H: Release Upper Memory Block
                    // DX    desired size of UMB, in paragraphs (16-byte units)
-            CPU_BX = umb_deallocate(&CPU_DX, &CPU_AX);
+            CPU_BX = is_umb_on ? umb_deallocate(&CPU_DX, &CPU_AX) : 0x80;
             #ifdef XMS_DEBUG
             snprintf(tmp, 80, "XMS FN 11h: UMB dellocation: BX(seg/err): %04Xh; DX(sz): %04Xh; AX(err): %04Xh", CPU_BX, CPU_DX, CPU_AX);
             #endif

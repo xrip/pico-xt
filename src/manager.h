@@ -1,9 +1,7 @@
 #pragma once
 #include <inttypes.h>
+#include <stdbool.h>
 
 void if_manager();
-void if_swap_drives();
-void if_overclock();
-int overclock();
 void notify_image_insert_action(uint8_t drivenum, char *pathname);
-void start_manager();
+bool handleScancode(uint32_t ps2scancode);

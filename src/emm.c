@@ -843,7 +843,7 @@ void custom_on_board_emm() {
     // The Get Unallocated Page Count function returns the number of
     // unallocated pages and the total number of expanded memory pages.
     case 0x42: {
-        CPU_BX = unallocated_emm_pages();
+        CPU_BX = is_ems_on ? unallocated_emm_pages() : 0;
         CPU_DX = total_emm_pages();
 #ifdef EMS_DEBUG
         sprintf(tmp, "LIM40 FN %Xh -> %d free of %d EMM pages", FN, CPU_BX, CPU_DX); logMsg(tmp);

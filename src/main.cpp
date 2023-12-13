@@ -735,8 +735,6 @@ int main() {
 #else
         exec86(2000);
         if_manager();
-        if_swap_drives();
-        if_overclock();
 #endif
     }
     return 0;

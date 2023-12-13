@@ -32,6 +32,10 @@ bool INT_15h();
  #define XMS_HMA_KB 0
 #endif
 
+extern volatile bool is_xms_on;
+extern volatile bool is_umb_on;
+extern volatile bool is_hma_on;
+
 uint8_t xms_fn();
 void xmm_reboot();
 #endif

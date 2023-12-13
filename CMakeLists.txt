@@ -201,8 +201,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #EMS_DEBUG=1
 
         XMS_DRIVER=1
-        XMS_OVER_HMA_KB=64
-        MAX_XMM_HANDLES=4
+        XMS_OVER_HMA_KB=1024
+        MAX_XMM_HANDLES=60
         XMS_UMB=1
         XMS_HMA=1
         #XMS_DEBUG=1
