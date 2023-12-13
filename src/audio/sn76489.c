@@ -201,7 +201,7 @@ static inline int16_t mix_output() {
 int16_t sn76489_sample() {
     if (!quality) {
         update_output();
-        return mix_output() >> 6;
+        return mix_output();
     }
 
     /* Simple rate converter */

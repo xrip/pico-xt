@@ -101,7 +101,7 @@ inline static void sound_callback() {
     //sum_adlib_samples += adlibgensample_ch(adlib_cycles_per_vga);
     if (adlib_cycles_per_vga >= 9) { // TODO: adjust rate
         adlib_cycles_per_vga = 0;
-        last_adlib_sample = (int16_t)(adlibgensample() >> 16); // signed 32 to signed 16
+        last_adlib_sample = (int16_t)(adlibgensample() >> 4); // signed 32 to signed 16, let assume not all 32 bits are in use
         sum_adlib_samples = 0;
     }
     out += last_adlib_sample;
@@ -115,8 +115,8 @@ inline static void sound_callback() {
         last_dss_sample = dss_sample();
         dss_cycles_per_vga = 0;
     }
-    out += (int16_t)last_dss_sample - (int16_t)0x0080; // 8 unsigned on LPT1 mix to signed 16
-    out += (int16_t)true_covox - (int16_t)0x0080; // 8 unsigned on LPT2 mix to signed 18
+    out += ((int16_t)last_dss_sample - (int16_t)0x0080) << 7; // 8 unsigned on LPT1 mix to signed 16
+    out += ((int16_t)true_covox - (int16_t)0x0080) << 7; // 8 unsigned on LPT2 mix to signed 18
 #endif
     out += sn76489_sample(); // already signed 16
     pwm_set_gpio_level(PWM_PIN0,(uint8_t)((uint16_t)(out >> 8) + 0x80)); // Право signed 16 to unsigned 8
