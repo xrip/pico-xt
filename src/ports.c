@@ -94,8 +94,7 @@ void portout(uint16_t portnum, uint16_t value) {
             portram[portnum] = value;
             if (value & A20_ENABLE_BIT) {
                 notify_a20_line_state_changed(true);
-            }
-            else {
+            } else {
                 notify_a20_line_state_changed(false);
             }
             break;
@@ -126,7 +125,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0xC6:
         case 0xC7:
             sn76489_out(value);
-        break;
+            break;
 #if SOUND_BLASTER
         //
         case 0x220:
@@ -148,10 +147,23 @@ void portout(uint16_t portnum, uint16_t value) {
             outBlaster(portnum, value);
             break;
 #endif
+        case 0x220:
+        case 0x221:
+        case 0x222:
+        case 0x223:
+        case 0x224:
+        case 0x225:
+        case 0x226:
+        case 0x227:
+        case 0x228:
+        case 0x229:
+        case 0x22a:
+            cms_out(portnum, value);
+            break;
 #if DSS
         case 0x278: // covox data port
             true_covox = value;
-        break;
+            break;
         case 0x378: // ssData
         case 0x37A: // ssControl
             dss_out(portnum, value);
@@ -165,10 +177,10 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
 #endif
 #endif
-/*
-        case 0x3B8: // TODO: hercules support
-            break;
-*/
+        /*
+                case 0x3B8: // TODO: hercules support
+                    break;
+        */
         case 0x3C0:
             ///printf("EGA control register 3c0 0x%x\r\n", value);
             if (flip3C0 && VGA_ATTR_index <= 0xf) {
@@ -234,7 +246,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3C9: //RGB data register
         {
             //printf("W 0x%x : 0x%x\r\n", portnum, value);
-            static uint8_t r,g,b;
+            static uint8_t r, g, b;
             value = value & 63;
 
             switch (vga_color_index) {
@@ -245,7 +257,7 @@ void portout(uint16_t portnum, uint16_t value) {
                     g = value;
                     break;
                 case 2: //blue
-                    b =  value;
+                    b = value;
                     vga_palette[vga_palette_index] = rgb(r << 2, g << 2, b << 2);
 #if PICO_ON_DEVICE
                     graphics_set_palette(vga_palette_index, vga_palette[vga_palette_index]);
@@ -260,11 +272,11 @@ void portout(uint16_t portnum, uint16_t value) {
         }
         case 0x3CE:
             VGA_GC_index = value & 255;
-        break;
+            break;
         // https://frolov-lib.ru/books/bsp.old/v03/ch7.htm
         // https://swag.outpostbbs.net/EGAVGA/0222.PAS.html
         case 0x3CF:
-            VGA_GC[VGA_GC_index]= value & 255;
+            VGA_GC[VGA_GC_index] = value & 255;
         case 0x3D4:
             // http://www.techhelpmanual.com/901-color_graphics_adapter_i_o_ports.html
             VGA_CRT_index = value;
@@ -300,16 +312,16 @@ void portout(uint16_t portnum, uint16_t value) {
         //setVGA_color_palette(0, cga_palette[0]);
 #else
 
-        if (bg_color != 0xf) {
-            cga_composite_palette[0][0] = cga_palette[bg_color];
-            tandy_palette[0] = cga_palette[bg_color];
-            printf("setting cga color\r\n");
-        } else {
-            cga_composite_palette[0][0] = 0;
-            tandy_palette[0] = 0;
-        }
+            if (bg_color != 0xf) {
+                cga_composite_palette[0][0] = cga_palette[bg_color];
+                tandy_palette[0] = cga_palette[bg_color];
+                printf("setting cga color\r\n");
+            } else {
+                cga_composite_palette[0][0] = 0;
+                tandy_palette[0] = 0;
+            }
 
-           //cga_composite_palette[0][0] = cga_palette[bg_color];
+        //cga_composite_palette[0][0] = cga_palette[bg_color];
 
 #endif
             break;
@@ -383,7 +395,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x3FD:
         case 0x3FE:
         case 0x3FF:
-            outsermouse(portnum, value);
+            //outsermouse(portnum, value);
             break;
         default:
             if (portnum < 256) portram[portnum] = value;
@@ -477,7 +489,19 @@ uint16_t portin(uint16_t portnum) {
         case 0x22e:
             return inBlaster(portnum);
 #endif
-        #endif
+        case 0x220:
+case 0x221:
+case 0x222:
+case 0x223:
+case 0x224:
+case 0x225:
+case 0x226:
+case 0x227:
+case 0x228:
+case 0x229:
+case 0x22a:
+    return cms_in(portnum);
+#endif
         // http://www.techhelpmanual.com/900-video_graphics_array_i_o_ports.html
         // https://wiki.osdev.org/VGA_Hardware#Port_0x3C0
         // https://files.osdev.org/mirrors/geezer/osd/graphics/modes.c
@@ -537,13 +561,13 @@ void portout16(uint16_t portnum, uint16_t value) {
 #ifdef DEBUG_PORT_TRAFFIC
     printf("IO: writing WORD port %Xh with data %04Xh\n", portnum, value);
 #endif
-    portout(portnum, (uint8_t)value);
-    portout(portnum + 1, (uint8_t)(value >> 8));
+    portout(portnum, (uint8_t) value);
+    portout(portnum + 1, (uint8_t) (value >> 8));
 }
 
 uint16_t portin16(uint16_t portnum) {
-    uint16_t ret = (uint16_t)portin(portnum);
-    ret |= ((uint16_t)portin(portnum + 1) << 8);
+    uint16_t ret = (uint16_t) portin(portnum);
+    ret |= ((uint16_t) portin(portnum + 1) << 8);
 #ifdef DEBUG_PORT_TRAFFIC
     printf("IO: reading WORD port %Xh with result of data %04Xh\n", portnum, ret);
 #endif
