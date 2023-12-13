@@ -206,7 +206,7 @@ static int32_t adlibsample ( uint8_t curchan )
 	if (adlibpercussion && (curchan >= 6) && (curchan <= 8))
 		return 0;
 	// FIXME: 7100
-	fullstep = 11000/adlibfreq(curchan);
+	fullstep = 7100/adlibfreq(curchan);
 	tempsample = (int32_t)oplwave[adlibch[curchan].wavesel][(uint8_t)((double)adlibstep[curchan] / ((double)fullstep / (double)256))];
 	tempstep = adlibenv[curchan];
 	if (tempstep > 1.0)
@@ -240,8 +240,8 @@ int16_t adlibgensample ( void )
 	tickadlib();
 	int16_t adlibaccum = 0;
 	for (int curchan = 0; curchan < 9; curchan++) {
-		if (adlibfreq(curchan) !=0) {
-			adlibaccum += (int16_t)adlibsample(curchan);
+		if (adlibfreq(curchan) != 0) {
+			adlibaccum += (int16_t)(adlibsample(curchan) >> 16);
 		}
 	}
 	return adlibaccum;
