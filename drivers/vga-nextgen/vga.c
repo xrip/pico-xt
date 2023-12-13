@@ -80,25 +80,29 @@ extern volatile bool manager_started;
 #include <hardware/pwm.h>
 #define PWM_PIN0 (26)
 #define PWM_PIN1 (27)
-volatile uint32_t dss_cycles_per_vga = 0;
-volatile uint32_t adlib_cycles_per_vga = 0;
 // регистр "защёлка" для примитивного ковокса без буфера
 volatile uint16_t true_covox = 0;
 
 int16_t sn76489_sample();
 int16_t dss_sample();
-static int16_t last_dss_sample = 0;
-
-int16_t adlibgensample(void);
-static int16_t last_adlib_sample = 0;
+int32_t adlibgensample_ch(int16_t ch);
 
 void __not_in_flash_func(sound_callback)() {
+    static uint32_t dss_cycles_per_vga = 0;
+    static int16_t last_dss_sample = 0;
+    static uint32_t adlib_cycles_per_vga = 0;
+    static int16_t last_adlib_sample = 0;
+    static int32_t sum_adlib_samples = 0;
+
     dss_cycles_per_vga += 10;
+    adlib_cycles_per_vga += 1;
     int16_t out = 0;
 #if SOUND_BLASTER || ADLIB
-    if (adlib_cycles_per_vga >= 70) { // TODO: rate?
-        last_adlib_sample += adlibgensample();
+    sum_adlib_samples += adlibgensample_ch(adlib_cycles_per_vga);
+    if (adlib_cycles_per_vga >= 9) { // TODO: adjust rate
         adlib_cycles_per_vga = 0;
+        last_adlib_sample = sum_adlib_samples >> 16;
+        sum_adlib_samples = 0;
     }
     out += last_adlib_sample;
 #endif

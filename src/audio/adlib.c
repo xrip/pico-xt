@@ -162,7 +162,7 @@ uint8_t inadlib ( uint16_t portnum )
 }
 
 
-static uint16_t adlibfreq ( uint8_t chan )
+static inline uint16_t adlibfreq ( uint8_t chan )
 {
 	uint16_t tmpfreq;
 	if (!adlibch[chan].keyon)
@@ -199,7 +199,7 @@ static double adlibenv[9], adlibdecay[9], adlibattack[9];
 static uint8_t adlibdidattack[9];
 
 
-static int32_t adlibsample ( uint8_t curchan )
+inline static int32_t adlibsample ( uint8_t curchan )
 {
 	int32_t tempsample;
 	double tempstep;
@@ -218,21 +218,32 @@ static int32_t adlibsample ( uint8_t curchan )
 	return tempsample;
 }
 
-
+static inline void tickadlib_ch ( uint16_t curchan )
+{
+    if (adlibfreq(curchan) != 0) {
+		if (adlibdidattack[curchan]) {
+			adlibenv[curchan] *= adlibdecay[curchan];
+		} else {
+			adlibenv[curchan] *= adlibattack[curchan];
+			if (adlibenv[curchan] >= 1.0)
+				adlibdidattack[curchan] = 1;
+		}
+	}
+}
 
 void tickadlib ( void )
 {
 	for (int curchan = 0; curchan < 9; curchan++) {
-		if (adlibfreq(curchan) !=0) {
-			if (adlibdidattack[curchan]) {
-				adlibenv[curchan] *= adlibdecay[curchan];
-			} else {
-				adlibenv[curchan] *= adlibattack[curchan];
-				if (adlibenv[curchan] >= 1.0)
-					adlibdidattack[curchan] = 1;
-			}
-		}
+		tickadlib_ch(curchan);
 	}
+}
+
+int32_t adlibgensample_ch(int16_t ch) {
+	tickadlib_ch(ch);
+    if (adlibfreq(ch) != 0) {
+		return adlibsample(ch);
+	}
+	return 0;
 }
 
 int16_t adlibgensample ( void )
