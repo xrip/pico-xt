@@ -81,6 +81,8 @@ extern volatile bool manager_started;
 #define PWM_PIN0 (26)
 #define PWM_PIN1 (27)
 volatile uint32_t sound_cycles_per_vga = 0;
+// регистр "защёлка" для примитивного ковокса без буфера
+volatile uint16_t true_covox = 0;
 
 int16_t sn76489_sample();
 int16_t dss_sample();
@@ -102,6 +104,7 @@ void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
         sound_cycles_per_vga = 0;
     }
     out += last_dss_sample;
+    out += true_covox; // on LPT2
 #endif
     out += sn76489_sample() >> 6;
     pwm_set_gpio_level(PWM_PIN0,(uint8_t)((uint16_t)out)); // Право
