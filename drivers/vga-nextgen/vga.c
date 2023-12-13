@@ -87,7 +87,7 @@ int16_t sn76489_sample();
 int16_t dss_sample();
 int32_t adlibgensample_ch(int16_t ch);
 
-void __not_in_flash_func(sound_callback)() {
+inline static void sound_callback() {
     static uint32_t dss_cycles_per_vga = 0;
     static int16_t last_dss_sample = 0;
     static uint32_t adlib_cycles_per_vga = 0;
@@ -124,10 +124,7 @@ void __not_in_flash_func(sound_callback)() {
 }
 #endif
 
-void __not_in_flash_func(dma_handler_VGA)() {
-#ifdef SOUND_SYSTEM
-    sound_callback();
-#endif
+inline static void dma_handler_VGA_impl() {
     dma_hw->ints0 = 1u << dma_chan_ctrl;
     static uint32_t frame_number = 0;
     static uint32_t screen_line = 0;
@@ -386,6 +383,14 @@ void __not_in_flash_func(dma_handler_VGA)() {
             break;
     }
     dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
+}
+
+// to start sound later
+void __not_in_flash_func(dma_handler_VGA)() {
+    dma_handler_VGA_impl();
+#ifdef SOUND_SYSTEM
+    sound_callback();
+#endif
 }
 
 enum graphics_mode_t graphics_set_mode(enum graphics_mode_t mode) {

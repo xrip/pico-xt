@@ -193,11 +193,9 @@ static inline uint16_t adlibfreq ( uint8_t chan )
 	return tmpfreq;
 }
 
-
 static uint64_t fullstep, adlibstep[9];
 static double adlibenv[9], adlibdecay[9], adlibattack[9];
 static uint8_t adlibdidattack[9];
-
 
 inline static int32_t adlibsample ( uint8_t curchan )
 {
@@ -206,7 +204,7 @@ inline static int32_t adlibsample ( uint8_t curchan )
 	if (adlibpercussion && (curchan >= 6) && (curchan <= 8))
 		return 0;
 	// FIXME: 7100
-	fullstep = 7100/adlibfreq(curchan);
+	fullstep = 5000/adlibfreq(curchan);
 	tempsample = (int32_t)oplwave[adlibch[curchan].wavesel][(uint8_t)((double)adlibstep[curchan] / ((double)fullstep / (double)256))];
 	tempstep = adlibenv[curchan];
 	if (tempstep > 1.0)
