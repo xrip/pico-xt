@@ -453,7 +453,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x378: return port378;
         case 0x379: // ssStatus
             return dss_in(portnum);
-        case 0x3BE: // LPT2 status (covox is always ready)
+        case 0x27A: // LPT2 status (covox is always ready)
             return 0;
 #endif
 #if SOUND_BLASTER || ADLIB
