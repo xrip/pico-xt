@@ -99,7 +99,7 @@ void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
     out += getBlasterSample();
 #endif
 #if DSS
-    if (sound_cycles_per_vga >= 50) { // about 7-8kHz, TODO: divide by 4.5
+    if (sound_cycles_per_vga >= 70) { // about 7-8kHz, TODO: divide by 4.5
         last_dss_sample = dss_sample();
         sound_cycles_per_vga = 0;
     }

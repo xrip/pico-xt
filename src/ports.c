@@ -149,13 +149,14 @@ void portout(uint16_t portnum, uint16_t value) {
             break;
 #endif
 #if DSS
+        case 0x278: // covox data port
+            true_covox = value;
+        break;
         case 0x378: // ssData
         case 0x37A: // ssControl
             dss_out(portnum, value);
             break;
-        case 0x3BC: // covox data port
-            true_covox = value;
-            break;
+
 #endif
 #if SOUND_BLASTER || ADLIB
         case 0x388: // adlib
