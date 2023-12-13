@@ -101,7 +101,7 @@ inline static void sound_callback() {
     sum_adlib_samples += adlibgensample_ch(adlib_cycles_per_vga);
     if (adlib_cycles_per_vga >= 9) { // TODO: adjust rate
         adlib_cycles_per_vga = 0;
-        last_adlib_sample = sum_adlib_samples >> 16;
+        last_adlib_sample = (int16_t)(sum_adlib_samples / 8); // << 16 too mach, but i32 to i16...
         sum_adlib_samples = 0;
     }
     out += last_adlib_sample;
