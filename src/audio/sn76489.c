@@ -16,6 +16,7 @@
 
 *****************************************************************************/
 // https://github.com/mamedev/mame/blob/master/src/devices/sound/sn76496.cpp
+// https://www.zeridajh.org/articles/me_sn76489_sound_chip_details/index.html
 #include <stdint.h>
 
 /*
@@ -200,7 +201,7 @@ static inline int16_t mix_output() {
 int16_t sn76489_sample() {
     if (!quality) {
         update_output();
-        return mix_output();
+        return mix_output() >> 6;
     }
 
     /* Simple rate converter */

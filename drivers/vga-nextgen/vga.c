@@ -99,14 +99,14 @@ void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
     out += getBlasterSample();
 #endif
 #if DSS
-    if (sound_cycles_per_vga >= 70) { // about 7-8kHz, TODO: divide by 4.5
+    if (sound_cycles_per_vga >= 50) { // about 7-8kHz, TODO: divide by 4.5
         last_dss_sample = dss_sample();
         sound_cycles_per_vga = 0;
     }
     out += last_dss_sample;
     out += true_covox; // on LPT2
 #endif
-    out += sn76489_sample() >> 6;
+    out += sn76489_sample();
     pwm_set_gpio_level(PWM_PIN0,(uint8_t)((uint16_t)out)); // Право
     pwm_set_gpio_level(PWM_PIN1,(uint8_t)((uint16_t)out)); // Лево
 }
