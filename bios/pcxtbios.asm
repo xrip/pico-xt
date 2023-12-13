@@ -759,8 +759,9 @@ endif
 ;	mov	cl, 3				;   get shift count
 ;	ror	al, cl				;   divide by eight
 
-    mov	[8], 0x378
-	mov	[ds:11h], 01000000b	 ;   save in equipment flag with one printer
+    mov	[08h], 0x378        ; dss
+    mov	[0Ah], 0x3BC        ; covox
+	mov	[ds:11h], 10000000b	 ;   save in equipment flag with one printer
 
 	xor	di, di				; COM port(s) at 40:00 (hex)
 

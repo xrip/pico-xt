@@ -36,7 +36,7 @@ bool PSRAM_AVAILABLE = false;
 bool SD_CARD_AVAILABLE = false;
 uint32_t DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
 bool runing = true;
-
+volatile uint16_t true_covox = 0;
 #if PICO_ON_DEVICE
 pwm_config config = pwm_get_default_config();
 #define PWM_PIN0 (26)
@@ -114,6 +114,7 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
     out += dss_sample() >> 1;
 #endif
     out += (sn76489_sample()) >> 6;
+    out += true_covox;
 
     *stream = (uint8_t)((uint16_t)out);
     //memcpy(stream, &out, len);
