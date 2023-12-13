@@ -299,7 +299,7 @@ void sn76489_sample_stereo(int32_t out[2]);
 
 void cms_out(uint16_t addr, uint16_t value);
 uint8_t cms_in(uint16_t addr);
-void cms_samples(int32_t out[2]);
+void cms_samples(int16_t out[2]);
 
 
 #if !PICO_ON_DEVICE

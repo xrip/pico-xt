@@ -103,7 +103,7 @@ static int RendererThread(void* ptr) {
 }
 
 static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode only
-    int32_t outs[2];
+    int16_t outs[2] = { 0 };
     int16_t out = 0;
 #if SOUND_BLASTER || ADLIB
     out += (adlibgensample() >> 3);

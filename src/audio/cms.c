@@ -76,10 +76,10 @@ void cms_update() {
     }
 }
 
-void cms_samples(int32_t out[2]) {
+void cms_samples(int16_t out[2]) {
     cms_update();
-    out[0] = out_l >> 6;
-    out[1] = out_r >> 6;
+    out[0] += out_l >> 6;
+    out[1] += out_r >> 6;
 }
 
 void cms_out(uint16_t addr, uint16_t value) {

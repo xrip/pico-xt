@@ -86,11 +86,12 @@ volatile uint16_t true_covox = 0;
 
 int16_t sn76489_sample();
 int16_t dss_sample();
+void cms_samples(int16_t out[2]);
 static int16_t last_dss_sample = 0;
 
 void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
     sound_cycles_per_vga+=10;
-    int16_t out = 0;
+    int16_t outs[0] = { 0 };
 #if SOUND_BLASTER || ADLIB
     out += adlibgensample() >> 3;
 #endif
@@ -103,12 +104,15 @@ void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
         last_dss_sample = dss_sample();
         sound_cycles_per_vga = 0;
     }
-    out += last_dss_sample;
-    out += true_covox; // on LPT2
+    outs[0] += last_dss_sample;
+    outs[0] += true_covox; // on LPT2
 #endif
-    out += sn76489_sample();
-    pwm_set_gpio_level(PWM_PIN0,(uint8_t)((uint16_t)out)); // Право
-    pwm_set_gpio_level(PWM_PIN1,(uint8_t)((uint16_t)out)); // Лево
+    outs[0] += sn76489_sample();
+    outs[1] = outs[0];
+
+    cms_samples(outs);
+    pwm_set_gpio_level(PWM_PIN0,(uint8_t)((uint16_t)outs[0])); // Право
+    pwm_set_gpio_level(PWM_PIN1,(uint8_t)((uint16_t)outs[1])); // Лево
 }
 #endif
 
