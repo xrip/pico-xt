@@ -153,7 +153,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x37A: // ssControl
             dss_out(portnum, value);
             break;
-        case 0x3BD: // covox data port
+        case 0x3BC: // covox data port
             true_covox = value;
             break;
 #endif

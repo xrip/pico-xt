@@ -30,13 +30,14 @@ extern "C" {
 SDL_Window* window;
 
 SDL_Surface* screen;
+volatile uint16_t true_covox = 0;
 #endif
 
 bool PSRAM_AVAILABLE = false;
 bool SD_CARD_AVAILABLE = false;
 uint32_t DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
 bool runing = true;
-volatile uint16_t true_covox = 0;
+
 #if PICO_ON_DEVICE
 pwm_config config = pwm_get_default_config();
 #define PWM_PIN0 (26)
