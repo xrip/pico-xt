@@ -212,7 +212,9 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         SOUND_SYSTEM
         CMS
         #SOUND_BLASTER
-        #ADLIB
+        ADLIB
+        TANDY3V
+        COVOX
         DSS
 
 #        ROM_DRIVE_B=1

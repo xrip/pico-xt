@@ -582,6 +582,8 @@ bool handleScancode(uint32_t ps2scancode) { // core 1
         tabPressed = false;
         break;
       default:
+        snprintf(line, 80, "Scan-code: %02Xh", ps2scancode);
+        draw_cmd_line(0, CMD_Y_POS, line);
         break;
     }
     return manager_started;

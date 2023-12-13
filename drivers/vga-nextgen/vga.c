@@ -118,13 +118,22 @@ inline static void sound_callback() {
     }
     out += ((int16_t)last_dss_sample - (int16_t)0x0080) << 7; // 8 unsigned on LPT1 mix to signed 16
 #endif
+#ifdef COVOX
     out += ((int16_t)true_covox - (int16_t)0x0080) << 7; // 8 unsigned on LPT2 mix to signed 18
+#endif
+#ifdef TANDY3V
     out += sn76489_sample(); // already signed 16
+#endif
+#ifdef CMS
     cms_samples(&out_l, &out_r);
     out_l = out + (out_l >> 12); // mix it with decrease volume
     out_r = out + (out_r >> 12);
-    pwm_set_gpio_level(PWM_PIN0,(uint8_t)((uint16_t)(out_r >> 8) + 0x80)); // Право signed 16 to unsigned 8
-    pwm_set_gpio_level(PWM_PIN1,(uint8_t)((uint16_t)(out_l >> 8) + 0x80)); // Лево  signed 16 to unsigned 8
+#else
+    out_l = out;
+    out_r = out;
+#endif
+    pwm_set_gpio_level(PWM_PIN0,(int16_t)((int32_t)out_r + 0x8000)); // Право signed 16 to unsigned 16
+    pwm_set_gpio_level(PWM_PIN1,(int16_t)((int32_t)out_l + 0x8000)); // Лево  signed 16 to unsigned 16
 }
 #endif
 

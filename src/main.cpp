@@ -47,7 +47,7 @@ void PWM_init_pin(uint8_t pinN) {
     gpio_set_function(pinN, GPIO_FUNC_PWM);
 
     pwm_config_set_clkdiv(&config, 1.0);
-    pwm_config_set_wrap(&config, 255); //MAX PWM value
+    pwm_config_set_wrap(&config, 0xFFFF); // MAX PWM value
     pwm_init(pwm_gpio_to_slice_num(pinN), &config, true);
 }
 

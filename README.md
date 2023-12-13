@@ -18,6 +18,16 @@ Extra PSRAM support on pi pico pins:
 
 To swap floppy drives A <-> B use: Left Ctrl + Tab + Backspace
 
+To turn on/off
+    Digital Sound Source on LPT1, use Ctrl + Tab + D. Default value - it is ON
+    COVOX on LPT2, use Ctrl + Tab + C. Default value - it is ON
+    Tandy 3-voise music device emulation, use Ctrl + Tab + T. Default value - it is ON
+    Game Blaster (Creative Music System) device emulation, use Ctrl + Tab + G. Default value - it is OFF
+    AdLib emulation, use Ctrl + Tab + A. Default value - it is OFF (experimental, not recomended)
+
+To decrease or increase appropriated sound device volume, press related button and numpad "+" / "-",
+for example "D" + "-" will decrease DSS volume.
+
 # Hardware needed
 To get it working you should have an Murmulator (development) board with VGA output. Schematics available here at https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme
 ![Murmulator Schematics](https://github.com/javavi/pico-infonesPlus/blob/main/assets/Murmulator-1_BSchem.JPG)
