@@ -85,6 +85,7 @@ volatile uint16_t true_covox = 0;
 
 int16_t sn76489_sample();
 uint8_t dss_sample();
+void cms_samples(int16_t* pout_l, int16_t* pout_r);
 int16_t adlibgensample();
 
 inline static void sound_callback() {
@@ -96,7 +97,7 @@ inline static void sound_callback() {
 
     dss_cycles_per_vga += 10;
     adlib_cycles_per_vga += 1;
-    int16_t out = 0;
+    int16_t out_l, out_r, out = 0;
 #if SOUND_BLASTER || ADLIB
     //sum_adlib_samples += adlibgensample_ch(adlib_cycles_per_vga);
     if (adlib_cycles_per_vga >= 9) { // TODO: adjust rate
@@ -116,11 +117,14 @@ inline static void sound_callback() {
         dss_cycles_per_vga = 0;
     }
     out += ((int16_t)last_dss_sample - (int16_t)0x0080) << 7; // 8 unsigned on LPT1 mix to signed 16
-    out += ((int16_t)true_covox - (int16_t)0x0080) << 7; // 8 unsigned on LPT2 mix to signed 18
 #endif
+    out += ((int16_t)true_covox - (int16_t)0x0080) << 7; // 8 unsigned on LPT2 mix to signed 18
     out += sn76489_sample(); // already signed 16
-    pwm_set_gpio_level(PWM_PIN0,(uint8_t)((uint16_t)(out >> 8) + 0x80)); // Право signed 16 to unsigned 8
-    pwm_set_gpio_level(PWM_PIN1,(uint8_t)((uint16_t)(out >> 8) + 0x80)); // Лево  signed 16 to unsigned 8
+    cms_samples(&out_l, &out_r);
+    out_l += out;
+    out_r += out;
+    pwm_set_gpio_level(PWM_PIN0,(uint8_t)((uint16_t)(out_r >> 8) + 0x80)); // Право signed 16 to unsigned 8
+    pwm_set_gpio_level(PWM_PIN1,(uint8_t)((uint16_t)(out_l >> 8) + 0x80)); // Лево  signed 16 to unsigned 8
 }
 #endif
 

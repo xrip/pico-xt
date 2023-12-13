@@ -103,6 +103,7 @@ static int RendererThread(void* ptr) {
 }
 
 static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode only
+    int16_t outs[2] = { 0 };
     int16_t out = 0;
 #if SOUND_BLASTER || ADLIB
     out += adlibgensample();
@@ -117,7 +118,9 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
     out += (sn76489_sample()) >> 6;
     out += true_covox;
 
-    *stream = (uint8_t)((uint16_t)out);
+    cms_samples(outs);
+    stream[0] = (uint8_t)(outs[0]);
+    stream[1] = (uint8_t)(outs[1]);
     //memcpy(stream, &out, len);
 }
 #endif
@@ -200,9 +203,9 @@ int main() {
     auto* pixels = (unsigned int *)drawsurface->pixels;
 #if SOUND_SYSTEM
     static SDL_AudioSpec wanted;
-    wanted.freq = 8000;
+    wanted.freq = 44100;
     wanted.format = AUDIO_U8;
-    wanted.channels = 1;
+    wanted.channels = 2;
     wanted.samples = 1;
     wanted.callback = fill_audio;
     wanted.userdata = NULL;

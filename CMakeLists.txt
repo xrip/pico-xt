@@ -210,6 +210,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         HANDLE_REBOOT
 
         SOUND_SYSTEM
+        CMS
         #SOUND_BLASTER
         #ADLIB
         DSS
