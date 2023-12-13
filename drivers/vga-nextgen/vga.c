@@ -80,28 +80,40 @@ extern volatile bool manager_started;
 #include <hardware/pwm.h>
 #define PWM_PIN0 (26)
 #define PWM_PIN1 (27)
-volatile uint32_t sound_cycles_per_vga = 0;
 // регистр "защёлка" для примитивного ковокса без буфера
 volatile uint16_t true_covox = 0;
 
 int16_t sn76489_sample();
 int16_t dss_sample();
-static int16_t last_dss_sample = 0;
+int16_t adlibgensample();
 
-void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
-    sound_cycles_per_vga+=10;
+inline static void sound_callback() {
+    static uint32_t dss_cycles_per_vga = 0;
+    static int16_t last_dss_sample = 0;
+    static uint32_t adlib_cycles_per_vga = 0;
+    static int16_t last_adlib_sample = 0;
+    static int32_t sum_adlib_samples = 0;
+
+    dss_cycles_per_vga += 10;
+    adlib_cycles_per_vga += 1;
     int16_t out = 0;
 #if SOUND_BLASTER || ADLIB
-    out += adlibgensample() >> 3;
+    //sum_adlib_samples += adlibgensample_ch(adlib_cycles_per_vga);
+    if (adlib_cycles_per_vga >= 9) { // TODO: adjust rate
+        adlib_cycles_per_vga = 0;
+        last_adlib_sample = adlibgensample(); // << 16 too mach, but i32 to i16...
+        sum_adlib_samples = 0;
+    }
+    out += last_adlib_sample;
 #endif
 #if SOUND_BLASTER
     tickBlaster();
     out += getBlasterSample();
 #endif
 #if DSS
-    if (sound_cycles_per_vga >= 70) { // about 7-8kHz, TODO: divide by 4.5
+    if (dss_cycles_per_vga >= 70) { // about 7-8kHz, TODO: divide by 4.5
         last_dss_sample = dss_sample();
-        sound_cycles_per_vga = 0;
+        dss_cycles_per_vga = 0;
     }
     out += last_dss_sample;
     out += true_covox; // on LPT2
@@ -112,10 +124,7 @@ void __not_in_flash_func(sound_callback)(repeating_timer_t *rt) {
 }
 #endif
 
-void __not_in_flash_func(dma_handler_VGA)() {
-#ifdef SOUND_SYSTEM
-    sound_callback(0);
-#endif
+inline static void dma_handler_VGA_impl() {
     dma_hw->ints0 = 1u << dma_chan_ctrl;
     static uint32_t frame_number = 0;
     static uint32_t screen_line = 0;
@@ -374,6 +383,14 @@ void __not_in_flash_func(dma_handler_VGA)() {
             break;
     }
     dma_channel_set_read_addr(dma_chan_ctrl, output_buffer, false);
+}
+
+// to start sound later
+void __not_in_flash_func(dma_handler_VGA)() {
+    dma_handler_VGA_impl();
+#ifdef SOUND_SYSTEM
+    sound_callback();
+#endif
 }
 
 enum graphics_mode_t graphics_set_mode(enum graphics_mode_t mode) {
