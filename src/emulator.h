@@ -269,8 +269,6 @@ void dss_out(uint16_t portnum, uint8_t value);
 
 uint8_t dss_in(uint16_t portnum);
 
-int16_t dss_sample();
-
 extern uint8_t inadlib(uint16_t portnum);
 
 extern void initadlib(uint16_t baseport);

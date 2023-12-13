@@ -724,7 +724,7 @@ static void intcall86(uint8_t intnum) {
                 // http://www.techhelpmanual.com/114-video_modes.html
                 // http://www.techhelpmanual.com/89-video_memory_layouts.html
                     char tmp[40];
-                    sprintf(tmp, "VBIOS: Mode 0x%x (0x%x)", CPU_AX, videomode);
+                    snprintf(tmp, 40, "VBIOS: Mode AH=0x%x (videomode: 0x%x)", CPU_AX, videomode);
                     logMsg(tmp);
 #if PICO_ON_DEVICE
                     if (videomode <= 0xd) {
@@ -3979,7 +3979,7 @@ void exec86(uint32_t execloops) {
                 break;
 
             default:
-                { char tmp[40]; sprintf(tmp, "Unexpected opcode: %02Xh ignored", opcode); logMsg(tmp); }
+                { char tmp[40]; snprintf(tmp, 40, "Unexpected opcode: %02Xh ignored", opcode); logMsg(tmp); }
                 //intcall86(6);
                 break;
         }

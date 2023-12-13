@@ -26,17 +26,14 @@ static uint8_t samples_buffer[16] = { 0 };
 static volatile uint8_t ssourceptr = 0, ssactive = 0;
 uint8_t checks = 0;
 
-int16_t dss_sample() { // core #1
+uint8_t dss_sample() { // core #1
     if (ssourceptr == 0 || !ssactive || checks < 2) { // no bytes in buffer
         return 0;
     }
-
-    uint16_t ssourcecursample = samples_buffer[0];
-
+    uint8_t ssourcecursample = samples_buffer[0];
     for (int rotatefifo = 1; rotatefifo < 16; rotatefifo++) {
         samples_buffer[rotatefifo - 1] = samples_buffer[rotatefifo];
     }
-
     ssourceptr--;
     return ssourcecursample;
 }

@@ -286,9 +286,8 @@ void portout(uint16_t portnum, uint16_t value) {
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;
             char tmp[80];
-            sprintf(tmp, "colorset %i, int %i value  %x", cga_colorset, cga_intensity, value);
+            snprintf(tmp, 80, "VIDEOMODE: colorset: %i intensity: %i value: %x", cga_colorset, cga_intensity, value);
             logMsg(tmp);
-
 #if PICO_ON_DEVICE
             graphics_set_palette(0, bg_color != 0xf ? cga_palette[bg_color] : 0);
 
