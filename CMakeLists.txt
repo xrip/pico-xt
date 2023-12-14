@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.22)
 include(pico_sdk_import.cmake)
 
 project(pico-xt C CXX ASM)
+option(OVERCLOCKING "Target Pico MHz" 416)
+if(NOT OVERCLOCKING)
+    SET(OVERCLOCKING 416)
+endif ()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -62,10 +66,6 @@ pico_set_program_name(pico-xt "PICO PC/XT 8086 Emulator by xrip/DnCraptor")
 pico_set_program_version(pico-xt "test")
 
 #set(PICO_DEOPTIMIZED_DEBUG 1)
-#if (!OVERCLOCKING)
-set(OVERCLOCKING 416)
-#endif ()
-
 
 if (PICO_PLATFORM STREQUAL "host")
     target_link_libraries(${PROJECT_NAME} SDL2)

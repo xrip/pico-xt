@@ -1,3 +1,6 @@
+# v1.0.0rc1
+- Release candidate, changelog tbd
+
 # v0.0.1rc5
 - external PSRAM support. it means 640Kb available when it detects connected PSRAM, else there is only 200Kb available
 - PCJr tandy 320x200x16 colors support (mode 0x09). maniac mansion deluxe works perfectly in tandy mode

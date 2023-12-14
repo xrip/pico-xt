@@ -135,10 +135,12 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
 #if DSS
     out += dss_sample();
 #endif
-    out += (sn76489_sample());
+    out += sn76489_sample();
     out += true_covox;
     outs[0] = outs[1] = out;
+#if CMS
     cms_samples(&outs[0], &outs[1]);
+#endif
     (uint16_t &)stream[0] = outs[0];
     (uint16_t &)stream[2] = outs[1];
     //memcpy(stream, &out, len);
