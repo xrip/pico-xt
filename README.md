@@ -5,6 +5,8 @@
 To use HDD: save hdd.img (from hdd.img.zip) to <SD-card-drive>:\XT\hdd.img
 
 To switch to USB-drives mode press: Enter + Backspace
+In the File Manager press "F10"
+To exit from the File Manager, use Ctrl + F10
 
 To change overcloking: Left Ctrl + Tab + Numpad "+" or Numpad "-"
 
@@ -17,6 +19,8 @@ Extra PSRAM support on pi pico pins:
             PSRAM_PIN_MISO=20
 
 To swap floppy drives A <-> B use: Left Ctrl + Tab + Backspace
+Or Enter + Backspace -> File Manager
+In the File Manager press "F9"
 
 To turn on/off
     Digital Sound Source on LPT1, use Ctrl + Tab + D. Default value - it is ON
