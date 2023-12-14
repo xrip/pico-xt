@@ -22,7 +22,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
-
+#include <stdbool.h>
 
 //static double samprateadjust = 1.0;
 //static uint8_t optable[0x16] = { 0, 0, 0, 1, 1, 1, 255, 255, 0, 0, 0, 1, 1, 1, 255, 255, 0, 0, 0, 1, 1, 1 };
@@ -106,9 +106,11 @@ static uint8_t adlibdidattack[9], adlibpercussion = 0, adlibstatus = 0;
 
 static uint16_t adlibport = 0x388;
 
+extern volatile bool is_adlib_on;
 
 void outadlib ( uint16_t portnum, uint8_t value )
 {
+	if (!is_adlib_on) return;
 	if (portnum == adlibport) {
 		adlibaddr = value;
 		return;
@@ -153,6 +155,7 @@ void outadlib ( uint16_t portnum, uint8_t value )
 
 uint8_t inadlib ( uint16_t portnum )
 {
+	if (!is_adlib_on) return 0;
 	if (!adlibregmem[4])
 		adlibstatus = 0;
 	else
@@ -231,6 +234,7 @@ static inline void tickadlib_ch ( uint16_t curchan )
 
 void tickadlib ( void )
 {
+	if (!is_adlib_on) return;
 	for (int curchan = 0; curchan < 9; curchan++) {
 		tickadlib_ch(curchan);
 	}

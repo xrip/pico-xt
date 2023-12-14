@@ -37,7 +37,7 @@ volatile uint8_t cms_divider = 12;
 volatile uint8_t dss_divider = 0;
 volatile uint8_t adlib_divider = 0;
 volatile uint8_t tandy3v_divider = 0;
-volatile uint8_t covox_divider = 9;
+volatile uint8_t covox_divider = 0;
 
 volatile bool is_xms_on = false;
 volatile bool is_ems_on = true;

@@ -116,7 +116,8 @@ inline static void sound_callback() {
             adlib_cycles_per_vga = 0;
         }
         sum_adlib_samples += adlibgensample_ch(adlib_cycles_per_vga);
-        out += (int16_t)(sum_adlib_samples >> adlib_divider);
+        register uint8_t d = adlib_divider;
+        out += (int16_t)(sum_adlib_samples >> d);
         if (adlib_cycles_per_vga == 0) {
             sum_adlib_samples = 0;
         }
@@ -132,21 +133,24 @@ inline static void sound_callback() {
             last_dss_sample = dss_sample();
             dss_cycles_per_vga = 0;
         }
-        out += dss_divider > 8 ?
-            ((int16_t)last_dss_sample - (int16_t)0x0080) >> (dss_divider - 8):
-            ((int16_t)last_dss_sample - (int16_t)0x0080) << (8 - dss_divider); // 8 unsigned on LPT1 mix to signed 16
+        register uint8_t d = dss_divider;
+        out += d > 8 ?
+            ((int16_t)last_dss_sample - (int16_t)0x0080) >> (d - 8):
+            ((int16_t)last_dss_sample - (int16_t)0x0080) << (8 - d); // 8 unsigned on LPT1 mix to signed 16
     }
 #endif
 #ifdef COVOX
-    if (is_covox_on) {
-        out += covox_divider > 8 ?
-            ((int16_t)true_covox - (int16_t)0x0080) >> (covox_divider - 8):
-            ((int16_t)true_covox - (int16_t)0x0080) << (8 - covox_divider); // 8 unsigned on LPT2 mix to signed 16
+    if (is_covox_on && true_covox) {
+        register uint8_t d = covox_divider;
+        out += d > 8 ?
+            ((int16_t)true_covox - (int16_t)0x0080) >> (d - 8):
+            ((int16_t)true_covox - (int16_t)0x0080) << (8 - d); // 8 unsigned on LPT2 mix to signed 16
     }
 #endif
 #ifdef TANDY3V
     if (is_tandy3v_on) {
-        out += sn76489_sample() >> tandy3v_divider; // already signed 16
+        register uint8_t d = tandy3v_divider;
+        out += sn76489_sample() >> d; // already signed 16
     }
 #endif
 #ifdef CMS
@@ -163,10 +167,10 @@ inline static void sound_callback() {
     out_l = out;
     out_r = out;
 #endif
-    register uint8_t r_rivider = snd_divider; // TODO: tume up divider per channel
-    register uint8_t l_rivider = snd_divider;
-    pwm_set_gpio_level(PWM_PIN0,(int16_t)((int32_t)out_r + 0x8000L) >> r_rivider); // Право signed 16 to unsigned 16
-    pwm_set_gpio_level(PWM_PIN1,(int16_t)((int32_t)out_l + 0x8000L) >> l_rivider); // Лево  signed 16 to unsigned 16
+    register uint8_t r_divider = snd_divider; // TODO: tume up divider per channel
+    register uint8_t l_divider = snd_divider;
+    pwm_set_gpio_level(PWM_PIN0,(uint16_t)((int32_t)out_r + 0x8000L) >> r_divider); // Право signed 16 to unsigned 16
+    pwm_set_gpio_level(PWM_PIN1,(uint16_t)((int32_t)out_l + 0x8000L) >> l_divider); // Лево  signed 16 to unsigned 16
 }
 #endif
 
