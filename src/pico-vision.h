@@ -40,7 +40,7 @@ void draw_cmd_line(int left, int top, char* cmd);
 void draw_label(int left, int top, int width, char* txt, bool selected);
 
 typedef struct line {
-   uint8_t off;
+   int8_t off;
    char* txt;
 } line_t;
 

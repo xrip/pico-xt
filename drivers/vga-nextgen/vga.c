@@ -95,7 +95,6 @@ extern volatile bool is_tandy3v_on;
 extern volatile bool is_dss_on;
 extern volatile bool is_sound_on;
 extern volatile uint8_t snd_divider;
-extern volatile uint8_t cms_divider;
 extern volatile uint8_t dss_divider;
 extern volatile uint8_t adlib_divider;
 extern volatile uint8_t tandy3v_divider;
@@ -153,19 +152,12 @@ inline static void sound_callback() {
         out += sn76489_sample() >> d; // already signed 16
     }
 #endif
+    out_l = out;
+    out_r = out;
 #ifdef CMS
     if (is_game_balaster_on) {
         cms_samples(&out_l, &out_r);
-        register uint8_t d = cms_divider;
-        out_l = out + (out_l >> d); // mix it with decrease volume
-        out_r = out + (out_r >> d);
-    } else {
-        out_l = out;
-        out_r = out;
     }
-#else
-    out_l = out;
-    out_r = out;
 #endif
     register uint8_t r_divider = snd_divider; // TODO: tume up divider per channel
     register uint8_t l_divider = snd_divider;

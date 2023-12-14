@@ -83,7 +83,14 @@ void draw_box(int left, int top, int width, int height, const char* title, const
     }
     for (int i = 0, y = top + 1 + plines->toff; i < plines->sz; ++i, ++y) {
         const line_t * pl = plines->plns + i;
-        draw_label(left + 1 + pl->off, y, width - 2 - pl->off, pl->txt, false);
+        uint8_t off;
+        if (pl->off < 0) {
+            size_t len = strnlen(pl->txt, 80);
+            off = width - 2 > len ? (width - len) >> 1 : 0;
+        } else {
+            off = pl->off;
+        }
+        draw_label(left + 1 + off, y, width - 2 - pl->off, pl->txt, false);
     }
 }
 

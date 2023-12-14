@@ -33,7 +33,7 @@ volatile bool is_tandy3v_on = true;
 volatile bool is_dss_on = true;
 volatile bool is_sound_on = true;
 volatile uint8_t snd_divider = 0;
-volatile uint8_t cms_divider = 12;
+volatile uint8_t cms_divider = 0;
 volatile uint8_t dss_divider = 0;
 volatile uint8_t adlib_divider = 0;
 volatile uint8_t tandy3v_divider = 0;
@@ -91,15 +91,15 @@ inline static void swap_drive_message() {
     if (ret != TEXTMODE_80x30) clrScr(1);
     if (already_swapped_fdds) {
         const line_t lns[3] = {
-            { 13, "Swap FDD0 and FDD1 drive images" },
+            { -1, "Swap FDD0 and FDD1 drive images" },
             {  0, "" },
-            {  4, "To return images back, press Ctrl + Tab + Backspace"}
+            { -1, "To return images back, press Ctrl + Tab + Backspace"}
         };
         const lines_t lines = { 3, 2, lns };
         draw_box(10, 7, 60, 10, "Info", &lines);
     } else {
         const line_t lns[1] = {
-            { 13, "Swap FDD0 and FDD1 drive images back" }
+            { -1, "Swap FDD0 and FDD1 drive images back" }
         };
         const lines_t lines = { 1, 3, lns };
         draw_box(10, 7, 60, 10, "Info", &lines);
@@ -115,9 +115,8 @@ inline static void level_state_message(uint8_t divider, char* sys_name) {
     if (ret != TEXTMODE_80x30) clrScr(1);
     char ln[80];
     snprintf(ln, 80, "%s volume: %d (div: 1 << %d = %d)", sys_name, 16 - divider, divider, (1 << divider));
-    size_t len = strnlen(ln, 80); // TODO: center bool in dialog box
     const line_t lns[1] = {
-        { (70 - len) >> 1, ln }
+        { -1, ln }
     };
     const lines_t lines = { 1, 3, lns };
     draw_box(5, 7, 70, 10, "Info", &lines);
@@ -136,15 +135,15 @@ inline static void swap_sound_state_message(volatile bool* p_state, char* sys_na
         char ln3[42];
         snprintf(ln3, 42, "To turn it ON back, press Ctrl + Tab + %c", switch_char);
         const line_t lns[3] = {
-            { 15, ln },
+            { -1, ln },
             {  0, "" },
-            {  6, ln3}
+            { -1, ln3}
         };
         const lines_t lines = { 3, 2, lns };
         draw_box(10, 7, 60, 10, "Info", &lines);
     } else {
         const line_t lns[1] = {
-            { 15, ln }
+            { -1, ln }
         };
         const lines_t lines = { 1, 3, lns };
         draw_box(10, 7, 60, 10, "Info", &lines);
@@ -301,7 +300,7 @@ static inline void fill_panel(file_panel_desc_t* p) {
     DIR dir;
     if (f_opendir(&dir, p->path) != FR_OK) {
         const line_t lns[1] = {
-            { 20, "It is not a folder!" }
+            { -1, "It is not a folder!" }
         };
         const lines_t lines = { 1, 4, lns };
         draw_box(10, 7, 60, 10, "Warning", &lines);
@@ -425,7 +424,7 @@ static inline void enter_pressed() {
     DIR dir;
     if (f_opendir(&dir, psp->path) != FR_OK) {
         const line_t lns[1] = {
-            { 20, "It is not a folder!" }
+            { -1, "It is not a folder!" }
         };
         const lines_t lines = { 1, 4, lns };
         draw_box(10, 7, 60, 10, "Warning", &lines);
@@ -452,7 +451,7 @@ static inline void enter_pressed() {
                     }
                     if (f_opendir(&dir, line) != FR_OK) {
                         const line_t lns[1] = {
-                            { 20, "It is not a folder!" }
+                            { -1, "It is not a folder!" }
                         };
                         const lines_t lines = { 1, 4, lns };
                         draw_box(10, 7, 60, 10, "Warning", &lines);
@@ -829,7 +828,7 @@ inline void if_overclock() {
             set_sys_clock_pll(vco, postdiv1, postdiv2);
             sprintf(line, "overcloking_khz: %u kHz", overcloking_khz);
             line_t lns[1] = {
-                { 10, line }
+                { -1, line }
             };
             lines_t lines = { 1, 3, lns };
             draw_box(10, 7, 60, 10, "Info", &lines);
@@ -837,7 +836,7 @@ inline void if_overclock() {
         else {
             sprintf(line, "System clock of %u kHz cannot be achieved", overcloking_khz);
             line_t lns[1] = {
-                { 4, line }
+                { -1, line }
             };
             lines_t lines = { 1, 3, lns };
             draw_box(10, 7, 60, 10, "Warning", &lines);

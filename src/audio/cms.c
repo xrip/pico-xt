@@ -20,6 +20,7 @@ uint8_t latched_data;
 
 //} cms_t;
 volatile int16_t out_l = 0, out_r = 0;
+extern volatile uint8_t cms_divider;
 
 static inline void cms_update() { // may be in core #0 and in core #1
     int channel, d;
@@ -77,8 +78,9 @@ static inline void cms_update() { // may be in core #0 and in core #1
 
 void cms_samples(int16_t* pout_l, int16_t* pout_r) { // core #1
     cms_update();
-    *pout_l += out_l;
-    *pout_r += out_r;
+    register uint8_t d = cms_divider;
+    *pout_l += out_l >> d;
+    *pout_r += out_r >> d;
 }
 
 void cms_out(uint16_t addr, uint16_t value) { // core #0
