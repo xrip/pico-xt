@@ -101,7 +101,27 @@ static int RendererThread(void* ptr) {
     }
     return 0;
 }
+volatile bool is_adlib_on = false;
+volatile bool is_covox_on = true;
+volatile bool is_game_balaster_on = true;
+volatile bool is_tandy3v_on = true;
+volatile bool is_dss_on = true;
+volatile bool is_sound_on = true;
+volatile uint8_t snd_divider = 0;
+volatile uint8_t cms_divider = 6;
+volatile uint8_t dss_divider = 0;
+volatile uint8_t adlib_divider = 0;
+volatile uint8_t tandy3v_divider = 8;
+volatile uint8_t covox_divider = 0;
+bool covox_lpt2 = true;
 
+volatile bool is_xms_on = false;
+volatile bool is_ems_on = true;
+volatile bool is_umb_on = true;
+volatile bool is_hma_on = true;
+int16_t sn76489_sample();
+uint8_t dss_sample();
+int16_t adlibgensample();
 static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode only
     int16_t outs[2] = { 0 };
     int16_t out = 0;
@@ -113,14 +133,14 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
     out += getBlasterSample();
 #endif
 #if DSS
-    out += dss_sample() >> 1;
+    out += dss_sample();
 #endif
-    out += (sn76489_sample()) >> 6;
+    out += (sn76489_sample());
     out += true_covox;
-
+    outs[0] = outs[1] = out;
     cms_samples(&outs[0], &outs[1]);
-    stream[0] = (uint8_t)(outs[0]);
-    stream[1] = (uint8_t)(outs[1]);
+    (uint16_t &)stream[0] = outs[0];
+    (uint16_t &)stream[2] = outs[1];
     //memcpy(stream, &out, len);
 }
 #endif
@@ -204,7 +224,7 @@ int main() {
 #if SOUND_SYSTEM
     static SDL_AudioSpec wanted;
     wanted.freq = 44100;
-    wanted.format = AUDIO_U8;
+    wanted.format = AUDIO_S16;
     wanted.channels = 2;
     wanted.samples = 1;
     wanted.callback = fill_audio;

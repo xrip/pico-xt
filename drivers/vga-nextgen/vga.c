@@ -84,10 +84,6 @@ extern volatile bool manager_started;
 // регистр "защёлка" для примитивного ковокса без буфера
 volatile uint16_t true_covox = 0;
 
-int16_t sn76489_sample();
-uint8_t dss_sample();
-void cms_samples(int16_t* pout_l, int16_t* pout_r);
-int16_t adlibgensample();
 extern volatile bool is_adlib_on;
 extern volatile bool is_covox_on;
 extern volatile bool is_game_balaster_on;
@@ -128,7 +124,7 @@ inline static void sound_callback() {
 #endif
 #if DSS
     if (is_dss_on) {
-        if (dss_cycles_per_vga >= 70) { // about 7-8kHz, TODO: divide by 4.5
+        if (dss_cycles_per_vga >= 50) { // about 7-8kHz, TODO: divide by 4.5
             last_dss_sample = dss_sample();
             dss_cycles_per_vga = 0;
         }
