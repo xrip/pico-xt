@@ -133,17 +133,13 @@ inline static void sound_callback() {
             dss_cycles_per_vga = 0;
         }
         register uint8_t d = dss_divider;
-        out += d > 8 ?
-            ((int16_t)last_dss_sample - (int16_t)0x0080) >> (d - 8):
-            ((int16_t)last_dss_sample - (int16_t)0x0080) << (8 - d); // 8 unsigned on LPT1 mix to signed 16
+        out += (int16_t)((((int32_t)last_dss_sample - (int32_t)0x0080) << 7) >> d); // 8 unsigned on LPT1 mix to signed 16
     }
 #endif
 #ifdef COVOX
     if (is_covox_on) {
         register uint8_t d = covox_divider;
-        out += d > 8 ?
-            ((int16_t)true_covox - (int16_t)0x0080) >> (d - 8):
-            ((int16_t)true_covox - (int16_t)0x0080) << (8 - d); // 8 unsigned on LPT2 mix to signed 16
+        out += (int16_t)((((int32_t)true_covox - (int32_t)0x0080) << 7) >> d); // 8 unsigned on LPT2 mix to signed 16
     }
 #endif
 #ifdef TANDY3V

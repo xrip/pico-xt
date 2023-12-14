@@ -26,7 +26,7 @@ To turn on/off:
 * Digital Sound Source on LPT1, use Ctrl + Tab + D. Default value - it is ON
 * COVOX on LPT2, use Ctrl + Tab + C. Default value - it is ON
 * Tandy 3-voices music device emulation, use Ctrl + Tab + T. Default value - it is ON
-* Game Blaster (Creative Music System) device emulation, use Ctrl + Tab + G. Default value - it is ON
+* Game Blaster (Creative Music System) device emulation, use Ctrl + Tab + G. Default value - it is OFF
 * AdLib emulation, use Ctrl + Tab + A. Default value - it is OFF (experimental, not recomended)
 * Whole sound emulation subsystem, use Ctrl + Tab + S. Default value - it is ON
 * // Experimental: use before DOS (while BIOS test RAM)
@@ -38,6 +38,8 @@ To turn on/off:
 
 To decrease or increase appropriated sound device volume, press Ctrl + related button and numpad "+" / "-",
 for example Ctrl + "D" + "-" will decrease DSS volume, Ctrl + "S" + "+" - increase whole sound system volume.
+
+To swap DSS and Covox LPT1 and LPT2, use Ctrl + "D" + "C".
 
 # Hardware needed
 To get it working you should have an Murmulator (development) board with VGA output. Schematics available here at https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme

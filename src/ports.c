@@ -33,6 +33,7 @@ uint32_t ega_plane_offset = 0;
 bool vga_planar_mode = false;
 
 static bool flip3C0 = false;
+extern bool covox_lpt2;
 
 void portout(uint16_t portnum, uint16_t value) {
     //if (portnum == 0x80) {
@@ -160,15 +161,27 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x22a:
             cms_out(portnum, value);
             break;
-#if DSS
+#if DSS || COVOX
         case 0x278: // covox data port
-            true_covox = value;
+            if(covox_lpt2) {
+                true_covox = value;
+                break;
+            }
+        case 0x27A: // ssControl
+            if(!covox_lpt2) {
+                dss_out(portnum, value);
+            }
             break;
         case 0x378: // ssData
+            if(!covox_lpt2) {
+                true_covox = value;
+                break;
+            }
         case 0x37A: // ssControl
-            dss_out(portnum, value);
+            if(covox_lpt2) {
+                dss_out(portnum, value);
+            }
             break;
-
 #endif
 #if SOUND_BLASTER || ADLIB
         case 0x388: // adlib
@@ -460,8 +473,14 @@ uint16_t portin(uint16_t portnum) {
 #ifdef SOUND_SYSTEM
 #if DSS
         case 0x378: return port378;
-        case 0x379: // ssStatus
-            return dss_in(portnum);
+        case 0x279: // ssStatus on LPT2
+            if(!covox_lpt2) {
+                return dss_in(portnum);
+            }
+        case 0x379: // ssStatus on LPT1
+            if(covox_lpt2) {
+                return dss_in(portnum);
+            }
         case 0x27A: // LPT2 status (covox is always ready)
             return 0;
 #endif
