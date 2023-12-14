@@ -33,10 +33,10 @@ volatile bool is_tandy3v_on = true;
 volatile bool is_dss_on = true;
 volatile bool is_sound_on = true;
 volatile uint8_t snd_divider = 0;
-volatile uint8_t cms_divider = 0;
+volatile uint8_t cms_divider = 7;
 volatile uint8_t dss_divider = 0;
 volatile uint8_t adlib_divider = 0;
-volatile uint8_t tandy3v_divider = 0;
+volatile uint8_t tandy3v_divider = 7;
 volatile uint8_t covox_divider = 0;
 
 volatile bool is_xms_on = false;
@@ -532,7 +532,7 @@ static inline void if_sound_control() { // core #0
             minusPressed = false;
             level_state_message(adlib_divider, adlib_name);
         } else if (sPressed) {
-            snd_divider += snd_divider >= 16 ? 0 : 1;
+            snd_divider += snd_divider >= 12 ? 0 : 1;
             minusPressed = false;
             level_state_message(snd_divider, ss_name);
         } else if (tPressed) {

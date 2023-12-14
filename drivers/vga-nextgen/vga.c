@@ -139,7 +139,7 @@ inline static void sound_callback() {
     }
 #endif
 #ifdef COVOX
-    if (is_covox_on && true_covox) {
+    if (is_covox_on) {
         register uint8_t d = covox_divider;
         out += d > 8 ?
             ((int16_t)true_covox - (int16_t)0x0080) >> (d - 8):
@@ -149,7 +149,7 @@ inline static void sound_callback() {
 #ifdef TANDY3V
     if (is_tandy3v_on) {
         register uint8_t d = tandy3v_divider;
-        out += sn76489_sample() >> d; // already signed 16
+        out += d > 8 ? (sn76489_sample() >> (d - 8)) : (sn76489_sample() << (8 - d)); // already signed 16
     }
 #endif
     out_l = out;
@@ -163,8 +163,8 @@ inline static void sound_callback() {
     register uint16_t r_v = (uint16_t)((int32_t)out_r + 0x8000L) >> r_divider;
     register uint8_t l_divider = snd_divider + 4;
     register uint16_t l_v = (uint16_t)((int32_t)out_l + 0x8000L) >> l_divider;
-    pwm_set_gpio_level(PWM_PIN0, r_v);
-    pwm_set_gpio_level(PWM_PIN1, l_v);
+    pwm_set_gpio_level(PWM_PIN0, l_v);
+    pwm_set_gpio_level(PWM_PIN1, r_v);
 }
 #endif
 

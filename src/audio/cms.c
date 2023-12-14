@@ -79,8 +79,8 @@ static inline void cms_update() { // may be in core #0 and in core #1
 void cms_samples(int16_t* pout_l, int16_t* pout_r) { // core #1
     cms_update();
     register uint8_t d = cms_divider;
-    *pout_l += out_l >> d;
-    *pout_r += out_r >> d;
+    *pout_l += d > 8 ? out_l >> (d - 8) : out_r << (8 - d);
+    *pout_r += d > 8 ? out_r >> (d - 8) : out_r << (8 - d);
 }
 
 void cms_out(uint16_t addr, uint16_t value) { // core #0

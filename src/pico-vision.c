@@ -90,7 +90,7 @@ void draw_box(int left, int top, int width, int height, const char* title, const
         } else {
             off = pl->off;
         }
-        draw_label(left + 1 + off, y, width - 2 - pl->off, pl->txt, false);
+        draw_label(left + 1 + off, y, width - 2 - off, pl->txt, false);
     }
 }
 
