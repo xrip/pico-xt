@@ -159,10 +159,12 @@ inline static void sound_callback() {
         cms_samples(&out_l, &out_r);
     }
 #endif
-    register uint8_t r_divider = snd_divider; // TODO: tume up divider per channel
-    register uint8_t l_divider = snd_divider;
-    pwm_set_gpio_level(PWM_PIN0,(uint16_t)((int32_t)out_r + 0x8000L) >> r_divider); // Право signed 16 to unsigned 16
-    pwm_set_gpio_level(PWM_PIN1,(uint16_t)((int32_t)out_l + 0x8000L) >> l_divider); // Лево  signed 16 to unsigned 16
+    register uint8_t r_divider = snd_divider + 4; // TODO: tume up divider per channel
+    register uint16_t r_v = (uint16_t)((int32_t)out_r + 0x8000L) >> r_divider;
+    register uint8_t l_divider = snd_divider + 4;
+    register uint16_t l_v = (uint16_t)((int32_t)out_l + 0x8000L) >> l_divider;
+    pwm_set_gpio_level(PWM_PIN0, r_v);
+    pwm_set_gpio_level(PWM_PIN1, l_v);
 }
 #endif
 

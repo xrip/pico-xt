@@ -28,7 +28,7 @@ static volatile bool hPressed = false;
 
 volatile bool is_adlib_on = false;
 volatile bool is_covox_on = true;
-volatile bool is_game_balaster_on = false;
+volatile bool is_game_balaster_on = true;
 volatile bool is_tandy3v_on = true;
 volatile bool is_dss_on = true;
 volatile bool is_sound_on = true;

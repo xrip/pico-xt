@@ -26,7 +26,7 @@ To turn on/off:
 * Digital Sound Source on LPT1, use Ctrl + Tab + D. Default value - it is ON
 * COVOX on LPT2, use Ctrl + Tab + C. Default value - it is ON
 * Tandy 3-voices music device emulation, use Ctrl + Tab + T. Default value - it is ON
-* Game Blaster (Creative Music System) device emulation, use Ctrl + Tab + G. Default value - it is OFF
+* Game Blaster (Creative Music System) device emulation, use Ctrl + Tab + G. Default value - it is ON
 * AdLib emulation, use Ctrl + Tab + A. Default value - it is OFF (experimental, not recomended)
 * Whole sound emulation subsystem, use Ctrl + Tab + S. Default value - it is ON
 * // Experimental: use before DOS (while BIOS test RAM)
