@@ -32,6 +32,12 @@ volatile bool is_game_balaster_on = false;
 volatile bool is_tandy3v_on = true;
 volatile bool is_dss_on = true;
 volatile bool is_sound_on = true;
+volatile uint8_t snd_divider = 1;
+volatile uint8_t cms_divider = 12;
+volatile uint8_t dss_divider = 2;
+volatile uint8_t adlib_divider = 0;
+volatile uint8_t tandy3v_divider = 2;
+volatile uint8_t covox_divider = 9;
 
 volatile bool is_xms_on = false;
 volatile bool is_ems_on = true;
@@ -97,11 +103,12 @@ inline static void swap_drive_message() {
         const lines_t lines = { 1, 3, lns };
         draw_box(10, 7, 60, 10, "Info", &lines);
     }
-    sleep_ms(1500);
+    sleep_ms(2500);
     graphics_set_mode(ret);
     restore_video_ram();
 }
 
+// TODO: universal dialog
 inline static void swap_sound_state_message() {
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
@@ -121,7 +128,223 @@ inline static void swap_sound_state_message() {
         draw_box(10, 7, 60, 10, "Info", &lines);
     }
     is_sound_on = !is_sound_on;
-    sleep_ms(1500);
+    sleep_ms(2500);
+    graphics_set_mode(ret);
+    restore_video_ram();
+}
+
+inline static void swap_adlib_state_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (is_adlib_on) {
+        const line_t lns[3] = {
+            { 15, "Turn AdLib emulation OFF" },
+            {  0, "" },
+            {  6, "To turn it ON back, press Ctrl + Tab + A"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    } else {
+        const line_t lns[1] = {
+            { 15, "Turn AdLib emulation ON" }
+        };
+        const lines_t lines = { 1, 3, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    }
+    is_adlib_on = !is_adlib_on;
+    sleep_ms(2500);
+    graphics_set_mode(ret);
+    restore_video_ram();
+}
+
+inline static void swap_dss_state_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (is_dss_on) {
+        const line_t lns[3] = {
+            { 13, "Turn Digital Sound Source (on LPT1) OFF" },
+            {  0, "" },
+            {  6, "To turn it ON back, press Ctrl + Tab + D"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    } else {
+        const line_t lns[1] = {
+            { 15, "Turn Digital Sound Source ON" }
+        };
+        const lines_t lines = { 1, 3, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    }
+    is_dss_on = !is_dss_on;
+    sleep_ms(2500);
+    graphics_set_mode(ret);
+    restore_video_ram();
+}
+
+inline static void swap_covox_state_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (is_covox_on) {
+        const line_t lns[3] = {
+            { 15, "Turn COVOX OFF" },
+            {  0, "" },
+            {  6, "To turn it ON back, press Ctrl + Tab + C"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    } else {
+        const line_t lns[1] = {
+            { 15, "Turn COVOX ON" }
+        };
+        const lines_t lines = { 1, 3, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    }
+    is_covox_on = !is_covox_on;
+    sleep_ms(2500);
+    graphics_set_mode(ret);
+    restore_video_ram();
+}
+
+inline static void swap_tandy_state_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (is_tandy3v_on) {
+        const line_t lns[3] = {
+            { 15, "Turn Tandy 3-voices music OFF" },
+            {  0, "" },
+            {  6, "To turn it ON back, press Ctrl + Tab + T"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    } else {
+        const line_t lns[1] = {
+            { 15, "Turn Tandy 3-voices music ON" }
+        };
+        const lines_t lines = { 1, 3, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    }
+    is_tandy3v_on = !is_tandy3v_on;
+    sleep_ms(2500);
+    graphics_set_mode(ret);
+    restore_video_ram();
+}
+
+inline static void swap_game_blaster_state_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (is_game_balaster_on) {
+        const line_t lns[3] = {
+            { 15, "Creative Music System music OFF" },
+            {  0, "" },
+            {  6, "To turn it ON back, press Ctrl + Tab + G"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    } else {
+        const line_t lns[1] = {
+            { 15, "Creative Music System music ON" }
+        };
+        const lines_t lines = { 1, 3, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    }
+    is_game_balaster_on = !is_game_balaster_on;
+    sleep_ms(2500);
+    graphics_set_mode(ret);
+    restore_video_ram();
+}
+
+inline static void swap_hma_state_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (is_hma_on) {
+        const line_t lns[3] = {
+            { 15, "Hight Memory Address (HMA) OFF" },
+            {  0, "" },
+            {  6, "To turn it ON back, press Ctrl + Tab + H"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    } else {
+        const line_t lns[1] = {
+            { 15, "Hight Memory Address (HMA) ON" }
+        };
+        const lines_t lines = { 1, 3, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    }
+    is_hma_on = !is_hma_on;
+    sleep_ms(2500);
+    graphics_set_mode(ret);
+    restore_video_ram();
+}
+
+inline static void swap_umb_state_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (is_umb_on) {
+        const line_t lns[3] = {
+            { 15, "Upper Memory Blocks Manager (UMB) OFF" },
+            {  0, "" },
+            {  6, "To turn it ON back, press Ctrl + Tab + U"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    } else {
+        const line_t lns[1] = {
+            { 15, "Upper Memory Blocks Manager (UMB) ON" }
+        };
+        const lines_t lines = { 1, 3, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    }
+    is_umb_on = !is_umb_on;
+    sleep_ms(2500);
+    graphics_set_mode(ret);
+    restore_video_ram();
+}
+
+inline static void swap_ems_state_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (is_ems_on) {
+        const line_t lns[3] = {
+            { 15, "Epanded Memory Manager (EMS) OFF" },
+            {  0, "" },
+            {  6, "To turn it ON back, press Ctrl + Tab + E"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    } else {
+        const line_t lns[1] = {
+            { 15, "Epanded Memory Manager (EMS) ON" }
+        };
+        const lines_t lines = { 1, 3, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    }
+    is_ems_on = !is_ems_on;
+    sleep_ms(2500);
+    graphics_set_mode(ret);
+    restore_video_ram();
+}
+
+inline static void swap_xms_state_message() {
+    save_video_ram();
+    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (is_xms_on) {
+        const line_t lns[3] = {
+            { 15, "Etended Memory Manager (XMS) OFF" },
+            {  0, "" },
+            {  6, "To turn it ON back, press Ctrl + Tab + X"}
+        };
+        const lines_t lines = { 3, 2, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    } else {
+        const line_t lns[1] = {
+            { 15, "Etended Memory Manager (XMS) ON" }
+        };
+        const lines_t lines = { 1, 3, lns };
+        draw_box(10, 7, 60, 10, "Info", &lines);
+    }
+    is_xms_on = !is_xms_on;
+    sleep_ms(2500);
     graphics_set_mode(ret);
     restore_video_ram();
 }
@@ -445,26 +668,56 @@ static inline void enter_pressed() {
 static inline void if_sound_control() { // core #0
     if (ctrlPressed && tabPressed) {
         if (aPressed) {
-            is_adlib_on;
+            swap_adlib_state_message();
         } else if (cPressed) {
-
+            swap_covox_state_message();
         } else if (dPressed) {
-            
+            swap_dss_state_message();
         } else if (tPressed) {
-            
+            swap_tandy_state_message();
         } else if (gPressed) {
-            
+            swap_game_blaster_state_message();
         } else if (sPressed) {
             swap_sound_state_message();
         } else if (xPressed) {
-            
+            swap_xms_state_message();
         } else if (ePressed) {
-            
+            swap_ems_state_message();
         } else if (uPressed) {
-            
+            swap_umb_state_message();
         } else if (hPressed) {
-            
+            swap_hma_state_message();
         }
+    } else if (plusPressed) {
+        if (aPressed) {
+            adlib_divider -= adlib_divider == 0 ? 0 : 1;
+        } else if (sPressed) {
+            snd_divider -= snd_divider == 0 ? 0 : 1;
+        } else if (tPressed) {
+            tandy3v_divider -= tandy3v_divider == 0 ? 0 : 1;            
+        } else if (cPressed) {
+            covox_divider -= covox_divider == 0 ? 0 : 1;          
+        } else if (dPressed) {
+            dss_divider -= dss_divider == 0 ? 0 : 1;        
+        } else if (gPressed) {
+            cms_divider -= cms_divider == 0 ? 0 : 1;
+        }
+        plusPressed = false;
+    } else if (minusPressed) {
+        if (aPressed) {
+            adlib_divider += adlib_divider >= 16 ? 0 : 1;
+        } else if (sPressed) {
+            snd_divider += snd_divider >= 16 ? 0 : 1;
+        } else if (tPressed) {
+            tandy3v_divider += tandy3v_divider >= 16 ? 0 : 1;
+        } else if (cPressed) {
+            covox_divider += covox_divider >= 16 ? 0 : 1;
+        } else if (dPressed) {
+            dss_divider += dss_divider >= 16 ? 0 : 1;
+        } else if (gPressed) {
+            cms_divider += cms_divider >= 16 ? 0 : 1;
+        }
+        minusPressed = false;   
     }
 }
 

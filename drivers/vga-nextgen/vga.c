@@ -94,13 +94,18 @@ extern volatile bool is_game_balaster_on;
 extern volatile bool is_tandy3v_on;
 extern volatile bool is_dss_on;
 extern volatile bool is_sound_on;
+extern volatile uint8_t snd_divider;
+extern volatile uint8_t cms_divider;
+extern volatile uint8_t dss_divider;
+extern volatile uint8_t adlib_divider;
+extern volatile uint8_t tandy3v_divider;
+extern volatile uint8_t covox_divider;
 
 inline static void sound_callback() {
     static uint32_t dss_cycles_per_vga = 0;
     static uint8_t last_dss_sample = 0;
     static uint32_t adlib_cycles_per_vga = 0;
-    static int16_t last_adlib_sample = 0;
-    static int16_t sum_adlib_samples = 0;
+    static int sum_adlib_samples = 0;
 
     dss_cycles_per_vga += 10;
     adlib_cycles_per_vga += 1;
@@ -109,10 +114,12 @@ inline static void sound_callback() {
     if (is_adlib_on) {
         if (adlib_cycles_per_vga > 9) { // TODO: adjust rate
             adlib_cycles_per_vga = 0;
+        }
+        sum_adlib_samples += adlibgensample_ch(adlib_cycles_per_vga);
+        out += (int16_t)(sum_adlib_samples >> adlib_divider);
+        if (adlib_cycles_per_vga == 0) {
             sum_adlib_samples = 0;
         }
-        sum_adlib_samples += (int16_t)(adlibgensample_ch(adlib_cycles_per_vga) >> 5);
-        out += last_adlib_sample;
     }
 #endif
 #if SOUND_BLASTER
@@ -125,23 +132,29 @@ inline static void sound_callback() {
             last_dss_sample = dss_sample();
             dss_cycles_per_vga = 0;
         }
-        out += ((int16_t)last_dss_sample - (int16_t)0x0080) << 7; // 8 unsigned on LPT1 mix to signed 16
+        out += dss_divider > 8 ?
+            ((int16_t)last_dss_sample - (int16_t)0x0080) >> (dss_divider - 8):
+            ((int16_t)last_dss_sample - (int16_t)0x0080) << (dss_divider + 8); // 8 unsigned on LPT1 mix to signed 16
     }
 #endif
 #ifdef COVOX
     if (is_covox_on) {
-        out += ((int16_t)true_covox - (int16_t)0x0080) << 7; // 8 unsigned on LPT2 mix to signed 18
+        out += covox_divider > 8 ?
+            ((int16_t)true_covox - (int16_t)0x0080) >> (dss_divider - 8):
+            ((int16_t)true_covox - (int16_t)0x0080) << (dss_divider + 8); // 8 unsigned on LPT2 mix to signed 16
     }
 #endif
 #ifdef TANDY3V
-    if (is_tandy3v_on)
-        out += sn76489_sample(); // already signed 16
+    if (is_tandy3v_on) {
+        out += sn76489_sample() >> tandy3v_divider; // already signed 16
+    }
 #endif
 #ifdef CMS
     if (is_game_balaster_on) {
         cms_samples(&out_l, &out_r);
-        out_l = out + (out_l >> 12); // mix it with decrease volume
-        out_r = out + (out_r >> 12);
+        register uint8_t d = cms_divider;
+        out_l = out + (out_l >> d); // mix it with decrease volume
+        out_r = out + (out_r >> d);
     } else {
         out_l = out;
         out_r = out;
@@ -150,8 +163,10 @@ inline static void sound_callback() {
     out_l = out;
     out_r = out;
 #endif
-    pwm_set_gpio_level(PWM_PIN0,(int16_t)((int32_t)out_r + 0x8000)); // Право signed 16 to unsigned 16
-    pwm_set_gpio_level(PWM_PIN1,(int16_t)((int32_t)out_l + 0x8000)); // Лево  signed 16 to unsigned 16
+    register uint8_t r_rivider = snd_divider; // TODO: tume up divider per channel
+    register uint8_t l_rivider = snd_divider;
+    pwm_set_gpio_level(PWM_PIN0,(int16_t)((int32_t)out_r + 0x8000L) >> r_rivider); // Право signed 16 to unsigned 16
+    pwm_set_gpio_level(PWM_PIN1,(int16_t)((int32_t)out_l + 0x8000L) >> l_rivider); // Лево  signed 16 to unsigned 16
 }
 #endif
 
