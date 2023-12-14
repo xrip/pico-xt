@@ -133,7 +133,7 @@ inline static void sound_callback() {
     }
 #endif
 #ifdef COVOX
-    if (is_covox_on) {
+    if (is_covox_on && true_covox) {
         register uint8_t d = covox_divider;
         out += (int16_t)((((int32_t)true_covox - (int32_t)0x0080) << 7) >> d); // 8 unsigned on LPT2 mix to signed 16
     }
