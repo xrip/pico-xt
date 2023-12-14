@@ -130,7 +130,7 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
 #endif
 #if SOUND_BLASTER
     tickBlaster();
-    out += getBlasterSample();
+    out += getBlasterSample() << 3 ;
 #endif
 #if DSS
     out += dss_sample();

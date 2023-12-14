@@ -148,6 +148,7 @@ void portout(uint16_t portnum, uint16_t value) {
             outBlaster(portnum, value);
             break;
 #endif
+#if CMS
         case 0x220:
         case 0x221:
         case 0x222:
@@ -161,6 +162,7 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0x22a:
             cms_out(portnum, value);
             break;
+#endif
 #if DSS || COVOX
         case 0x278: // covox data port
             if(covox_lpt2) {
@@ -507,6 +509,7 @@ uint16_t portin(uint16_t portnum) {
         case 0x22e:
             return inBlaster(portnum);
 #endif
+#if CMS
         case 0x220:
 case 0x221:
 case 0x222:
@@ -519,6 +522,7 @@ case 0x228:
 case 0x229:
 case 0x22a:
     return cms_in(portnum);
+#endif
 #endif
         // http://www.techhelpmanual.com/900-video_graphics_array_i_o_ports.html
         // https://wiki.osdev.org/VGA_Hardware#Port_0x3C0
