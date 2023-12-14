@@ -101,7 +101,7 @@ static int RendererThread(void* ptr) {
     }
     return 0;
 }
-volatile bool is_adlib_on = false;
+volatile bool is_adlib_on = true;
 volatile bool is_covox_on = true;
 volatile bool is_game_balaster_on = true;
 volatile bool is_tandy3v_on = true;
@@ -126,7 +126,7 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
     int16_t outs[2] = { 0 };
     int16_t out = 0;
 #if SOUND_BLASTER || ADLIB
-    out += adlibgensample();
+    out += adlibgensample() << 3;
 #endif
 #if SOUND_BLASTER
     tickBlaster();

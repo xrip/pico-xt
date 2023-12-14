@@ -30,13 +30,13 @@ static inline void cms_update() { // may be in core #0 and in core #1
     for (channel = 0; channel < 4; channel++) {
         switch (noisetype[channel >> 1][channel & 1]) {
             case 0:
-                noisefreq[channel >> 1][channel & 1] = MASTER_CLOCK / 256;
+                noisefreq[channel >> 1][channel & 1] = (MASTER_CLOCK / 256 );
                 break;
             case 1:
-                noisefreq[channel >> 1][channel & 1] = MASTER_CLOCK / 512;
+                noisefreq[channel >> 1][channel & 1] = (MASTER_CLOCK / 512);
                 break;
             case 2:
-                noisefreq[channel >> 1][channel & 1] = MASTER_CLOCK / 1024;
+                noisefreq[channel >> 1][channel & 1] = (MASTER_CLOCK / 1024 );
                 break;
             case 3:
                 noisefreq[channel >> 1][channel & 1] = freq[channel >> 1][(channel & 1) * 3];
