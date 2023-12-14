@@ -32,11 +32,11 @@ volatile bool is_game_balaster_on = false;
 volatile bool is_tandy3v_on = true;
 volatile bool is_dss_on = true;
 volatile bool is_sound_on = true;
-volatile uint8_t snd_divider = 1;
+volatile uint8_t snd_divider = 0;
 volatile uint8_t cms_divider = 12;
-volatile uint8_t dss_divider = 2;
+volatile uint8_t dss_divider = 0;
 volatile uint8_t adlib_divider = 0;
-volatile uint8_t tandy3v_divider = 2;
+volatile uint8_t tandy3v_divider = 0;
 volatile uint8_t covox_divider = 9;
 
 volatile bool is_xms_on = false;
@@ -117,24 +117,24 @@ inline static void level_state_message(uint8_t divider, char* sys_name) {
     snprintf(ln, 80, "%s volume: %d (div: 1 << %d = %d)", sys_name, 16 - divider, divider, (1 << divider));
     size_t len = strnlen(ln, 80); // TODO: center bool in dialog box
     const line_t lns[1] = {
-        { (60 - len) >> 1, ln }
+        { (70 - len) >> 1, ln }
     };
     const lines_t lines = { 1, 3, lns };
-    draw_box(10, 7, 60, 10, "Info", &lines);
+    draw_box(5, 7, 70, 10, "Info", &lines);
     sleep_ms(2500);
     graphics_set_mode(ret);
     restore_video_ram();
 }
 
-inline static void swap_sound_state_message(bool* p_state, char* sys_name, char* switch_char) {
+inline static void swap_sound_state_message(volatile bool* p_state, char* sys_name, char switch_char) {
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
     if (ret != TEXTMODE_80x30) clrScr(1);
     char ln[80];
     snprintf(ln, 80, "Turn %s %s", sys_name, *p_state ? "OFF" : "ON");
     if (*p_state) {
-        char ln3[40];
-        snprintf(ln3, 40, "To turn it ON back, press Ctrl + Tab + %s", switch_char);
+        char ln3[42];
+        snprintf(ln3, 42, "To turn it ON back, press Ctrl + Tab + %c", switch_char);
         const line_t lns[3] = {
             { 15, ln },
             {  0, "" },
@@ -471,80 +471,87 @@ static inline void enter_pressed() {
     f_closedir(&dir);
 }
 
+const static char* adlib_name = "AdLib emulation";
+const static char* covox_name = "COVOX on LPT2";
+const static char* dss_name = "Digital Sound Source on LPT1";
+const static char* tandy3v_name = "Tandy 3-voices music device";
+const static char* ss_name = "Whole Sound System";
+const static char* cms_name = "Game Blaster (Creative Music System)";
+
 static inline void if_sound_control() { // core #0
     if (ctrlPressed && tabPressed) {
         if (aPressed) {
-            swap_sound_state_message(&is_adlib_on, "AdLib emulation", "A");
+            swap_sound_state_message(&is_adlib_on, adlib_name, 'A');
         } else if (cPressed) {
-            swap_sound_state_message(&is_covox_on, "COVOX on LPT2", "C");
+            swap_sound_state_message(&is_covox_on, covox_name, 'C');
         } else if (dPressed) {
-            swap_sound_state_message(&is_dss_on, "Digital Sound Source on LPT1", "D");
+            swap_sound_state_message(&is_dss_on, dss_name, 'D');
         } else if (tPressed) {
-            swap_sound_state_message(&is_tandy3v_on, "Tandy 3-voices music device", "T");
+            swap_sound_state_message(&is_tandy3v_on, tandy3v_name, 'T');
         } else if (gPressed) {
-            swap_sound_state_message(&is_game_balaster_on, "Game Blaster (Creative Music System)", "G");
+            swap_sound_state_message(&is_game_balaster_on, cms_name, 'G');
         } else if (sPressed) {
-            swap_sound_state_message(&is_sound_on, "Whole Sound System", "S");
+            swap_sound_state_message(&is_sound_on, ss_name, 'S');
         } else if (xPressed) {
-            swap_sound_state_message(&is_xms_on, "Extended Memory Manager (XMS)", "X");
+            swap_sound_state_message(&is_xms_on, "Extended Memory Manager (XMS)", 'X');
         } else if (ePressed) {
-            swap_sound_state_message(&is_ems_on, "Expanded Memory Manager (EMS)", "E");
+            swap_sound_state_message(&is_ems_on, "Expanded Memory Manager (EMS)", 'E');
         } else if (uPressed) {
-            swap_sound_state_message(&is_umb_on, "Upper Memory Blocks Manager (UMB)", "U");
+            swap_sound_state_message(&is_umb_on, "Upper Memory Blocks Manager (UMB)", 'U');
         } else if (hPressed) {
-            swap_sound_state_message(&is_hma_on, "Hight Memory Address Manager (HMA)", "H");
+            swap_sound_state_message(&is_hma_on, "Hight Memory Address Manager (HMA)", 'H');
         }
     } else if (ctrlPressed && plusPressed) {
         if (aPressed) {
             adlib_divider -= adlib_divider == 0 ? 0 : 1;
             plusPressed = false;
-            level_state_message(adlib_divider, "AdLib emulation");
+            level_state_message(adlib_divider, adlib_name);
         } else if (sPressed) {
             snd_divider -= snd_divider == 0 ? 0 : 1;
             plusPressed = false;
-            level_state_message(snd_divider, "Whole Sound System");
+            level_state_message(snd_divider, ss_name);
         } else if (tPressed) {
             tandy3v_divider -= tandy3v_divider == 0 ? 0 : 1;
             plusPressed = false;
-            level_state_message(tandy3v_divider, "Tandy 3-voices music device");
+            level_state_message(tandy3v_divider, tandy3v_name);
         } else if (cPressed) {
             covox_divider -= covox_divider == 0 ? 0 : 1;
             plusPressed = false;
-            level_state_message(covox_divider, "COVOX on LPT2");
+            level_state_message(covox_divider, covox_name);
         } else if (dPressed) {
             dss_divider -= dss_divider == 0 ? 0 : 1;
             plusPressed = false;
-            level_state_message(dss_divider, "Digital Sound Source on LPT1");
+            level_state_message(dss_divider, dss_name);
         } else if (gPressed) {
             cms_divider -= cms_divider == 0 ? 0 : 1;
             plusPressed = false;
-            level_state_message(cms_divider, "Game Blaster (Creative Music System)");
+            level_state_message(cms_divider, cms_name);
         }
     } else if (ctrlPressed && minusPressed) {
         if (aPressed) {
             adlib_divider += adlib_divider >= 16 ? 0 : 1;
             minusPressed = false;
-            level_state_message(adlib_divider, "AdLib emulation");
+            level_state_message(adlib_divider, adlib_name);
         } else if (sPressed) {
             snd_divider += snd_divider >= 16 ? 0 : 1;
             minusPressed = false;
-            level_state_message(snd_divider, "Whole Sound System");
+            level_state_message(snd_divider, ss_name);
         } else if (tPressed) {
             tandy3v_divider += tandy3v_divider >= 16 ? 0 : 1;
             minusPressed = false;
-            level_state_message(tandy3v_divider, "Tandy 3-voices music device");
+            level_state_message(tandy3v_divider, tandy3v_name);
         } else if (cPressed) {
             covox_divider += covox_divider >= 16 ? 0 : 1;
             minusPressed = false;
-            level_state_message(covox_divider, "COVOX on LPT2");
+            level_state_message(covox_divider, covox_name);
         } else if (dPressed) {
             dss_divider += dss_divider >= 16 ? 0 : 1;
             minusPressed = false;
-            level_state_message(dss_divider, "Digital Sound Source on LPT1");
+            level_state_message(dss_divider, dss_name);
         } else if (gPressed) {
             cms_divider += cms_divider >= 16 ? 0 : 1;
             minusPressed = false;
-            level_state_message(cms_divider, "Game Blaster (Creative Music System)");
+            level_state_message(cms_divider, cms_name);
         }
     }
 }

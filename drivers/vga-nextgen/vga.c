@@ -134,14 +134,14 @@ inline static void sound_callback() {
         }
         out += dss_divider > 8 ?
             ((int16_t)last_dss_sample - (int16_t)0x0080) >> (dss_divider - 8):
-            ((int16_t)last_dss_sample - (int16_t)0x0080) << (dss_divider + 8); // 8 unsigned on LPT1 mix to signed 16
+            ((int16_t)last_dss_sample - (int16_t)0x0080) << (8 - dss_divider); // 8 unsigned on LPT1 mix to signed 16
     }
 #endif
 #ifdef COVOX
     if (is_covox_on) {
         out += covox_divider > 8 ?
-            ((int16_t)true_covox - (int16_t)0x0080) >> (dss_divider - 8):
-            ((int16_t)true_covox - (int16_t)0x0080) << (dss_divider + 8); // 8 unsigned on LPT2 mix to signed 16
+            ((int16_t)true_covox - (int16_t)0x0080) >> (covox_divider - 8):
+            ((int16_t)true_covox - (int16_t)0x0080) << (8 - covox_divider); // 8 unsigned on LPT2 mix to signed 16
     }
 #endif
 #ifdef TANDY3V
