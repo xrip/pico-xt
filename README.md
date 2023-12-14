@@ -22,19 +22,19 @@ To swap floppy drives A <-> B use: Left Ctrl + Tab + Backspace
 Or Enter + Backspace -> File Manager
 In the File Manager press "F9"
 
-To turn on/off
-    Digital Sound Source on LPT1, use Ctrl + Tab + D. Default value - it is ON
-    COVOX on LPT2, use Ctrl + Tab + C. Default value - it is ON
-    Tandy 3-voices music device emulation, use Ctrl + Tab + T. Default value - it is ON
-    Game Blaster (Creative Music System) device emulation, use Ctrl + Tab + G. Default value - it is OFF
-    AdLib emulation, use Ctrl + Tab + A. Default value - it is OFF (experimental, not recomended)
-    Whole sound emulation subsystem, use Ctrl + Tab + S. Default value - it is ON
-    // Experimental: use before DOS (while BIOS test RAM)
-    Extended Memory Manager (XMS), use Ctrl + Tab + X. Default value - it is OFF (have some issues with Wolf 3D)
-    Expanded Memory Manager (EMS), use Ctrl + Tab + E. Default value - it is ON
-    Upper Memory Blocks Manager (UMB), use Ctrl + Tab + U. Default value - it is ON
-    Hight Memory Address Manager (HMA), use Ctrl + Tab + H. Default value - it is ON
-    // TODO: save state to config file
+To turn on/off:
+* Digital Sound Source on LPT1, use Ctrl + Tab + D. Default value - it is ON
+* COVOX on LPT2, use Ctrl + Tab + C. Default value - it is ON
+* Tandy 3-voices music device emulation, use Ctrl + Tab + T. Default value - it is ON
+* Game Blaster (Creative Music System) device emulation, use Ctrl + Tab + G. Default value - it is OFF
+* AdLib emulation, use Ctrl + Tab + A. Default value - it is OFF (experimental, not recomended)
+* Whole sound emulation subsystem, use Ctrl + Tab + S. Default value - it is ON
+* // Experimental: use before DOS (while BIOS test RAM)
+* Extended Memory Manager (XMS), use Ctrl + Tab + X. Default value - it is OFF (have some issues with Wolf 3D)
+* Expanded Memory Manager (EMS), use Ctrl + Tab + E. Default value - it is ON
+* Upper Memory Blocks Manager (UMB), use Ctrl + Tab + U. Default value - it is ON
+* Hight Memory Address Manager (HMA), use Ctrl + Tab + H. Default value - it is ON
+* // TODO: save state to config file
 
 To decrease or increase appropriated sound device volume, press Ctrl + related button and numpad "+" / "-",
 for example Ctrl + "D" + "-" will decrease DSS volume, Ctrl + "S" + "+" - increase whole sound system volume.
