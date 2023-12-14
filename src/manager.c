@@ -88,6 +88,7 @@ static inline void fill_panel(file_panel_desc_t* p);
 inline static void swap_drive_message() {
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+    if (ret != TEXTMODE_80x30) clrScr(1);
     if (already_swapped_fdds) {
         const line_t lns[3] = {
             { 13, "Swap FDD0 and FDD1 drive images" },
@@ -108,242 +109,47 @@ inline static void swap_drive_message() {
     restore_video_ram();
 }
 
-// TODO: universal dialog
-inline static void swap_sound_state_message() {
+inline static void level_state_message(uint8_t divider, char* sys_name) {
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    if (is_sound_on) {
-        const line_t lns[3] = {
-            { 15, "Turn whole Sound Sustem OFF" },
-            {  0, "" },
-            {  6, "To turn it ON back, press Ctrl + Tab + S"}
-        };
-        const lines_t lines = { 3, 2, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    } else {
-        const line_t lns[1] = {
-            { 15, "Turn whole Sound Sustem ON" }
-        };
-        const lines_t lines = { 1, 3, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    }
-    is_sound_on = !is_sound_on;
+    if (ret != TEXTMODE_80x30) clrScr(1);
+    char ln[80];
+    snprintf(ln, 80, "%s volume: %d (div: 1 << %d = %d)", sys_name, 16 - divider, divider, (1 << divider));
+    size_t len = strnlen(ln, 80); // TODO: center bool in dialog box
+    const line_t lns[1] = {
+        { (60 - len) >> 1, ln }
+    };
+    const lines_t lines = { 1, 3, lns };
+    draw_box(10, 7, 60, 10, "Info", &lines);
     sleep_ms(2500);
     graphics_set_mode(ret);
     restore_video_ram();
 }
 
-inline static void swap_adlib_state_message() {
+inline static void swap_sound_state_message(bool* p_state, char* sys_name, char* switch_char) {
     save_video_ram();
     enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    if (is_adlib_on) {
+    if (ret != TEXTMODE_80x30) clrScr(1);
+    char ln[80];
+    snprintf(ln, 80, "Turn %s %s", sys_name, *p_state ? "OFF" : "ON");
+    if (*p_state) {
+        char ln3[40];
+        snprintf(ln3, 40, "To turn it ON back, press Ctrl + Tab + %s", switch_char);
         const line_t lns[3] = {
-            { 15, "Turn AdLib emulation OFF" },
+            { 15, ln },
             {  0, "" },
-            {  6, "To turn it ON back, press Ctrl + Tab + A"}
+            {  6, ln3}
         };
         const lines_t lines = { 3, 2, lns };
         draw_box(10, 7, 60, 10, "Info", &lines);
     } else {
         const line_t lns[1] = {
-            { 15, "Turn AdLib emulation ON" }
+            { 15, ln }
         };
         const lines_t lines = { 1, 3, lns };
         draw_box(10, 7, 60, 10, "Info", &lines);
     }
-    is_adlib_on = !is_adlib_on;
-    sleep_ms(2500);
-    graphics_set_mode(ret);
-    restore_video_ram();
-}
-
-inline static void swap_dss_state_message() {
-    save_video_ram();
-    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    if (is_dss_on) {
-        const line_t lns[3] = {
-            { 13, "Turn Digital Sound Source (on LPT1) OFF" },
-            {  0, "" },
-            {  6, "To turn it ON back, press Ctrl + Tab + D"}
-        };
-        const lines_t lines = { 3, 2, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    } else {
-        const line_t lns[1] = {
-            { 15, "Turn Digital Sound Source ON" }
-        };
-        const lines_t lines = { 1, 3, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    }
-    is_dss_on = !is_dss_on;
-    sleep_ms(2500);
-    graphics_set_mode(ret);
-    restore_video_ram();
-}
-
-inline static void swap_covox_state_message() {
-    save_video_ram();
-    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    if (is_covox_on) {
-        const line_t lns[3] = {
-            { 15, "Turn COVOX OFF" },
-            {  0, "" },
-            {  6, "To turn it ON back, press Ctrl + Tab + C"}
-        };
-        const lines_t lines = { 3, 2, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    } else {
-        const line_t lns[1] = {
-            { 15, "Turn COVOX ON" }
-        };
-        const lines_t lines = { 1, 3, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    }
-    is_covox_on = !is_covox_on;
-    sleep_ms(2500);
-    graphics_set_mode(ret);
-    restore_video_ram();
-}
-
-inline static void swap_tandy_state_message() {
-    save_video_ram();
-    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    if (is_tandy3v_on) {
-        const line_t lns[3] = {
-            { 15, "Turn Tandy 3-voices music OFF" },
-            {  0, "" },
-            {  6, "To turn it ON back, press Ctrl + Tab + T"}
-        };
-        const lines_t lines = { 3, 2, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    } else {
-        const line_t lns[1] = {
-            { 15, "Turn Tandy 3-voices music ON" }
-        };
-        const lines_t lines = { 1, 3, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    }
-    is_tandy3v_on = !is_tandy3v_on;
-    sleep_ms(2500);
-    graphics_set_mode(ret);
-    restore_video_ram();
-}
-
-inline static void swap_game_blaster_state_message() {
-    save_video_ram();
-    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    if (is_game_balaster_on) {
-        const line_t lns[3] = {
-            { 15, "Creative Music System music OFF" },
-            {  0, "" },
-            {  6, "To turn it ON back, press Ctrl + Tab + G"}
-        };
-        const lines_t lines = { 3, 2, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    } else {
-        const line_t lns[1] = {
-            { 15, "Creative Music System music ON" }
-        };
-        const lines_t lines = { 1, 3, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    }
-    is_game_balaster_on = !is_game_balaster_on;
-    sleep_ms(2500);
-    graphics_set_mode(ret);
-    restore_video_ram();
-}
-
-inline static void swap_hma_state_message() {
-    save_video_ram();
-    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    if (is_hma_on) {
-        const line_t lns[3] = {
-            { 15, "Hight Memory Address (HMA) OFF" },
-            {  0, "" },
-            {  6, "To turn it ON back, press Ctrl + Tab + H"}
-        };
-        const lines_t lines = { 3, 2, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    } else {
-        const line_t lns[1] = {
-            { 15, "Hight Memory Address (HMA) ON" }
-        };
-        const lines_t lines = { 1, 3, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    }
-    is_hma_on = !is_hma_on;
-    sleep_ms(2500);
-    graphics_set_mode(ret);
-    restore_video_ram();
-}
-
-inline static void swap_umb_state_message() {
-    save_video_ram();
-    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    if (is_umb_on) {
-        const line_t lns[3] = {
-            { 15, "Upper Memory Blocks Manager (UMB) OFF" },
-            {  0, "" },
-            {  6, "To turn it ON back, press Ctrl + Tab + U"}
-        };
-        const lines_t lines = { 3, 2, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    } else {
-        const line_t lns[1] = {
-            { 15, "Upper Memory Blocks Manager (UMB) ON" }
-        };
-        const lines_t lines = { 1, 3, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    }
-    is_umb_on = !is_umb_on;
-    sleep_ms(2500);
-    graphics_set_mode(ret);
-    restore_video_ram();
-}
-
-inline static void swap_ems_state_message() {
-    save_video_ram();
-    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    if (is_ems_on) {
-        const line_t lns[3] = {
-            { 15, "Epanded Memory Manager (EMS) OFF" },
-            {  0, "" },
-            {  6, "To turn it ON back, press Ctrl + Tab + E"}
-        };
-        const lines_t lines = { 3, 2, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    } else {
-        const line_t lns[1] = {
-            { 15, "Epanded Memory Manager (EMS) ON" }
-        };
-        const lines_t lines = { 1, 3, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    }
-    is_ems_on = !is_ems_on;
-    sleep_ms(2500);
-    graphics_set_mode(ret);
-    restore_video_ram();
-}
-
-inline static void swap_xms_state_message() {
-    save_video_ram();
-    enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
-    if (is_xms_on) {
-        const line_t lns[3] = {
-            { 15, "Etended Memory Manager (XMS) OFF" },
-            {  0, "" },
-            {  6, "To turn it ON back, press Ctrl + Tab + X"}
-        };
-        const lines_t lines = { 3, 2, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    } else {
-        const line_t lns[1] = {
-            { 15, "Etended Memory Manager (XMS) ON" }
-        };
-        const lines_t lines = { 1, 3, lns };
-        draw_box(10, 7, 60, 10, "Info", &lines);
-    }
-    is_xms_on = !is_xms_on;
+    *p_state = !*p_state;
     sleep_ms(2500);
     graphics_set_mode(ret);
     restore_video_ram();
@@ -668,56 +474,78 @@ static inline void enter_pressed() {
 static inline void if_sound_control() { // core #0
     if (ctrlPressed && tabPressed) {
         if (aPressed) {
-            swap_adlib_state_message();
+            swap_sound_state_message(&is_adlib_on, "AdLib emulation", "A");
         } else if (cPressed) {
-            swap_covox_state_message();
+            swap_sound_state_message(&is_covox_on, "COVOX on LPT2", "C");
         } else if (dPressed) {
-            swap_dss_state_message();
+            swap_sound_state_message(&is_dss_on, "Digital Sound Source on LPT1", "D");
         } else if (tPressed) {
-            swap_tandy_state_message();
+            swap_sound_state_message(&is_tandy3v_on, "Tandy 3-voices music device", "T");
         } else if (gPressed) {
-            swap_game_blaster_state_message();
+            swap_sound_state_message(&is_game_balaster_on, "Game Blaster (Creative Music System)", "G");
         } else if (sPressed) {
-            swap_sound_state_message();
+            swap_sound_state_message(&is_sound_on, "Whole Sound System", "S");
         } else if (xPressed) {
-            swap_xms_state_message();
+            swap_sound_state_message(&is_xms_on, "Extended Memory Manager (XMS)", "X");
         } else if (ePressed) {
-            swap_ems_state_message();
+            swap_sound_state_message(&is_ems_on, "Expanded Memory Manager (EMS)", "E");
         } else if (uPressed) {
-            swap_umb_state_message();
+            swap_sound_state_message(&is_umb_on, "Upper Memory Blocks Manager (UMB)", "U");
         } else if (hPressed) {
-            swap_hma_state_message();
+            swap_sound_state_message(&is_hma_on, "Hight Memory Address Manager (HMA)", "H");
         }
-    } else if (plusPressed) {
+    } else if (ctrlPressed && plusPressed) {
         if (aPressed) {
             adlib_divider -= adlib_divider == 0 ? 0 : 1;
+            plusPressed = false;
+            level_state_message(adlib_divider, "AdLib emulation");
         } else if (sPressed) {
             snd_divider -= snd_divider == 0 ? 0 : 1;
+            plusPressed = false;
+            level_state_message(snd_divider, "Whole Sound System");
         } else if (tPressed) {
-            tandy3v_divider -= tandy3v_divider == 0 ? 0 : 1;            
+            tandy3v_divider -= tandy3v_divider == 0 ? 0 : 1;
+            plusPressed = false;
+            level_state_message(tandy3v_divider, "Tandy 3-voices music device");
         } else if (cPressed) {
-            covox_divider -= covox_divider == 0 ? 0 : 1;          
+            covox_divider -= covox_divider == 0 ? 0 : 1;
+            plusPressed = false;
+            level_state_message(covox_divider, "COVOX on LPT2");
         } else if (dPressed) {
-            dss_divider -= dss_divider == 0 ? 0 : 1;        
+            dss_divider -= dss_divider == 0 ? 0 : 1;
+            plusPressed = false;
+            level_state_message(dss_divider, "Digital Sound Source on LPT1");
         } else if (gPressed) {
             cms_divider -= cms_divider == 0 ? 0 : 1;
+            plusPressed = false;
+            level_state_message(cms_divider, "Game Blaster (Creative Music System)");
         }
-        plusPressed = false;
-    } else if (minusPressed) {
+    } else if (ctrlPressed && minusPressed) {
         if (aPressed) {
             adlib_divider += adlib_divider >= 16 ? 0 : 1;
+            minusPressed = false;
+            level_state_message(adlib_divider, "AdLib emulation");
         } else if (sPressed) {
             snd_divider += snd_divider >= 16 ? 0 : 1;
+            minusPressed = false;
+            level_state_message(snd_divider, "Whole Sound System");
         } else if (tPressed) {
             tandy3v_divider += tandy3v_divider >= 16 ? 0 : 1;
+            minusPressed = false;
+            level_state_message(tandy3v_divider, "Tandy 3-voices music device");
         } else if (cPressed) {
             covox_divider += covox_divider >= 16 ? 0 : 1;
+            minusPressed = false;
+            level_state_message(covox_divider, "COVOX on LPT2");
         } else if (dPressed) {
             dss_divider += dss_divider >= 16 ? 0 : 1;
+            minusPressed = false;
+            level_state_message(dss_divider, "Digital Sound Source on LPT1");
         } else if (gPressed) {
             cms_divider += cms_divider >= 16 ? 0 : 1;
+            minusPressed = false;
+            level_state_message(cms_divider, "Game Blaster (Creative Music System)");
         }
-        minusPressed = false;   
     }
 }
 
@@ -986,6 +814,9 @@ inline void if_overclock() {
     if (oc > 0) overcloking_khz += 1000;
     if (oc < 0) overcloking_khz -= 1000;
     if (oc != 0) {
+    save_video_ram();
+        enum graphics_mode_t ret = graphics_set_mode(TEXTMODE_80x30);
+        if (ret != TEXTMODE_80x30) clrScr(1);
         uint vco, postdiv1, postdiv2;
         if (check_sys_clock_khz(overcloking_khz, &vco, &postdiv1, &postdiv2)) {
             set_sys_clock_pll(vco, postdiv1, postdiv2);
@@ -995,7 +826,6 @@ inline void if_overclock() {
             };
             lines_t lines = { 1, 3, lns };
             draw_box(10, 7, 60, 10, "Info", &lines);
-            sleep_ms(1500);
         }
         else {
             sprintf(line, "System clock of %u kHz cannot be achieved", overcloking_khz);
@@ -1004,8 +834,10 @@ inline void if_overclock() {
             };
             lines_t lines = { 1, 3, lns };
             draw_box(10, 7, 60, 10, "Warning", &lines);
-            sleep_ms(1500);
         }
+        sleep_ms(2500);
+        graphics_set_mode(ret);
+        restore_video_ram();
     }
 }
 

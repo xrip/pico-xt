@@ -26,14 +26,14 @@ To turn on/off
     AdLib emulation, use Ctrl + Tab + A. Default value - it is OFF (experimental, not recomended)
     Whole sound emulation subsystem, use Ctrl + Tab + S. Default value - it is ON
     // Experimental: use before DOS (while BIOS test RAM)
-    Etended Memory Manager (XMS), use Ctrl + Tab + X. Default value - it is OFF (have some issues with Wolf 3D)
-    Epanded Memory Manager (EMS), use Ctrl + Tab + E. Default value - it is ON
+    Extended Memory Manager (XMS), use Ctrl + Tab + X. Default value - it is OFF (have some issues with Wolf 3D)
+    Expanded Memory Manager (EMS), use Ctrl + Tab + E. Default value - it is ON
     Upper Memory Blocks Manager (UMB), use Ctrl + Tab + U. Default value - it is ON
     Hight Memory Address Manager (HMA), use Ctrl + Tab + H. Default value - it is ON
     // TODO: save state to config file
 
-To decrease or increase appropriated sound device volume, press related button and numpad "+" / "-",
-for example "D" + "-" will decrease DSS volume, "S" + "+" - increase whole sound system volume.
+To decrease or increase appropriated sound device volume, press Ctrl + related button and numpad "+" / "-",
+for example Ctrl + "D" + "-" will decrease DSS volume, Ctrl + "S" + "+" - increase whole sound system volume.
 
 # Hardware needed
 To get it working you should have an Murmulator (development) board with VGA output. Schematics available here at https://github.com/AlexEkb4ever/MURMULATOR_classical_scheme
