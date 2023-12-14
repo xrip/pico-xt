@@ -5,36 +5,36 @@
 To use HDD: save hdd.img (from hdd.img.zip) to <SD-card-drive>:\XT\hdd.img
 
 To switch to USB-drives mode press: Enter + Backspace
-In the File Manager press "F10"
-To exit from the File Manager, use Ctrl + F10
+* In the File Manager press "F10"
+* To exit from the File Manager, use Ctrl + F10
 
 To change overcloking: Left Ctrl + Tab + Numpad "+" or Numpad "-"
 
 To use own FDD imgage, that will be shown as drive "B:", put fdd0.img file into <SD-card>:\XT\fdd01.img
 
 Extra PSRAM support on pi pico pins:
-            PSRAM_PIN_CS=17
-            PSRAM_PIN_SCK=18
-            PSRAM_PIN_MOSI=19
-            PSRAM_PIN_MISO=20
+* PSRAM_PIN_CS=18
+* PSRAM_PIN_SCK=19
+* PSRAM_PIN_MOSI=20
+* PSRAM_PIN_MISO=21
 
 To swap floppy drives A <-> B use: Left Ctrl + Tab + Backspace
-Or Enter + Backspace -> File Manager
-In the File Manager press "F9"
+* Or Enter + Backspace -> File Manager
+* In the File Manager press "F9"
 
-To turn on/off
-    Digital Sound Source on LPT1, use Ctrl + Tab + D. Default value - it is ON
-    COVOX on LPT2, use Ctrl + Tab + C. Default value - it is ON
-    Tandy 3-voices music device emulation, use Ctrl + Tab + T. Default value - it is ON
-    Game Blaster (Creative Music System) device emulation, use Ctrl + Tab + G. Default value - it is OFF
-    AdLib emulation, use Ctrl + Tab + A. Default value - it is OFF (experimental, not recomended)
-    Whole sound emulation subsystem, use Ctrl + Tab + S. Default value - it is ON
-    // Experimental: use before DOS (while BIOS test RAM)
-    Extended Memory Manager (XMS), use Ctrl + Tab + X. Default value - it is OFF (have some issues with Wolf 3D)
-    Expanded Memory Manager (EMS), use Ctrl + Tab + E. Default value - it is ON
-    Upper Memory Blocks Manager (UMB), use Ctrl + Tab + U. Default value - it is ON
-    Hight Memory Address Manager (HMA), use Ctrl + Tab + H. Default value - it is ON
-    // TODO: save state to config file
+To turn on/off:
+* Digital Sound Source on LPT1, use Ctrl + Tab + D. Default value - it is ON
+* COVOX on LPT2, use Ctrl + Tab + C. Default value - it is ON
+* Tandy 3-voices music device emulation, use Ctrl + Tab + T. Default value - it is ON
+* Game Blaster (Creative Music System) device emulation, use Ctrl + Tab + G. Default value - it is OFF
+* AdLib emulation, use Ctrl + Tab + A. Default value - it is OFF (experimental, not recomended)
+* Whole sound emulation subsystem, use Ctrl + Tab + S. Default value - it is ON
+* // Experimental: use before DOS (while BIOS test RAM)
+* Extended Memory Manager (XMS), use Ctrl + Tab + X. Default value - it is OFF (have some issues with Wolf 3D)
+* Expanded Memory Manager (EMS), use Ctrl + Tab + E. Default value - it is ON
+* Upper Memory Blocks Manager (UMB), use Ctrl + Tab + U. Default value - it is ON
+* Hight Memory Address Manager (HMA), use Ctrl + Tab + H. Default value - it is ON
+* // TODO: save state to config file
 
 To decrease or increase appropriated sound device volume, press Ctrl + related button and numpad "+" / "-",
 for example Ctrl + "D" + "-" will decrease DSS volume, Ctrl + "S" + "+" - increase whole sound system volume.
