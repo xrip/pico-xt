@@ -118,7 +118,7 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
     out += (sn76489_sample()) >> 6;
     out += true_covox;
 
-    cms_samples(outs);
+    cms_samples(&outs[0], &outs[1]);
     stream[0] = (uint8_t)(outs[0]);
     stream[1] = (uint8_t)(outs[1]);
     //memcpy(stream, &out, len);
