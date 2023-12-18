@@ -20,7 +20,9 @@ extern "C" {
 #include "ps2.h"
 #include "usb.h"
 }
-
+#if I2S_ENABLED
+#include "audio.h"
+#endif
 #else
 #define SDL_MAIN_HANDLED
 
@@ -50,10 +52,21 @@ void PWM_init_pin(uint8_t pinN) {
     pwm_config_set_wrap(&config, (1 << 12) - 1); // MAX PWM value
     pwm_init(pwm_gpio_to_slice_num(pinN), &config, true);
 }
-
+i2s_config_t i2s_config = i2s_get_default_config();
 struct semaphore vga_start_semaphore;
+static int16_t samples[2][512] = { 0 };
+static int16_t last_dss_sample = 0;
+volatile uint16_t true_covox = 0;
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
+#ifdef I2S_SOUND
+    i2s_config.sample_freq = SOUND_FREQUENCY;
+    i2s_config.dma_trans_count = 256;
+    i2s_volume(&i2s_config, 0);
+    i2s_init(&i2s_config);
+    sleep_ms(100);
+#endif
+
     graphics_init();
     graphics_set_buffer(VIDEORAM, 320, 200);
     graphics_set_textbuffer(VIDEORAM + 32768);
@@ -65,9 +78,74 @@ void __time_critical_func(render_core)() {
         graphics_set_palette(i, cga_palette[i]);
     }
 
+
     sem_acquire_blocking(&vga_start_semaphore);
 
     uint8_t tick50ms_counter = 0;
+
+    uint64_t tick = time_us_64();
+    uint64_t last_timer_tick = tick,  last_cursor_blink = tick, last_sound_tick = tick, last_dss_tick = tick;
+
+    while (true) {
+        if (tick >= last_timer_tick + timer_period) {
+            doirq(0);
+            last_timer_tick = tick;
+        }
+
+        if (tick >= last_cursor_blink + 500000) {
+            cursor_blink_state ^= 1;
+            last_cursor_blink = tick;
+        }
+
+#ifdef SOUND_ENABLED
+        static int active_buffer = 0;
+        static int sample_index = 0;
+
+#ifdef DSS
+
+        if (tick >= last_dss_tick + (1000000 / 7000 )) {
+            last_dss_sample = dss_sample();
+            if (last_dss_sample)
+                last_dss_sample = (int16_t)(((int32_t)last_dss_sample - (int32_t)0x0080) << 7); // 8 unsigned on LPT1 mix to signed 16
+            last_dss_tick = tick;
+        }
+#endif
+
+        // Sound frequency 44100
+        if (tick >= last_sound_tick + (1000000 / SOUND_FREQUENCY)) {
+            int_fast16_t sample = 0;
+
+#ifdef COVOX
+        if (true_covox) {
+            sample += (int16_t)(((int32_t)true_covox - (int32_t)0x0080) << 7); // 8 unsigned on LPT2 mix to signed 16
+        }
+#endif
+
+#ifdef TANDY3V
+            sample += sn76489_sample();
+#endif
+#ifdef DSS
+            sample += last_dss_sample;
+#endif
+
+#ifdef I2S_SOUND
+            samples[active_buffer][sample_index * 2] = sample;
+            samples[active_buffer][sample_index * 2 + 1] = sample;
+
+            if (sample_index++ >= i2s_config.dma_trans_count) {
+                sample_index = 0;
+                i2s_dma_write(&i2s_config, samples[active_buffer]);
+                active_buffer ^= 1;
+            }
+#endif
+            last_sound_tick = tick;
+        }
+#endif;
+
+        tick = time_us_64();
+    }
+
+
     while (true) {
         doirq(0);
         busy_wait_us(timer_period);
@@ -162,13 +240,7 @@ int main() {
 
     //stdio_init_all();
 
-    gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
-    pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
 
-#ifdef SOUND_SYSTEM
-    PWM_init_pin(PWM_PIN0);
-    PWM_init_pin(PWM_PIN1);
-#endif
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -223,7 +295,7 @@ int main() {
                                             screen->format->Rmask, screen->format->Gmask, screen->format->Bmask,
                                             screen->format->Amask);
     auto* pixels = (unsigned int *)drawsurface->pixels;
-#if SOUND_SYSTEM
+#if SOUND_ENABLED
     static SDL_AudioSpec wanted;
     wanted.freq = 44100;
     wanted.format = AUDIO_S16;

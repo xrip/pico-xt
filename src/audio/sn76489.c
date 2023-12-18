@@ -18,7 +18,6 @@
 // https://github.com/mamedev/mame/blob/master/src/devices/sound/sn76496.cpp
 // https://www.zeridajh.org/articles/me_sn76489_sound_chip_details/index.html
 #include <stdint.h>
-
 /*
  *The SN76489 is connected to a clock signal, which is commonly 3579545Hz for NTSC systems and 3546893Hz for PAL/SECAM systems (these are based on the associated TV colour subcarrier frequencies, and are common master clock speeds for many systems). It divides this clock by 16 to get its internal clock. The datasheets specify a maximum of 4MHz.
 */

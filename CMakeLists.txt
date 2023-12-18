@@ -45,6 +45,7 @@ else ()
     add_subdirectory(drivers/sdcard)
     add_subdirectory(drivers/psram)
     add_subdirectory(drivers/nespad)
+    add_subdirectory(drivers/audio)
 endif ()
 
 
@@ -101,6 +102,7 @@ else ()
             sdcard
             fatfs
             nespad
+            audio
 
             pico_runtime
             pico_stdlib
@@ -209,10 +211,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
         HANDLE_REBOOT
 
-        SOUND_SYSTEM
-        CMS
-        #SOUND_BLASTER
-        ADLIB
+        SOUND_ENABLED
+        I2S_ENABLED
         TANDY3V
         COVOX
         DSS

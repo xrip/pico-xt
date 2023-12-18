@@ -109,14 +109,14 @@ void portout(uint16_t portnum, uint16_t value) {
             portram[portnum] = value;
 #if PICO_ON_DEVICE
             if ((value & 3) == 3) {
-                pwm_set_gpio_level(BEEPER_PIN, 127);
+                // pwm_set_gpio_level(BEEPER_PIN, 127);
             }
             else {
-                pwm_set_gpio_level(BEEPER_PIN, 0);
+                // pwm_set_gpio_level(BEEPER_PIN, 0);
             }
 #endif
             break;
-#ifdef SOUND_SYSTEM
+#ifdef SOUND_ENABLED
         case 0xC0:
         case 0xC1:
         case 0xC2:
@@ -472,7 +472,7 @@ uint16_t portin(uint16_t portnum) {
 #endif
         /*case 0x201: // joystick
             return 0b11110000;*/
-#ifdef SOUND_SYSTEM
+#ifdef SOUND_ENABLED
 #if DSS
         case 0x378: return port378;
         case 0x279: // ssStatus on LPT2
