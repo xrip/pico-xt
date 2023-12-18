@@ -27,7 +27,7 @@ static uint8_t vga_color_index = 0;
 static uint8_t dac_state = 0;
 static uint8_t latchReadRGB = 0, latchReadPal = 0;
 
-extern volatile uint16_t true_covox;
+extern uint16_t true_covox;
 
 uint32_t ega_plane_offset = 0;
 bool vga_planar_mode = false;

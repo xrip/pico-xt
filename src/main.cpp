@@ -125,7 +125,7 @@ void __time_critical_func(render_core)() {
 
         // Sound frequency 44100
         if (tick >= last_sound_tick + (1000000 / SOUND_FREQUENCY)) {
-            int16_t sample = 0;
+            register int16_t sample = 0;
 
 #ifdef COVOX
             if (true_covox) {
