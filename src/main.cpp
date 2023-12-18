@@ -20,7 +20,7 @@ extern "C" {
 #include "ps2.h"
 #include "usb.h"
 }
-#if I2S_ENABLED
+#if I2S_SOUND
 #include "audio.h"
 #endif
 #else
@@ -62,7 +62,7 @@ static int sample_index = 0;
 
 
 static int16_t last_dss_sample = 0;
-volatile uint16_t true_covox = 0;
+uint16_t true_covox = 0;
 
 struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
@@ -75,6 +75,9 @@ void __time_critical_func(render_core)() {
     i2s_init(&i2s_config);
     sleep_ms(100);
 #else
+    gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
+    pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
+
     PWM_init_pin(PWM_PIN0);
     PWM_init_pin(PWM_PIN1);
 #endif
@@ -111,22 +114,24 @@ void __time_critical_func(render_core)() {
 
 #ifdef SOUND_ENABLED
 #ifdef DSS
-        if (tick >= last_dss_tick + (1000000 / 7000 )) {
+        if (tick >= last_dss_tick + (1000000 / 7000)) {
             last_dss_sample = dss_sample();
             if (last_dss_sample)
-                last_dss_sample = (int16_t)(((int32_t)last_dss_sample - (int32_t)0x0080) << 7); // 8 unsigned on LPT1 mix to signed 16
+                last_dss_sample = (int16_t)(((int32_t)last_dss_sample - (int32_t)0x0080) << 7);
+            // 8 unsigned on LPT1 mix to signed 16
             last_dss_tick = tick;
         }
 #endif
 
         // Sound frequency 44100
         if (tick >= last_sound_tick + (1000000 / SOUND_FREQUENCY)) {
-            int_fast16_t sample = 0;
+            int16_t sample = 0;
 
 #ifdef COVOX
-        if (true_covox) {
-            sample += (int16_t)(((int32_t)true_covox - (int32_t)0x0080) << 7); // 8 unsigned on LPT2 mix to signed 16
-        }
+            if (true_covox) {
+                sample += (int16_t)(((int32_t)true_covox - (int32_t)0x0080) << 7);
+                // 8 unsigned on LPT2 mix to signed 16
+            }
 #endif
 
 #ifdef TANDY3V
@@ -155,7 +160,7 @@ void __time_critical_func(render_core)() {
 #endif
             last_sound_tick = tick;
         }
-#endif;
+#endif
 
         tick = time_us_64();
         tight_loop_contents();
@@ -230,10 +235,6 @@ int main() {
 #endif
 
     //stdio_init_all();
-
-    gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
-    pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
-
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
