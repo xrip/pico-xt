@@ -20,7 +20,9 @@ extern "C" {
 #include "ps2.h"
 #include "usb.h"
 }
-
+#if I2S_ENABLED
+#include "audio.h"
+#endif
 #else
 #define SDL_MAIN_HANDLED
 
@@ -50,10 +52,33 @@ void PWM_init_pin(uint8_t pinN) {
     pwm_config_set_wrap(&config, (1 << 12) - 1); // MAX PWM value
     pwm_init(pwm_gpio_to_slice_num(pinN), &config, true);
 }
+#ifdef I2S_SOUND
+i2s_config_t i2s_config = i2s_get_default_config();
+static int16_t samples[2][512] = { 0 };
+static int active_buffer = 0;
+static int sample_index = 0;
+
+#endif
+
+
+static int16_t last_dss_sample = 0;
+volatile uint16_t true_covox = 0;
 
 struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
 void __time_critical_func(render_core)() {
+#ifdef SOUND_ENABLED
+#ifdef I2S_SOUND
+    i2s_config.sample_freq = SOUND_FREQUENCY;
+    i2s_config.dma_trans_count = 256;
+    i2s_volume(&i2s_config, 0);
+    i2s_init(&i2s_config);
+    sleep_ms(100);
+#else
+    PWM_init_pin(PWM_PIN0);
+    PWM_init_pin(PWM_PIN1);
+#endif
+#endif
     graphics_init();
     graphics_set_buffer(VIDEORAM, 320, 200);
     graphics_set_textbuffer(VIDEORAM + 32768);
@@ -65,31 +90,75 @@ void __time_critical_func(render_core)() {
         graphics_set_palette(i, cga_palette[i]);
     }
 
+
     sem_acquire_blocking(&vga_start_semaphore);
 
     uint8_t tick50ms_counter = 0;
+
+    uint64_t tick = time_us_64();
+    uint64_t last_timer_tick = tick, last_cursor_blink = tick, last_sound_tick = tick, last_dss_tick = tick;
+
     while (true) {
-        doirq(0);
-        busy_wait_us(timer_period);
-        if (tick50ms_counter % 2 == 0 && nespad_available) {
-            nespad_read();
-            if (nespad_state) {
-                //logMsg("TEST");
-                // TODO: Speedup in time
-                sermouseevent(nespad_state & DPAD_B ? 1 : nespad_state & DPAD_A ? 2 : 0,
-                              nespad_state & DPAD_LEFT ? -3 : nespad_state & DPAD_RIGHT ? 3 : 0,
-                              nespad_state & DPAD_UP ? -3 : nespad_state & DPAD_DOWN ? 3 : 0);
-            }
+        if (tick >= last_timer_tick + timer_period) {
+            doirq(0);
+            last_timer_tick = tick;
         }
-        if (tick50ms_counter == 0 || tick50ms_counter == 10) {
+
+        if (tick >= last_cursor_blink + 500000) {
             cursor_blink_state ^= 1;
+            last_cursor_blink = tick;
         }
-        if (tick50ms_counter < 20) {
-            tick50ms_counter++;
+
+#ifdef SOUND_ENABLED
+#ifdef DSS
+        if (tick >= last_dss_tick + (1000000 / 7000 )) {
+            last_dss_sample = dss_sample();
+            if (last_dss_sample)
+                last_dss_sample = (int16_t)(((int32_t)last_dss_sample - (int32_t)0x0080) << 7); // 8 unsigned on LPT1 mix to signed 16
+            last_dss_tick = tick;
         }
-        else {
-            tick50ms_counter = 0;
+#endif
+
+        // Sound frequency 44100
+        if (tick >= last_sound_tick + (1000000 / SOUND_FREQUENCY)) {
+            int_fast16_t sample = 0;
+
+#ifdef COVOX
+        if (true_covox) {
+            sample += (int16_t)(((int32_t)true_covox - (int32_t)0x0080) << 7); // 8 unsigned on LPT2 mix to signed 16
         }
+#endif
+
+#ifdef TANDY3V
+            sample += sn76489_sample();
+#endif
+#ifdef DSS
+            sample += last_dss_sample;
+#endif
+
+#ifdef I2S_SOUND
+            samples[active_buffer][sample_index * 2] = sample;
+            samples[active_buffer][sample_index * 2 + 1] = sample;
+
+            if (sample_index++ >= i2s_config.dma_trans_count) {
+                sample_index = 0;
+                i2s_dma_write(&i2s_config, samples[active_buffer]);
+                active_buffer ^= 1;
+            }
+#else
+            // register uint8_t r_divider = snd_divider + 4; // TODO: tume up divider per channel
+            register uint16_t r_v = (uint16_t)((int32_t)sample + 0x8000L) >> 4;
+            // register uint8_t l_divider = snd_divider + 4;
+            //register uint16_t l_v = (uint16_t)((int32_t)sample + 0x8000L) >> 4;
+            pwm_set_gpio_level(PWM_PIN0, r_v);
+            pwm_set_gpio_level(PWM_PIN1, r_v);
+#endif
+            last_sound_tick = tick;
+        }
+#endif;
+
+        tick = time_us_64();
+        tight_loop_contents();
     }
 }
 
@@ -165,10 +234,6 @@ int main() {
     gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
     pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
 
-#ifdef SOUND_SYSTEM
-    PWM_init_pin(PWM_PIN0);
-    PWM_init_pin(PWM_PIN1);
-#endif
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
@@ -198,7 +263,8 @@ int main() {
         char tmp[80];
         sprintf(tmp, "Unable to mount SD-card: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
-    } else {
+    }
+    else {
         SD_CARD_AVAILABLE = true;
     }
 
@@ -223,7 +289,7 @@ int main() {
                                             screen->format->Rmask, screen->format->Gmask, screen->format->Bmask,
                                             screen->format->Amask);
     auto* pixels = (unsigned int *)drawsurface->pixels;
-#if SOUND_SYSTEM
+#if SOUND_ENABLED
     static SDL_AudioSpec wanted;
     wanted.freq = 44100;
     wanted.format = AUDIO_S16;

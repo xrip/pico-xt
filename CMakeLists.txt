@@ -209,10 +209,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
         HANDLE_REBOOT
 
-        SOUND_SYSTEM
-        CMS
+        SOUND_ENABLED
+        #CMS
         #SOUND_BLASTER
-        ADLIB
+        #ADLIB
         TANDY3V
         COVOX
         DSS

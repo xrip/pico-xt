@@ -53,7 +53,7 @@ static FATFS fs;
 #endif
 
 #define BEEPER_PIN 28
-
+#define SOUND_FREQUENCY 44100
 #define VGA_plane_size 16000
 // TODO: no direct access support (for PC mode)
 extern uint8_t RAM[RAM_SIZE];
@@ -266,8 +266,8 @@ void sermouseevent(uint8_t buttons, int8_t xrel, int8_t yrel);
 void initsermouse(uint16_t baseport, uint8_t irq);
 
 void dss_out(uint16_t portnum, uint8_t value);
-
 uint8_t dss_in(uint16_t portnum);
+uint8_t dss_sample();
 
 extern uint8_t inadlib(uint16_t portnum);
 
@@ -290,13 +290,12 @@ extern void outBlaster(uint16_t portnum, uint8_t value);
 extern uint8_t inBlaster(uint16_t portnum);
 
 void sn76489_out( uint16_t value);
-void sn76489_reset();
-
 void sn76489_sample_stereo(int32_t out[2]);
+int16_t sn76489_sample();
 
 void cms_out(uint16_t addr, uint16_t value);
 uint8_t cms_in(uint16_t addr);
-
+void cms_samples(int16_t pout_l, int16_t pout_r);
 
 #if !PICO_ON_DEVICE
 void cms_samples(int16_t* pout_l, int16_t* pout_r);
