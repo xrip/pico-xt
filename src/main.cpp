@@ -140,7 +140,7 @@ void __time_critical_func(render_core)() {
 
 #ifdef I2S_SOUND
             if (speakerenabled) {
-                sample += speakergensample();
+                sample += speaker_sample();
             }
 
             samples[active_buffer][sample_index * 2] = sample;
@@ -194,9 +194,7 @@ volatile bool is_xms_on = false;
 volatile bool is_ems_on = true;
 volatile bool is_umb_on = true;
 volatile bool is_hma_on = true;
-int16_t sn76489_sample();
-uint8_t dss_sample();
-int16_t adlibgensample();
+
 static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode only
     int16_t sample = 0;
 #ifdef COVOX
@@ -296,7 +294,7 @@ int main() {
 #if SOUND_ENABLED
     static SDL_AudioSpec wanted;
     wanted.freq = SOUND_FREQUENCY;
-    wanted.format = AUDIO_S16;
+    wanted.format = AUDIO_U16;
     wanted.channels = 2;
     wanted.samples = 1;
     wanted.callback = fill_audio;
