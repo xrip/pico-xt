@@ -4,17 +4,17 @@
 #define MASTER_CLOCK 7159090
 // "Creative Music System / Game Blaster"
 //typedef struct cms_t {
-static int addrs[2] = {0};
-static uint8_t regs[2][32] = {0};
-static uint16_t latch[2][6] = {0};
-static int freq[2][6] = {0};
-static float count[2][6] = {0};
-static int vol[2][6][2] = {0};
-static int stat[2][6] = {0};
-static uint16_t noise[2][2] = {0};
-static uint16_t noisefreq[2][2] = {0};
-static int noisecount[2][2] = {0};
-static int noisetype[2][2] = {0};
+static int addrs[2] = { 0 };
+static uint8_t regs[2][32] = { 0 };
+static uint16_t latch[2][6] = { 0 };
+static int freq[2][6] = { 0 };
+static float count[2][6] = { 0 };
+static int vol[2][6][2] = { 0 };
+static int stat[2][6] = { 0 };
+static uint16_t noise[2][2] = { 0 };
+static uint16_t noisefreq[2][2] = { 0 };
+static int noisecount[2][2] = { 0 };
+static int noisetype[2][2] = { 0 };
 
 uint8_t latched_data;
 
@@ -22,7 +22,8 @@ uint8_t latched_data;
 volatile int16_t out_l = 0, out_r = 0;
 extern volatile uint8_t cms_divider;
 
-static inline void cms_update() { // may be in core #0 and in core #1
+static inline void cms_update() {
+    // may be in core #0 and in core #1
     int channel, d;
     out_l = 0;
     out_r = 0;
@@ -30,16 +31,16 @@ static inline void cms_update() { // may be in core #0 and in core #1
     for (channel = 0; channel < 4; channel++) {
         switch (noisetype[channel >> 1][channel & 1]) {
             case 0:
-                noisefreq[channel >> 1][channel & 1] = (MASTER_CLOCK / 256 );
+                noisefreq[channel >> 1][channel & 1] = (MASTER_CLOCK / 256);
                 break;
             case 1:
                 noisefreq[channel >> 1][channel & 1] = (MASTER_CLOCK / 512);
                 break;
             case 2:
-                noisefreq[channel >> 1][channel & 1] = (MASTER_CLOCK / 1024 );
+                noisefreq[channel >> 1][channel & 1] = (MASTER_CLOCK / 1024);
                 break;
             case 3:
-                noisefreq[channel >> 1][channel & 1] = freq[channel >> 1][(channel & 1) * 3];
+                noisefreq[channel >> 1][channel & 1] = freq[channel >> 1][(channel & 1) ? 3 : 0];
                 break;
         }
     }
@@ -47,20 +48,21 @@ static inline void cms_update() { // may be in core #0 and in core #1
         if (regs[channel][0x1C] & 1) {
             for (d = 0; d < 6; d++) {
                 if (regs[channel][0x14] & (1 << d)) {
-                    if (stat[channel][d])
-                        out_l += (vol[channel][d][0] * 90);
-                    if (stat[channel][d])
-                        out_r += (vol[channel][d][1] * 90);
+                    if (stat[channel][d]) {
+                        out_l += (vol[channel][d][0] << 6) + (vol[channel][d][0] << 5);
+                        out_r += (vol[channel][d][1] << 6) + (vol[channel][d][1] << 5);
+                    }
                     count[channel][d] += freq[channel][d];
                     if (count[channel][d] >= 24000) {
                         count[channel][d] -= 24000;
                         stat[channel][d] ^= 1;
                     }
-                } else if (regs[channel][0x15] & (1 << d)) {
-                    if (noise[channel][d / 3] & 1)
-                        out_l += (vol[channel][d][0] * 90);
-                    if (noise[channel][d / 3] & 1)
-                        out_r += (vol[channel][d][0] * 90);
+                }
+                else if (regs[channel][0x15] & (1 << d)) {
+                    if (noise[channel][d / 3] & 1) {
+                        out_l += ((vol[channel][d][0] << 6) + (vol[channel][d][0] << 5));
+                        out_r += ((vol[channel][d][1] << 6) + (vol[channel][d][1] << 5));
+                    }
                 }
             }
             for (d = 0; d < 2; d++) {
@@ -76,14 +78,15 @@ static inline void cms_update() { // may be in core #0 and in core #1
     }
 }
 
-void cms_samples(int16_t* pout_l, int16_t* pout_r) { // core #1
+void cms_samples(int16_t* output) {
+    // core #1
     cms_update();
-    register uint8_t d = cms_divider;
-    *pout_l += d > 8 ? out_l >> (d - 8) : out_l << (8 - d);
-    *pout_r += d > 8 ? out_r >> (d - 8) : out_r << (8 - d);
+    output[0] += out_l;
+    output[1] += out_r;
 }
 
-void cms_out(uint16_t addr, uint16_t value) { // core #0
+void cms_out(uint16_t addr, uint16_t value) {
+    // core #0
     int voice;
     int chip = (addr & 2) >> 1;
 
@@ -120,8 +123,7 @@ void cms_out(uint16_t addr, uint16_t value) { // core #0
                 case 0x0D:
                     voice = addrs[chip] & 7;
                     latch[chip][voice] = (latch[chip][voice] & 0x700) | value;
-                    freq[chip][voice] =
-                            (MASTER_CLOCK / 512 << (latch[chip][voice] >> 8)) / (511 - (latch[chip][voice] & 255));
+                    freq[chip][voice] = (MASTER_CLOCK / 512 << (latch[chip][voice] >> 8)) / (511 - (latch[chip][voice] & 255));
                     break;
                 case 0x10:
                 case 0x11:
@@ -147,7 +149,8 @@ void cms_out(uint16_t addr, uint16_t value) { // core #0
     }
 }
 
-uint8_t cms_in(uint16_t addr) { // core #0
+uint8_t cms_in(uint16_t addr) {
+    // core #0
     //printf("cms_read : addr %04X\n", addr & 0xf);
     switch (addr & 0xf) {
         case 0x1:

@@ -107,7 +107,7 @@ void portout(uint16_t portnum, uint16_t value) {
 #endif
         case 0x61: // 061H  PPI port B.
             portram[portnum] = value;
-#if PICO_ON_DEVICE && I2S_SOUND
+#if PICO_ON_DEVICE && !I2S_SOUND
             if ((value & 3) == 3) {
                 pwm_set_gpio_level(BEEPER_PIN, 127);
             }

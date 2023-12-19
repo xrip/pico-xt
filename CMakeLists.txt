@@ -2,10 +2,13 @@ cmake_minimum_required(VERSION 3.22)
 include(pico_sdk_import.cmake)
 
 project(pico-xt C CXX ASM)
-option(OVERCLOCKING "Target Pico MHz" 408)
+option(OVERCLOCKING "Target Pico MHz" OFF)
+option(I2S_SOUND "Enable I2S sound" OFF)
 if(NOT OVERCLOCKING)
     SET(OVERCLOCKING 408)
 endif ()
+
+SET(BUILD_NAME "pico-xt")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -80,8 +83,7 @@ if (PICO_PLATFORM STREQUAL "host")
 
 else ()
     if (OVERCLOCKING)
-        set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}-${OVERCLOCKING}MHz")
-
+        SET(BUILD_NAME "${BUILD_NAME}-${OVERCLOCKING}MHz")
         target_compile_definitions(${PROJECT_NAME} PRIVATE OVERCLOCKING=${OVERCLOCKING})
 
         pico_define_boot_stage2(slower_boot2 ${PICO_DEFAULT_BOOT_STAGE2_FILE})
@@ -93,6 +95,18 @@ else ()
         message(STATUS "==================================")
         message(STATUS "")
     endif ()
+    if (I2S_SOUND)
+        SET(BUILD_NAME "${BUILD_NAME}-I2S")
+        target_compile_definitions(${PROJECT_NAME} PRIVATE I2S_SOUND=1)
+
+        message(STATUS "==================================")
+        message(STATUS "I2S sound enabled")
+        message(STATUS "==================================")
+        message(STATUS "")
+    endif()
+
+    set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${BUILD_NAME}")
+
     # Enable compiler and linker garbage collect unused code/data sections
     add_link_options(-Wl,--gc-sections)
     target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -212,8 +226,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         HANDLE_REBOOT
 
         SOUND_ENABLED
-        I2S_SOUND
-        #CMS
+        #I2S_SOUND
+        CMS
         #SOUND_BLASTER
         #ADLIB
         TANDY3V

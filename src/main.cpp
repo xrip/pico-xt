@@ -146,6 +146,10 @@ void __time_critical_func(render_core)() {
             samples[active_buffer][sample_index * 2] = sample;
             samples[active_buffer][sample_index * 2 + 1] = sample;
 
+#ifdef CMS
+            cms_samples(&samples[active_buffer][sample_index * 2]);
+#endif
+
             if (sample_index++ >= i2s_config.dma_trans_count) {
                 sample_index = 0;
                 i2s_dma_write(&i2s_config, samples[active_buffer]);
@@ -196,29 +200,32 @@ volatile bool is_umb_on = true;
 volatile bool is_hma_on = true;
 
 static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode only
-    int16_t sample = 0;
+    int16_t *output = (int16_t*)stream;
+    output[0] = 0;
 #ifdef COVOX
     if (true_covox) {
-        sample += (int16_t)(((int32_t)true_covox - (int32_t)0x0080) << 7);
+        output[0] += (int16_t)(((int32_t)true_covox - (int32_t)0x0080) << 7);
         // 8 unsigned on LPT2 mix to signed 16
     }
 #endif
 
 #ifdef TANDY3V
-    sample += sn76489_sample();
+    output[0] += sn76489_sample();
 #endif
 
 #ifdef DSS
-    sample += last_dss_sample;
+    output[0] += last_dss_sample;
 #endif
 
     if (speakerenabled) {
-        sample += speaker_sample();
+        output[0] += speaker_sample();
     }
 
-    (uint16_t &)stream[0] = sample;
-    (uint16_t &)stream[2] = sample;
-    //memcpy(stream, &out, len);
+    output[1] = output[0];
+#if CMS
+    cms_samples(output);
+#endif
+
 }
 #endif
 
