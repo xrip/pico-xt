@@ -297,7 +297,7 @@ void cms_out(uint16_t addr, uint16_t value);
 uint8_t cms_in(uint16_t addr);
 void cms_samples(int16_t *pout_l, int16_t *pout_r);
 
-int16_t speakergensample();
+int16_t speaker_sample();
 
 #if !PICO_ON_DEVICE
 void cms_samples(int16_t* pout_l, int16_t* pout_r);

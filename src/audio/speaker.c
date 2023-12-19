@@ -25,7 +25,7 @@
 static uint64_t speakerfullstep, speakerhalfstep, speakercurstep = 0;
 uint8_t speakerenabled = 0;
 
-int16_t speakergensample() {
+int16_t speaker_sample() {
     int16_t speakervalue;
     speakerfullstep = SOUND_FREQUENCY / i8253.chanfreq[2];
     if (speakerfullstep < 2)

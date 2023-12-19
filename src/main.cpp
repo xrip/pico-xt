@@ -215,7 +215,7 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
 #endif
 
     if (speakerenabled) {
-        sample += speakergensample();
+        sample += speaker_sample();
     }
 
     (uint16_t &)stream[0] = sample;
