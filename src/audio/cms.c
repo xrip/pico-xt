@@ -81,8 +81,13 @@ static inline void cms_update() {
 void cms_samples(int16_t* output) {
     // core #1
     cms_update();
+#if PICO_ON_DEVICE
+    output[0] += out_r;
+    output[1] += out_l;
+#else
     output[0] += out_l;
     output[1] += out_r;
+#endif
 }
 
 void cms_out(uint16_t addr, uint16_t value) {
@@ -102,7 +107,7 @@ void cms_out(uint16_t addr, uint16_t value) {
 
         case 0:
         case 2:
-            cms_update();
+//            cms_update();
             regs[chip][addrs[chip] & 31] = value;
             switch (addrs[chip] & 31) {
                 case 0x00:
