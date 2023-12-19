@@ -39,29 +39,21 @@ bool PSRAM_AVAILABLE = false;
 bool SD_CARD_AVAILABLE = false;
 uint32_t DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? RAM_PAGE_SIZE : RAM_SIZE);
 bool runing = true;
-
+static int16_t last_dss_sample = 0;
 #if PICO_ON_DEVICE
 pwm_config config = pwm_get_default_config();
 #define PWM_PIN0 (26)
 #define PWM_PIN1 (27)
 
-void PWM_init_pin(uint8_t pinN) {
-    gpio_set_function(pinN, GPIO_FUNC_PWM);
-
-    pwm_config_set_clkdiv(&config, 1.0);
-    pwm_config_set_wrap(&config, (1 << 12) - 1); // MAX PWM value
-    pwm_init(pwm_gpio_to_slice_num(pinN), &config, true);
-}
 #ifdef I2S_SOUND
 i2s_config_t i2s_config = i2s_get_default_config();
-static int16_t samples[2][512] = { 0 };
+static int16_t samples[2][441*2] = { 0 };
 static int active_buffer = 0;
 static int sample_index = 0;
 
 #endif
 
 
-static int16_t last_dss_sample = 0;
 uint16_t true_covox = 0;
 
 struct semaphore vga_start_semaphore;
@@ -70,7 +62,7 @@ void __time_critical_func(render_core)() {
 #ifdef SOUND_ENABLED
 #ifdef I2S_SOUND
     i2s_config.sample_freq = SOUND_FREQUENCY;
-    i2s_config.dma_trans_count = 256;
+    i2s_config.dma_trans_count = SOUND_FREQUENCY / 100;
     i2s_volume(&i2s_config, 0);
     i2s_init(&i2s_config);
     sleep_ms(100);
@@ -78,8 +70,14 @@ void __time_critical_func(render_core)() {
     gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
     pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
 
-    PWM_init_pin(PWM_PIN0);
-    PWM_init_pin(PWM_PIN1);
+    gpio_set_function(PWM_PIN0, GPIO_FUNC_PWM);
+    gpio_set_function(PWM_PIN1, GPIO_FUNC_PWM);
+
+    pwm_config_set_clkdiv(&config, 1.0);
+    pwm_config_set_wrap(&config, (1 << 12) - 1); // MAX PWM value
+
+    pwm_init(pwm_gpio_to_slice_num(PWM_PIN0), &config, true);
+    pwm_init(pwm_gpio_to_slice_num(PWM_PIN1), &config, true);
 #endif
 #endif
     graphics_init();
@@ -95,8 +93,6 @@ void __time_critical_func(render_core)() {
 
 
     sem_acquire_blocking(&vga_start_semaphore);
-
-    uint8_t tick50ms_counter = 0;
 
     uint64_t tick = time_us_64();
     uint64_t last_timer_tick = tick, last_cursor_blink = tick, last_sound_tick = tick, last_dss_tick = tick;
@@ -125,7 +121,7 @@ void __time_critical_func(render_core)() {
 
         // Sound frequency 44100
         if (tick >= last_sound_tick + (1000000 / SOUND_FREQUENCY)) {
-            register int16_t sample = 0;
+            int16_t sample = 0;
 
 #ifdef COVOX
             if (true_covox) {
@@ -137,11 +133,16 @@ void __time_critical_func(render_core)() {
 #ifdef TANDY3V
             sample += sn76489_sample();
 #endif
+
 #ifdef DSS
             sample += last_dss_sample;
 #endif
 
 #ifdef I2S_SOUND
+            if (speakerenabled) {
+                sample += speakergensample();
+            }
+
             samples[active_buffer][sample_index * 2] = sample;
             samples[active_buffer][sample_index * 2 + 1] = sample;
 
@@ -152,7 +153,7 @@ void __time_critical_func(render_core)() {
             }
 #else
             // register uint8_t r_divider = snd_divider + 4; // TODO: tume up divider per channel
-            register uint16_t r_v = (uint16_t)((int32_t)sample + 0x8000L) >> 4;
+            uint16_t r_v = (uint16_t)((int32_t)sample + 0x8000L) >> 4;
             // register uint8_t l_divider = snd_divider + 4;
             //register uint16_t l_v = (uint16_t)((int32_t)sample + 0x8000L) >> 4;
             pwm_set_gpio_level(PWM_PIN0, r_v);
@@ -197,26 +198,28 @@ int16_t sn76489_sample();
 uint8_t dss_sample();
 int16_t adlibgensample();
 static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode only
-    int16_t outs[2] = { 0 };
-    int16_t out = 0;
-#if SOUND_BLASTER || ADLIB
-    out += adlibgensample() << 3;
+    int16_t sample = 0;
+#ifdef COVOX
+    if (true_covox) {
+        sample += (int16_t)(((int32_t)true_covox - (int32_t)0x0080) << 7);
+        // 8 unsigned on LPT2 mix to signed 16
+    }
 #endif
-#if SOUND_BLASTER
-    tickBlaster();
-    out += getBlasterSample() << 3 ;
+
+#ifdef TANDY3V
+    sample += sn76489_sample();
 #endif
-#if DSS
-    out += dss_sample();
+
+#ifdef DSS
+    sample += last_dss_sample;
 #endif
-    out += sn76489_sample();
-    out += true_covox;
-    outs[0] = outs[1] = out;
-#if CMS
-    cms_samples(&outs[0], &outs[1]);
-#endif
-    (uint16_t &)stream[0] = outs[0];
-    (uint16_t &)stream[2] = outs[1];
+
+    if (speakerenabled) {
+        sample += speakergensample();
+    }
+
+    (uint16_t &)stream[0] = sample;
+    (uint16_t &)stream[2] = sample;
     //memcpy(stream, &out, len);
 }
 #endif
@@ -292,7 +295,7 @@ int main() {
     auto* pixels = (unsigned int *)drawsurface->pixels;
 #if SOUND_ENABLED
     static SDL_AudioSpec wanted;
-    wanted.freq = 44100;
+    wanted.freq = SOUND_FREQUENCY;
     wanted.format = AUDIO_S16;
     wanted.channels = 2;
     wanted.samples = 1;
