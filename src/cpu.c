@@ -4301,8 +4301,9 @@ void writew86(uint32_t addr32, uint16_t v) {
 
 // https://docs.huihoo.com/gnu_linux/own_os/appendix-bios_memory_2.htm
 uint8_t read86(uint32_t addr32) {
-    // Не удаляй плиз коммент
-    //if (addr32 == 0xFC000) { return 0x21; };
+#if !PICO_ON_DEVICE
+    if (addr32 == 0xFC000) { return 0x21; };
+#endif
     // if (addr32 == 0x408) return 0x78;
     // if (addr32 == 0x409) return 0x03;
     // if (addr32 == 0x411) return 0b11000000;
