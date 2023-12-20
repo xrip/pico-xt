@@ -22,31 +22,32 @@
 #include "../emulator.h"
 // https://archive.org/details/dss-programmers-guide/page/n1/mode/2up
 // https://groups.google.com/g/comp.sys.ibm.pc.games/c/gsz2CLJZsx4
-static uint8_t samples_buffer[16] = { 0 };
-static volatile uint8_t ssourceptr = 0, ssactive = 0;
-uint8_t checks = 0;
+#define FIFO_BUFFER_SIZE 16
+static uint8_t samples_buffer[FIFO_BUFFER_SIZE] = { 0 };
+static uint8_t fifo_buffer_length = 0, dss_active = 0;
+static uint8_t checks = 0;
 
 uint8_t dss_sample() { // core #1
-    if (ssourceptr == 0 || !ssactive || checks < 2) { // no bytes in buffer
+    if (fifo_buffer_length == 0 || !dss_active || checks < 2) { // no bytes in buffer
         return 0;
     }
-    uint8_t ssourcecursample = samples_buffer[0];
-    for (int rotatefifo = 1; rotatefifo < 16; rotatefifo++) {
-        samples_buffer[rotatefifo - 1] = samples_buffer[rotatefifo];
-    }
-    ssourceptr--;
-    return ssourcecursample;
+    uint8_t sample = samples_buffer[0];
+
+    memmove(samples_buffer, samples_buffer + 1, FIFO_BUFFER_SIZE - 1);
+
+    fifo_buffer_length--;
+    return sample;
 }
 
-inline static void putssourcebyte(uint8_t value) { // core #0
-    if (ssourceptr == 16)
+inline static void fifo_push_byte(uint8_t value) { // core #0
+    if (fifo_buffer_length == FIFO_BUFFER_SIZE)
         return;
-    samples_buffer[ssourceptr++] = value;
+    samples_buffer[fifo_buffer_length++] = value;
     // printf("SS BUFF %i\r\n", ssourceptr);
 }
 
-static inline uint8_t ssourcefull() {
-    return ssourceptr == 16 ? 0x40 : 0x00;
+static inline uint8_t fifo_is_full() {
+    return fifo_buffer_length == FIFO_BUFFER_SIZE ? 0x40 : 0x00;
 }
 
 void dss_out(uint16_t portnum, uint8_t value) {
@@ -55,7 +56,7 @@ void dss_out(uint16_t portnum, uint8_t value) {
     switch (portnum) {
         case 0x378:
             port378 = value;
-            putssourcebyte(value);
+            fifo_push_byte(value);
             last37a = 0;
             break;
         case 0x37A:
@@ -64,7 +65,7 @@ void dss_out(uint16_t portnum, uint8_t value) {
                  //putssourcebyte(port378);
              }
             if (value == 0x04) {
-                ssactive = 1;
+                dss_active = 1;
             }
             last37a = value;
             break;
@@ -72,8 +73,6 @@ void dss_out(uint16_t portnum, uint8_t value) {
 }
 
 uint8_t dss_in(uint16_t portnum) {
-    uint8_t v = ssourcefull();
     if ( checks < 2 ) checks++;
-    //printf("IN SS %x %x checks %i\r\n", portnum,v, checks);
-    return v;
+    return fifo_is_full();
 }
