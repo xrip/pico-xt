@@ -227,7 +227,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
         SOUND_ENABLED
         #I2S_SOUND
-        CMS
+        #CMS
         #SOUND_BLASTER
         #ADLIB
         TANDY3V
