@@ -875,26 +875,21 @@ static void intcall86(uint8_t intnum) {
                     CPU_BL = 0x08;
                     return;
                 /*
-                                case 0x1A: //get display combination code (ps, vga/mcga)
-                                    CPU_AL = 0x1A;
-                                    CPU_BL = 0x8;
-                                    break;
-
-                                case 0x01:                            // show cursor
-                                    if (CPU_CH == 0x32) {
-                                        curshow = false;
-                                        break;
-                                    }
-                                    else if ((CPU_CH == 0x06) && (CPU_CL == 0x07)) {
-                                        CURSOR_ASCII = 95;
-                                        curshow = true;
-                                        break;
-                                    }
-                                    else if ((CPU_CH == 0x00) && (CPU_CL == 0x07)) {
-                                        CURSOR_ASCII = 219;
-                                        curshow = true;
-                                    }
-                                    break;
+                case 0x01:                            // show cursor
+                    if (CPU_CH == 0x32) {
+                        curshow = false;
+                        break;
+                    }
+                    else if ((CPU_CH == 0x06) && (CPU_CL == 0x07)) {
+                        CURSOR_ASCII = 95;
+                        curshow = true;
+                        break;
+                    }
+                    else if ((CPU_CH == 0x00) && (CPU_CL == 0x07)) {
+                        CURSOR_ASCII = 219;
+                        curshow = true;
+                    }
+                    break;
                 */
 #if 0
                     case 0x1A: //get display combination code (ps, vga/mcga)
