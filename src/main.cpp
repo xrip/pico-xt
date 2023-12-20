@@ -217,6 +217,10 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
     output[0] += last_dss_sample;
 #endif
 
+#ifdef ADLIB
+    output[0] = adlibgensample();
+#endif
+
     if (speakerenabled) {
         output[0] += speaker_sample();
     }

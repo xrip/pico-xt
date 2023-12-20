@@ -229,7 +229,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #I2S_SOUND
         #CMS
         #SOUND_BLASTER
-        #ADLIB
+        ADLIB
         TANDY3V
         COVOX
         DSS
