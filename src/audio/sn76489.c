@@ -24,7 +24,7 @@
 */
 uint32_t clock = 3579545;
 const uint16_t samplerate = SOUND_FREQUENCY;
-uint8_t quality = 0;
+#define quality 0
 
 uint32_t base_incr = 0;
 

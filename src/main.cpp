@@ -58,7 +58,7 @@ uint16_t true_covox = 0;
 
 struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
-void __time_critical_func(render_core)() {
+void __scratch_y("second_core") second_core() {
 #ifdef SOUND_ENABLED
 #ifdef I2S_SOUND
     i2s_config.sample_freq = SOUND_FREQUENCY;
@@ -262,7 +262,7 @@ int main() {
     keyboard_init();
 
     sem_init(&vga_start_semaphore, 0, 1);
-    multicore_launch_core1(render_core);
+    multicore_launch_core1(second_core);
     sem_release(&vga_start_semaphore);
 
     sleep_ms(50);

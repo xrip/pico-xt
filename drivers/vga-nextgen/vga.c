@@ -28,7 +28,7 @@ const struct pio_program pio_program_VGA = {
 };
 
 
-static uint32_t* lines_pattern[4];
+static uint32_t*  __scratch_y("lines_pattern")  lines_pattern[4];
 static uint32_t* lines_pattern_data = NULL;
 static int _SM_VGA = -1;
 
@@ -56,9 +56,9 @@ static bool is_flash_line = false;
 static bool is_flash_frame = false;
 
 //буфер 1к графической палитры
-static uint16_t palette[2][256];
+static uint16_t __scratch_y("vga_driver_palette")  palette[2][256];
 
-static uint32_t bg_color[2];
+static uint32_t __scratch_y("vga_driver_bgpalette") bg_color[2];
 static uint16_t palette16_mask = 0;
 
 static uint8_t* text_buffer;
@@ -67,7 +67,7 @@ static uint8_t* text_buf_color;
 static uint text_buffer_width = 0;
 static uint text_buffer_height = 0;
 
-static uint16_t txt_palette[16];
+static uint16_t __scratch_y("vga_driver_txtpalette") txt_palette[16];
 
 //буфер 2К текстовой палитры для быстрой работы
 static uint16_t* txt_palette_fast = NULL;
@@ -77,7 +77,7 @@ enum graphics_mode_t graphics_mode;
 extern volatile bool manager_started;
 
 
-void __not_in_flash_func(dma_handler_VGA)() {
+void __scratch_y("vga_driver") dma_handler_VGA() {
     dma_hw->ints0 = 1u << dma_chan_ctrl;
     static uint32_t frame_number = 0;
     static uint32_t screen_line = 0;
