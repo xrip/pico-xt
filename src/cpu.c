@@ -670,7 +670,11 @@ INLINE void writerm8(uint8_t rmval, uint8_t value) {
 
 uint8_t tandy_hack = 0;
 
+#if PICO_ON_DEVICE
 static void __time_critical_func(intcall86)(uint8_t intnum) {
+#else
+static void intcall86(uint8_t intnum) {
+#endif
     uint32_t tempcalc, memloc, n;
     switch (intnum) {
 #ifdef EMS_DRIVER
@@ -3982,8 +3986,11 @@ void exec86(uint32_t execloops) {
 }
 
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
+#if PICO_ON_DEVICE
 static write_fn_ptr __scratch_x("write_funcs") write_funtions[256] = { 0 };
-
+#else
+static write_fn_ptr  write_funtions[256] = { 0 };
+#endif
 static inline void write8video(uint32_t addr32, uint8_t v) {
     VIDEORAM[(ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = v;
 }
@@ -4084,9 +4091,14 @@ static void write16low_swap(uint32_t addr32, uint16_t v) {
         ram_page_write16(addr32, v);
     }
 }
+#if PICO_ON_DEVICE
+static read_fn_ptr __scratch_x("write16_funtions") read_funtions[256] = { 0 };
+#else
+static read_fn_ptr read_funtions[256] = { 0 };
+#endif
 
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
-static read_fn_ptr __scratch_x("write16_funtions") read_funtions[256] = { 0 };
+
 
 uint8_t read8nothng(uint32_t addr32) {
     return 0;
