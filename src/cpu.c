@@ -1811,20 +1811,12 @@ extern void ps2poll();
 #endif
 
 void exec86(uint32_t execloops) {
-    uint8_t docontinue;
     static uint16_t firstip;
-    static uint16_t trap_toggle = 0;
 
     //counterticks = (uint64_t) ( (double) timerfreq / (double) 65536.0);
     //tickssource();
     for (uint32_t loopcount = 0; loopcount < execloops; loopcount++) {
-        if (trap_toggle) {
-            intcall86(1);
-        }
-
-        trap_toggle = tf;
-
-        if (!trap_toggle && (ifl && (i8259.irr & (~i8259.imr)))) {
+        if ( (ifl && (i8259.irr & (~i8259.imr)))) {
             intcall86(nextintr()); // get next interrupt from the i8259, if any d
         }
 
