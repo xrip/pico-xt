@@ -110,7 +110,8 @@ void __scratch_y("second_core") second_core() {
 
 #ifdef SOUND_ENABLED
 #ifdef DSS
-        if (tick >= last_dss_tick + (1000000 / 7000)) {
+        // (1000000 / 7000) ~= 140
+        if (tick >= last_dss_tick + 140) {
             last_dss_sample = dss_sample();
             if (last_dss_sample)
                 last_dss_sample = (int16_t)(((int32_t)last_dss_sample - (int32_t)0x0080) << 7);
@@ -157,11 +158,11 @@ void __scratch_y("second_core") second_core() {
             }
 #else
             // register uint8_t r_divider = snd_divider + 4; // TODO: tume up divider per channel
-            uint16_t r_v = (uint16_t)((int32_t)sample + 0x8000L) >> 4;
+            uint16_t corrected_sample = (uint16_t)((int32_t)sample + 0x8000L) >> 4;
             // register uint8_t l_divider = snd_divider + 4;
             //register uint16_t l_v = (uint16_t)((int32_t)sample + 0x8000L) >> 4;
-            pwm_set_gpio_level(PWM_PIN0, r_v);
-            pwm_set_gpio_level(PWM_PIN1, r_v);
+            pwm_set_gpio_level(PWM_PIN0, corrected_sample);
+            pwm_set_gpio_level(PWM_PIN1, corrected_sample);
 #endif
             last_sound_tick = tick;
         }
