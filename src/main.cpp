@@ -1,6 +1,5 @@
 extern "C" {
 #include "emulator.h"
-#include "manager.h"
 }
 
 #if PICO_ON_DEVICE
@@ -19,6 +18,7 @@ extern "C" {
 #include "vga.h"
 #include "ps2.h"
 #include "usb.h"
+#include "manager.h"
 }
 #if I2S_SOUND
 #include "audio.h"
@@ -32,7 +32,7 @@ extern "C" {
 SDL_Window* window;
 
 SDL_Surface* screen;
-volatile uint16_t true_covox = 0;
+uint16_t true_covox = 0;
 #endif
 
 bool PSRAM_AVAILABLE = false;
@@ -174,24 +174,12 @@ void __scratch_y("second_core") second_core() {
 
 #else
 
-static int RendererThread(void* ptr) {
-    while (runing) {
-        exec86(2000);
-    }
-    return 0;
-}
-volatile bool is_adlib_on = true;
-volatile bool is_covox_on = true;
-volatile bool is_game_balaster_on = true;
-volatile bool is_tandy3v_on = true;
-volatile bool is_dss_on = true;
-volatile bool is_sound_on = true;
-volatile uint8_t snd_divider = 0;
-volatile uint8_t cms_divider = 6;
-volatile uint8_t dss_divider = 0;
-volatile uint8_t adlib_divider = 0;
-volatile uint8_t tandy3v_divider = 8;
-volatile uint8_t covox_divider = 0;
+bool is_adlib_on = true;
+bool is_covox_on = true;
+bool is_game_balaster_on = true;
+bool is_tandy3v_on = true;
+bool is_dss_on = true;
+bool is_sound_on = true;
 bool covox_lpt2 = true;
 
 volatile bool is_xms_on = false;
@@ -199,6 +187,7 @@ volatile bool is_ems_on = true;
 volatile bool is_umb_on = true;
 volatile bool is_hma_on = true;
 
+static uint8_t dss_tick = 0;
 static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode only
     int16_t *output = (int16_t*)stream;
     output[0] = 0;
@@ -208,15 +197,16 @@ static void fill_audio(void* udata, uint8_t* stream, int len) { // for SDL mode 
         // 8 unsigned on LPT2 mix to signed 16
     }
 #endif
-
+#ifdef DSS
+    if (dss_tick++ >= 5) {
+        last_dss_sample = dss_sample();
+        dss_tick = 0;
+    }
+    output[0] +=  (int16_t) last_dss_sample;
+#endif
 #ifdef TANDY3V
     output[0] += sn76489_sample();
 #endif
-
-#ifdef DSS
-    output[0] += last_dss_sample;
-#endif
-
 #ifdef ADLIB
     output[0] = adlibgensample();
 #endif
@@ -303,9 +293,9 @@ int main() {
                                             screen->format->Amask);
     auto* pixels = (unsigned int *)drawsurface->pixels;
 #if SOUND_ENABLED
-    static SDL_AudioSpec wanted;
+    SDL_AudioSpec wanted;
     wanted.freq = SOUND_FREQUENCY;
-    wanted.format = AUDIO_U16;
+    wanted.format = AUDIO_S16;
     wanted.channels = 2;
     wanted.samples = 1;
     wanted.callback = fill_audio;
@@ -317,10 +307,10 @@ int main() {
     SDL_PauseAudio(0);
 
 #endif
-    if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
+    /*if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
         fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
         return -1;
-    }
+    }*/
 #endif
 
     vga_palette[0] = rgb(0, 0, 0);
@@ -834,9 +824,9 @@ int main() {
         SDL_BlitScaled(drawsurface, NULL, screen, NULL);
         SDL_UpdateWindowSurface(window);
 #else
-        exec86(2000);
         if_manager();
 #endif
+        exec86(2000);
     }
     return 0;
 }

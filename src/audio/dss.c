@@ -31,7 +31,7 @@ uint8_t dss_sample() { // core #1
     if (fifo_buffer_length == 0 || !dss_active || checks < 2) { // no bytes in buffer
         return 0;
     }
-    uint8_t sample = samples_buffer[0];
+    const uint8_t sample = samples_buffer[0];
 
     memmove(samples_buffer, samples_buffer + 1, FIFO_BUFFER_SIZE - 1);
 

@@ -248,7 +248,7 @@ inline static int32_t adlibsample(uint8_t curchan) {
 }
 
 int16_t adlibgensample() {
-    int32_t adlibaccum = 0;
+    int16_t adlibaccum = 0;
     for (int curchan = 0; curchan < 9; curchan++) {
         if (adlibfreq(curchan) != 0) {
             if (adlibdidattack[curchan]) {
@@ -259,7 +259,7 @@ int16_t adlibgensample() {
                 if (adlibenv[curchan] >= 1.0)
                     adlibdidattack[curchan] = 1;
             }
-            adlibaccum += adlibsample(curchan);
+            adlibaccum += (int16_t) adlibsample(curchan);
         }
     }
     return adlibaccum;
