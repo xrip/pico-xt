@@ -41,16 +41,17 @@ uint32_t DIRECT_RAM_BORDER = PSRAM_AVAILABLE ? RAM_SIZE : (SD_CARD_AVAILABLE ? R
 bool runing = true;
 static int16_t last_dss_sample = 0;
 #if PICO_ON_DEVICE
-pwm_config config = pwm_get_default_config();
-#define PWM_PIN0 (26)
-#define PWM_PIN1 (27)
+
 
 #ifdef I2S_SOUND
 i2s_config_t i2s_config = i2s_get_default_config();
 static int16_t samples[2][441*2] = { 0 };
 static int active_buffer = 0;
 static int sample_index = 0;
-
+#else
+pwm_config config = pwm_get_default_config();
+#define PWM_PIN0 (26)
+#define PWM_PIN1 (27)
 #endif
 
 
