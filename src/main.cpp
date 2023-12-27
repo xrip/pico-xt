@@ -319,10 +319,10 @@ int main() {
     SDL_PauseAudio(0);
 
 #endif
-    if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
+    /*if (!SDL_CreateThread(RendererThread, "renderer", nullptr)) {
         fprintf(stderr, "Could not create the renderer thread: %s\n", SDL_GetError());
         return -1;
-    }
+    }*/
 #endif
 
     vga_palette[0] = rgb(0, 0, 0);
@@ -835,8 +835,9 @@ int main() {
         }
         SDL_BlitScaled(drawsurface, NULL, screen, NULL);
         SDL_UpdateWindowSurface(window);
-#else
         exec86(2000);
+#else
+
         if_manager();
 #endif
     }
