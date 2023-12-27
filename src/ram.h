@@ -26,58 +26,16 @@ static __inline uint16_t read16arr0(uint8_t* arr, uint32_t addr32) {
     register uint16_t b0 = *arr;
     return b1 | (b0 << 8);
 }
-
+#include "ram_page.h"
 #if PICO_ON_DEVICE
   #include "psram_spi.h"
-  #include "ram_page.h"
 #else
-  #define EXT_RAM_SIZE 32 << 20 // 32Mb
-
-extern uint8_t EXTRAM[EXT_RAM_SIZE];
-#define psram_read8(a, addr32) EXTRAM[addr32]
-#define psram_read16(a, addr32) (uint16_t)EXTRAM[addr32]
-
-
-#define psram_write8(a, addr32, value) EXTRAM[addr32] = value
-#define psram_write16(a, addr32, value) EXTRAM[addr32] = value & 0xFF; \
-EXTRAM[addr32] = value >> 8;
-
-#define psram_write32(a, addr32, value)
-
-static uint8_t ram_page_read(uint32_t addr32) {
-    return EXTRAM[addr32];
-}
-
-static uint16_t ram_page_read16(uint32_t addr32) {
-    return (EXTRAM[addr32] + EXTRAM[addr32+1] << 8);
-}
-
-static void ram_page_write(uint32_t addr32, uint8_t value) {
-    EXTRAM[addr32] = value;
-}
-
-static inline void ram_page_write16(uint32_t addr32, uint16_t value) {
-    EXTRAM[addr32] = value & 0xFF;
-    EXTRAM[addr32] = value >> 8;
-}
-
-#define init_vram() 1
-#define psram_cleanup() 1
-
-static uint8_t read8psram(uint32_t addr32) {
-    return EXTRAM[addr32];
-}
-
-static uint16_t read16psram(uint32_t addr32) {
-    return (EXTRAM[addr32] + EXTRAM[addr32+1] << 8);
-}
-
-static void write8psram(uint32_t addr32, uint8_t value) {
-    EXTRAM[addr32] = value;
-}
-static void write16psram(uint32_t addr32, uint16_t value) {
-    EXTRAM[addr32] = value & 0xFF;
-    EXTRAM[addr32] = value >> 8;
-}
+#define EXT_RAM_SIZE 8 << 20 // 32Mb
+void init_psram();
+void psram_cleanup();
+void write8psram(uint32_t addr32, uint8_t v);
+void write16psram(uint32_t addr32, uint16_t v);
+uint8_t read8psram(uint32_t addr32);
+uint16_t read16psram(uint32_t addr32);
 #endif
 extern bool PSRAM_AVAILABLE;

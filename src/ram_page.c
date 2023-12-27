@@ -223,5 +223,54 @@ void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     }
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
+#else
+#include "stdint.h"
+#include "stdbool.h"
+
+#define EXT_RAM_SIZE 8 << 20 // 8Mb
+extern uint8_t EXTRAM[EXT_RAM_SIZE];
+extern uint8_t RAM[(640ul << 10)];
+
+void write8psram(uint32_t addr32, uint8_t v) {
+    EXTRAM[addr32] = v;
+}
+
+void write16psram(uint32_t addr32, uint16_t v) {
+    EXTRAM[addr32] = (uint8_t) v;
+    EXTRAM[addr32+1] = (uint8_t)(v >> 8);
+}
+
+void ram_page_write(uint32_t addr32, uint8_t value) {
+    EXTRAM[addr32] = value;
+}
+void ram_page_write16(uint32_t addr32, uint16_t value) {
+    EXTRAM[addr32] = (uint8_t) value;
+    EXTRAM[addr32+1] = (uint8_t)(value >> 8);
+}
+
+uint8_t read8psram(uint32_t addr32) {
+    return EXTRAM[addr32];
+}
+
+uint16_t read16psram(uint32_t addr32) {
+    return ((uint16_t)EXTRAM[addr32] | (uint16_t)EXTRAM[addr32+1] << 8);
+}
+
+uint8_t ram_page_read(uint32_t addr32) {
+    return EXTRAM[addr32];
+}
+
+uint16_t ram_page_read16(uint32_t addr32) {
+    return ((uint16_t)EXTRAM[addr32] | (uint16_t)EXTRAM[addr32+1] << 8);
+}
+
+bool init_vram() {
+    return true;
+}
+
+void psram_cleanup() {
+    return;
+}
+
 
 #endif
