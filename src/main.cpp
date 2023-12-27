@@ -307,7 +307,7 @@ int main() {
 #if SOUND_ENABLED
     static SDL_AudioSpec wanted;
     wanted.freq = SOUND_FREQUENCY;
-    wanted.format = AUDIO_U16;
+    wanted.format = AUDIO_S16;
     wanted.channels = 2;
     wanted.samples = 1;
     wanted.callback = fill_audio;
