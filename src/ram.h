@@ -42,7 +42,6 @@ extern uint8_t EXTRAM[EXT_RAM_SIZE];
 #define psram_write16(a, addr32, value) EXTRAM[addr32] = value & 0xFF; \
 EXTRAM[addr32] = value >> 8;
 
-#define psram_write32(a, addr32, value)
 
 static uint8_t ram_page_read(uint32_t addr32) {
     return EXTRAM[addr32];

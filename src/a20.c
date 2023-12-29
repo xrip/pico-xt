@@ -44,7 +44,7 @@ typedef struct xmm_handle {
 static xmm_handle_t xmm_handles[MAX_XMM_HANDLES] = { 0 };
 #endif
 
-INLINE uint8_t xmm_free_handles() {
+static uint8_t xmm_free_handles() {
     uint8_t res = 0;
 #if XMS_OVER_HMA_KB
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
@@ -54,7 +54,7 @@ INLINE uint8_t xmm_free_handles() {
     return res;
 }
 
-inline static uint16_t xmm_handle_size(uint16_t h) {
+static uint16_t xmm_handle_size(uint16_t h) {
 #if XMS_OVER_HMA_KB
     if (h == 0) {
         return 0;
@@ -71,11 +71,11 @@ inline static uint16_t xmm_handle_size(uint16_t h) {
 #endif
 }
 
-inline static uint16_t handle2seg(uint16_t handle) {
+static uint16_t handle2seg(uint16_t handle) {
     return (handle - 1)* XMS_STATIC_PAGE_PHARAGRAPS + BASE_XMS_HANLES_SEG;
 }
 
-INLINE uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
+static uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
 #if XMS_OVER_HMA_KB
     uint32_t w0 = readw86(tbl_addr++); tbl_addr++;
     uint32_t w1 = readw86(tbl_addr++); tbl_addr++;
@@ -130,7 +130,7 @@ INLINE uint8_t /*BL*/ move_ext_mem_block(uint32_t tbl_addr) {
 #endif
 }
 
-INLINE uint8_t /*BL*/ lock_ext_mem_block(uint16_t handle, uint16_t* pw1, uint16_t* pw0) {
+static uint8_t /*BL*/ lock_ext_mem_block(uint16_t handle, uint16_t* pw1, uint16_t* pw0) {
 #if XMS_OVER_HMA_KB
     if(handle > MAX_XMM_HANDLES) {
         return 0xA2; // the handle is invalid
@@ -169,7 +169,7 @@ uint8_t /*BL*/ unlock_ext_mem_block(uint16_t handle) {
 #endif
 }
 
-INLINE uint16_t xmm_used_kb() {
+static uint16_t xmm_used_kb() {
     uint16_t res = 0;
 #if XMS_OVER_HMA_KB
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
@@ -180,7 +180,7 @@ INLINE uint16_t xmm_used_kb() {
     return res;
 }
 
-INLINE uint16_t get_handle_feets(uint16_t kbs) {
+static uint16_t get_handle_feets(uint16_t kbs) {
 #if XMS_OVER_HMA_KB
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
         xmm_handle_t *ph = &xmm_handles[i];
@@ -204,7 +204,7 @@ INLINE uint16_t get_handle_feets(uint16_t kbs) {
     return 0xFFFF;
 }
 
-INLINE uint16_t xmm_free_kb() {
+static uint16_t xmm_free_kb() {
     uint16_t res = 0;
 #if XMS_OVER_HMA_KB
     for (uint16_t i = 0; i < MAX_XMM_HANDLES; ++i) {
@@ -215,7 +215,7 @@ INLINE uint16_t xmm_free_kb() {
     return res;
 }
 
-INLINE uint16_t xmm_max_block_kb() {
+static uint16_t xmm_max_block_kb() {
     uint16_t max = 0;
 #if XMS_OVER_HMA_KB
     uint16_t ri = 0;
@@ -236,7 +236,7 @@ INLINE uint16_t xmm_max_block_kb() {
     return max;
 }
 
-INLINE uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
+static uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
     uint16_t i = get_handle_feets(kbs);
     if (i == 0xFFFF) {
         *pBL = 0xA0; // not enough memory
@@ -261,7 +261,7 @@ INLINE uint16_t allocate_xmm_page(uint16_t kbs, uint8_t* pBL) {
     return 0;
 }
 
-INLINE uint8_t resize_xmm_page(uint16_t handle, uint16_t kbs) {
+static uint8_t resize_xmm_page(uint16_t handle, uint16_t kbs) {
 #if XMS_OVER_HMA_KB
     uint8_t save_lock = 0;
     for (uint16_t i = handle - 1; i < MAX_XMM_HANDLES; ++i) {
@@ -290,7 +290,7 @@ INLINE uint8_t resize_xmm_page(uint16_t handle, uint16_t kbs) {
     return 0xA1; // all available handlers are allocated
 }
 
-INLINE uint8_t deallocate_xmm_page(uint16_t h) {
+static uint8_t deallocate_xmm_page(uint16_t h) {
 #if XMS_OVER_HMA_KB
     if (h > MAX_XMM_HANDLES) {
         return 0xA2; // Invalid handler

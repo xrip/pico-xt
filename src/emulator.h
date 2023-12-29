@@ -4,7 +4,6 @@
 #pragma once
 #ifndef TINY8086_CPU8086_H
 #define TINY8086_CPU8086_H
-#define INLINE static
 
 // Settings for max 4MB 0f PSRAM
 #define TOTAL_VIRTUAL_MEMORY_KBS (4ul << 10)

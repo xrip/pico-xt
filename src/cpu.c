@@ -156,7 +156,7 @@ void reboot_detected() {
 }
 #endif
 
-INLINE void flag_szp8(uint8_t value) {
+static void flag_szp8(uint8_t value) {
     if (!value) {
         zf = 1;
     }
@@ -174,7 +174,7 @@ INLINE void flag_szp8(uint8_t value) {
     pf = parity[value]; /* retrieve parity state from lookup table */
 }
 
-INLINE void flag_szp16(uint16_t value) {
+static void flag_szp16(uint16_t value) {
     if (!value) {
         zf = 1;
     }
@@ -192,19 +192,19 @@ INLINE void flag_szp16(uint16_t value) {
     pf = parity[value & 255]; /* retrieve parity state from lookup table */
 }
 
-INLINE void flag_log8(uint8_t value) {
+static void flag_log8(uint8_t value) {
     flag_szp8(value);
     cf = 0;
     of = 0; /* bitwise logic ops always clear carry and overflow */
 }
 
-INLINE void flag_log16(uint16_t value) {
+static void flag_log16(uint16_t value) {
     flag_szp16(value);
     cf = 0;
     of = 0; /* bitwise logic ops always clear carry and overflow */
 }
 
-INLINE void flag_adc8(uint8_t v1, uint8_t v2, uint8_t v3) {
+static void flag_adc8(uint8_t v1, uint8_t v2, uint8_t v3) {
     /* v1 = destination operand, v2 = source operand, v3 = carry flag */
     uint16_t dst;
 
@@ -232,7 +232,7 @@ INLINE void flag_adc8(uint8_t v1, uint8_t v2, uint8_t v3) {
     }
 }
 
-INLINE void flag_adc16(uint16_t v1, uint16_t v2, uint16_t v3) {
+static void flag_adc16(uint16_t v1, uint16_t v2, uint16_t v3) {
     uint32_t dst;
 
     dst = (uint32_t)v1 + (uint32_t)v2 + (uint32_t)v3;
@@ -259,7 +259,7 @@ INLINE void flag_adc16(uint16_t v1, uint16_t v2, uint16_t v3) {
     }
 }
 
-INLINE void flag_add8(uint8_t v1, uint8_t v2) {
+static void flag_add8(uint8_t v1, uint8_t v2) {
     /* v1 = destination operand, v2 = source operand */
     uint16_t dst;
 
@@ -287,7 +287,7 @@ INLINE void flag_add8(uint8_t v1, uint8_t v2) {
     }
 }
 
-INLINE void flag_add16(uint16_t v1, uint16_t v2) {
+static void flag_add16(uint16_t v1, uint16_t v2) {
     /* v1 = destination operand, v2 = source operand */
     uint32_t dst;
 
@@ -315,7 +315,7 @@ INLINE void flag_add16(uint16_t v1, uint16_t v2) {
     }
 }
 
-INLINE void flag_sbb8(uint8_t v1, uint8_t v2, uint8_t v3) {
+static void flag_sbb8(uint8_t v1, uint8_t v2, uint8_t v3) {
     /* v1 = destination operand, v2 = source operand, v3 = carry flag */
     uint16_t dst;
 
@@ -344,7 +344,7 @@ INLINE void flag_sbb8(uint8_t v1, uint8_t v2, uint8_t v3) {
     }
 }
 
-INLINE void flag_sbb16(uint16_t v1, uint16_t v2, uint16_t v3) {
+static void flag_sbb16(uint16_t v1, uint16_t v2, uint16_t v3) {
     /* v1 = destination operand, v2 = source operand, v3 = carry flag */
     uint32_t dst;
 
@@ -373,7 +373,7 @@ INLINE void flag_sbb16(uint16_t v1, uint16_t v2, uint16_t v3) {
     }
 }
 
-INLINE void flag_sub8(uint8_t v1, uint8_t v2) {
+static void flag_sub8(uint8_t v1, uint8_t v2) {
     /* v1 = destination operand, v2 = source operand */
     uint16_t dst;
 
@@ -401,7 +401,7 @@ INLINE void flag_sub8(uint8_t v1, uint8_t v2) {
     }
 }
 
-INLINE void flag_sub16(uint16_t v1, uint16_t v2) {
+static void flag_sub16(uint16_t v1, uint16_t v2) {
     /* v1 = destination operand, v2 = source operand */
     uint32_t dst;
 
@@ -429,77 +429,77 @@ INLINE void flag_sub16(uint16_t v1, uint16_t v2) {
     }
 }
 
-INLINE void op_adc8() {
+static void op_adc8() {
     res8 = oper1b + oper2b + cf;
     flag_adc8(oper1b, oper2b, cf);
 }
 
-INLINE void op_adc16() {
+static void op_adc16() {
     res16 = oper1 + oper2 + cf;
     flag_adc16(oper1, oper2, cf);
 }
 
-INLINE void op_add8() {
+static void op_add8() {
     res8 = oper1b + oper2b;
     flag_add8(oper1b, oper2b);
 }
 
-INLINE void op_add16() {
+static void op_add16() {
     res16 = oper1 + oper2;
     flag_add16(oper1, oper2);
 }
 
-INLINE void op_and8() {
+static void op_and8() {
     res8 = oper1b & oper2b;
     flag_log8(res8);
 }
 
-INLINE void op_and16() {
+static void op_and16() {
     res16 = oper1 & oper2;
     flag_log16(res16);
 }
 
-INLINE void op_or8() {
+static void op_or8() {
     res8 = oper1b | oper2b;
     flag_log8(res8);
 }
 
-INLINE void op_or16() {
+static void op_or16() {
     res16 = oper1 | oper2;
     flag_log16(res16);
 }
 
-INLINE void op_xor8() {
+static void op_xor8() {
     res8 = oper1b ^ oper2b;
     flag_log8(res8);
 }
 
-INLINE void op_xor16() {
+static void op_xor16() {
     res16 = oper1 ^ oper2;
     flag_log16(res16);
 }
 
-INLINE void op_sub8() {
+static void op_sub8() {
     res8 = oper1b - oper2b;
     flag_sub8(oper1b, oper2b);
 }
 
-INLINE void op_sub16() {
+static void op_sub16() {
     res16 = oper1 - oper2;
     flag_sub16(oper1, oper2);
 }
 
-INLINE void op_sbb8() {
+static void op_sbb8() {
     res8 = oper1b - (oper2b + cf);
     flag_sbb8(oper1b, oper2b, cf);
 }
 
-INLINE void op_sbb16() {
+static void op_sbb16() {
     res16 = oper1 - (oper2 + cf);
     flag_sbb16(oper1, oper2, cf);
 }
 
-INLINE void getea(uint8_t rmval) {
+static void getea(uint8_t rmval) {
     uint32_t tempea;
 
     tempea = 0;
@@ -567,12 +567,12 @@ INLINE void getea(uint8_t rmval) {
     ea = (tempea & 0xFFFF) + (useseg << 4);
 }
 
-INLINE void push(uint16_t pushval) {
+static void push(uint16_t pushval) {
     CPU_SP = CPU_SP - 2;
     putmem16(CPU_SS, CPU_SP, pushval);
 }
 
-INLINE uint16_t pop() {
+static uint16_t pop() {
     uint16_t tempval;
 
     tempval = getmem16(CPU_SS, CPU_SP);
@@ -631,7 +631,7 @@ void reset86() {
     videomode = 3;
 }
 
-INLINE uint16_t readrm16(uint8_t rmval) {
+static uint16_t readrm16(uint8_t rmval) {
     if (mode < 3) {
         getea(rmval);
         return read86(ea) | ((uint16_t)read86(ea + 1) << 8);
@@ -639,7 +639,7 @@ INLINE uint16_t readrm16(uint8_t rmval) {
     return getreg16(rmval);
 }
 
-INLINE uint8_t readrm8(uint8_t rmval) {
+static uint8_t readrm8(uint8_t rmval) {
     if (mode < 3) {
         getea(rmval);
         return read86(ea);
@@ -647,7 +647,7 @@ INLINE uint8_t readrm8(uint8_t rmval) {
     return getreg8(rmval);
 }
 
-INLINE void writerm16(uint8_t rmval, uint16_t value) {
+static void writerm16(uint8_t rmval, uint16_t value) {
     if (mode < 3) {
         getea(rmval);
         write86(ea, value & 0xFF);
@@ -658,7 +658,7 @@ INLINE void writerm16(uint8_t rmval, uint16_t value) {
     }
 }
 
-INLINE void writerm8(uint8_t rmval, uint8_t value) {
+static void writerm8(uint8_t rmval, uint8_t value) {
     if (mode < 3) {
         getea(rmval);
         write86(ea, value);
@@ -1039,7 +1039,7 @@ static void intcall86(uint8_t intnum) {
 }
 
 
-INLINE uint8_t op_grp2_8(uint8_t cnt) {
+static uint8_t op_grp2_8(uint8_t cnt) {
     uint16_t s;
     uint16_t shift;
     uint16_t oldcf;
@@ -1165,7 +1165,7 @@ INLINE uint8_t op_grp2_8(uint8_t cnt) {
     return s & 0xFF;
 }
 
-INLINE uint16_t op_grp2_16(uint8_t cnt) {
+static uint16_t op_grp2_16(uint8_t cnt) {
     uint32_t s;
     uint32_t shift;
     uint32_t oldcf;
@@ -1288,7 +1288,7 @@ INLINE uint16_t op_grp2_16(uint8_t cnt) {
     return (uint16_t)s & 0xFFFF;
 }
 
-INLINE void op_div8(uint16_t valdiv, uint8_t divisor) {
+static void op_div8(uint16_t valdiv, uint8_t divisor) {
     if (divisor == 0) {
         intcall86(0);
         return;
@@ -1303,7 +1303,7 @@ INLINE void op_div8(uint16_t valdiv, uint8_t divisor) {
     CPU_AL = valdiv / (uint16_t)divisor;
 }
 
-INLINE void op_idiv8(uint16_t valdiv, uint8_t divisor) {
+static void op_idiv8(uint16_t valdiv, uint8_t divisor) {
     uint16_t s1;
     uint16_t s2;
     uint16_t d1;
@@ -1336,7 +1336,7 @@ INLINE void op_idiv8(uint16_t valdiv, uint8_t divisor) {
     CPU_AL = (uint8_t)d1;
 }
 
-INLINE void op_grp3_8() {
+static void op_grp3_8() {
     oper1 = signext(oper1b);
     oper2 = signext(oper2b);
     switch (reg) {
@@ -3983,7 +3983,7 @@ static write_fn_ptr __scratch_x("write_funcs") write_funtions[256] = { 0 };
 #else
 static write_fn_ptr  write_funtions[256] = { 0 };
 #endif
-static inline void write8video(uint32_t addr32, uint8_t v) {
+static void write8video(uint32_t addr32, uint8_t v) {
     VIDEORAM[(ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE] = v;
 }
 
@@ -4032,13 +4032,13 @@ static void write8low_swap(uint32_t addr32, uint8_t v) {
 // array of function pointers separated by 800h (32K) pages (less gradation to be implemented by "if" conditions)
 static write16_fn_ptr write16_funtions[256] = { 0 };
 
-static inline void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16_t value) {
+static void write16arr(uint8_t* arr, uint32_t base_addr, uint32_t addr32, uint16_t value) {
     register uint8_t* ptr = arr - base_addr + addr32;
     *ptr++ = (uint8_t)value;
     *ptr = (uint8_t)(value >> 8);
 }
 
-static inline void write16video(uint32_t addr32, uint16_t v) {
+static void write16video(uint32_t addr32, uint16_t v) {
     write16arr(VIDEORAM, 0, (ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE, v);
 }
 
@@ -4096,11 +4096,11 @@ uint8_t read8nothng(uint32_t addr32) {
     return 0;
 }
 
-static inline uint8_t read8video(uint32_t addr32) {
+static uint8_t read8video(uint32_t addr32) {
     return VIDEORAM[(ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE];
 }
 
-static inline uint8_t read86rom(uint32_t addr32) {
+static uint8_t read86rom(uint32_t addr32) {
     if ((addr32 >= 0xFE000UL) && (addr32 <= 0xFFFFFUL)) {
         // BIOS ROM range
         return BIOS[addr32 - 0xFE000UL];
@@ -4141,11 +4141,11 @@ static uint16_t read16nothng(uint32_t addr32) {
     return 0;
 }
 
-static inline uint16_t read16video(uint32_t addr32) {
+static uint16_t read16video(uint32_t addr32) {
     return read16arr0(VIDEORAM, (ega_plane_offset + addr32 - VIDEORAM_START32) % VIDEORAM_SIZE);
 }
 
-static inline uint16_t read86rom16(uint32_t addr32) {
+static uint16_t read86rom16(uint32_t addr32) {
     if (addr32 >= 0xFE000UL && addr32 <= 0xFFFFFUL) {
         // BIOS ROM range
         return read16arr(BIOS, 0xFE000UL, addr32);
