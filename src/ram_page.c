@@ -1,5 +1,5 @@
-#if PICO_ON_DEVICE
 #include "ram_page.h"
+#if PICO_ON_DEVICE
 #include "f_util.h"
 #include "ff.h"
 #include "emm.h"
@@ -224,12 +224,7 @@ void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     gpio_put(PICO_DEFAULT_LED_PIN, false);
 }
 #else
-#include "stdint.h"
-#include "stdbool.h"
-
-#define EXT_RAM_SIZE 8 << 20 // 8Mb
 extern uint8_t EXTRAM[EXT_RAM_SIZE];
-extern uint8_t RAM[(640ul << 10)];
 
 void write8psram(uint32_t addr32, uint8_t v) {
     EXTRAM[addr32] = v;
