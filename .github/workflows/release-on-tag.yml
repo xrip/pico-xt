@@ -80,8 +80,10 @@ jobs:
                  mkdir build && cd build && \
                  cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DOVERCLOCKING=366 .. && cmake --build . &&\
                  cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DOVERCLOCKING=366 -DI2S_SOUND=ON .. && cmake --build . &&\
-                 cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DOVERCLOCKING=408 .. && cmake --build . &&\
-                 cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DOVERCLOCKING=408 -DI2S_SOUND=ON .. && cmake --build .
+                 cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DOVERCLOCKING=396 .. && cmake --build . &&\
+                 cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DOVERCLOCKING=396 -DI2S_SOUND=ON .. && cmake --build . &&\
+                 cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DOVERCLOCKING=416 .. && cmake --build . &&\
+                 cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -DOVERCLOCKING=416 -DI2S_SOUND=ON .. && cmake --build . &&\
 
           - name: Build for linux host
             run: |
