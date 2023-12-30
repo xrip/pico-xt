@@ -1,3 +1,6 @@
+# v1.0.0rc3
+- maximum speed  
+
 # v1.0.0rc2
 - sound engine refactored
 - I2S sound output support
