@@ -148,6 +148,7 @@ else ()
     )
     if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
         target_compile_options(${PROJECT_NAME} PUBLIC
+                -mcpu=cortex-m0plus
                 -Wno-error=suggest-attribute=format
                 -Wno-error=cast-qual
                 -Wno-error=unused-parameter
@@ -240,7 +241,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
         #DMA_8237
 )
-
+target_link_options(${PROJECT_NAME} PRIVATE -Xlinker --print-memory-usage)
 
 pico_enable_stdio_uart(${PROJECT_NAME} 0)
 pico_enable_stdio_usb(${PROJECT_NAME} 0)
