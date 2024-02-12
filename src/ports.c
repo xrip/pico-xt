@@ -316,9 +316,9 @@ void portout(uint16_t portnum, uint16_t value) {
             uint8_t bg_color = value & 0xf;
             cga_colorset = value >> 5 & 1;
             cga_intensity = value >> 4 & 1;
-            char tmp[80];
-            snprintf(tmp, 80, "VIDEOMODE: colorset: %i intensity: %i value: %x", cga_colorset, cga_intensity, value);
-            logMsg(tmp);
+            // char tmp[80];
+            // snprintf(tmp, 80, "VIDEOMODE: colorset: %i intensity: %i value: %x", cga_colorset, cga_intensity, value);
+            // logMsg(tmp);
 #if PICO_ON_DEVICE
             graphics_set_palette(0, bg_color != 0xf ? cga_palette[bg_color] : 0);
 
@@ -351,7 +351,7 @@ void portout(uint16_t portnum, uint16_t value) {
             if (videomode >= 0xd) return;
         // third cga palette (black/red/cyan/white)
             if (videomode == 5 && (port3D8 >> 2) & 1) {
-                logMsg("the unofficial Mode 5 palette, accessed by disabling ColorBurst\n");
+                // logMsg("the unofficial Mode 5 palette, accessed by disabling ColorBurst\n");
                 cga_colorset = 2;
 #if PICO_ON_DEVICE
                 for (int i = 0; i < 4; i++) {

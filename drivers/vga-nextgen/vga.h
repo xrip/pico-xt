@@ -7,6 +7,9 @@
 #define beginVGA_PIN (6)
 #define VGA_DMA_IRQ (DMA_IRQ_0)
 
+#define TEXTMODE_COLS 80
+#define TEXTMODE_ROWS 30
+
 enum graphics_mode_t {
     TEXTMODE_40x30,
     TEXTMODE_80x30,
@@ -41,7 +44,7 @@ void graphics_set_bgcolor(uint32_t color888);
 
 void clrScr(uint8_t color);
 
-void draw_text(char *string, int x, int y, uint8_t color, uint8_t bgcolor);
+void draw_text(const char string[TEXTMODE_COLS], uint32_t x, uint32_t y, uint8_t color, uint8_t bgcolor);
 
 void logMsg(char * msg);
 

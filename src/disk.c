@@ -82,9 +82,9 @@ static _FILE* tryFlushROM(uint8_t drivenum, size_t size, char *ROM, char *path) 
 #include "fat12.h"
 
 static _FILE* tryDefaultDrive(uint8_t drivenum, size_t size, char *path) {
-    char* tmp[40];
-    sprintf(tmp, "Drive 0x%02X not found. Will try to init %s by size: %f MB...", drivenum, path, (size / 1024 / 1024.0f));
-    logMsg(tmp);
+    // char* tmp[40];
+    // sprintf(tmp, "Drive 0x%02X not found. Will try to init %s by size: %f MB...", drivenum, path, (size / 1024 / 1024.0f));
+    // logMsg(tmp);
     _FILE *pFile = actualDrive(drivenum);
     FRESULT result = f_open(pFile, path, FA_WRITE | FA_CREATE_ALWAYS);
     if (result != FR_OK) {

@@ -171,7 +171,7 @@ bool init_vram() {
 FRESULT vram_seek(FIL* fp, uint32_t file_offset) {
     FRESULT result = f_lseek(&file, file_offset);
     if (result != FR_OK) {
-        char tmp[40];
+        char tmp[80];
         result = f_open(&file, path, FA_READ | FA_WRITE);
         if (result != FR_OK) {
             sprintf(tmp, "Unable to open pagefile.sys: %s (%d)", FRESULT_str(result), result);
@@ -197,7 +197,7 @@ void read_vram_block(char* dst, uint32_t file_offset, uint32_t sz) {
     UINT br;
     result = f_read(&file, dst, sz, &br);
     if (result != FR_OK) {
-        char tmp[40];
+        char tmp[80];
         sprintf(tmp, "Failed to f_read: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
     }
@@ -217,7 +217,7 @@ void flush_vram_block(const char* src, uint32_t file_offset, uint32_t sz) {
     UINT bw;
     result = f_write(&file, src, sz, &bw);
     if (result != FR_OK) {
-        char tmp[40];
+        char tmp[80];
         sprintf(tmp, "Failed to f_write: %s (%d)", FRESULT_str(result), result);
         logMsg(tmp);
     }

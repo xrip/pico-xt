@@ -727,9 +727,9 @@ static void intcall86(uint8_t intnum) {
                     }
                 // http://www.techhelpmanual.com/114-video_modes.html
                 // http://www.techhelpmanual.com/89-video_memory_layouts.html
-                    char tmp[40];
-                    snprintf(tmp, 40, "VBIOS: Mode AH=0x%x (videomode: 0x%x)", CPU_AX, videomode);
-                    logMsg(tmp);
+                    // char tmp[40];
+                    // snprintf(tmp, 40, "VBIOS: Mode AH=0x%x (videomode: 0x%x)", CPU_AX, videomode);
+                    // logMsg(tmp);
 #if PICO_ON_DEVICE
                     if (videomode <= 0xd) {
                         graphics_set_buffer(VIDEORAM + 32768, 320, 200);
