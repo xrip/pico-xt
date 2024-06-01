@@ -1,5 +1,7 @@
 # Raspberry Pi Pico PC XT (8086/8088) Emulator for MURMULATOR devboard
 
+# To achieve best performance you SHOULD have PSRAM chip installed
+
 ![build master](https://github.com/xrip/pico-xt/actions/workflows/release-on-tag.yml/badge.svg?branch=master)
 
 To use HDD: save hdd.img (from hdd.img.zip) to <SD-card-drive>:\XT\hdd.img
