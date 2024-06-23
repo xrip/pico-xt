@@ -15,16 +15,19 @@
 #ifdef SWAP_BLOCK_1k
 #define RAM_PAGE_SIZE_KB 1ul
 #define RAM_IN_PAGE_ADDR_MASK (0x000003FF)
+#define SHIFT_AS_DIV 10
 #endif
 // --- select only one of 'em
 #ifdef SWAP_BLOCK_2k
 #define RAM_PAGE_SIZE_KB 2ul
 #define RAM_IN_PAGE_ADDR_MASK (0x000007FF)
+#define SHIFT_AS_DIV 11
 #endif
 // --- select only one of 'em
 #ifdef SWAP_BLOCK_4k
 #define RAM_PAGE_SIZE_KB 4ul
 #define RAM_IN_PAGE_ADDR_MASK (0x00000FFF)
+#define SHIFT_AS_DIV 12
 #endif
 // --- select only one of 'em ^
 

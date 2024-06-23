@@ -89,7 +89,7 @@ static uint16_t last_ram_page = 0;
 static uint32_t last_lba_page = 0;
 
 uint32_t get_ram_page_for(const uint32_t addr32) {
-    const register uint32_t lba_page = addr32 / RAM_PAGE_SIZE; // 4KB page idx
+    const register uint32_t lba_page = addr32 >> SHIFT_AS_DIV; // page idx
     if (last_lba_page == lba_page) {
         return last_ram_page;
     }
