@@ -28,7 +28,7 @@
 #include <string.h>
 
 #include "tusb.h"
-#include "bsp/board_api.h"
+#include "bsp/board.h"
 #include "usb.h"
 
 //--------------------------------------------------------------------+
@@ -57,9 +57,9 @@ void init_pico_usb_drive() {
     board_init();
     // init device stack on configured roothub port
     tud_init(BOARD_TUD_RHPORT);
-    if (board_init_after_tusb) {
-       board_init_after_tusb();
-    }
+//    if (board_init_after_tusb) {
+//       board_init_after_tusb();
+//    }
 }
 
 void pico_usb_drive_heartbeat() {

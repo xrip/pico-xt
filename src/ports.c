@@ -35,6 +35,10 @@ bool vga_planar_mode = false;
 static bool flip3C0 = false;
 extern bool covox_lpt2;
 
+extern void sn76489_write(uint8_t byte);
+extern void saa1099_write(uint8_t chip, uint8_t addr, uint8_t byte);
+extern void ymf262_write_byte(uint8_t addr, uint8_t register_set, uint8_t byte);
+
 void portout(uint16_t portnum, uint16_t value) {
     //if (portnum == 0x80) {
     //    printf("Diagnostic port out: %04X\r\n", value);
@@ -131,7 +135,8 @@ void portout(uint16_t portnum, uint16_t value) {
         case 0xC5:
         case 0xC6:
         case 0xC7:
-            sn76489_out(value);
+             sn76489_write(value & 0xff);
+            //sn76489_out(value);
             break;
 #if SOUND_BLASTER
         //
@@ -157,16 +162,24 @@ void portout(uint16_t portnum, uint16_t value) {
 #if CMS
         case 0x220:
         case 0x221:
+
         case 0x222:
         case 0x223:
+
         case 0x224:
         case 0x225:
+
         case 0x226:
         case 0x227:
+
         case 0x228:
         case 0x229:
+
         case 0x22a:
-            cms_out(portnum, value);
+
+            saa1099_write((portnum & 2) >> 1, 0, portnum & 0xf);
+            saa1099_write((portnum & 2) >> 1, 1, value & 0xff);
+            //cms_out(portnum, value);
             break;
 #endif
 #if DSS || COVOX
@@ -193,7 +206,11 @@ void portout(uint16_t portnum, uint16_t value) {
 #endif
 #if SOUND_BLASTER || ADLIB
         case 0x388: // adlib
+            ymf262_write_byte(0,0, value & 0xff);
+            outadlib(portnum, value);
+            break;
         case 0x389:
+            ymf262_write_byte(1,0, value & 0xff);
             outadlib(portnum, value);
             break;
 #endif

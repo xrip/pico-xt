@@ -23,7 +23,7 @@
  *
  */
 
-#include "bsp/board_api.h"
+#include "bsp/board.h"
 #include "tusb.h"
 
 /* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
@@ -213,7 +213,7 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
       break;
 
     case STRID_SERIAL:
-      chr_count = board_usb_get_serial(_desc_str + 1, 32);
+      //chr_count = board_usb_get_serial(_desc_str + 1, 32);
       break;
 
     default:

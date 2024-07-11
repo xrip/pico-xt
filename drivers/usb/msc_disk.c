@@ -23,7 +23,7 @@
  *
  */
 
-#include "bsp/board_api.h"
+#include "bsp/board.h"
 #include "tusb.h"
 #include "usb.h"
 #include "emulator.h"

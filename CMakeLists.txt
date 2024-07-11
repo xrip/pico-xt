@@ -231,12 +231,12 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
         #I2S_SOUND
         # PWM mode for i2s driver
         #AUDIO_PWM_PIN=26
-        #CMS
+        CMS
         #SOUND_BLASTER
-        #ADLIB
+        ADLIB
         TANDY3V
-        COVOX
-        DSS
+        #COVOX
+        #DSS
 
 #        ROM_DRIVE_B=1
 

@@ -20,7 +20,7 @@ extern "C" {
 #include "usb.h"
 #include "manager.h"
 }
-#if I2S_SOUND
+#if I2S_SOUND1
 #include "audio.h"
 #endif
 #else
@@ -43,7 +43,7 @@ static int16_t last_dss_sample = 0;
 #if PICO_ON_DEVICE
 bool PSRAM_AVAILABLE = false;
 
-#ifdef I2S_SOUND
+#ifdef I2S_SOUND1
 i2s_config_t i2s_config = i2s_get_default_config();
 static int16_t samples[2][441*2] = { 0 };
 static int active_buffer = 0;
@@ -57,16 +57,20 @@ pwm_config config = pwm_get_default_config();
 
 uint16_t true_covox = 0;
 
+extern "C" void init_74hc595();
 struct semaphore vga_start_semaphore;
 /* Renderer loop on Pico's second core */
 void __scratch_y("second_core") second_core() {
+
 #ifdef SOUND_ENABLED
 #ifdef I2S_SOUND
+    /*
     i2s_config.sample_freq = SOUND_FREQUENCY;
     i2s_config.dma_trans_count = SOUND_FREQUENCY / 100;
     i2s_volume(&i2s_config, 0);
     i2s_init(&i2s_config);
     sleep_ms(100);
+     */
 #else
     gpio_set_function(BEEPER_PIN, GPIO_FUNC_PWM);
     pwm_init(pwm_gpio_to_slice_num(BEEPER_PIN), &config, true);
@@ -109,7 +113,7 @@ void __scratch_y("second_core") second_core() {
             last_cursor_blink = tick;
         }
 
-#ifdef SOUND_ENABLED
+#ifdef SOUND_ENABLED1
 #ifdef DSS
         // (1000000 / 7000) ~= 140
         if (tick >= last_dss_tick + 140) {
@@ -249,6 +253,7 @@ int main() {
         sleep_ms(23);
         gpio_put(PICO_DEFAULT_LED_PIN, false);
     }
+    init_74hc595();
 
     nespad_begin(clock_get_hz(clk_sys) / 1000, NES_GPIO_CLK, NES_GPIO_DATA, NES_GPIO_LAT);
     keyboard_init();
