@@ -90,7 +90,7 @@ void saa1099_write(uint8_t chip, uint8_t addr, uint8_t byte) {
     const uint16_t cs = chip ? SAA_2_CS : SAA_1_CS;
 
     write_74hc595(byte | a0 | LOW(cs)); // опускаем только тот который надо
-    busy_wait_us(1);
+    busy_wait_us(5);
     write_74hc595(byte | a0 | HIGH(cs)); // Возвращаем оба обратно
 
 //    write_74hc595(HIGH(chip ? SAA_2_CS : SAA_1_CS));

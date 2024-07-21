@@ -162,7 +162,13 @@ void portout(uint16_t portnum, uint16_t value) {
 #if CMS
         case 0x220:
         case 0x221:
+            switch (portnum - 0x220) {
+                case 0: saa1099_write(0, 0, value & 0xf); break;
+                case 1: saa1099_write(0, 1, value & 0xff); break;
+                case 3: saa1099_write(1, 0, value & 0xf); break;
+                case 4: saa1099_write(1, 1, value & 0xff); break;
 
+            }
         case 0x222:
         case 0x223:
 
@@ -177,8 +183,6 @@ void portout(uint16_t portnum, uint16_t value) {
 
         case 0x22a:
 
-            saa1099_write((portnum & 2) >> 1, 0, portnum & 0xf);
-            saa1099_write((portnum & 2) >> 1, 1, value & 0xff);
             //cms_out(portnum, value);
             break;
 #endif
