@@ -148,9 +148,7 @@ void __scratch_y("second_core") second_core() {
             samples[active_buffer][sample_index * 2] = sample;
             samples[active_buffer][sample_index * 2 + 1] = sample;
 
-#ifdef CMS
-            cms_samples(&samples[active_buffer][sample_index * 2]);
-#endif
+
 
             if (sample_index++ >= i2s_config.dma_trans_count) {
                 sample_index = 0;
@@ -158,12 +156,18 @@ void __scratch_y("second_core") second_core() {
                 active_buffer ^= 1;
             }
 #else
+            int16_t samples[2] = { sample, sample };
+#ifdef CMS
+
+            cms_samples(samples);
+#endif
             // register uint8_t r_divider = snd_divider + 4; // TODO: tume up divider per channel
-            uint16_t corrected_sample = (uint16_t)((int32_t)sample + 0x8000L) >> 4;
+            uint16_t corrected_sample_l = (uint16_t)((int32_t)samples[0] + 0x8000L) >> 4;
+            uint16_t corrected_sample_r = (uint16_t)((int32_t)samples[1] + 0x8000L) >> 4;
             // register uint8_t l_divider = snd_divider + 4;
             //register uint16_t l_v = (uint16_t)((int32_t)sample + 0x8000L) >> 4;
-            pwm_set_gpio_level(PWM_PIN0, corrected_sample);
-            pwm_set_gpio_level(PWM_PIN1, corrected_sample);
+            pwm_set_gpio_level(PWM_PIN0, corrected_sample_l);
+            pwm_set_gpio_level(PWM_PIN1, corrected_sample_r);
 #endif
             last_sound_tick = tick;
         }
