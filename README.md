@@ -1,6 +1,13 @@
-# Raspberry Pi Pico PC XT (8086/8088) Emulator for MURMULATOR devboard
+# This project evolved in the form of [Pico-286](https://github.com/xrip/pico-286), this repository is preserved for the sake of history and now archied.
 
-# To achieve best performance you SHOULD have PSRAM chip installed
+
+
+
+
+
+### Raspberry Pi Pico PC XT (8086/8088) Emulator for MURMULATOR devboard
+
+### To achieve best performance you SHOULD have PSRAM chip installed
 
 ![build master](https://github.com/xrip/pico-xt/actions/workflows/release-on-tag.yml/badge.svg?branch=master)
 
